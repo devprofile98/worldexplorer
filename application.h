@@ -4,8 +4,30 @@
 #include <GLFW/glfw3.h>
 #include <glfw3webgpu.h>
 
+#include <array>
+
+#include "binding_group.h"
+#include "camera.h"
+#include "glm/ext.hpp"
+#include "glm/glm.hpp"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
+
+struct MyUniform {
+        glm::mat4 projectMatrix;
+        glm::mat4 viewMatrix;
+        glm::mat4 modelMatrix;
+        glm::vec4 color;
+        float time;
+        float _padding[3];
+
+        void setCamera(const Camera& camera);
+};
+
+/**
+ * A structure that describes the data layout in the vertex buffer
+ * We do not instantiate it but use it in `sizeof` and `offsetof`
+ */
 
 class Application {
     public:
@@ -15,6 +37,8 @@ class Application {
         bool isRunning();
 
     private:
+        Camera mCamera;
+
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();
         void initializePipeline();
@@ -26,10 +50,18 @@ class Application {
         GLFWwindow* mWindow;
         WGPURenderPipeline mPipeline;
         WGPUTextureFormat mSurfaceFormat = WGPUTextureFormat_Undefined;
-        WGPUBuffer mBuffer1, mBuffer2;
 
-        WGPUBuffer mVertexBuffer;
-        uint32_t mVertexCount;
+        WGPUBindGroup mBindGroup;
+        WGPUBuffer mBuffer1, mBuffer2;
+        WGPUBuffer mUniformBuffer;
+        WGPUBuffer mVertexBuffer, mIndexBuffer;
+
+        BindingGroup mBindingGroup;
+
+        MyUniform mUniforms;
+        uint32_t mIndexCount;
+
+        WGPUTextureView mDepthTextureView;
 };
 
 #endif  // TEST_WGPU_APPLICTION_H

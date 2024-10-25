@@ -12,7 +12,10 @@ add_subdirectory(webgpu)
 # include_directories()
 # target_link_libraries(App PRIVATE webgpu)
 
-add_executable(App main.cpp wgpu_utils.cpp application.cpp)
+# set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+
+add_executable(App main.cpp wgpu_utils.cpp application.cpp utils.cpp texture.cpp binding_group.cpp camera.cpp)
+target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")
 
 target_include_directories(App PUBLIC "${CMAKE_SOURCE_DIR}/webgpu")
 # target_link_libraries(App PRIVATE wgpu_native_static)
