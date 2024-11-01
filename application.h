@@ -35,6 +35,20 @@ class Application {
         void terminate();
         void mainLoop();
         bool isRunning();
+        void onResize();
+        void updateProjectionMatrix();
+
+        // Mouse events
+        void onMouseMove(double xpos, double ypos);
+        void onMouseButton(int button, int action, int mods);
+        void onScroll(double xoffset, double yoffset);
+
+        bool initSwapChain();
+        bool initDepthBuffer();
+        void terminateSwapChain();
+        void terminateDepthBuffer();
+        void updateViewMatrix();
+        void updateDragInertia();
 
     private:
         Camera mCamera;
@@ -62,6 +76,7 @@ class Application {
         uint32_t mIndexCount;
 
         WGPUTextureView mDepthTextureView;
+        WGPUTexture mDepthTexture;
 };
 
 #endif  // TEST_WGPU_APPLICTION_H

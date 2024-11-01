@@ -174,28 +174,7 @@ void Application::initializePipeline() {
 
     pipeline_descriptor.depthStencil = &depth_stencil_state;
 
-    WGPUTextureDescriptor depth_texture_descriptor = {};
-    depth_texture_descriptor.nextInChain = nullptr;
-    depth_texture_descriptor.dimension = WGPUTextureDimension_2D;
-    depth_texture_descriptor.format = depth_texture_format;
-    depth_texture_descriptor.mipLevelCount = 1;
-    depth_texture_descriptor.sampleCount = 1;
-    depth_texture_descriptor.size = {640, 480, 1};
-    depth_texture_descriptor.usage = WGPUTextureUsage_RenderAttachment;
-    depth_texture_descriptor.viewFormatCount = 1;
-    depth_texture_descriptor.viewFormats = &depth_texture_format;
-    WGPUTexture depth_texture = wgpuDeviceCreateTexture(mDevice, &depth_texture_descriptor);
-
-    // Create the view of the depth texture manipulated by the rasterizer
-    WGPUTextureViewDescriptor depth_texture_view_desc;
-    depth_texture_view_desc.aspect = WGPUTextureAspect_DepthOnly;
-    depth_texture_view_desc.baseArrayLayer = 0;
-    depth_texture_view_desc.arrayLayerCount = 1;
-    depth_texture_view_desc.baseMipLevel = 0;
-    depth_texture_view_desc.mipLevelCount = 1;
-    depth_texture_view_desc.dimension = WGPUTextureViewDimension_2D;
-    depth_texture_view_desc.format = depth_texture_format;
-    mDepthTextureView = wgpuTextureCreateView(depth_texture, &depth_texture_view_desc);
+    initDepthBuffer();
 
     // blend state
     WGPUBlendState blend_state = {};
@@ -219,7 +198,8 @@ void Application::initializePipeline() {
     pipeline_descriptor.multisample.mask = ~0u;
     pipeline_descriptor.multisample.alphaToCoverageEnabled = false;
 
-    Texture simple_texture{mDevice, RESOURCE_DIR "/fourareen2K_albedo.jpg"};
+    WGPUTextureView textureView = {};
+    Texture simple_texture{mDevice, RESOURCE_DIR "/fourareen2K_albedo.jpg", &textureView};
 
     std::vector<uint8_t> pixels(4 * 256 * 256);
     for (uint32_t i = 0; i < 256; ++i) {
@@ -245,7 +225,7 @@ void Application::initializePipeline() {
 
     // Uniform variable and Binding groups
     // std::vector<WGPUBindGroupLayoutEntry> binding_layout_entries{3};
-    std::cout << std::format("this log Stop Application from crashing");
+    // std::cout << std::format("this log Stop Application from crashing");
 
     WGPUBindGroupLayoutEntry binding_layout_entries = {};
     setDefault(binding_layout_entries);
@@ -293,16 +273,6 @@ void Application::initializePipeline() {
     binding[0].offset = 0;
     binding[0].size = sizeof(MyUniform);
 
-    WGPUTextureViewDescriptor textureViewDesc = {};
-    textureViewDesc.aspect = WGPUTextureAspect_All;
-    textureViewDesc.baseArrayLayer = 0;
-    textureViewDesc.arrayLayerCount = 1;
-    textureViewDesc.baseMipLevel = 0;
-    textureViewDesc.mipLevelCount = 8;
-    textureViewDesc.dimension = WGPUTextureViewDimension_2D;
-    textureViewDesc.format = WGPUTextureFormat_RGBA8Unorm;
-    WGPUTextureView textureView = wgpuTextureCreateView(simple_texture.getTexture(), &textureViewDesc);
-
     binding[1].nextInChain = nullptr;
     binding[1].binding = 1;
     binding[1].textureView = textureView;
@@ -335,43 +305,6 @@ void Application::initializePipeline() {
 
     // ---------------------------- End of Render Pipeline
 }
-
-void setupCamera(MyUniform& uniform) {
-    constexpr float PI = 3.14159265358979323846f;
-    float angle = (float)glfwGetTime();
-
-    glm::mat4 S = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2f});
-    glm::mat4 T = glm::translate(glm::mat4{1.0f}, glm::vec3{-0.1f, 0.25f, 0.2f});
-    glm::mat4 R1 = glm::rotate(glm::mat4{1.0f}, -angle, glm::vec3{0.0, 0.0, 1.0});
-
-    uniform.modelMatrix = R1 * T * S;
-
-    glm::vec3 focal_point{0.0, 0.0, -2.0};
-    glm::mat4 T2 = glm::translate(glm::mat4{1.0f}, -focal_point);
-
-    // Rotate the view point
-    float angle2 = 3.0 * PI / 4.0;
-    glm::mat4 R2 = glm::rotate(glm::mat4{1.0f}, -angle2, glm::vec3{1.0, 0.0, 0.0});
-
-    uniform.viewMatrix = T2 * R2;
-
-    float ratio = 640.0f / 480.0f;
-    float focal_length = 2.0;
-    float near = 0.01f;
-    float far = 100.0f;
-    float divider = 1.0f / (focal_length * (far - near));
-    float fov = 2 * glm::atan(1 / focal_length);
-    glm::mat4 P = glm::perspective(fov, ratio, near, far);
-
-    P = glm::transpose(glm::mat4{
-        1.0, 0.0, 0.0, 0.0,                              //
-        0.0, ratio, 0.0, 0.0,                            //
-        0.0, 0.0, far * divider, -far * near * divider,  //
-        0.0, 0.0, 1.0 / focal_length, 0.0,               //
-    });
-
-    uniform.projectMatrix = P;
-};
 
 // Initializing Vertex Buffers
 void Application::initializeBuffers() {
@@ -433,15 +366,37 @@ void Application::initializeBuffers() {
     // glm::mat4 S = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2f});
     // glm::mat4 T = glm::translate(glm::mat4{1.0f}, glm::vec3{-0.1f, 0.25f, 0.2f});
     // glm::mat4 R1 = glm::rotate(glm::mat4{1.0f}, -angle, glm::vec3{0.0, 0.0, 1.0});
-    mCamera = Camera{{-0.1f, -0.4f, 0.0f}, glm::vec3{0.8f}, {1.0, 0.0, 0.0}, 0.0};
+    mCamera = Camera{{-0.0f, -0.0f, 0.0f}, glm::vec3{0.8f}, {1.0, 0.0, 0.0}, 0.0};
     std::cerr << "Could not initialize GLFW! ------------ " << std::endl;
     mUniforms.setCamera(mCamera);
     wgpuQueueWriteBuffer(mQueue, mUniformBuffer, 0, &mUniforms, buffer_descriptor.size);
+    // updateViewMatrix();
 }
 
 // We define a function that hides implementation-specific variants of device polling:
 void wgpuPollEvents([[maybe_unused]] WGPUDevice device, [[maybe_unused]] bool yieldToWebBrowser) {
     wgpuDevicePoll(device, false, nullptr);
+}
+
+void Application::onResize() {
+    // Terminate in reverse order
+    terminateDepthBuffer();
+    terminateSwapChain();
+
+    // Re-init
+    initSwapChain();
+    initDepthBuffer();
+    updateProjectionMatrix();
+}
+
+void onWindowResize(GLFWwindow* window, int /* width */, int /* height */) {
+    // We know that even though from GLFW's point of view this is
+    // "just a pointer", in our case it is always a pointer to an
+    // instance of the class `Application`
+    auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+
+    // Call the actual class-member callback
+    if (that != nullptr) that->onResize();
 }
 
 bool Application::initialize() {
@@ -455,13 +410,29 @@ bool Application::initialize() {
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);  // <-- extra info for glfwCreateWindow
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     mWindow = glfwCreateWindow(640, 480, "Learn WebGPU", nullptr, nullptr);
     if (!mWindow) {
         std::cerr << "Could not open window!" << std::endl;
         glfwTerminate();
         return false;
     }
+
+    // Set up Callbacks
+    glfwSetWindowUserPointer(mWindow, this);  // set user pointer to be used in the callback function
+    glfwSetFramebufferSizeCallback(mWindow, onWindowResize);
+    glfwSetCursorPosCallback(mWindow, [](GLFWwindow* window, double xpos, double ypos) {
+        auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+        if (that != nullptr) that->onMouseMove(xpos, ypos);
+    });
+    glfwSetMouseButtonCallback(mWindow, [](GLFWwindow* window, int button, int action, int mods) {
+        auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+        if (that != nullptr) that->onMouseButton(button, action, mods);
+    });
+    glfwSetScrollCallback(mWindow, [](GLFWwindow* window, double xoffset, double yoffset) {
+        auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+        if (that != nullptr) that->onScroll(xoffset, yoffset);
+    });
 
     WGPUInstanceDescriptor desc = {};
     desc.nextInChain = nullptr;
@@ -510,6 +481,7 @@ bool Application::initialize() {
     std::cout << std::format("Successfuly initialized GLFW and the surface is {:p}", (void*)mSurface) << std::endl;
     wgpuSurfaceGetCapabilities(mSurface, adapter, &capabilities);
     surface_configuration.format = capabilities.formats[0];
+    std::cout << "Surface texture format is : " << surface_configuration.format << std::endl;
     mSurfaceFormat = capabilities.formats[0];
     wgpuSurfaceCapabilitiesFreeMembers(capabilities);
 
@@ -585,6 +557,19 @@ bool Application::initialize() {
     return true;
 }
 
+void Application::updateViewMatrix() {
+    auto& camera_state = mCamera.getSate();
+    float cx = cos(camera_state.angles.x);
+    float sx = sin(camera_state.angles.x);
+    float cy = cos(camera_state.angles.y);
+    float sy = sin(camera_state.angles.y);
+    glm::vec3 position = glm::vec3(cx * cy, sx * cy, sy) * std::exp(-camera_state.zoom);
+    mCamera.setViewMatrix(glm::lookAt(position, glm::vec3(0.0f), glm::vec3(0, 0, 1)));
+    mUniforms.setCamera(mCamera);
+    wgpuQueueWriteBuffer(mQueue, mUniformBuffer, offsetof(MyUniform, viewMatrix), &mUniforms.viewMatrix,
+                         sizeof(MyUniform::viewMatrix));
+}
+
 void Application::mainLoop() {
     glfwPollEvents();
 
@@ -613,6 +598,7 @@ void Application::mainLoop() {
     encoder_descriptor.nextInChain = nullptr;
     encoder_descriptor.label = "my command encoder";
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mDevice, &encoder_descriptor);
+    updateDragInertia();
 
     WGPURenderPassDescriptor render_pass_descriptor = {};
     render_pass_descriptor.nextInChain = nullptr;
@@ -747,4 +733,159 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     required_limits.limits.maxSamplersPerShaderStage = 1;
 
     return required_limits;
+}
+
+bool Application::initSwapChain() {
+    // Get the current size of the window's framebuffer:
+    int width, height;
+    glfwGetFramebufferSize(mWindow, &width, &height);
+
+    WGPUSurfaceConfiguration surface_configuration = {};
+    surface_configuration.nextInChain = nullptr;
+    // Configure the texture created for swap chain
+
+    surface_configuration.width = width;
+    surface_configuration.height = height;
+    surface_configuration.usage = WGPUTextureUsage_RenderAttachment;
+
+    // WGPUSurfaceCapabilities capabilities = {};
+    // std::cout << std::format("Successfuly initialized GLFW and the surface is {:p}", (void*)mSurface) << std::endl;
+    // wgpuSurfaceGetCapabilities(mSurface, madapter, &capabilities);
+    surface_configuration.format = WGPUTextureFormat_BGRA8UnormSrgb;
+    // mSurfaceFormat = capabilities.formats[0];
+    // wgpuSurfaceCapabilitiesFreeMembers(capabilities);
+
+    surface_configuration.viewFormatCount = 0;
+    surface_configuration.viewFormats = nullptr;
+    surface_configuration.device = mDevice;
+    surface_configuration.presentMode = WGPUPresentMode_Fifo;
+    surface_configuration.alphaMode = WGPUCompositeAlphaMode_Auto;
+
+    wgpuSurfaceConfigure(mSurface, &surface_configuration);
+    return mSurface != nullptr;
+}
+
+void Application::terminateSwapChain() {
+    // wgpuSurfaceRelease(mSurface);
+}
+
+bool Application::initDepthBuffer() {
+    // Get the current size of the window's framebuffer:
+    int width, height;
+    glfwGetFramebufferSize(mWindow, &width, &height);
+
+    WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
+
+    WGPUTextureDescriptor depth_texture_descriptor = {};
+    depth_texture_descriptor.nextInChain = nullptr;
+    depth_texture_descriptor.dimension = WGPUTextureDimension_2D;
+    depth_texture_descriptor.format = depth_texture_format;
+    depth_texture_descriptor.mipLevelCount = 1;
+    depth_texture_descriptor.sampleCount = 1;
+    depth_texture_descriptor.size = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
+    depth_texture_descriptor.usage = WGPUTextureUsage_RenderAttachment;
+    depth_texture_descriptor.viewFormatCount = 1;
+    depth_texture_descriptor.viewFormats = &depth_texture_format;
+    mDepthTexture = wgpuDeviceCreateTexture(mDevice, &depth_texture_descriptor);
+
+    // Create the view of the depth texture manipulated by the rasterizer
+    WGPUTextureViewDescriptor depth_texture_view_desc = {};
+    depth_texture_view_desc.aspect = WGPUTextureAspect_DepthOnly;
+    depth_texture_view_desc.baseArrayLayer = 0;
+    depth_texture_view_desc.arrayLayerCount = 1;
+    depth_texture_view_desc.baseMipLevel = 0;
+    depth_texture_view_desc.mipLevelCount = 1;
+    depth_texture_view_desc.dimension = WGPUTextureViewDimension_2D;
+    depth_texture_view_desc.format = depth_texture_format;
+    mDepthTextureView = wgpuTextureCreateView(mDepthTexture, &depth_texture_view_desc);
+    return mDepthTextureView != nullptr;
+}
+
+void Application::terminateDepthBuffer() {
+    wgpuTextureViewRelease(mDepthTextureView);
+    wgpuTextureDestroy(mDepthTexture);
+    wgpuTextureRelease(mDepthTexture);
+}
+
+void Application::updateProjectionMatrix() {
+    int width, height;
+    glfwGetFramebufferSize(mWindow, &width, &height);
+    float ratio = width / (float)height;
+    mUniforms.projectMatrix = glm::perspective(60 * Camera::PI / 180, ratio, 0.01f, 100.0f);
+
+    // float ratio = width / height;
+    float focal_length = 2.0;
+    float near = 0.01f;
+    float far = 1000.0f;
+    float divider = 1.0f / (focal_length * (far - near));
+    mUniforms.projectMatrix = glm::transpose(glm::mat4{
+        1.0, 0.0, 0.0, 0.0,                              //
+        0.0, ratio, 0.0, 0.0,                            //
+        0.0, 0.0, far * divider, -far * near * divider,  //
+        0.0, 0.0, 1.0 / focal_length, 0.0,               //
+    });
+    wgpuQueueWriteBuffer(mQueue, mUniformBuffer, offsetof(MyUniform, projectMatrix), &mUniforms.projectMatrix,
+                         sizeof(MyUniform::projectMatrix));
+}
+
+void Application::onMouseMove(double xpos, double ypos) {
+    CameraState& camera_state = mCamera.getSate();
+    DragState& drag_state = mCamera.getDrag();
+    if (drag_state.active) {
+        glm::vec2 currentMouse = glm::vec2(-(float)xpos, (float)ypos);
+        glm::vec2 delta = (currentMouse - drag_state.startMouse) * drag_state.sensitivity;
+        camera_state.angles = drag_state.startCameraState.angles + delta;
+        // Clamp to avoid going too far when orbitting up/down
+        camera_state.angles.y = glm::clamp(camera_state.angles.y, -Camera::PI / 2 + 1e-5f, Camera::PI / 2 - 1e-5f);
+        updateViewMatrix();
+        // Inertia
+        drag_state.velocity = delta - drag_state.previousDelta;
+        drag_state.previousDelta = delta;
+    }
+}
+
+void Application::onMouseButton(int button, int action, int /* modifiers */) {
+    CameraState& camera_state = mCamera.getSate();
+    DragState& drag_state = mCamera.getDrag();
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        switch (action) {
+            case GLFW_PRESS:
+                drag_state.active = true;
+                double xpos, ypos;
+                glfwGetCursorPos(mWindow, &xpos, &ypos);
+                drag_state.startMouse = glm::vec2(-(float)xpos, (float)ypos);
+                drag_state.startCameraState = camera_state;
+                break;
+            case GLFW_RELEASE:
+                drag_state.active = false;
+                break;
+        }
+    }
+}
+
+void Application::onScroll(double /* xoffset */, double yoffset) {
+    CameraState& camera_state = mCamera.getSate();
+    DragState& drag_state = mCamera.getDrag();
+    camera_state.zoom += drag_state.scrollSensitivity * static_cast<float>(yoffset);
+    camera_state.zoom = glm::clamp(camera_state.zoom, -30.0f, 30.0f);
+    updateViewMatrix();
+}
+
+void Application::updateDragInertia() {
+    constexpr float eps = 1e-4f;
+    CameraState& camera_state = mCamera.getSate();
+    DragState& drag_state = mCamera.getDrag();
+    // Apply inertia only when the user released the click.
+    if (!drag_state.active) {
+        // Avoid updating the matrix when the velocity is no longer noticeable
+        if (std::abs(drag_state.velocity.x) < eps && std::abs(drag_state.velocity.y) < eps) {
+            return;
+        }
+        camera_state.angles += drag_state.velocity;
+        camera_state.angles.y = glm::clamp(camera_state.angles.y, -Camera::PI / 2 + 1e-5f, Camera::PI / 2 - 1e-5f);
+        // Dampen the velocity so that it decreases exponentially and stops
+        // after a few frames.
+        drag_state.velocity *= drag_state.intertia;
+        updateViewMatrix();
+    }
 }
