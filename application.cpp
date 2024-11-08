@@ -5,9 +5,14 @@
 #include <iostream>
 #include <vector>
 
+#include "imgui/backends/imgui_impl_glfw.h"
+#include "imgui/backends/imgui_impl_wgpu.h"
+#include "imgui/imgui.h"
 #include "texture.h"
 #include "utils.h"
 #include "wgpu_utils.h"
+
+// #define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
 
 void MyUniform::setCamera(const Camera& camera) {
     projectMatrix = camera.getProjection();
@@ -19,8 +24,6 @@ void setDefault(WGPULimits& limits) {
     limits.maxTextureDimension1D = WGPU_LIMIT_U32_UNDEFINED;
     limits.maxTextureDimension2D = WGPU_LIMIT_U32_UNDEFINED;
     limits.maxTextureDimension3D = WGPU_LIMIT_U32_UNDEFINED;
-    // [...] Set everything to WGPU_LIMIT_U32_UNDEFINED or WGPU_LIMIT_U64_UNDEFINED to mean no limit
-
     limits.maxTextureArrayLayers = WGPU_LIMIT_U32_UNDEFINED;
     limits.maxBindGroups = WGPU_LIMIT_U32_UNDEFINED;
     limits.maxBindGroupsPlusVertexBuffers = WGPU_LIMIT_U32_UNDEFINED;
@@ -105,7 +108,7 @@ void Application::initializePipeline() {
     shaderDesc.hints = nullptr;
 #endif
 
-    WGPUShaderModule shader_module = loadShader(RESOURCE_DIR "/shader.wgsl", mDevice);
+    WGPUShaderModule shader_module = loadShader(RESOURCE_DIR "/shader.wgsl", mRendererResource.device);
 
     // --- describe the pipe line
     // describe the vertex state
@@ -198,34 +201,14 @@ void Application::initializePipeline() {
     pipeline_descriptor.multisample.mask = ~0u;
     pipeline_descriptor.multisample.alphaToCoverageEnabled = false;
 
-    WGPUTextureView textureView = {};
-    Texture simple_texture{mDevice, RESOURCE_DIR "/fourareen2K_albedo.jpg", &textureView};
+    Texture simple_texture{mRendererResource.device, RESOURCE_DIR "/texture.jpg"};
+    WGPUTextureView textureView = simple_texture.createView();
+    simple_texture.uploadToGPU(mRendererResource.queue);
+    // WGPUTextureView textureView = {};
 
-    std::vector<uint8_t> pixels(4 * 256 * 256);
-    for (uint32_t i = 0; i < 256; ++i) {
-        for (uint32_t j = 0; j < 256; ++j) {
-            uint8_t* p = &pixels[4 * (j * 256 + i)];
-            p[0] = (i / 16) % 2 == (j / 16) % 2 ? 255 : 0;  // r
-            p[1] = ((i - j) / 16) % 2 == 0 ? 255 : 0;       // g
-            p[2] = ((i + j) / 16) % 2 == 0 ? 255 : 0;       // b
-            p[3] = 255;                                     // a
-        }
+    if (!textureView) {
+        std::cout << "Failed to Create Texture view!!!\n";
     }
-    // for (uint32_t i = 0; i < 256; ++i) {
-    //     for (uint32_t j = 0; j < 256; ++j) {
-    //         uint8_t* p = &pixels[4 * (j * 256 + i)];
-    //         p[0] = (uint8_t)i;  // r
-    //         p[1] = (uint8_t)j;  // g
-    //         p[2] = 128;         // b
-    //         p[3] = 255;         // a
-    //     }
-    // }
-    // simple_texture.setBufferData(pixels).uploadToGPU(mQueue);
-    simple_texture.uploadToGPU(mQueue);
-
-    // Uniform variable and Binding groups
-    // std::vector<WGPUBindGroupLayoutEntry> binding_layout_entries{3};
-    // std::cout << std::format("this log Stop Application from crashing");
 
     WGPUBindGroupLayoutEntry binding_layout_entries = {};
     setDefault(binding_layout_entries);
@@ -256,26 +239,26 @@ void Application::initializePipeline() {
     bind_group_layout_descriptor.label = "binding group layout";
     bind_group_layout_descriptor.entryCount = mBindingGroup.getEntryCount();
     bind_group_layout_descriptor.entries = mBindingGroup.getEntryData();
-    WGPUBindGroupLayout bind_group_layout = wgpuDeviceCreateBindGroupLayout(mDevice, &bind_group_layout_descriptor);
+    WGPUBindGroupLayout bind_group_layout =
+        wgpuDeviceCreateBindGroupLayout(mRendererResource.device, &bind_group_layout_descriptor);
 
     WGPUPipelineLayoutDescriptor pipeline_layout_descriptor = {};
     pipeline_layout_descriptor.nextInChain = nullptr;
     pipeline_layout_descriptor.bindGroupLayoutCount = 1;
     pipeline_layout_descriptor.bindGroupLayouts = &bind_group_layout;
-    WGPUPipelineLayout pipeline_layout = wgpuDeviceCreatePipelineLayout(mDevice, &pipeline_layout_descriptor);
+    WGPUPipelineLayout pipeline_layout =
+        wgpuDeviceCreatePipelineLayout(mRendererResource.device, &pipeline_layout_descriptor);
     pipeline_descriptor.layout = pipeline_layout;
 
-    std::vector<WGPUBindGroupEntry> binding{3};
+    mBindingData[0].nextInChain = nullptr;
+    mBindingData[0].binding = 0;
+    mBindingData[0].buffer = mUniformBuffer;
+    mBindingData[0].offset = 0;
+    mBindingData[0].size = sizeof(MyUniform);
 
-    binding[0].nextInChain = nullptr;
-    binding[0].binding = 0;
-    binding[0].buffer = mUniformBuffer;
-    binding[0].offset = 0;
-    binding[0].size = sizeof(MyUniform);
-
-    binding[1].nextInChain = nullptr;
-    binding[1].binding = 1;
-    binding[1].textureView = textureView;
+    mBindingData[1].nextInChain = nullptr;
+    mBindingData[1].binding = 1;
+    mBindingData[1].textureView = textureView;
 
     WGPUSamplerDescriptor samplerDesc;
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
@@ -288,88 +271,49 @@ void Application::initializePipeline() {
     samplerDesc.lodMaxClamp = 8.0f;
     samplerDesc.compare = WGPUCompareFunction_Undefined;
     samplerDesc.maxAnisotropy = 1;
-    WGPUSampler sampler = wgpuDeviceCreateSampler(mDevice, &samplerDesc);
+    WGPUSampler sampler = wgpuDeviceCreateSampler(mRendererResource.device, &samplerDesc);
 
-    binding[2].binding = 2;
-    binding[2].sampler = sampler;
+    mBindingData[2].binding = 2;
+    mBindingData[2].sampler = sampler;
 
-    WGPUBindGroupDescriptor bind_group_descriptor = {};
-    bind_group_descriptor.nextInChain = nullptr;
-    bind_group_descriptor.layout = bind_group_layout;
-    bind_group_descriptor.entryCount = bind_group_layout_descriptor.entryCount;
-    bind_group_descriptor.entries = binding.data();
+    mBindGroupDescriptor.nextInChain = nullptr;
+    mBindGroupDescriptor.layout = bind_group_layout;
+    mBindGroupDescriptor.entryCount = bind_group_layout_descriptor.entryCount;
+    mBindGroupDescriptor.entries = mBindingData.data();
 
-    mBindGroup = wgpuDeviceCreateBindGroup(mDevice, &bind_group_descriptor);
+    mBindingGroup.create(this, mBindGroupDescriptor);
 
-    mPipeline = wgpuDeviceCreateRenderPipeline(mDevice, &pipeline_descriptor);
+    mPipeline = wgpuDeviceCreateRenderPipeline(mRendererResource.device, &pipeline_descriptor);
 
     // ---------------------------- End of Render Pipeline
 }
 
 // Initializing Vertex Buffers
 void Application::initializeBuffers() {
-    std::vector<float> point_data = {
-        // x,   y,     r,   g,   b
-        -0.5, -0.5, 1.0, 0.0, 0.0,  //
-        +0.5, -0.5, 0.0, 1.0, 0.0,  //
-        +0.5, +0.5, 0.0, 0.0, 1.0,  //
-        -0.5, +0.5, 1.0, 1.0, 0.0   //
-    };
-
-    std::vector<uint16_t> index_data = {
-        0, 1, 2,  // Triangle #0 connects points #0, #1 and #2
-        0, 2, 3   // Triangle #1 connects points #0, #2 and #3
-    };
-    std::vector<VertexAttributes> vertex_data;
-    if (!loadGeometryFromObj(RESOURCE_DIR "/fourareen.obj", vertex_data)) {
-        std::cerr << "Could not load geometry!" << std::endl;
-        return;
-    }
-    // loadGeometry(RESOURCE_DIR "/pyramid.txt", point_data, index_data, 6);
-    // std::cout << index_data.size() << " Size of the point buffe is : " << point_data.size() << std::endl;
-    // for (size_t i = 0; i < point_data.size(); i++) {
-    //     std::cout << point_data[i] << ",";
-    //     if (i % 5 == 0 && i != 0) {
-    //         std::cout << "\n";
-    //     }
-    // }
-    mIndexCount = static_cast<int>(vertex_data.size());
-
-    // mVertexCount = static_cast<uint32_t>(point_data.size() / 5);
+    boat_model.load(mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/fourareen.obj")
+        .moveTo(glm::vec3{0.0})
+        .uploadToGPU(mRendererResource.device, mRendererResource.queue);
+    tower_model.load(mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/tower.obj")
+        .moveTo(glm::vec3{0.0})
+        .uploadToGPU(mRendererResource.device, mRendererResource.queue);
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
-    buffer_descriptor.size = vertex_data.size() * sizeof(VertexAttributes);
-    buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
-    buffer_descriptor.mappedAtCreation = false;
-
-    mVertexBuffer = wgpuDeviceCreateBuffer(mDevice, &buffer_descriptor);
-    // Uploading data to GPU
-    wgpuQueueWriteBuffer(mQueue, mVertexBuffer, 0, vertex_data.data(), buffer_descriptor.size);
-
-    buffer_descriptor.size = mIndexCount * sizeof(uint16_t);
-    buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
-    buffer_descriptor.size = (buffer_descriptor.size + 3) & ~3;
-    mIndexBuffer = wgpuDeviceCreateBuffer(mDevice, &buffer_descriptor);
-    wgpuQueueWriteBuffer(mQueue, mIndexBuffer, 0, index_data.data(), buffer_descriptor.size);
-
     // Create Uniform buffers
     buffer_descriptor.size = sizeof(MyUniform);
     buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     buffer_descriptor.mappedAtCreation = false;
-    mUniformBuffer = wgpuDeviceCreateBuffer(mDevice, &buffer_descriptor);
+    mUniformBuffer = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
 
     mUniforms.time = 1.0f;
     mUniforms.color = {0.0f, 1.0f, 0.4f, 1.0f};
     // setupCamera(mUniforms);
 
-    // glm::mat4 S = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2f});
-    // glm::mat4 T = glm::translate(glm::mat4{1.0f}, glm::vec3{-0.1f, 0.25f, 0.2f});
-    // glm::mat4 R1 = glm::rotate(glm::mat4{1.0f}, -angle, glm::vec3{0.0, 0.0, 1.0});
     mCamera = Camera{{-0.0f, -0.0f, 0.0f}, glm::vec3{0.8f}, {1.0, 0.0, 0.0}, 0.0};
-    std::cerr << "Could not initialize GLFW! ------------ " << std::endl;
     mUniforms.setCamera(mCamera);
-    wgpuQueueWriteBuffer(mQueue, mUniformBuffer, 0, &mUniforms, buffer_descriptor.size);
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, buffer_descriptor.size);
+    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>\n";
+
     // updateViewMatrix();
 }
 
@@ -411,25 +355,26 @@ bool Application::initialize() {
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);  // <-- extra info for glfwCreateWindow
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    mWindow = glfwCreateWindow(640, 480, "Learn WebGPU", nullptr, nullptr);
-    if (!mWindow) {
+
+    GLFWwindow* provided_window = glfwCreateWindow(640, 480, "Learn WebGPU", nullptr, nullptr);
+    if (!provided_window) {
         std::cerr << "Could not open window!" << std::endl;
         glfwTerminate();
         return false;
     }
 
     // Set up Callbacks
-    glfwSetWindowUserPointer(mWindow, this);  // set user pointer to be used in the callback function
-    glfwSetFramebufferSizeCallback(mWindow, onWindowResize);
-    glfwSetCursorPosCallback(mWindow, [](GLFWwindow* window, double xpos, double ypos) {
+    glfwSetWindowUserPointer(provided_window, this);  // set user pointer to be used in the callback function
+    glfwSetFramebufferSizeCallback(provided_window, onWindowResize);
+    glfwSetCursorPosCallback(provided_window, [](GLFWwindow* window, double xpos, double ypos) {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         if (that != nullptr) that->onMouseMove(xpos, ypos);
     });
-    glfwSetMouseButtonCallback(mWindow, [](GLFWwindow* window, int button, int action, int mods) {
+    glfwSetMouseButtonCallback(provided_window, [](GLFWwindow* window, int button, int action, int mods) {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         if (that != nullptr) that->onMouseButton(button, action, mods);
     });
-    glfwSetScrollCallback(mWindow, [](GLFWwindow* window, double xoffset, double yoffset) {
+    glfwSetScrollCallback(provided_window, [](GLFWwindow* window, double xoffset, double yoffset) {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         if (that != nullptr) that->onScroll(xoffset, yoffset);
     });
@@ -446,10 +391,11 @@ bool Application::initialize() {
     }
 
     //   UserData user_data;
-    mSurface = glfwGetWGPUSurface(instance, mWindow);
+    WGPUSurface provided_surface;
+    provided_surface = glfwGetWGPUSurface(instance, provided_window);
 
-    auto adapter = requestAdapterSync(instance, mSurface);
-    std::cout << std::format("WGPU instance: {:p} {:p} {:p}", (void*)instance, (void*)adapter, (void*)mSurface)
+    auto adapter = requestAdapterSync(instance, provided_surface);
+    std::cout << std::format("WGPU instance: {:p} {:p} {:p}", (void*)instance, (void*)adapter, (void*)provided_surface)
               << std::endl;
     // Release wgpu instance
     // wgpuInstanceRelease(instance);
@@ -459,12 +405,18 @@ bool Application::initialize() {
     inspectProperties(adapter);
 
     // requesting device from adaptor
-    mDevice = requestDeviceSync(adapter, GetRequiredLimits(adapter));
-    inspectDevice(mDevice);
+    WGPUDevice render_device;
+    render_device = requestDeviceSync(adapter, GetRequiredLimits(adapter));
+    inspectDevice(render_device);
 
     // relase the adapter
+    WGPUQueue render_queue = getDeviceQueue(render_device);
 
-    mQueue = getDeviceQueue(mDevice);
+    // initialize RenderResources
+    mRendererResource.device = render_device;
+    mRendererResource.queue = render_queue;
+    mRendererResource.surface = provided_surface;
+    mRendererResource.window = provided_window;
 
     // Create windows to show our daste gol
 
@@ -478,8 +430,9 @@ bool Application::initialize() {
     surface_configuration.usage = WGPUTextureUsage_RenderAttachment;
 
     WGPUSurfaceCapabilities capabilities = {};
-    std::cout << std::format("Successfuly initialized GLFW and the surface is {:p}", (void*)mSurface) << std::endl;
-    wgpuSurfaceGetCapabilities(mSurface, adapter, &capabilities);
+    std::cout << std::format("Successfuly initialized GLFW and the surface is {:p}", (void*)mRendererResource.surface)
+              << std::endl;
+    wgpuSurfaceGetCapabilities(mRendererResource.surface, adapter, &capabilities);
     surface_configuration.format = capabilities.formats[0];
     std::cout << "Surface texture format is : " << surface_configuration.format << std::endl;
     mSurfaceFormat = capabilities.formats[0];
@@ -487,12 +440,16 @@ bool Application::initialize() {
 
     surface_configuration.viewFormatCount = 0;
     surface_configuration.viewFormats = nullptr;
-    surface_configuration.device = mDevice;
+    surface_configuration.device = mRendererResource.device;
     surface_configuration.presentMode = WGPUPresentMode_Fifo;
     surface_configuration.alphaMode = WGPUCompositeAlphaMode_Auto;
 
-    wgpuSurfaceConfigure(mSurface, &surface_configuration);
+    wgpuSurfaceConfigure(mRendererResource.surface, &surface_configuration);
     wgpuAdapterRelease(adapter);
+
+    // ImGui stuff
+    initGui();
+    std::cout << " failed to run" << std::endl;
 
     initializeBuffers();
     initializePipeline();
@@ -504,26 +461,26 @@ bool Application::initialize() {
     buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
     buffer_descriptor.size = 16;
     buffer_descriptor.mappedAtCreation = false;
-    mBuffer1 = wgpuDeviceCreateBuffer(mDevice, &buffer_descriptor);
+    mBuffer1 = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
 
     buffer_descriptor.label = "output buffer";
     buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
-    mBuffer2 = wgpuDeviceCreateBuffer(mDevice, &buffer_descriptor);
+    mBuffer2 = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
 
     // Writing to buffer
     std::vector<uint8_t> numbers{16};
     for (uint8_t i = 0; i < 16; i++) numbers[i] = i;
 
-    wgpuQueueWriteBuffer(mQueue, mBuffer1, 0, numbers.data(), 16);
+    wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, 0, numbers.data(), 16);
 
     // copy from buffer1 to buffer2
-    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mDevice, nullptr);
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, nullptr);
 
     wgpuCommandEncoderCopyBufferToBuffer(encoder, mBuffer1, 0, mBuffer2, 0, 16);
 
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, nullptr);
     wgpuCommandEncoderRelease(encoder);
-    wgpuQueueSubmit(mQueue, 1, &command);
+    wgpuQueueSubmit(mRendererResource.queue, 1, &command);
     wgpuCommandBufferRelease(command);
 
     struct Context {
@@ -545,7 +502,7 @@ bool Application::initialize() {
 
     wgpuBufferMapAsync(mBuffer2, WGPUMapMode_Read, 0, 16, on_buffer2_mapped, &user_data);
     while (!user_data.ready) {
-        wgpuPollEvents(mDevice, true);
+        wgpuPollEvents(mRendererResource.device, true);
     }
 
     uint8_t* buffer_mapped_data = (uint8_t*)wgpuBufferGetConstMappedRange(user_data.buffer, 0, 16);
@@ -553,6 +510,9 @@ bool Application::initialize() {
     for (size_t i = 0; i < 16; i++) {
         std::cout << std::format("Element {} is {}\n", i, buffer_mapped_data[i]);
     }
+
+    boat_model.moveTo({1.0, -4.0, 0.0});
+    tower_model.moveTo({-2.0, 0.0, 0.0});
 
     return true;
 }
@@ -566,8 +526,8 @@ void Application::updateViewMatrix() {
     glm::vec3 position = glm::vec3(cx * cy, sx * cy, sy) * std::exp(-camera_state.zoom);
     mCamera.setViewMatrix(glm::lookAt(position, glm::vec3(0.0f), glm::vec3(0, 0, 1)));
     mUniforms.setCamera(mCamera);
-    wgpuQueueWriteBuffer(mQueue, mUniformBuffer, offsetof(MyUniform, viewMatrix), &mUniforms.viewMatrix,
-                         sizeof(MyUniform::viewMatrix));
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, viewMatrix),
+                         &mUniforms.viewMatrix, sizeof(MyUniform::viewMatrix));
 }
 
 void Application::mainLoop() {
@@ -591,13 +551,13 @@ void Application::mainLoop() {
     // mCamera.setViewMatrix(glm::lookAt(glm::vec3(-0.5f + mUniforms.time, -1.5f + mUniforms.time, viewZ + 0.25f),
     //                                   glm::vec3(0.0f), glm::vec3(0, 0, 1)));
     // mUniforms.setCamera(mCamera);
-    wgpuQueueWriteBuffer(mQueue, mUniformBuffer, 0, &mUniforms, sizeof(MyUniform));
+    // wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, sizeof(MyUniform));
 
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
     encoder_descriptor.nextInChain = nullptr;
     encoder_descriptor.label = "my command encoder";
-    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mDevice, &encoder_descriptor);
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, &encoder_descriptor);
     updateDragInertia();
 
     WGPURenderPassDescriptor render_pass_descriptor = {};
@@ -634,14 +594,16 @@ void Application::mainLoop() {
     WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
 
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline);
-    wgpuRenderPassEncoderSetVertexBuffer(render_pass_encoder, 0, mVertexBuffer, 0, wgpuBufferGetSize(mVertexBuffer));
-    wgpuRenderPassEncoderSetIndexBuffer(render_pass_encoder, mIndexBuffer, WGPUIndexFormat_Uint16, 0,
-                                        wgpuBufferGetSize(mIndexBuffer));
-    wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 0, mBindGroup, 0, nullptr);
 
-    // Draw 1 instance of a 3-vertices shape
     // wgpuRenderPassEncoderDrawIndexed(render_pass_encoder, mIndexCount, 1, 0, 0, 0);
-    wgpuRenderPassEncoderDraw(render_pass_encoder, mIndexCount, 1, 0, 0);
+
+    // mUniforms.modelMatrix = tower_model.getModelMatrix();
+    // wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, modelMatrix),
+    //                      &mUniforms.modelMatrix, sizeof(MyUniform::modelMatrix));
+    tower_model.draw(this, render_pass_encoder, mBindingData);
+    boat_model.draw(this, render_pass_encoder, mBindingData);
+
+    updateGui(render_pass_encoder);
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
@@ -652,7 +614,7 @@ void Application::mainLoop() {
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &command_buffer_descriptor);
     wgpuCommandEncoderRelease(encoder);
 
-    wgpuQueueSubmit(mQueue, 1, &command);
+    wgpuQueueSubmit(mRendererResource.queue, 1, &command);
     wgpuCommandBufferRelease(command);
 
     // Select which render pipeline to use
@@ -660,7 +622,7 @@ void Application::mainLoop() {
     wgpuTextureViewRelease(target_view);
 
 #ifndef __EMSCRIPTEN__
-    wgpuSurfacePresent(mSurface);
+    wgpuSurfacePresent(mRendererResource.surface);
 #endif
 
 #if defined(WEBGPU_BACKEND_DAWN)
@@ -674,22 +636,24 @@ void Application::terminate() {
     wgpuBufferRelease(mBuffer1);
     wgpuBufferRelease(mBuffer2);
     wgpuBufferRelease(mUniformBuffer);
-    wgpuBufferRelease(mIndexBuffer);
-    wgpuBufferRelease(mVertexBuffer);
+    terminateGui();
+
+    // wgpuBufferRelease(mIndexBuffer);
+    // wgpuBufferRelease(mVertexBuffer);
     wgpuRenderPipelineRelease(mPipeline);
-    wgpuSurfaceUnconfigure(mSurface);
-    wgpuQueueRelease(mQueue);
-    wgpuSurfaceRelease(mSurface);
-    wgpuDeviceRelease(mDevice);
-    glfwDestroyWindow(mWindow);
+    wgpuSurfaceUnconfigure(mRendererResource.surface);
+    wgpuQueueRelease(mRendererResource.queue);
+    wgpuSurfaceRelease(mRendererResource.surface);
+    wgpuDeviceRelease(mRendererResource.device);
+    glfwDestroyWindow(mRendererResource.window);
     glfwTerminate();
 }
 
-bool Application::isRunning() { return !glfwWindowShouldClose(mWindow); }
+bool Application::isRunning() { return !glfwWindowShouldClose(mRendererResource.window); }
 
 WGPUTextureView Application::getNextSurfaceTextureView() {
     WGPUSurfaceTexture surface_texture = {};
-    wgpuSurfaceGetCurrentTexture(mSurface, &surface_texture);
+    wgpuSurfaceGetCurrentTexture(mRendererResource.surface, &surface_texture);
     if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_Success) {
         return nullptr;
     }
@@ -723,7 +687,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     required_limits.limits.maxInterStageShaderComponents = 8;
 
     // Binding groups
-    required_limits.limits.maxBindGroups = 1;
+    required_limits.limits.maxBindGroups = 2;
     required_limits.limits.maxUniformBuffersPerShaderStage = 1;
     required_limits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float);
 
@@ -738,7 +702,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
 bool Application::initSwapChain() {
     // Get the current size of the window's framebuffer:
     int width, height;
-    glfwGetFramebufferSize(mWindow, &width, &height);
+    glfwGetFramebufferSize(mRendererResource.window, &width, &height);
 
     WGPUSurfaceConfiguration surface_configuration = {};
     surface_configuration.nextInChain = nullptr;
@@ -747,22 +711,15 @@ bool Application::initSwapChain() {
     surface_configuration.width = width;
     surface_configuration.height = height;
     surface_configuration.usage = WGPUTextureUsage_RenderAttachment;
-
-    // WGPUSurfaceCapabilities capabilities = {};
-    // std::cout << std::format("Successfuly initialized GLFW and the surface is {:p}", (void*)mSurface) << std::endl;
-    // wgpuSurfaceGetCapabilities(mSurface, madapter, &capabilities);
     surface_configuration.format = WGPUTextureFormat_BGRA8UnormSrgb;
-    // mSurfaceFormat = capabilities.formats[0];
-    // wgpuSurfaceCapabilitiesFreeMembers(capabilities);
-
     surface_configuration.viewFormatCount = 0;
     surface_configuration.viewFormats = nullptr;
-    surface_configuration.device = mDevice;
+    surface_configuration.device = mRendererResource.device;
     surface_configuration.presentMode = WGPUPresentMode_Fifo;
     surface_configuration.alphaMode = WGPUCompositeAlphaMode_Auto;
 
-    wgpuSurfaceConfigure(mSurface, &surface_configuration);
-    return mSurface != nullptr;
+    wgpuSurfaceConfigure(mRendererResource.surface, &surface_configuration);
+    return mRendererResource.surface != nullptr;
 }
 
 void Application::terminateSwapChain() {
@@ -772,10 +729,9 @@ void Application::terminateSwapChain() {
 bool Application::initDepthBuffer() {
     // Get the current size of the window's framebuffer:
     int width, height;
-    glfwGetFramebufferSize(mWindow, &width, &height);
+    glfwGetFramebufferSize(mRendererResource.window, &width, &height);
 
     WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
-
     WGPUTextureDescriptor depth_texture_descriptor = {};
     depth_texture_descriptor.nextInChain = nullptr;
     depth_texture_descriptor.dimension = WGPUTextureDimension_2D;
@@ -786,7 +742,7 @@ bool Application::initDepthBuffer() {
     depth_texture_descriptor.usage = WGPUTextureUsage_RenderAttachment;
     depth_texture_descriptor.viewFormatCount = 1;
     depth_texture_descriptor.viewFormats = &depth_texture_format;
-    mDepthTexture = wgpuDeviceCreateTexture(mDevice, &depth_texture_descriptor);
+    mDepthTexture = wgpuDeviceCreateTexture(mRendererResource.device, &depth_texture_descriptor);
 
     // Create the view of the depth texture manipulated by the rasterizer
     WGPUTextureViewDescriptor depth_texture_view_desc = {};
@@ -809,7 +765,7 @@ void Application::terminateDepthBuffer() {
 
 void Application::updateProjectionMatrix() {
     int width, height;
-    glfwGetFramebufferSize(mWindow, &width, &height);
+    glfwGetFramebufferSize(mRendererResource.window, &width, &height);
     float ratio = width / (float)height;
     mUniforms.projectMatrix = glm::perspective(60 * Camera::PI / 180, ratio, 0.01f, 100.0f);
 
@@ -824,8 +780,9 @@ void Application::updateProjectionMatrix() {
         0.0, 0.0, far * divider, -far * near * divider,  //
         0.0, 0.0, 1.0 / focal_length, 0.0,               //
     });
-    wgpuQueueWriteBuffer(mQueue, mUniformBuffer, offsetof(MyUniform, projectMatrix), &mUniforms.projectMatrix,
-                         sizeof(MyUniform::projectMatrix));
+
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),
+                         &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));
 }
 
 void Application::onMouseMove(double xpos, double ypos) {
@@ -845,6 +802,12 @@ void Application::onMouseMove(double xpos, double ypos) {
 }
 
 void Application::onMouseButton(int button, int action, int /* modifiers */) {
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureMouse) {
+        // Don't rotate the camera if the mouse is already captured by an ImGui
+        // interaction at this frame.
+        return;
+    }
     CameraState& camera_state = mCamera.getSate();
     DragState& drag_state = mCamera.getDrag();
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
@@ -852,7 +815,7 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
             case GLFW_PRESS:
                 drag_state.active = true;
                 double xpos, ypos;
-                glfwGetCursorPos(mWindow, &xpos, &ypos);
+                glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
                 drag_state.startMouse = glm::vec2(-(float)xpos, (float)ypos);
                 drag_state.startCameraState = camera_state;
                 break;
@@ -889,3 +852,88 @@ void Application::updateDragInertia() {
         updateViewMatrix();
     }
 }
+
+// called in onInit
+bool Application::initGui() {
+    static ImGui_ImplWGPU_InitInfo imgui_device{};
+    imgui_device.Device = mRendererResource.device;
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::GetIO();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOther(mRendererResource.window, true);
+    //, 3, WGPUTextureFormat_BGRA8UnormSrgb, WGPUTextureFormat_Depth24Plus
+    ImGui_ImplWGPU_InitInfo init_info;
+    init_info.Device = mRendererResource.device;
+    init_info.NumFramesInFlight = 3;
+    init_info.RenderTargetFormat = WGPUTextureFormat_BGRA8UnormSrgb;
+    init_info.DepthStencilFormat = WGPUTextureFormat_Depth24Plus;
+    ImGui_ImplWGPU_Init(&init_info);
+    std::cout << " failed to run1111" << std::endl;
+    return true;
+}
+void Application::terminateGui() {
+    ImGui_ImplGlfw_Shutdown();
+    ImGui_ImplWGPU_Shutdown();
+}  // called in onFinish
+
+void Application::updateGui(WGPURenderPassEncoder renderPass) {
+    // Start the Dear ImGui frame
+    ImGui_ImplWGPU_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    // [...] Build our UI
+    // Build our UI
+    // static float x = 0.0f, y = 0.0f, z = 0.0f;
+    static glm::vec3& position = boat_model.getPosition();
+    static int counter = 0;
+    static bool show_demo_window = true;
+    static bool show_another_window = false;
+    static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+    ImGui::Begin("Hello, world!");  // Create a window called "Hello, world!" and append into it.
+
+    ImGui::Text("This is some useful text.");           // Display some text (you can use a format strings too)
+    ImGui::Checkbox("Demo Window", &show_demo_window);  // Edit bools storing our window open/close state
+    ImGui::Checkbox("Another Window", &show_another_window);
+
+    glm::vec3 temp_pos = position;
+    ImGui::SliderFloat("Boat x position", &position.x, -100.0f,
+                       100.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
+    ImGui::SliderFloat("Boat y position", &position.y, -100.0f,
+                       100.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
+    ImGui::SliderFloat("Boat z position", &position.z, -100.0f,
+                       100.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
+    if (temp_pos != position) {
+        std::cout << "value Changed" << '\n';
+        boat_model.moveTo(position);
+    }
+    ImGui::ColorEdit3("clear color", (float*)&clear_color);  // Edit 3 floats representing a color
+
+    if (ImGui::Button("Button"))  // Buttons return true when clicked (most widgets return true when edited/activated)
+        counter++;
+    ImGui::SameLine();
+    ImGui::Text("counter = %d", counter);
+
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+    ImGui::End();
+
+    // Draw the UI
+    ImGui::EndFrame();
+    // Convert the UI defined above into low-level drawing commands
+    ImGui::Render();
+    // Execute the low-level drawing commands on the WebGPU backend
+    ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);
+}
+
+RendererResource& Application::getRendererResource() { return mRendererResource; }
+
+BindingGroup& Application::getBindingGroup() { return mBindingGroup; }
+
+WGPUBuffer& Application::getUniformBuffer() { return mUniformBuffer; }
+
+MyUniform& Application::getUniformData() { return mUniforms; }

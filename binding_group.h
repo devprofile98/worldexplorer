@@ -5,6 +5,8 @@
 
 #include "webgpu/webgpu.h"
 
+class Application;
+
 class BindingGroup {
     public:
         BindingGroup(/* args */);
@@ -15,10 +17,15 @@ class BindingGroup {
         // --- Getter functions
         size_t getEntryCount() const;
         WGPUBindGroupLayoutEntry* getEntryData();
+        WGPUBindGroup& getBindGroup();
+        WGPUBindGroupDescriptor& getDescriptor();
 
         std::vector<WGPUBindGroupLayoutEntry> mEntries = {};
+        void create(Application* app, WGPUBindGroupDescriptor desc);
 
     private:
+        WGPUBindGroup mBindGroup;
+        WGPUBindGroupDescriptor mBindGroupDesc;
 };
 
 #endif  // WEBGPUTEST_BINDING_GROUP_H

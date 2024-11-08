@@ -13,18 +13,11 @@
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
 
-struct VertexAttributes {
-        glm::vec3 position;
-        glm::vec3 normal;
-        glm::vec3 color;
-        glm::vec2 uv;
-};
-
 namespace fs = std::filesystem;
 bool loadGeometry(const fs::path& path, std::vector<float>& pointData, std::vector<uint16_t>& indexData,
                   size_t dimensions);
 
-bool loadGeometryFromObj(const fs::path& path, std::vector<VertexAttributes>& vertexData);
+// bool loadGeometryFromObj(const fs::path& path, std::vector<VertexAttributes>& vertexData);
 
 WGPUShaderModule loadShader(const fs::path& path, WGPUDevice device);
 

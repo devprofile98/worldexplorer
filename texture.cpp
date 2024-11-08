@@ -3,24 +3,22 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-bool createView(WGPUTexture& texture, WGPUTextureDescriptor& descriptor, WGPUTextureView* view) {
-    if (view) {
+WGPUTextureView Texture::createView() {
+    if (mIsTextureAlive) {
         WGPUTextureViewDescriptor texture_view_desc = {};
         texture_view_desc.aspect = WGPUTextureAspect_All;
         texture_view_desc.baseArrayLayer = 0;
         texture_view_desc.arrayLayerCount = 1;
         texture_view_desc.baseMipLevel = 0;
-        texture_view_desc.mipLevelCount = descriptor.mipLevelCount;
+        texture_view_desc.mipLevelCount = mDescriptor.mipLevelCount;
         texture_view_desc.dimension = WGPUTextureViewDimension_2D;
-        texture_view_desc.format = descriptor.format;
-        *view = wgpuTextureCreateView(texture, &texture_view_desc);
-        return true;
+        texture_view_desc.format = mDescriptor.format;
+        return wgpuTextureCreateView(mTexture, &texture_view_desc);
     }
-    return false;
+    return nullptr;
 }
 
-Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
-                 WGPUTextureView* view) {
+Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension) {
     mDescriptor = {};
     mDescriptor.nextInChain = nullptr;
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(dimension);
@@ -33,12 +31,13 @@ Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, Texture
     mDescriptor.viewFormats = nullptr;
     mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
 
-    createView(mTexture, mDescriptor, view);
+    // createView(mDescriptor);
 
     mIsTextureAlive = true;
 }
 
-Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureView* view) {
+Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path) {
+    std::cout << "Loading texture " << path.c_str() << std::endl;
     int width, height, channels;
     unsigned char* pixel_data = stbi_load(path.string().c_str(), &width, &height, &channels, 0);
     // If data is null, loading failed.
@@ -55,8 +54,6 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     mDescriptor.viewFormatCount = 0;
     mDescriptor.viewFormats = nullptr;
     mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
-
-    createView(mTexture, mDescriptor, view);
 
     size_t image_byte_size = (width * height * std::max(channels + 1, 1));
     mBufferData.reserve(image_byte_size);
@@ -81,6 +78,7 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     // [...]
 
     stbi_image_free(pixel_data);
+    mIsTextureAlive = true;
 }
 
 Texture::~Texture() {

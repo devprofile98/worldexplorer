@@ -7,6 +7,7 @@ project(
     LANGUAGES CXX C
 )
 
+add_subdirectory(imgui)
 add_subdirectory(webgpu)
 
 # include_directories()
@@ -14,8 +15,9 @@ add_subdirectory(webgpu)
 
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 
-add_executable(App main.cpp wgpu_utils.cpp application.cpp utils.cpp texture.cpp binding_group.cpp camera.cpp)
+add_executable(App main.cpp wgpu_utils.cpp application.cpp utils.cpp texture.cpp binding_group.cpp camera.cpp model.cpp)
 target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")
+# target_compile_definitions(App PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
 
 target_include_directories(App PUBLIC "${CMAKE_SOURCE_DIR}/webgpu")
 # target_link_libraries(App PRIVATE wgpu_native_static)
@@ -35,6 +37,7 @@ endif()
 
 # target_copy_webgpu_binaries(App)
 target_link_libraries(App /home/ahmad/Documents/project/cpp/wgputest/webgpu/libwgpu_native.so glfw glfw3webgpu)
+target_link_libraries(App imgui)
 
 
 if (EMSCRIPTEN)

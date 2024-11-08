@@ -14,16 +14,15 @@ enum class TextureDimension { TEX_1D, TEX_2D, TEX_3D };
 
 class Texture {
     public:
-        Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
-                WGPUTextureView* view = nullptr);
-        Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureView* view = nullptr);
+        Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension);
+        Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path);
         ~Texture();
 
         // access function
         WGPUTexture getTexture();
 
         Texture& setBufferData(std::vector<uint8_t>& data);
-
+        WGPUTextureView createView();
         void uploadToGPU(WGPUQueue deviceQueue);
 
         // Remove the texture from the VRAM

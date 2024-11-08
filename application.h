@@ -10,6 +10,7 @@
 #include "camera.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
+#include "model.h"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
 
@@ -22,6 +23,19 @@ struct MyUniform {
         float _padding[3];
 
         void setCamera(const Camera& camera);
+};
+
+/*
+ * A struct to gather primitives for our renderer
+ * Note: Pipelines and bindgroups are not part of this struct
+ *       they could be included in some pipeline struct for each
+ *       models that defines its own pipeline and render pass
+ */
+struct RendererResource {
+        WGPUQueue queue;
+        WGPUDevice device;
+        WGPUSurface surface;
+        GLFWwindow* window;
 };
 
 /**
@@ -49,6 +63,18 @@ class Application {
         void terminateDepthBuffer();
         void updateViewMatrix();
         void updateDragInertia();
+        Model boat_model{};
+        Model tower_model{};
+
+        bool initGui();                                    // called in onInit
+        void terminateGui();                               // called in onFinish
+        void updateGui(WGPURenderPassEncoder renderPass);  // called in onFrame
+
+        // Getters
+        RendererResource& getRendererResource();
+        BindingGroup& getBindingGroup();
+        WGPUBuffer& getUniformBuffer();
+        MyUniform& getUniformData();
 
     private:
         Camera mCamera;
@@ -58,20 +84,16 @@ class Application {
         void initializePipeline();
         void initializeBuffers();
 
-        WGPUQueue mQueue;
-        WGPUDevice mDevice;
-        WGPUSurface mSurface;
-        GLFWwindow* mWindow;
-        WGPURenderPipeline mPipeline;
+        RendererResource mRendererResource;
         WGPUTextureFormat mSurfaceFormat = WGPUTextureFormat_Undefined;
 
-        WGPUBindGroup mBindGroup;
+        WGPURenderPipeline mPipeline;
+        BindingGroup mBindingGroup;
+        std::vector<WGPUBindGroupEntry> mBindingData{3};
+        WGPUBindGroupDescriptor mBindGroupDescriptor = {};
+        // WGPUBindGroup mBindGroup;
         WGPUBuffer mBuffer1, mBuffer2;
         WGPUBuffer mUniformBuffer;
-        WGPUBuffer mVertexBuffer, mIndexBuffer;
-
-        BindingGroup mBindingGroup;
-
         MyUniform mUniforms;
         uint32_t mIndexCount;
 

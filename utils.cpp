@@ -82,65 +82,66 @@ WGPUShaderModule loadShader(const fs::path& path, WGPUDevice device) {
     return wgpuDeviceCreateShaderModule(device, &shader_descriptor);
 }
 
-bool loadGeometryFromObj(const fs::path& path, std::vector<VertexAttributes>& vertexData) {
-    // tinyobj::attrib_t attrib = {};
-    // std::vector<tinyobj::shape_t> shapes;
-    // std::vector<tinyobj::material_t> materials;
+// bool loadGeometryFromObj(const fs::path& path, std::vector<VertexAttributes>& vertexData) {
+//     // tinyobj::attrib_t attrib = {};
+//     // std::vector<tinyobj::shape_t> shapes;
+//     // std::vector<tinyobj::material_t> materials;
 
-    std::string warn;
-    std::string err;
+//     std::string warn;
+//     std::string err;
 
-    tinyobj::ObjReader reader;
-    tinyobj::ObjReaderConfig reader_config;
-    reader_config.triangulate = true;
-    reader_config.mtl_search_path = "/home/ahmad/Documents/project/cpp/wgputest/resources";
+//     tinyobj::ObjReader reader;
+//     tinyobj::ObjReaderConfig reader_config;
+//     reader_config.triangulate = true;
+//     reader_config.mtl_search_path = "/home/ahmad/Documents/project/cpp/wgputest/resources";
 
-    if (!reader.ParseFromFile(path.string().c_str(), reader_config)) {
-        if (!reader.Error().empty()) {
-            std::cerr << "TinyObjReader: " << reader.Error();
-        }
-        exit(1);
-    }
+//     if (!reader.ParseFromFile(path.string().c_str(), reader_config)) {
+//         if (!reader.Error().empty()) {
+//             std::cerr << "TinyObjReader: " << reader.Error();
+//         }
+//         exit(1);
+//     }
 
-    if (!reader.Warning().empty()) {
-        std::cout << "TinyObjReader: " << reader.Warning();
-    }
+//     if (!reader.Warning().empty()) {
+//         std::cout << "TinyObjReader: " << reader.Warning();
+//     }
 
-    auto& attrib = reader.GetAttrib();
-    auto& shapes = reader.GetShapes();
-    // auto& materials = reader.GetMaterials();
+//     auto& attrib = reader.GetAttrib();
+//     auto& shapes = reader.GetShapes();
+//     // auto& materials = reader.GetMaterials();
 
-    // bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.string().c_str());
-    if (!warn.empty()) {
-        std::cout << warn << std::endl;
-    }
+//     // bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.string().c_str());
+//     if (!warn.empty()) {
+//         std::cout << warn << std::endl;
+//     }
 
-    if (!err.empty()) {
-        std::cerr << err << std::endl;
-    }
+//     if (!err.empty()) {
+//         std::cerr << err << std::endl;
+//     }
 
-    // if (!ret) {
-    //     return false;
-    // }
+//     // if (!ret) {
+//     //     return false;
+//     // }
 
-    // Fill in vertexData here
-    const auto& shape = shapes[0];
-    vertexData.resize(shape.mesh.indices.size());
-    for (size_t i = 0; i < shape.mesh.indices.size(); i++) {
-        const tinyobj::index_t& idx = shape.mesh.indices[i];
+//     // Fill in vertexData here
+//     const auto& shape = shapes[0];
+//     vertexData.resize(shape.mesh.indices.size());
+//     for (size_t i = 0; i < shape.mesh.indices.size(); i++) {
+//         const tinyobj::index_t& idx = shape.mesh.indices[i];
 
-        vertexData[i].position = {attrib.vertices[3 * idx.vertex_index + 0], -attrib.vertices[3 * idx.vertex_index + 2],
-                                  attrib.vertices[3 * idx.vertex_index + 1]};
+//         vertexData[i].position = {attrib.vertices[3 * idx.vertex_index + 0], -attrib.vertices[3 * idx.vertex_index +
+//         2],
+//                                   attrib.vertices[3 * idx.vertex_index + 1]};
 
-        vertexData[i].normal = {attrib.normals[3 * idx.normal_index + 0], -attrib.normals[3 * idx.normal_index + 2],
-                                attrib.normals[3 * idx.normal_index + 1]};
+//         vertexData[i].normal = {attrib.normals[3 * idx.normal_index + 0], -attrib.normals[3 * idx.normal_index + 2],
+//                                 attrib.normals[3 * idx.normal_index + 1]};
 
-        vertexData[i].color = {attrib.colors[3 * idx.vertex_index + 0], attrib.colors[3 * idx.vertex_index + 1],
-                               attrib.colors[3 * idx.vertex_index + 2]};
+//         vertexData[i].color = {attrib.colors[3 * idx.vertex_index + 0], attrib.colors[3 * idx.vertex_index + 1],
+//                                attrib.colors[3 * idx.vertex_index + 2]};
 
-        vertexData[i].uv = {attrib.texcoords[2 * idx.texcoord_index + 0],
-                            1 - attrib.texcoords[2 * idx.texcoord_index + 1]};
-    }
+//         vertexData[i].uv = {attrib.texcoords[2 * idx.texcoord_index + 0],
+//                             1 - attrib.texcoords[2 * idx.texcoord_index + 1]};
+//     }
 
-    return true;
-}
+//     return true;
+// }
