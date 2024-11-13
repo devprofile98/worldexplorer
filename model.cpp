@@ -9,11 +9,13 @@ Model::Model()
     : mScaleMatrix(glm::mat4{1.0}),
       mTranslationMatrix(glm::mat4{1.0}),
       mRotationMatrix(glm::mat4{1.0}),
-      mPosition(glm::vec3{0.0}) {
+      mPosition(glm::vec3{0.0}),
+      mScale(glm::vec3{1.0}) {
+    mScaleMatrix = glm::scale(mScaleMatrix, mScale);
     mModelMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
 }
 
-Model& Model::load(WGPUDevice device, WGPUQueue queue, const std::filesystem::path& path) {
+Model& Model::load(WGPUDevice device, WGPUQueue queue, const std::filesystem::path& path, WGPUBindGroupLayout layout) {
     // load model from disk
     // tinyobj::attrib_t attrib = {};
     // std::vector<tinyobj::shape_t> shapes;
@@ -86,6 +88,14 @@ Model& Model::load(WGPUDevice device, WGPUQueue queue, const std::filesystem::pa
                              1 - attrib.texcoords[2 * idx.texcoord_index + 1]};
     }
 
+    WGPUBufferDescriptor buffer_descriptor = {};
+    buffer_descriptor.nextInChain = nullptr;
+    // Create Uniform buffers
+    buffer_descriptor.size = sizeof(glm::mat4);
+    buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
+    buffer_descriptor.mappedAtCreation = false;
+    mUniformBuffer = wgpuDeviceCreateBuffer(device, &buffer_descriptor);
+    std::cout << layout << " M Uniform buffer address after creation: +++++++++++++++\n";
     return *this;
 }
 
@@ -132,6 +142,24 @@ WGPUBuffer Model::getVertexBuffer() {
 
 WGPUBuffer Model::getIndexBuffer() { return mIndexBuffer; }
 
+void Model::createSomeBinding(Application* app) {
+    WGPUBindGroupEntry mBindGroupEntry = {};
+    mBindGroupEntry.nextInChain = nullptr;
+    mBindGroupEntry.binding = 0;
+    mBindGroupEntry.buffer = mUniformBuffer;
+    mBindGroupEntry.offset = 0;
+    mBindGroupEntry.size = sizeof(glm::mat4);
+
+    WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
+    mTrasBindGroupDesc.nextInChain = nullptr;
+    mTrasBindGroupDesc.entries = &mBindGroupEntry;
+    mTrasBindGroupDesc.entryCount = 1;
+    mTrasBindGroupDesc.label = "translation bind group";
+    mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
+
+    ggg = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);
+}
+
 void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
     bindingData[1].nextInChain = nullptr;
     bindingData[1].binding = 1;
@@ -141,20 +169,25 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
     auto& render_resource = app->getRendererResource();
     auto& uniform_data = app->getUniformData();
     mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
-    // app->getBindingGroup().getBindGroup()
     uniform_data.modelMatrix = getModelMatrix();
 
-    std::cout << "boat model is: \n";
-    for (int i = 0; i < 4; ++i) {
-        std::cout << uniform_data.modelMatrix[i][0] << " " << uniform_data.modelMatrix[i][1] << " "
-                  << uniform_data.modelMatrix[i][2] << " " << uniform_data.modelMatrix[i][3] << std::endl;
-    }
-
+    // for (int i = 0; i < 4; ++i) {
+    //     std::cout << uniform_data.modelMatrix[i][0] << " " << uniform_data.modelMatrix[i][1] << " "
+    //               << uniform_data.modelMatrix[i][2] << " " << uniform_data.modelMatrix[i][3] << std::endl;
+    // }
     wgpuQueueWriteBuffer(render_resource.queue, app->getUniformBuffer(), offsetof(MyUniform, modelMatrix),
                          glm::value_ptr(uniform_data.modelMatrix), sizeof(glm::mat4));
 
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, getVertexBuffer(), 0, wgpuBufferGetSize(getVertexBuffer()));
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindGroup, 0, nullptr);
+
+    wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, glm::value_ptr(mModelMatrix), sizeof(glm::mat4));
+
+    // std::cout << mTrasBindGroupDesc.layout << " boat model is: +++++++++++++++\n";
+    createSomeBinding(app);
+    wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
+    // wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, glm::value_ptr(mModelMatrix), sizeof(glm::mat4));
+
     wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);
 }
 
@@ -182,5 +215,10 @@ glm::mat4 Model::getModelMatrix() {
     mModelMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
     return mModelMatrix;
 }
-
+Model& Model::scale(const glm::vec3& s) {
+    mScale = s;
+    mScaleMatrix = glm::scale(glm::mat4{1.0}, s);
+    return *this;
+}
 glm::vec3& Model::getPosition() { return mPosition; }
+glm::vec3& Model::getScale() { return mScale; }

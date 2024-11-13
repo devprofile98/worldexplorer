@@ -234,18 +234,36 @@ void Application::initializePipeline() {
     binding_layout_entries3.sampler.type = WGPUSamplerBindingType_Filtering;
     mBindingGroup.add(binding_layout_entries3);
 
+    // WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor = {};
     WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor = {};
     bind_group_layout_descriptor.nextInChain = nullptr;
     bind_group_layout_descriptor.label = "binding group layout";
     bind_group_layout_descriptor.entryCount = mBindingGroup.getEntryCount();
     bind_group_layout_descriptor.entries = mBindingGroup.getEntryData();
+
     WGPUBindGroupLayout bind_group_layout =
         wgpuDeviceCreateBindGroupLayout(mRendererResource.device, &bind_group_layout_descriptor);
 
+    WGPUBindGroupLayoutEntry object_transformation = {};
+    setDefault(object_transformation);
+    object_transformation.binding = 0;
+    object_transformation.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+    object_transformation.buffer.type = WGPUBufferBindingType_Uniform;
+    object_transformation.buffer.minBindingSize = sizeof(glm::mat4);
+    // mBindingGroup.add(binding_layout_entries);
+    WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor1 = {};
+    bind_group_layout_descriptor1.nextInChain = nullptr;
+    bind_group_layout_descriptor1.label = "Object Tranformation Matrix uniform";
+    bind_group_layout_descriptor1.entryCount = 1;
+    bind_group_layout_descriptor1.entries = &object_transformation;
+
+    mBindGroupLayouts[0] = bind_group_layout;
+    mBindGroupLayouts[1] = wgpuDeviceCreateBindGroupLayout(mRendererResource.device, &bind_group_layout_descriptor1);
+
     WGPUPipelineLayoutDescriptor pipeline_layout_descriptor = {};
     pipeline_layout_descriptor.nextInChain = nullptr;
-    pipeline_layout_descriptor.bindGroupLayoutCount = 1;
-    pipeline_layout_descriptor.bindGroupLayouts = &bind_group_layout;
+    pipeline_layout_descriptor.bindGroupLayoutCount = mBindGroupLayouts.size();
+    pipeline_layout_descriptor.bindGroupLayouts = mBindGroupLayouts.data();
     WGPUPipelineLayout pipeline_layout =
         wgpuDeviceCreatePipelineLayout(mRendererResource.device, &pipeline_layout_descriptor);
     pipeline_descriptor.layout = pipeline_layout;
@@ -283,6 +301,31 @@ void Application::initializePipeline() {
 
     mBindingGroup.create(this, mBindGroupDescriptor);
 
+    WGPUBufferDescriptor buffer_descriptor = {};
+    buffer_descriptor.nextInChain = nullptr;
+    // Create Uniform buffers
+    buffer_descriptor.size = sizeof(glm::mat4);
+    buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
+    buffer_descriptor.mappedAtCreation = false;
+    mUniformBufferTransform = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
+
+    ///////// Transformation bind group
+    WGPUBindGroupEntry mBindGroupEntry = {};
+    mBindGroupEntry.nextInChain = nullptr;
+    mBindGroupEntry.binding = 0;
+    mBindGroupEntry.buffer = mUniformBufferTransform;
+    mBindGroupEntry.offset = 0;
+    mBindGroupEntry.size = sizeof(glm::mat4);
+
+    // WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
+    mTrasBindGroupDesc.nextInChain = nullptr;
+    mTrasBindGroupDesc.entries = &mBindGroupEntry;
+    mTrasBindGroupDesc.entryCount = 1;
+    mTrasBindGroupDesc.label = "translation bind group";
+    mTrasBindGroupDesc.layout = mBindGroupLayouts[1];
+
+    bindGrouptrans = wgpuDeviceCreateBindGroup(mRendererResource.device, &mTrasBindGroupDesc);
+
     mPipeline = wgpuDeviceCreateRenderPipeline(mRendererResource.device, &pipeline_descriptor);
 
     // ---------------------------- End of Render Pipeline
@@ -290,10 +333,11 @@ void Application::initializePipeline() {
 
 // Initializing Vertex Buffers
 void Application::initializeBuffers() {
-    boat_model.load(mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/fourareen.obj")
+    boat_model
+        .load(mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/fourareen.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0})
         .uploadToGPU(mRendererResource.device, mRendererResource.queue);
-    tower_model.load(mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/tower.obj")
+    tower_model.load(mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/tower.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0})
         .uploadToGPU(mRendererResource.device, mRendererResource.queue);
 
@@ -328,6 +372,7 @@ void Application::onResize() {
     terminateSwapChain();
 
     // Re-init
+
     initSwapChain();
     initDepthBuffer();
     updateProjectionMatrix();
@@ -356,7 +401,7 @@ bool Application::initialize() {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);  // <-- extra info for glfwCreateWindow
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    GLFWwindow* provided_window = glfwCreateWindow(640, 480, "Learn WebGPU", nullptr, nullptr);
+    GLFWwindow* provided_window = glfwCreateWindow(1920, 1080, "Learn WebGPU", nullptr, nullptr);
     if (!provided_window) {
         std::cerr << "Could not open window!" << std::endl;
         glfwTerminate();
@@ -425,8 +470,8 @@ bool Application::initialize() {
     surface_configuration.nextInChain = nullptr;
     // Configure the texture created for swap chain
 
-    surface_configuration.width = 640;
-    surface_configuration.height = 480;
+    surface_configuration.width = 1920;
+    surface_configuration.height = 1080;
     surface_configuration.usage = WGPUTextureUsage_RenderAttachment;
 
     WGPUSurfaceCapabilities capabilities = {};
@@ -600,6 +645,10 @@ void Application::mainLoop() {
     // mUniforms.modelMatrix = tower_model.getModelMatrix();
     // wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, modelMatrix),
     //                      &mUniforms.modelMatrix, sizeof(MyUniform::modelMatrix));
+
+    // wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBufferTransform, 0, glm::value_ptr(mtransmodel),
+    //                      sizeof(glm::mat4));
+
     tower_model.draw(this, render_pass_encoder, mBindingData);
     boat_model.draw(this, render_pass_encoder, mBindingData);
 
@@ -687,8 +736,8 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     required_limits.limits.maxInterStageShaderComponents = 8;
 
     // Binding groups
-    required_limits.limits.maxBindGroups = 2;
-    required_limits.limits.maxUniformBuffersPerShaderStage = 1;
+    required_limits.limits.maxBindGroups = 3;
+    required_limits.limits.maxUniformBuffersPerShaderStage = 2;
     required_limits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float);
 
     required_limits.limits.maxTextureDimension1D = 2048;
@@ -718,12 +767,15 @@ bool Application::initSwapChain() {
     surface_configuration.presentMode = WGPUPresentMode_Fifo;
     surface_configuration.alphaMode = WGPUCompositeAlphaMode_Auto;
 
+    std::cout << "LLLLLLLLLLLLLLLLLLLLL\n";
+    // glfwGetWGPUSurface(mRendererResource.insta)
     wgpuSurfaceConfigure(mRendererResource.surface, &surface_configuration);
+    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2222\n";
     return mRendererResource.surface != nullptr;
 }
 
 void Application::terminateSwapChain() {
-    // wgpuSurfaceRelease(mSurface);
+    // wgpuSurfaceRelease(mRendererResource.surface);
 }
 
 bool Application::initDepthBuffer() {
@@ -770,16 +822,16 @@ void Application::updateProjectionMatrix() {
     mUniforms.projectMatrix = glm::perspective(60 * Camera::PI / 180, ratio, 0.01f, 100.0f);
 
     // float ratio = width / height;
-    float focal_length = 2.0;
-    float near = 0.01f;
-    float far = 1000.0f;
-    float divider = 1.0f / (focal_length * (far - near));
-    mUniforms.projectMatrix = glm::transpose(glm::mat4{
-        1.0, 0.0, 0.0, 0.0,                              //
-        0.0, ratio, 0.0, 0.0,                            //
-        0.0, 0.0, far * divider, -far * near * divider,  //
-        0.0, 0.0, 1.0 / focal_length, 0.0,               //
-    });
+    // float focal_length = 2.0;
+    // float near = 0.01f;
+    // float far = 1000.0f;
+    // float divider = 1.0f / (focal_length * (far - near));
+    // mUniforms.projectMatrix = glm::transpose(glm::mat4{
+    //     1.0, 0.0, 0.0, 0.0,                              //
+    //     0.0, ratio, 0.0, 0.0,                            //
+    //     0.0, 0.0, far * divider, -far * near * divider,  //
+    //     0.0, 0.0, 1.0 / focal_length, 0.0,               //
+    // });
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),
                          &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));
@@ -889,6 +941,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     // Build our UI
     // static float x = 0.0f, y = 0.0f, z = 0.0f;
     static glm::vec3& position = boat_model.getPosition();
+    static float scale = 1;
     static int counter = 0;
     static bool show_demo_window = true;
     static bool show_another_window = false;
@@ -901,15 +954,23 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui::Checkbox("Another Window", &show_another_window);
 
     glm::vec3 temp_pos = position;
-    ImGui::SliderFloat("Boat x position", &position.x, -100.0f,
-                       100.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
-    ImGui::SliderFloat("Boat y position", &position.y, -100.0f,
-                       100.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
-    ImGui::SliderFloat("Boat z position", &position.z, -100.0f,
-                       100.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
+    float scale_factor = scale;
+
+    ImGui::SliderFloat("Boat x position", &position.x, -10.0f,
+                       10.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
+    ImGui::SliderFloat("Boat y position", &position.y, -10.0f,
+                       10.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
+    ImGui::SliderFloat("Boat z position", &position.z, -10.0f,
+                       10.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
+
+    ImGui::SliderFloat("Boat Scale", &scale, 0.0f, 10.0f);
     if (temp_pos != position) {
         std::cout << "value Changed" << '\n';
-        boat_model.moveTo(position);
+        tower_model.moveTo(position);
+    }
+    if (scale_factor != scale) {
+        std::cout << "Scale Changed" << '\n';
+        tower_model.scale(glm::vec3{(float)scale});
     }
     ImGui::ColorEdit3("clear color", (float*)&clear_color);  // Edit 3 floats representing a color
 
@@ -937,3 +998,5 @@ BindingGroup& Application::getBindingGroup() { return mBindingGroup; }
 WGPUBuffer& Application::getUniformBuffer() { return mUniformBuffer; }
 
 MyUniform& Application::getUniformData() { return mUniforms; }
+
+const WGPUBindGroupLayout& Application::getObjectBindGroupLayout() const { return mBindGroupLayouts[1]; }

@@ -75,6 +75,11 @@ class Application {
         BindingGroup& getBindingGroup();
         WGPUBuffer& getUniformBuffer();
         MyUniform& getUniformData();
+        const WGPUBindGroupLayout& getObjectBindGroupLayout() const;
+        WGPUBindGroup bindGrouptrans = {};
+        glm::mat4 mtransmodel{1.0};
+        WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
+        std::array<WGPUBindGroupLayout, 2> mBindGroupLayouts;
 
     private:
         Camera mCamera;
@@ -94,6 +99,7 @@ class Application {
         // WGPUBindGroup mBindGroup;
         WGPUBuffer mBuffer1, mBuffer2;
         WGPUBuffer mUniformBuffer;
+        WGPUBuffer mUniformBufferTransform;
         MyUniform mUniforms;
         uint32_t mIndexCount;
 

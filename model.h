@@ -24,9 +24,10 @@ class Model {
     public:
         Model();
 
-        Model& load(WGPUDevice device, WGPUQueue queue, const std::filesystem::path& path);
+        Model& load(WGPUDevice device, WGPUQueue queue, const std::filesystem::path& path, WGPUBindGroupLayout layout);
         Model& moveBy(const glm::vec3& m);
         Model& moveTo(const glm::vec3& m);
+        Model& scale(const glm::vec3& s);
         Model& uploadToGPU(WGPUDevice device, WGPUQueue queue);
         size_t getVertexCount() const;
 
@@ -40,6 +41,9 @@ class Model {
         // Getters
         glm::mat4 getModelMatrix();
         glm::vec3& getPosition();
+        glm::vec3& getScale();
+
+        void createSomeBinding(Application* app);
 
     private:
         glm::mat4 mScaleMatrix;
@@ -50,8 +54,12 @@ class Model {
         Texture* mTexture;
         WGPUTextureView mTextureView;
         WGPUBindGroup mBindGroup;
+        WGPUBuffer mUniformBuffer;
 
+        WGPUBindGroup ggg = {};
         glm::vec3 mPosition;
+        glm::vec3 mScale;
+
         std::vector<VertexAttributes> mVertexData;
         WGPUBuffer mVertexBuffer = {};
         WGPUBuffer mIndexBuffer = {};
