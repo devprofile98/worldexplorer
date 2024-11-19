@@ -234,6 +234,14 @@ void Application::initializePipeline() {
     binding_layout_entries3.sampler.type = WGPUSamplerBindingType_Filtering;
     mBindingGroup.add(binding_layout_entries3);
 
+    WGPUBindGroupLayoutEntry lighting_information_entry = {};
+    setDefault(lighting_information_entry);
+    lighting_information_entry.binding = 3;
+    lighting_information_entry.visibility = WGPUShaderStage_Fragment;
+    lighting_information_entry.buffer.type = WGPUBufferBindingType_Uniform;
+    binding_layout_entries.buffer.minBindingSize = sizeof(LightingUniforms);
+    mBindingGroup.add(lighting_information_entry);
+
     // WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor = {};
     WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor = {};
     bind_group_layout_descriptor.nextInChain = nullptr;
@@ -294,6 +302,12 @@ void Application::initializePipeline() {
     mBindingData[2].binding = 2;
     mBindingData[2].sampler = sampler;
 
+    mBindingData[3].nextInChain = nullptr;
+    mBindingData[3].binding = 3;
+    mBindingData[3].buffer = mDirectionalLightBuffer;
+    mBindingData[3].offset = 0;
+    mBindingData[3].size = sizeof(LightingUniforms);
+
     mBindGroupDescriptor.nextInChain = nullptr;
     mBindGroupDescriptor.layout = bind_group_layout;
     mBindGroupDescriptor.entryCount = bind_group_layout_descriptor.entryCount;
@@ -340,6 +354,7 @@ void Application::initializeBuffers() {
     tower_model.load(mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/tower.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0})
         .uploadToGPU(mRendererResource.device, mRendererResource.queue);
+    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>....\n";
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -348,15 +363,27 @@ void Application::initializeBuffers() {
     buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     buffer_descriptor.mappedAtCreation = false;
     mUniformBuffer = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
-
     mUniforms.time = 1.0f;
     mUniforms.color = {0.0f, 1.0f, 0.4f, 1.0f};
     // setupCamera(mUniforms);
-
     mCamera = Camera{{-0.0f, -0.0f, 0.0f}, glm::vec3{0.8f}, {1.0, 0.0, 0.0}, 0.0};
     mUniforms.setCamera(mCamera);
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, buffer_descriptor.size);
-    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>\n";
+
+    WGPUBufferDescriptor lighting_buffer_descriptor = {};
+    lighting_buffer_descriptor.nextInChain = nullptr;
+    // Create Uniform buffers
+    lighting_buffer_descriptor.label = ":::::";
+    lighting_buffer_descriptor.size = sizeof(LightingUniforms);
+    lighting_buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
+    lighting_buffer_descriptor.mappedAtCreation = false;
+    mDirectionalLightBuffer = wgpuDeviceCreateBuffer(mRendererResource.device, &lighting_buffer_descriptor);
+
+    mLightingUniforms.directions = {glm::vec4{0.5, -0.9, 0.1, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
+    mLightingUniforms.colors = {glm::vec4{1.0, 0.9, 0.6, 1.0}, glm::vec4{0.6, 0.9, 1.0, 1.0}};
+    // std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>....\n";
+    wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
+                         lighting_buffer_descriptor.size);
 
     // updateViewMatrix();
 }
@@ -737,7 +764,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
 
     // Binding groups
     required_limits.limits.maxBindGroups = 3;
-    required_limits.limits.maxUniformBuffersPerShaderStage = 2;
+    required_limits.limits.maxUniformBuffersPerShaderStage = 3;
     required_limits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float);
 
     required_limits.limits.maxTextureDimension1D = 2048;
@@ -982,6 +1009,15 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGuiIO& io = ImGui::GetIO();
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
     ImGui::End();
+
+    ImGui::Begin("Lighting");
+    ImGui::ColorEdit3("Color #0", glm::value_ptr(mLightingUniforms.colors[0]));
+    ImGui::DragFloat3("Direction #0", glm::value_ptr(mLightingUniforms.directions[0]));
+    ImGui::ColorEdit3("Color #1", glm::value_ptr(mLightingUniforms.colors[1]));
+    ImGui::DragFloat3("Direction #1", glm::value_ptr(mLightingUniforms.directions[1]));
+    ImGui::End();
+    wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
+                         sizeof(LightingUniforms));
 
     // Draw the UI
     ImGui::EndFrame();

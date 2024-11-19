@@ -38,6 +38,14 @@ struct RendererResource {
         GLFWwindow* window;
 };
 
+/*
+ * Corresponding data for wgsl struct representing Directional light in scene
+ */
+struct LightingUniforms {
+        std::array<glm::vec4, 2> directions;
+        std::array<glm::vec4, 2> colors;
+};
+
 /**
  * A structure that describes the data layout in the vertex buffer
  * We do not instantiate it but use it in `sizeof` and `offsetof`
@@ -83,6 +91,7 @@ class Application {
 
     private:
         Camera mCamera;
+        LightingUniforms mLightingUniforms;
 
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();
@@ -100,6 +109,7 @@ class Application {
         WGPUBuffer mBuffer1, mBuffer2;
         WGPUBuffer mUniformBuffer;
         WGPUBuffer mUniformBufferTransform;
+        WGPUBuffer mDirectionalLightBuffer;
         MyUniform mUniforms;
         uint32_t mIndexCount;
 
