@@ -4,6 +4,14 @@
 #include <iostream>
 
 #include "application.h"
+#include "stb_image.h"
+
+#define STBI_MSC_SECURE_CRT
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#include "stbi_image_write.h"
+#pragma GCC diagnostic pop
 
 #define TINYOBJLOADER_IMPLEMENTATION  // add this to exactly 1 of your C++ files
 #include "tinyobjloader/tiny_obj_loader.h"
@@ -118,7 +126,7 @@ double grad(uint8_t hash, double x, double y, double z) {
     uint8_t h = hash & 15;
     double u = h < 8 ? x : y;
     double v = h < 4 ? y : (h == 14 || h == 12) ? x : z;
-    return ((h & 1) == 0 ? u : -u) + (h & 2) == 0 ? v : -v;
+    return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
 }
 
 double lerp(double t, double a, double b) { return a + t * (b - a); }
@@ -127,17 +135,21 @@ double lerp(double t, double a, double b) { return a + t * (b - a); }
 double fade(double t) { return t * t * t * (t * (t * 6.0 - 15.0) + 10.0); }
 
 double perlin(double x, double y, double z) {
-    uint8_t cx = static_cast<long>(x) & 255;
-    uint8_t cy = static_cast<long>(y) & 255;
-    uint8_t cz = static_cast<long>(z) & 255;
+    uint32_t cx = static_cast<uint32_t>(std::floor(x)) & 255;
+    uint32_t cy = static_cast<uint32_t>(std::floor(y)) & 255;
+    uint32_t cz = static_cast<uint32_t>(std::floor(z)) & 255;
 
-    x -= static_cast<double>(cx);
-    y -= static_cast<double>(cy);
-    z -= static_cast<double>(cz);
+    // std::cout << std::format("{} {} {}", cx, cy, cz) << '\n';
+
+    x -= std::floor(x);
+    y -= std::floor(y);
+    z -= std::floor(z);
 
     double u = fade(x);
     double v = fade(y);
     double w = fade(z);
+
+    // std::cout << std::format("{} {} {}: {} {} {}   ->   ", x, y, z, u, v, w);
 
     uint32_t A = p[cx] + cy;
     uint32_t B = p[cx + 1] + cy;
@@ -147,53 +159,61 @@ double perlin(double x, double y, double z) {
 
     uint32_t AB = p[A + 1] + cz;
     uint32_t BB = p[B + 1] + cz;
+    std::cout << std::format("{} {} {}  :::   {}({}) {}({}) {} {} ", x, y, z, grad(p[AA], x, y, z), p[AA],
+                             grad(p[BA], x - 1.0, y, z), p[BA], AB, BA);
+    // "{} {} {}: {} {} {}   ->   ", x, y, z, u, v, w);
 
     return lerp(w,
                 lerp(v, lerp(u, grad(p[AA], x, y, z), grad(p[BA], x - 1.0, y, z)),
                      lerp(u, grad(p[AB], x, y - 1.0, z), grad(p[BB], x - 1.0, y - 1.0, z))),
                 lerp(v, lerp(u, grad(p[AA + 1], x, y, z - 1.0), grad(p[BA + 1], x - 1.0, y, z - 1.0)),
-                     lerp(u, grad(p[AB + 1], x, y - 1.0, z - 1.0), grad(p[BB + 1], x - 1.0, y - 1.0, z - 1.0)))) +
-           0.3;
+                     lerp(u, grad(p[AB + 1], x, y - 1.0, z - 1.0), grad(p[BB + 1], x - 1.0, y - 1.0, z - 1.0))));
 }
 }  // namespace noise
 
 Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
+    (void)octaves;
     // Terrain terrain;
     // terrain.vertices;
     mGridSize = gridSize;
     mPixels.reserve(mGridSize * mGridSize);
 
-    double height_scale = 0.0;
-    double frequency = 1.12;
-    double amp = 1.0;
-    double clamp_scale = 0.0;
-    double persistence = 0.5;
+    // double height_scale = 0.0;
+    // double frequency = 1.12;
+    // double amp = 1.0;
+    // double clamp_scale = 0.0;
+    // double persistence = 0.5;
     // calculating the clamp scale
-    for (size_t o = 0; o < octaves; o++) {
-        clamp_scale += amp;
-        amp *= persistence;
-    }
+    // for (size_t o = 0; o < octaves; o++) {
+    //     clamp_scale += amp;
+    //     amp *= persistence;
+    // }
 
-    std::cout << "The Clamp Scale Is : " << clamp_scale << '\n';
+    // std::cout << "The Clamp Scale Is : " << clamp_scale << '\n';
 
     for (size_t x = 0; x < gridSize; x++) {
         for (size_t z = 0; z < gridSize; z++) {
-            double pixel_result = 0.0;
-            frequency = 4.0;
-            amp = 1.0;
-            for (size_t o = 0; o < octaves; o++) {
-                double nx = (double)x / (double)gridSize * frequency;
-                double nz = (double)z / (double)gridSize * frequency;
-                pixel_result += ((noise::perlin(nx, nz, 0) + 1.0) / 2.0 * 255.0) * amp;
-                frequency *= 2.0;
-                amp *= persistence;
-            }
+            // double pixel_result = 0.0;
+            // frequency = 4.0;
+            // amp = 1.0;
+            double nx = (double)x / gridSize * 20.21;
+            double nz = (double)z / gridSize * 20.21;
+            double pixel = noise::perlin(nz, nx, 0);
+            std::cout << std::format("{} {} {}\n", nz, nx, pixel);
+            double pixel_result = (pixel + 1.0) * 0.5 * 255.0;
+            // double pixel_result = glm::perlin(glm::vec2{x, z});
+            // auto d =
+            // for (size_t o = 0; o < octaves; o++) {
+            //     double nx = (double)x / (double)gridSize * frequency;
+            //     double nz = (double)z / (double)gridSize * frequency;
+            //     pixel_result += ((noise::perlin(nx, nz, 0) + 1.0) / 2.0 * 255.0) * amp;
+            //     frequency *= 2.0;
+            //     amp *= persistence;
+            // }
 
             VertexAttributes attr;
-            std::cout << std::format("Generated height is {} {}\n", pixel_result,
-                                     pixel_result / clamp_scale * height_scale);
             mPixels.push_back(pixel_result);
-            attr.position = {x, z, pixel_result / clamp_scale * height_scale};
+            attr.position = {x, z, pixel_result * 0.0};
             attr.normal = {1.0, 0.0, 0.0};
             attr.color = {1.0, 0.0, 0.0};
             attr.uv = {(double)x / gridSize, (double)z / gridSize};
@@ -300,6 +320,8 @@ Terrain& Terrain::uploadToGpu(Application* app) {
 
     wgpuQueueWriteTexture(app->getRendererResource().queue, &destination, mPixels.data(), mPixels.size(), &source,
                           &texture_desc.size);
+
+    stbi_write_png("Noise.png", mGridSize, mGridSize, 1, mPixels.data(), mGridSize);
 
     return *this;
 }
