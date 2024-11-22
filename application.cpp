@@ -350,11 +350,18 @@ void Application::initializeBuffers() {
     boat_model
         .load(mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/fourareen.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0})
+        .scale(glm::vec3{0.3})
         .uploadToGPU(mRendererResource.device, mRendererResource.queue);
     tower_model.load(mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/tower.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0})
+        .scale(glm::vec3{0.3})
         .uploadToGPU(mRendererResource.device, mRendererResource.queue);
+
     std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>....\n";
+
+    terrain.generate(100, 1).uploadToGpu(this);
+
+    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2222....\n";
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -678,6 +685,7 @@ void Application::mainLoop() {
 
     tower_model.draw(this, render_pass_encoder, mBindingData);
     boat_model.draw(this, render_pass_encoder, mBindingData);
+    terrain.draw(this, render_pass_encoder, mBindingData);
 
     updateGui(render_pass_encoder);
 

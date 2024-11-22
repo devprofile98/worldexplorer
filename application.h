@@ -11,6 +11,7 @@
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "model.h"
+#include "utils.h"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
 
@@ -91,6 +92,7 @@ class Application {
 
     private:
         Camera mCamera;
+        Terrain terrain;
         LightingUniforms mLightingUniforms;
 
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
