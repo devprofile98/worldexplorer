@@ -359,7 +359,7 @@ void Application::initializeBuffers() {
 
     std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>....\n";
 
-    terrain.generate(100, 1).uploadToGpu(this);
+    terrain.generate(100, 8).uploadToGpu(this);
 
     std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2222....\n";
 

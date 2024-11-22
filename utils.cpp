@@ -178,45 +178,40 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
     mGridSize = gridSize;
     mPixels.reserve(mGridSize * mGridSize);
 
-    // double height_scale = 0.0;
-    // double frequency = 1.12;
-    // double amp = 1.0;
-    // double clamp_scale = 0.0;
-    // double persistence = 0.5;
+    double height_scale = 0.1;
+    double frequency = 1.12;
+    double amp = 1.0;
+    double clamp_scale = 0.0;
+    double persistence = 0.5;
     // calculating the clamp scale
-    // for (size_t o = 0; o < octaves; o++) {
-    //     clamp_scale += amp;
-    //     amp *= persistence;
-    // }
+    for (size_t o = 0; o < octaves; o++) {
+        clamp_scale += amp;
+        amp *= persistence;
+    }
 
     // std::cout << "The Clamp Scale Is : " << clamp_scale << '\n';
 
     for (size_t x = 0; x < gridSize; x++) {
         for (size_t z = 0; z < gridSize; z++) {
-            // double pixel_result = 0.0;
-            // frequency = 4.0;
-            // amp = 1.0;
-            double nx = (double)x / gridSize * 20.21;
-            double nz = (double)z / gridSize * 20.21;
-            double pixel = noise::perlin(nz, nx, 0);
-            std::cout << std::format("{} {} {}\n", nz, nx, pixel);
-            double pixel_result = (pixel + 1.0) * 0.5 * 255.0;
-            // double pixel_result = glm::perlin(glm::vec2{x, z});
-            // auto d =
-            // for (size_t o = 0; o < octaves; o++) {
-            //     double nx = (double)x / (double)gridSize * frequency;
-            //     double nz = (double)z / (double)gridSize * frequency;
-            //     pixel_result += ((noise::perlin(nx, nz, 0) + 1.0) / 2.0 * 255.0) * amp;
-            //     frequency *= 2.0;
-            //     amp *= persistence;
-            // }
+            double pixel_result = 0.0;
+            frequency = 4.0;
+            amp = 1.0;
+            for (size_t o = 0; o < octaves; o++) {
+                double nx = (double)x / gridSize * frequency;
+                double nz = (double)z / gridSize * frequency;
+                double pixel = noise::perlin(nz, nx, 0);
+                pixel_result += ((pixel + 1.0) * 0.5 * 255.0) * amp;
+                frequency *= 2.0;
+                amp *= persistence;
+            }
 
             VertexAttributes attr;
-            mPixels.push_back(pixel_result);
-            attr.position = {x, z, pixel_result * 0.0};
+            mPixels.push_back(pixel_result / clamp_scale);
+            attr.position = {x, z, pixel_result * height_scale};
             attr.normal = {1.0, 0.0, 0.0};
             attr.color = {1.0, 0.0, 0.0};
-            attr.uv = {(double)x / gridSize, (double)z / gridSize};
+            // attr.uv = {(double)x / gridSize, (double)z / gridSize};
+            attr.uv = {0.0, 0.0};
             this->vertices.push_back(attr);
         }
     }
@@ -334,21 +329,20 @@ void Terrain::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<
     // 3 - SET INDEX BUFFER
 
     // 4 - DRAW INDEXED
-    WGPUBindGroup mbidngroup = {};
-    bindingData[1].nextInChain = nullptr;
-    bindingData[1].binding = 1;
-    bindingData[1].textureView = mTextureView;
-    auto& desc = app->getBindingGroup().getDescriptor();
-    desc.entries = bindingData.data();
-    auto& render_resource = app->getRendererResource();
-    // auto& uniform_data = app->getUniformData();
-    mbidngroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
+    // WGPUBindGroup mbidngroup = {};
+    // bindingData[1].nextInChain = nullptr;
+    // bindingData[1].binding = 1;
+    // bindingData[1].textureView = mTextureView;
+    // auto& desc = app->getBindingGroup().getDescriptor();
+    // desc.entries = bindingData.data();
+    // auto& render_resource = app->getRendererResource();
+    // mbidngroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
 
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mVertexBuffer, 0, wgpuBufferGetSize(mVertexBuffer));
     wgpuRenderPassEncoderSetIndexBuffer(encoder, mIndexBuffer, WGPUIndexFormat_Uint16, 0,
                                         wgpuBufferGetSize(mIndexBuffer));
-    // wgpuRenderPassEncoderSetBindGroup(encoder, 0, app->getBindingGroup().getBindGroup(), 0, nullptr);
-    wgpuRenderPassEncoderSetBindGroup(encoder, 0, mbidngroup, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(encoder, 0, app->getBindingGroup().getBindGroup(), 0, nullptr);
+    // wgpuRenderPassEncoderSetBindGroup(encoder, 0, mbidngroup, 0, nullptr);
 
     // wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindGroup, 0, nullptr);
 
