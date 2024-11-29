@@ -1,6 +1,7 @@
 #ifndef WEBGPUTEST_MODEL_H
 #define WEBGPUTEST_MODEL_H
 
+#include <array>
 #include <filesystem>
 #include <vector>
 
@@ -18,6 +19,15 @@ struct VertexAttributes {
         glm::vec3 normal;
         glm::vec3 color;
         glm::vec2 uv;
+};
+
+/*
+ * hold the object specific configuration for rendering in shader
+ */
+struct ObjectInfo {
+        glm::mat4 transformation;
+        uint32_t isFlat;
+        std::array<uint32_t, 3> padding;
 };
 
 class Model {
@@ -49,7 +59,7 @@ class Model {
         glm::mat4 mScaleMatrix;
         glm::mat4 mTranslationMatrix;
         glm::mat4 mRotationMatrix;
-        glm::mat4 mModelMatrix;
+        ObjectInfo mObjectInfo;
 
         Texture* mTexture;
         WGPUTextureView mTextureView;

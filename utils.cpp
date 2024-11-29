@@ -2,6 +2,7 @@
 
 #include <format>
 #include <iostream>
+#include <numeric>
 
 #include "application.h"
 #include "stb_image.h"
@@ -159,8 +160,8 @@ double perlin(double x, double y, double z) {
 
     uint32_t AB = p[A + 1] + cz;
     uint32_t BB = p[B + 1] + cz;
-    std::cout << std::format("{} {} {}  :::   {}({}) {}({}) {} {} ", x, y, z, grad(p[AA], x, y, z), p[AA],
-                             grad(p[BA], x - 1.0, y, z), p[BA], AB, BA);
+    // std::cout << std::format("{} {} {}  :::   {}({}) {}({}) {} {} ", x, y, z, grad(p[AA], x, y, z), p[AA],
+    //                          grad(p[BA], x - 1.0, y, z), p[BA], AB, BA);
     // "{} {} {}: {} {} {}   ->   ", x, y, z, u, v, w);
 
     return lerp(w,
@@ -172,6 +173,21 @@ double perlin(double x, double y, double z) {
 }  // namespace noise
 
 Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
+    mRotationMatrix = glm::mat4{1.0};
+    mTranslationMatrix = glm::mat4{1.0};
+    mScaleMatrix = glm::mat4{1.0};
+    mScaleMatrix = glm::scale(mScaleMatrix, glm::vec3{2.0});
+    mObjectInfo.transformation = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mObjectInfo.isFlat = 1;
+
+    std::array<glm::vec3, 5> height_color = {
+        glm::vec3{0.0 / 255.0, 0.0 / 255.0, 139.0 / 255.0},      // Deep Water (Dark Blue)
+        glm::vec3{0.0 / 255.0, 0.0 / 255.0, 255.0 / 255.0},      // Shallow Water (Blue)
+        glm::vec3{34.0 / 255.0, 139.0 / 255.0, 34.0 / 255.0},    // Grassland (Green)
+        glm::vec3{139.0 / 255.0, 69.0 / 255.0, 19.0 / 255.0},    // Mountain (Brown)
+        glm::vec3{255.0 / 255.0, 255.0 / 255.0, 255.0 / 255.0},  // Snow (White)
+    };
+
     (void)octaves;
     // Terrain terrain;
     // terrain.vertices;
@@ -191,10 +207,13 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
 
     // std::cout << "The Clamp Scale Is : " << clamp_scale << '\n';
 
+    double min = std::numeric_limits<double>::max();
+    double max = std::numeric_limits<double>::min();
+
     for (size_t x = 0; x < gridSize; x++) {
         for (size_t z = 0; z < gridSize; z++) {
             double pixel_result = 0.0;
-            frequency = 4.0;
+            frequency = 2.0;
             amp = 1.0;
             for (size_t o = 0; o < octaves; o++) {
                 double nx = (double)x / gridSize * frequency;
@@ -206,14 +225,39 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
             }
 
             VertexAttributes attr;
-            mPixels.push_back(pixel_result / clamp_scale);
+            double vertex_height = pixel_result / clamp_scale;
+
+            min = vertex_height < min ? vertex_height : min;
+            max = vertex_height > max ? vertex_height : max;
+
+            mPixels.push_back(vertex_height);
             attr.position = {x, z, pixel_result * height_scale};
             attr.normal = {1.0, 0.0, 0.0};
-            attr.color = {1.0, 0.0, 0.0};
+            std::cout << "height is : " << pixel_result << std::endl;
+
+            if (pixel_result > 300) {
+                attr.color = height_color[4];
+            } else if (pixel_result > 260) {
+                attr.color = height_color[3];
+            } else if (pixel_result > 210) {
+                attr.color = height_color[2];
+            } else {
+                attr.color = height_color[0];
+            }
+            // attr.color = height_color[1];
+
             // attr.uv = {(double)x / gridSize, (double)z / gridSize};
             attr.uv = {0.0, 0.0};
             this->vertices.push_back(attr);
         }
+    }
+
+    // auto ddd = (max - min / 2.0) * clamp_scale;
+
+    for (auto& e : vertices) {
+        e.position.z -= 25;
+        e.position.x -= 50;
+        e.position.y -= 50;
     }
 
     // std::vector<size_t> terrain.indices;
@@ -251,6 +295,14 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
 }
 
 Terrain& Terrain::uploadToGpu(Application* app) {
+    WGPUBufferDescriptor buffer_descriptor = {};
+    buffer_descriptor.nextInChain = nullptr;
+    // Create Uniform buffers
+    buffer_descriptor.size = sizeof(ObjectInfo);
+    buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
+    buffer_descriptor.mappedAtCreation = false;
+    mUniformBuffer = wgpuDeviceCreateBuffer(app->getRendererResource().device, &buffer_descriptor);
+
     WGPUBufferDescriptor vab_descriptor = {};  // vertex attribte buffer
     vab_descriptor.nextInChain = nullptr;
     vab_descriptor.size = vertices.size() * sizeof(VertexAttributes);
@@ -321,6 +373,24 @@ Terrain& Terrain::uploadToGpu(Application* app) {
     return *this;
 }
 
+void Terrain::createSomeBinding(Application* app) {
+    WGPUBindGroupEntry mBindGroupEntry = {};
+    mBindGroupEntry.nextInChain = nullptr;
+    mBindGroupEntry.binding = 0;
+    mBindGroupEntry.buffer = mUniformBuffer;
+    mBindGroupEntry.offset = 0;
+    mBindGroupEntry.size = sizeof(ObjectInfo);
+
+    WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
+    mTrasBindGroupDesc.nextInChain = nullptr;
+    mTrasBindGroupDesc.entries = &mBindGroupEntry;
+    mTrasBindGroupDesc.entryCount = 1;
+    mTrasBindGroupDesc.label = "translation bind group";
+    mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
+
+    ggg = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);
+}
+
 void Terrain::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
     (void)bindingData;
 
@@ -335,7 +405,7 @@ void Terrain::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<
     // bindingData[1].textureView = mTextureView;
     // auto& desc = app->getBindingGroup().getDescriptor();
     // desc.entries = bindingData.data();
-    // auto& render_resource = app->getRendererResource();
+    auto& render_resource = app->getRendererResource();
     // mbidngroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
 
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mVertexBuffer, 0, wgpuBufferGetSize(mVertexBuffer));
@@ -345,6 +415,12 @@ void Terrain::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<
     // wgpuRenderPassEncoderSetBindGroup(encoder, 0, mbidngroup, 0, nullptr);
 
     // wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindGroup, 0, nullptr);
+
+    wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, &mObjectInfo, sizeof(ObjectInfo));
+
+    // std::cout << mTrasBindGroupDesc.layout << " boat model is: +++++++++++++++\n";
+    createSomeBinding(app);
+    wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
 
     // // Draw 1 instance of a 3-vertices shape
     wgpuRenderPassEncoderDrawIndexed(encoder, indices.size(), 1, 0, 0, 0);

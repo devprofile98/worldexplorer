@@ -12,7 +12,8 @@ Model::Model()
       mPosition(glm::vec3{0.0}),
       mScale(glm::vec3{1.0}) {
     mScaleMatrix = glm::scale(mScaleMatrix, mScale);
-    mModelMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mObjectInfo.transformation = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mObjectInfo.isFlat = 0;
 }
 
 Model& Model::load(WGPUDevice device, WGPUQueue queue, const std::filesystem::path& path, WGPUBindGroupLayout layout) {
@@ -91,7 +92,7 @@ Model& Model::load(WGPUDevice device, WGPUQueue queue, const std::filesystem::pa
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
     // Create Uniform buffers
-    buffer_descriptor.size = sizeof(glm::mat4);
+    buffer_descriptor.size = sizeof(ObjectInfo);
     buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     buffer_descriptor.mappedAtCreation = false;
     mUniformBuffer = wgpuDeviceCreateBuffer(device, &buffer_descriptor);
@@ -148,7 +149,7 @@ void Model::createSomeBinding(Application* app) {
     mBindGroupEntry.binding = 0;
     mBindGroupEntry.buffer = mUniformBuffer;
     mBindGroupEntry.offset = 0;
-    mBindGroupEntry.size = sizeof(glm::mat4);
+    mBindGroupEntry.size = sizeof(ObjectInfo);
 
     WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
     mTrasBindGroupDesc.nextInChain = nullptr;
@@ -181,7 +182,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, getVertexBuffer(), 0, wgpuBufferGetSize(getVertexBuffer()));
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindGroup, 0, nullptr);
 
-    wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, glm::value_ptr(mModelMatrix), sizeof(glm::mat4));
+    wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, &mObjectInfo, sizeof(ObjectInfo));
 
     // std::cout << mTrasBindGroupDesc.layout << " boat model is: +++++++++++++++\n";
     createSomeBinding(app);
@@ -212,8 +213,8 @@ void Model::draw(Application* app) {
 }
 
 glm::mat4 Model::getModelMatrix() {
-    mModelMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
-    return mModelMatrix;
+    mObjectInfo.transformation = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    return mObjectInfo.transformation;
 }
 Model& Model::scale(const glm::vec3& s) {
     mScale = s;

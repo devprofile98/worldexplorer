@@ -257,7 +257,7 @@ void Application::initializePipeline() {
     object_transformation.binding = 0;
     object_transformation.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
     object_transformation.buffer.type = WGPUBufferBindingType_Uniform;
-    object_transformation.buffer.minBindingSize = sizeof(glm::mat4);
+    object_transformation.buffer.minBindingSize = sizeof(ObjectInfo);
     // mBindingGroup.add(binding_layout_entries);
     WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor1 = {};
     bind_group_layout_descriptor1.nextInChain = nullptr;
@@ -317,8 +317,9 @@ void Application::initializePipeline() {
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
+    buffer_descriptor.label = "ahgmadasdsad f";
     // Create Uniform buffers
-    buffer_descriptor.size = sizeof(glm::mat4);
+    buffer_descriptor.size = sizeof(ObjectInfo);
     buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     buffer_descriptor.mappedAtCreation = false;
     mUniformBufferTransform = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
@@ -329,7 +330,7 @@ void Application::initializePipeline() {
     mBindGroupEntry.binding = 0;
     mBindGroupEntry.buffer = mUniformBufferTransform;
     mBindGroupEntry.offset = 0;
-    mBindGroupEntry.size = sizeof(glm::mat4);
+    mBindGroupEntry.size = sizeof(ObjectInfo);
 
     // WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
     mTrasBindGroupDesc.nextInChain = nullptr;

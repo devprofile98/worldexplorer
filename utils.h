@@ -28,14 +28,25 @@ struct Terrain {
          */
         Terrain& generate(size_t gridSize, uint8_t octaves);
         void draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData);
+        void createSomeBinding(Application* app);
 
     private:
         WGPUBuffer mVertexBuffer;
         WGPUBuffer mIndexBuffer;
         std::vector<uint8_t> mPixels;
-
         WGPUTexture mTexture;
         WGPUTextureView mTextureView;
+
+        glm::mat4 mScaleMatrix;
+        glm::mat4 mTranslationMatrix;
+        glm::mat4 mRotationMatrix;
+
+        WGPUBindGroup mBindGroup;
+        WGPUBuffer mUniformBuffer;
+
+        WGPUBindGroup ggg = {};
+
+        ObjectInfo mObjectInfo;
 
         uint32_t mGridSize = 0;
 };
