@@ -210,47 +210,55 @@ void Application::initializePipeline() {
         std::cout << "Failed to Create Texture view!!!\n";
     }
 
-    WGPUBindGroupLayoutEntry binding_layout_entries = {};
-    setDefault(binding_layout_entries);
-    binding_layout_entries.binding = 0;
-    binding_layout_entries.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-    binding_layout_entries.buffer.type = WGPUBufferBindingType_Uniform;
-    binding_layout_entries.buffer.minBindingSize = sizeof(MyUniform);
-    mBindingGroup.add(binding_layout_entries);
+    // WGPUBindGroupLayoutEntry binding_layout_entries = {};
+    // setDefault(binding_layout_entries);
+    // binding_layout_entries.binding = 0;
+    // binding_layout_entries.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+    // binding_layout_entries.buffer.type = WGPUBufferBindingType_Uniform;
+    // binding_layout_entries.buffer.minBindingSize = sizeof(MyUniform);
+    // mBindingGroup.add(binding_layout_entries);
+    mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
+                            sizeof(MyUniform));
 
     // Binding Number 1
-    WGPUBindGroupLayoutEntry binding_layout_entries2 = {};
-    setDefault(binding_layout_entries2);
-    binding_layout_entries2.binding = 1;
-    binding_layout_entries2.visibility = WGPUShaderStage_Fragment;
-    binding_layout_entries2.texture.sampleType = WGPUTextureSampleType_Float;
-    binding_layout_entries2.texture.viewDimension = WGPUTextureViewDimension_2D;
-    mBindingGroup.add(binding_layout_entries2);
+    // WGPUBindGroupLayoutEntry binding_layout_entries2 = {};
+    // setDefault(binding_layout_entries2);
+    // binding_layout_entries2.binding = 1;
+    // binding_layout_entries2.visibility = WGPUShaderStage_Fragment;
+    // binding_layout_entries2.texture.sampleType = WGPUTextureSampleType_Float;
+    // binding_layout_entries2.texture.viewDimension = WGPUTextureViewDimension_2D;
+    mBindingGroup.addTexture(1, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                             TextureViewDimension::VIEW_2D);
 
-    WGPUBindGroupLayoutEntry binding_layout_entries3 = {};
-    setDefault(binding_layout_entries3);
-    binding_layout_entries3.binding = 2;
-    binding_layout_entries3.visibility = WGPUShaderStage_Fragment;
-    binding_layout_entries3.sampler.type = WGPUSamplerBindingType_Filtering;
-    mBindingGroup.add(binding_layout_entries3);
+    // WGPUBindGroupLayoutEntry binding_layout_entries3 = {};
+    // setDefault(binding_layout_entries3);
+    // binding_layout_entries3.binding = 2;
+    // binding_layout_entries3.visibility = WGPUShaderStage_Fragment;
+    // binding_layout_entries3.sampler.type = WGPUSamplerBindingType_Filtering;
+    // mBindingGroup.add(binding_layout_entries3);
+    mBindingGroup.addSampler(2, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
 
-    WGPUBindGroupLayoutEntry lighting_information_entry = {};
-    setDefault(lighting_information_entry);
-    lighting_information_entry.binding = 3;
-    lighting_information_entry.visibility = WGPUShaderStage_Fragment;
-    lighting_information_entry.buffer.type = WGPUBufferBindingType_Uniform;
-    binding_layout_entries.buffer.minBindingSize = sizeof(LightingUniforms);
-    mBindingGroup.add(lighting_information_entry);
+    // WGPUBindGroupLayoutEntry lighting_information_entry = {};
+    // setDefault(lighting_information_entry);
+    // lighting_information_entry.binding = 3;
+    // lighting_information_entry.visibility = WGPUShaderStage_Fragment;
+    // lighting_information_entry.buffer.type = WGPUBufferBindingType_Uniform;
+    // lighting_information_entry.buffer.minBindingSize = sizeof(LightingUniforms);
+    // mBindingGroup.add(lighting_information_entry);
+
+    mBindingGroup.addBuffer(3, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM,
+                            sizeof(LightingUniforms));
 
     // WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor = {};
-    WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor = {};
-    bind_group_layout_descriptor.nextInChain = nullptr;
-    bind_group_layout_descriptor.label = "binding group layout";
-    bind_group_layout_descriptor.entryCount = mBindingGroup.getEntryCount();
-    bind_group_layout_descriptor.entries = mBindingGroup.getEntryData();
+    // WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor = {};
+    // bind_group_layout_descriptor.nextInChain = nullptr;
+    // bind_group_layout_descriptor.label = "binding group layout";
+    // bind_group_layout_descriptor.entryCount = mBindingGroup.getEntryCount();
+    // bind_group_layout_descriptor.entries = mBindingGroup.getEntryData();
 
-    WGPUBindGroupLayout bind_group_layout =
-        wgpuDeviceCreateBindGroupLayout(mRendererResource.device, &bind_group_layout_descriptor);
+    // WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor = ;
+
+    WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
 
     WGPUBindGroupLayoutEntry object_transformation = {};
     setDefault(object_transformation);
@@ -286,7 +294,7 @@ void Application::initializePipeline() {
     mBindingData[1].binding = 1;
     mBindingData[1].textureView = textureView;
 
-    WGPUSamplerDescriptor samplerDesc;
+    WGPUSamplerDescriptor samplerDesc = {};
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
     samplerDesc.addressModeV = WGPUAddressMode_Repeat;
     samplerDesc.addressModeW = WGPUAddressMode_ClampToEdge;
@@ -308,12 +316,11 @@ void Application::initializePipeline() {
     mBindingData[3].offset = 0;
     mBindingData[3].size = sizeof(LightingUniforms);
 
-    mBindGroupDescriptor.nextInChain = nullptr;
-    mBindGroupDescriptor.layout = bind_group_layout;
-    mBindGroupDescriptor.entryCount = bind_group_layout_descriptor.entryCount;
-    mBindGroupDescriptor.entries = mBindingData.data();
-
-    mBindingGroup.create(this, mBindGroupDescriptor);
+    // mBindGroupDescriptor.nextInChain = nullptr;
+    // mBindGroupDescriptor.layout = bind_group_layout;
+    // mBindGroupDescriptor.entryCount = bind_group_layout_descriptor.entryCount;
+    // mBindGroupDescriptor.entries = mBindingData.data();
+    mBindingGroup.create(this, mBindingData);
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
