@@ -56,6 +56,21 @@ bool loadGeometry(const fs::path& path, std::vector<float>& pointData, std::vect
 
 WGPUShaderModule loadShader(const fs::path& path, WGPUDevice device);
 
+enum class VertexStepMode {
+    VERTEX = 0,
+    INSTANCE,
+    VERTEX_BUFFER_NOT_USED,
+};
+
+struct VertexBufferLayout {
+        VertexBufferLayout& addAttribute(uint64_t offset, uint32_t location, WGPUVertexFormat format);
+        WGPUVertexBufferLayout configure(uint64_t arrayStride, VertexStepMode stepMode);
+
+    private:
+        std::vector<WGPUVertexAttribute> mAttribs;
+        WGPUVertexBufferLayout mLayout;
+};
+
 // Terrain generateTerrainVertices(size_t gridSize);
 
 #endif  //  TEST_WGPU_UTILS_H

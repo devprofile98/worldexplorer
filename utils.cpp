@@ -195,7 +195,7 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
     mPixels.reserve(mGridSize * mGridSize);
 
     double height_scale = 0.1;
-    double frequency = 1.12;
+    double frequency = 1.023;
     double amp = 1.0;
     double clamp_scale = 0.0;
     double persistence = 0.5;
@@ -425,4 +425,34 @@ void Terrain::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<
     // // Draw 1 instance of a 3-vertices shape
     wgpuRenderPassEncoderDrawIndexed(encoder, indices.size(), 1, 0, 0, 0);
     // wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);
+}
+
+/// vertex buffer layout
+
+WGPUVertexStepMode stepModeFrom(VertexStepMode mode) {
+    WGPUVertexStepMode ret = WGPUVertexStepMode_Vertex;
+    if (mode == VertexStepMode::VERTEX) {
+        ret = WGPUVertexStepMode_Vertex;
+    } else if (mode == VertexStepMode::INSTANCE) {
+        ret = WGPUVertexStepMode_Instance;
+    } else if (mode == VertexStepMode::VERTEX_BUFFER_NOT_USED) {
+        ret = WGPUVertexStepMode_VertexBufferNotUsed;
+    } else {
+        ret = WGPUVertexStepMode_Force32;
+    }
+    return ret;
+}
+
+VertexBufferLayout& VertexBufferLayout::addAttribute(uint64_t offset, uint32_t location, WGPUVertexFormat format) {
+    mAttribs.push_back(WGPUVertexAttribute{.format = format, .offset = offset, .shaderLocation = location});
+    return *this;
+}
+
+WGPUVertexBufferLayout VertexBufferLayout::configure(uint64_t arrayStride, VertexStepMode stepMode) {
+    mLayout.attributeCount = mAttribs.size();
+    mLayout.attributes = mAttribs.data();
+    mLayout.stepMode = stepModeFrom(stepMode);
+    mLayout.arrayStride = arrayStride;
+
+    return mLayout;
 }

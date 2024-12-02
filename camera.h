@@ -60,6 +60,10 @@ class Camera {
         glm::mat4 mModelMatrix;
         glm::mat4 mViewMatrix;
         glm::mat4 mProjectionMatrix;
+
+        glm::vec3 mCameraUp;
+        glm::vec3 mCameraPos;
+        glm::vec3 mCameraFront;
 };
 
 #endif  // WEBGPUTEST_CAMERA_H

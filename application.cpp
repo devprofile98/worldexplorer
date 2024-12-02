@@ -112,35 +112,14 @@ void Application::initializePipeline() {
 
     // --- describe the pipe line
     // describe the vertex state
-    WGPUVertexBufferLayout vertex_buffer_layout = {};
 
-    vertex_buffer_layout.attributeCount = 4;
-
-    std::vector<WGPUVertexAttribute> attribs{4};
-
-    // attribute -> position
-    attribs[0].offset = 0;
-    attribs[0].shaderLocation = 0;
-    attribs[0].format = WGPUVertexFormat_Float32x3;
-
-    // attribute -> normal
-    attribs[1].offset = 3 * sizeof(float);
-    attribs[1].shaderLocation = 1;
-    attribs[1].format = WGPUVertexFormat_Float32x3;
-
-    // attribute -> color
-    attribs[2].offset = 6 * sizeof(float);
-    attribs[2].shaderLocation = 2;
-    attribs[2].format = WGPUVertexFormat_Float32x3;
-
-    // attribute->uv
-    attribs[3].offset = offsetof(VertexAttributes, uv);
-    attribs[3].shaderLocation = 3;
-    attribs[3].format = WGPUVertexFormat_Float32x2;
-
-    vertex_buffer_layout.attributes = attribs.data();
-    vertex_buffer_layout.arrayStride = sizeof(VertexAttributes);
-    vertex_buffer_layout.stepMode = WGPUVertexStepMode_Vertex;
+    VertexBufferLayout vertex_buffer = {};
+    WGPUVertexBufferLayout vertex_buffer_layout =
+        vertex_buffer.addAttribute(0, 0, WGPUVertexFormat_Float32x3)
+            .addAttribute(3 * sizeof(float), 1, WGPUVertexFormat_Float32x3)
+            .addAttribute(6 * sizeof(float), 2, WGPUVertexFormat_Float32x3)
+            .addAttribute(offsetof(VertexAttributes, uv), 3, WGPUVertexFormat_Float32x2)
+            .configure(sizeof(VertexAttributes), VertexStepMode::VERTEX);
 
     pipeline_descriptor.vertex.bufferCount = 1;
     pipeline_descriptor.vertex.buffers = &vertex_buffer_layout;
@@ -204,59 +183,23 @@ void Application::initializePipeline() {
     Texture simple_texture{mRendererResource.device, RESOURCE_DIR "/texture.jpg"};
     WGPUTextureView textureView = simple_texture.createView();
     simple_texture.uploadToGPU(mRendererResource.queue);
-    // WGPUTextureView textureView = {};
 
     if (!textureView) {
         std::cout << "Failed to Create Texture view!!!\n";
     }
 
-    // WGPUBindGroupLayoutEntry binding_layout_entries = {};
-    // setDefault(binding_layout_entries);
-    // binding_layout_entries.binding = 0;
-    // binding_layout_entries.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-    // binding_layout_entries.buffer.type = WGPUBufferBindingType_Uniform;
-    // binding_layout_entries.buffer.minBindingSize = sizeof(MyUniform);
-    // mBindingGroup.add(binding_layout_entries);
-    mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
-                            sizeof(MyUniform));
+    mBindingGroup.addBuffer(0,  //
+                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(MyUniform));
 
-    // Binding Number 1
-    // WGPUBindGroupLayoutEntry binding_layout_entries2 = {};
-    // setDefault(binding_layout_entries2);
-    // binding_layout_entries2.binding = 1;
-    // binding_layout_entries2.visibility = WGPUShaderStage_Fragment;
-    // binding_layout_entries2.texture.sampleType = WGPUTextureSampleType_Float;
-    // binding_layout_entries2.texture.viewDimension = WGPUTextureViewDimension_2D;
-    mBindingGroup.addTexture(1, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+    mBindingGroup.addTexture(1,  //
+                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                              TextureViewDimension::VIEW_2D);
 
-    // WGPUBindGroupLayoutEntry binding_layout_entries3 = {};
-    // setDefault(binding_layout_entries3);
-    // binding_layout_entries3.binding = 2;
-    // binding_layout_entries3.visibility = WGPUShaderStage_Fragment;
-    // binding_layout_entries3.sampler.type = WGPUSamplerBindingType_Filtering;
-    // mBindingGroup.add(binding_layout_entries3);
-    mBindingGroup.addSampler(2, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
+    mBindingGroup.addSampler(2,  //
+                             BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
 
-    // WGPUBindGroupLayoutEntry lighting_information_entry = {};
-    // setDefault(lighting_information_entry);
-    // lighting_information_entry.binding = 3;
-    // lighting_information_entry.visibility = WGPUShaderStage_Fragment;
-    // lighting_information_entry.buffer.type = WGPUBufferBindingType_Uniform;
-    // lighting_information_entry.buffer.minBindingSize = sizeof(LightingUniforms);
-    // mBindingGroup.add(lighting_information_entry);
-
-    mBindingGroup.addBuffer(3, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM,
-                            sizeof(LightingUniforms));
-
-    // WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor = {};
-    // WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor = {};
-    // bind_group_layout_descriptor.nextInChain = nullptr;
-    // bind_group_layout_descriptor.label = "binding group layout";
-    // bind_group_layout_descriptor.entryCount = mBindingGroup.getEntryCount();
-    // bind_group_layout_descriptor.entries = mBindingGroup.getEntryData();
-
-    // WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor = ;
+    mBindingGroup.addBuffer(3,  //
+                            BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(LightingUniforms));
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
 
@@ -316,10 +259,6 @@ void Application::initializePipeline() {
     mBindingData[3].offset = 0;
     mBindingData[3].size = sizeof(LightingUniforms);
 
-    // mBindGroupDescriptor.nextInChain = nullptr;
-    // mBindGroupDescriptor.layout = bind_group_layout;
-    // mBindGroupDescriptor.entryCount = bind_group_layout_descriptor.entryCount;
-    // mBindGroupDescriptor.entries = mBindingData.data();
     mBindingGroup.create(this, mBindingData);
 
     WGPUBufferDescriptor buffer_descriptor = {};
@@ -365,11 +304,11 @@ void Application::initializeBuffers() {
         .scale(glm::vec3{0.3})
         .uploadToGPU(mRendererResource.device, mRendererResource.queue);
 
-    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>....\n";
+    // std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>....\n";
 
-    terrain.generate(100, 8).uploadToGpu(this);
+    terrain.generate(100, 5).uploadToGpu(this);
 
-    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2222....\n";
+    // std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2222....\n";
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -629,16 +568,12 @@ void Application::mainLoop() {
     // setupCamera(mUniforms);
     float viewZ = glm::mix(0.0f, 0.25f, cos(2 * Camera::PI * mUniforms.time / 4) * 0.5 + 0.5);
     glm::vec3 focal_point{0.0, viewZ, -2.5};
-    glm::mat4 T2 = glm::translate(glm::mat4{1.0f}, -focal_point);
+    // glm::mat4 T2 = glm::translate(glm::mat4{1.0f}, -focal_point);
 
-    // Rotate the view point
-    float angle2 = 3.0 * Camera::PI / 4.0;
-    glm::mat4 R2 = glm::rotate(glm::mat4{1.0f}, -angle2, glm::vec3{1.0, 0.0, 0.0});
-    mCamera.setViewMatrix(T2 * R2);
-    // mCamera.setViewMatrix(glm::lookAt(glm::vec3(-0.5f + mUniforms.time, -1.5f + mUniforms.time, viewZ + 0.25f),
-    //                                   glm::vec3(0.0f), glm::vec3(0, 0, 1)));
-    // mUniforms.setCamera(mCamera);
-    // wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, sizeof(MyUniform));
+    // // Rotate the view point
+    // float angle2 = 3.0 * Camera::PI / 4.0;
+    // glm::mat4 R2 = glm::rotate(glm::mat4{1.0f}, -angle2, glm::vec3{1.0, 0.0, 0.0});
+    // mCamera.setViewMatrix(T2 * R2);
 
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
@@ -810,10 +745,10 @@ bool Application::initSwapChain() {
     surface_configuration.presentMode = WGPUPresentMode_Fifo;
     surface_configuration.alphaMode = WGPUCompositeAlphaMode_Auto;
 
-    std::cout << "LLLLLLLLLLLLLLLLLLLLL\n";
+    // std::cout << "LLLLLLLLLLLLLLLLLLLLL\n";
     // glfwGetWGPUSurface(mRendererResource.insta)
     wgpuSurfaceConfigure(mRendererResource.surface, &surface_configuration);
-    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2222\n";
+    // std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2222\n";
     return mRendererResource.surface != nullptr;
 }
 
@@ -863,18 +798,6 @@ void Application::updateProjectionMatrix() {
     glfwGetFramebufferSize(mRendererResource.window, &width, &height);
     float ratio = width / (float)height;
     mUniforms.projectMatrix = glm::perspective(60 * Camera::PI / 180, ratio, 0.01f, 100.0f);
-
-    // float ratio = width / height;
-    // float focal_length = 2.0;
-    // float near = 0.01f;
-    // float far = 1000.0f;
-    // float divider = 1.0f / (focal_length * (far - near));
-    // mUniforms.projectMatrix = glm::transpose(glm::mat4{
-    //     1.0, 0.0, 0.0, 0.0,                              //
-    //     0.0, ratio, 0.0, 0.0,                            //
-    //     0.0, 0.0, far * divider, -far * near * divider,  //
-    //     0.0, 0.0, 1.0 / focal_length, 0.0,               //
-    // });
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),
                          &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));

@@ -25,16 +25,10 @@ Camera::Camera(glm::vec3 translate, glm::vec3 scale, glm::vec3 rotationAxis, flo
     float ratio = 640.0f / 480.0f;
     float focal_length = 2.0;
     float near = 0.01f;
-    float far = 100.0f;
+    float far = 200.0f;
     // float divider = 1.0f / (focal_length * (far - near));
     float fov = 2 * glm::atan(1 / focal_length);
     mProjectionMatrix = glm::perspective(fov, ratio, near, far);
-    // mProjectionMatrix = glm::transpose(glm::mat4{
-    //     1.0, 0.0, 0.0, 0.0,                              //
-    //     0.0, ratio, 0.0, 0.0,                            //
-    //     0.0, 0.0, far * divider, -far * near * divider,  //
-    //     0.0, 0.0, 1.0 / focal_length, 0.0,               //
-    // });
 }
 
 Camera& Camera::setViewMatrix(const glm::mat4 viewMatrix) {
