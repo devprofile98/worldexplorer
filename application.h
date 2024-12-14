@@ -23,7 +23,7 @@ struct MyUniform {
         float time;
         float _padding[3];
 
-        void setCamera(const Camera& camera);
+        void setCamera(Camera& camera);
 };
 
 /*
@@ -89,6 +89,7 @@ class Application {
         glm::mat4 mtransmodel{1.0};
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
         std::array<WGPUBindGroupLayout, 2> mBindGroupLayouts;
+        Camera& getCamera();
 
     private:
         Camera mCamera;

@@ -1,6 +1,8 @@
 #ifndef WEBGPUTEST_CAMERA_H
 #define WEBGPUTEST_CAMERA_H
 
+#include <GLFW/glfw3.h>
+
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "webgpu/webgpu.h"
@@ -43,13 +45,17 @@ class Camera {
 
         // Getter
         glm::mat4 getProjection() const;
-        glm::mat4 getView() const;
+        glm::mat4 getView();
         glm::mat4 getModel() const;
         glm::mat4 getScale() const;
         glm::mat4 getTranslate() const;
         glm::mat4 getRotation() const;
         CameraState& getSate();
         DragState& getDrag();
+
+        void processInput(int key, int scancode, int action, int mod);
+        void processMouse(int x, int y);
+        void updateCursor(int x, int y);
 
     private:
         CameraState mCameraState;
@@ -64,6 +70,14 @@ class Camera {
         glm::vec3 mCameraUp;
         glm::vec3 mCameraPos;
         glm::vec3 mCameraFront;
+        glm::vec3 mRight;
+        glm::vec3 mWorldUp;
+
+        float mYaw = -90.0f;
+        float mPitch = 0;
+
+        int mLastX = 0;
+        int mLastY = 0;
 };
 
 #endif  // WEBGPUTEST_CAMERA_H

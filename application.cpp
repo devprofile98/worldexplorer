@@ -14,7 +14,7 @@
 
 // #define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
 
-void MyUniform::setCamera(const Camera& camera) {
+void MyUniform::setCamera(Camera& camera) {
     projectMatrix = camera.getProjection();
     viewMatrix = camera.getView();
     modelMatrix = camera.getModel();
@@ -369,6 +369,9 @@ void onWindowResize(GLFWwindow* window, int /* width */, int /* height */) {
     if (that != nullptr) that->onResize();
 }
 
+static int WINDOW_WIDTH = 1920;
+static int WINDOW_HEIGHT = 1080;
+
 bool Application::initialize() {
     // We create a descriptor
 
@@ -382,7 +385,7 @@ bool Application::initialize() {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);  // <-- extra info for glfwCreateWindow
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    GLFWwindow* provided_window = glfwCreateWindow(1920, 1080, "Learn WebGPU", nullptr, nullptr);
+    GLFWwindow* provided_window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Learn WebGPU", nullptr, nullptr);
     if (!provided_window) {
         std::cerr << "Could not open window!" << std::endl;
         glfwTerminate();
@@ -394,7 +397,24 @@ bool Application::initialize() {
     glfwSetFramebufferSizeCallback(provided_window, onWindowResize);
     glfwSetCursorPosCallback(provided_window, [](GLFWwindow* window, double xpos, double ypos) {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
-        if (that != nullptr) that->onMouseMove(xpos, ypos);
+        // if (that != nullptr) that->onMouseMove(xpos, ypos);
+        if (that != nullptr) that->getCamera().processMouse(xpos, ypos);
+
+        if (ypos <= 0) {
+            glfwSetCursorPos(window, xpos, WINDOW_HEIGHT - 1);
+            if (that != nullptr) that->getCamera().updateCursor(xpos, WINDOW_HEIGHT - 1);
+        } else if (ypos >= WINDOW_HEIGHT - 1) {
+            glfwSetCursorPos(window, xpos, 1);
+            if (that != nullptr) that->getCamera().updateCursor(xpos, 1);
+        }
+
+        if (xpos <= 0) {
+            glfwSetCursorPos(window, WINDOW_WIDTH - 1, ypos);
+            if (that != nullptr) that->getCamera().updateCursor(WINDOW_WIDTH - 1, ypos);
+        } else if (xpos >= WINDOW_WIDTH - 1) {
+            glfwSetCursorPos(window, 1, ypos);
+            if (that != nullptr) that->getCamera().updateCursor(1, ypos);
+        }
     });
     glfwSetMouseButtonCallback(provided_window, [](GLFWwindow* window, int button, int action, int mods) {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
@@ -403,6 +423,13 @@ bool Application::initialize() {
     glfwSetScrollCallback(provided_window, [](GLFWwindow* window, double xoffset, double yoffset) {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         if (that != nullptr) that->onScroll(xoffset, yoffset);
+    });
+
+    glfwSetKeyCallback(provided_window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+        auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+        that->getCamera().processInput(key, scancode, action, mods);
+
+        // mCamera.setViewMatrix(glm::lookAt(position, glm::vec3(0.0f), glm::vec3(0, 0, 1)));
     });
 
     WGPUInstanceDescriptor desc = {};
@@ -538,22 +565,22 @@ bool Application::initialize() {
     }
 
     boat_model.moveTo({1.0, -4.0, 0.0});
-    tower_model.moveTo({-2.0, 0.0, 0.0});
+    tower_model.moveTo({-2.0, -1.0, 0.0});
 
     return true;
 }
 
 void Application::updateViewMatrix() {
-    auto& camera_state = mCamera.getSate();
-    float cx = cos(camera_state.angles.x);
-    float sx = sin(camera_state.angles.x);
-    float cy = cos(camera_state.angles.y);
-    float sy = sin(camera_state.angles.y);
-    glm::vec3 position = glm::vec3(cx * cy, sx * cy, sy) * std::exp(-camera_state.zoom);
-    mCamera.setViewMatrix(glm::lookAt(position, glm::vec3(0.0f), glm::vec3(0, 0, 1)));
-    mUniforms.setCamera(mCamera);
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, viewMatrix),
-                         &mUniforms.viewMatrix, sizeof(MyUniform::viewMatrix));
+    // auto& camera_state = mCamera.getSate();
+    // float cx = cos(camera_state.angles.x);
+    // float sx = sin(camera_state.angles.x);
+    // float cy = cos(camera_state.angles.y);
+    // float sy = sin(camera_state.angles.y);
+    // glm::vec3 position = glm::vec3(cx * cy, sx * cy, sy) * std::exp(-camera_state.zoom);
+    // mCamera.setViewMatrix(glm::lookAt(position, glm::vec3(0.0f), glm::vec3(0, 0, 1)));
+    // mUniforms.setCamera(mCamera);
+    // wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, viewMatrix),
+    //                      &mUniforms.viewMatrix, sizeof(MyUniform::viewMatrix));
 }
 
 void Application::mainLoop() {
@@ -574,6 +601,10 @@ void Application::mainLoop() {
     // float angle2 = 3.0 * Camera::PI / 4.0;
     // glm::mat4 R2 = glm::rotate(glm::mat4{1.0f}, -angle2, glm::vec3{1.0, 0.0, 0.0});
     // mCamera.setViewMatrix(T2 * R2);
+
+    mUniforms.setCamera(mCamera);
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, viewMatrix),
+                         &mUniforms.viewMatrix, sizeof(MyUniform::viewMatrix));
 
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
@@ -804,19 +835,22 @@ void Application::updateProjectionMatrix() {
 }
 
 void Application::onMouseMove(double xpos, double ypos) {
-    CameraState& camera_state = mCamera.getSate();
-    DragState& drag_state = mCamera.getDrag();
-    if (drag_state.active) {
-        glm::vec2 currentMouse = glm::vec2(-(float)xpos, (float)ypos);
-        glm::vec2 delta = (currentMouse - drag_state.startMouse) * drag_state.sensitivity;
-        camera_state.angles = drag_state.startCameraState.angles + delta;
-        // Clamp to avoid going too far when orbitting up/down
-        camera_state.angles.y = glm::clamp(camera_state.angles.y, -Camera::PI / 2 + 1e-5f, Camera::PI / 2 - 1e-5f);
-        updateViewMatrix();
-        // Inertia
-        drag_state.velocity = delta - drag_state.previousDelta;
-        drag_state.previousDelta = delta;
-    }
+    (void)xpos;
+    (void)ypos;
+
+    // CameraState& camera_state = mCamera.getSate();
+    // DragState& drag_state = mCamera.getDrag();
+    // if (drag_state.active) {
+    //     glm::vec2 currentMouse = glm::vec2(-(float)xpos, (float)ypos);
+    //     glm::vec2 delta = (currentMouse - drag_state.startMouse) * drag_state.sensitivity;
+    //     camera_state.angles = drag_state.startCameraState.angles + delta;
+    //     // Clamp to avoid going too far when orbitting up/down
+    //     camera_state.angles.y = glm::clamp(camera_state.angles.y, -Camera::PI / 2 + 1e-5f, Camera::PI / 2 - 1e-5f);
+    //     updateViewMatrix();
+    //     // Inertia
+    //     drag_state.velocity = delta - drag_state.previousDelta;
+    //     drag_state.previousDelta = delta;
+    // }
 }
 
 void Application::onMouseButton(int button, int action, int /* modifiers */) {
@@ -845,30 +879,31 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
 }
 
 void Application::onScroll(double /* xoffset */, double yoffset) {
-    CameraState& camera_state = mCamera.getSate();
-    DragState& drag_state = mCamera.getDrag();
-    camera_state.zoom += drag_state.scrollSensitivity * static_cast<float>(yoffset);
-    camera_state.zoom = glm::clamp(camera_state.zoom, -30.0f, 30.0f);
+    (void)yoffset;
+    // CameraState& camera_state = mCamera.getSate();
+    // DragState& drag_state = mCamera.getDrag();
+    // camera_state.zoom += drag_state.scrollSensitivity * static_cast<float>(yoffset);
+    // camera_state.zoom = glm::clamp(camera_state.zoom, -30.0f, 30.0f);
     updateViewMatrix();
 }
 
 void Application::updateDragInertia() {
-    constexpr float eps = 1e-4f;
-    CameraState& camera_state = mCamera.getSate();
-    DragState& drag_state = mCamera.getDrag();
-    // Apply inertia only when the user released the click.
-    if (!drag_state.active) {
-        // Avoid updating the matrix when the velocity is no longer noticeable
-        if (std::abs(drag_state.velocity.x) < eps && std::abs(drag_state.velocity.y) < eps) {
-            return;
-        }
-        camera_state.angles += drag_state.velocity;
-        camera_state.angles.y = glm::clamp(camera_state.angles.y, -Camera::PI / 2 + 1e-5f, Camera::PI / 2 - 1e-5f);
-        // Dampen the velocity so that it decreases exponentially and stops
-        // after a few frames.
-        drag_state.velocity *= drag_state.intertia;
-        updateViewMatrix();
-    }
+    // constexpr float eps = 1e-4f;
+    // CameraState& camera_state = mCamera.getSate();
+    // DragState& drag_state = mCamera.getDrag();
+    // // Apply inertia only when the user released the click.
+    // if (!drag_state.active) {
+    //     // Avoid updating the matrix when the velocity is no longer noticeable
+    //     if (std::abs(drag_state.velocity.x) < eps && std::abs(drag_state.velocity.y) < eps) {
+    //         return;
+    //     }
+    //     camera_state.angles += drag_state.velocity;
+    //     camera_state.angles.y = glm::clamp(camera_state.angles.y, -Camera::PI / 2 + 1e-5f, Camera::PI / 2 - 1e-5f);
+    //     // Dampen the velocity so that it decreases exponentially and stops
+    //     // after a few frames.
+    //     drag_state.velocity *= drag_state.intertia;
+    //     updateViewMatrix();
+    // }
 }
 
 // called in onInit
@@ -965,6 +1000,8 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     // Execute the low-level drawing commands on the WebGPU backend
     ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);
 }
+
+Camera& Application::getCamera() { return mCamera; }
 
 RendererResource& Application::getRendererResource() { return mRendererResource; }
 

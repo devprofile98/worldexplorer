@@ -82,8 +82,8 @@ Model& Model::load(WGPUDevice device, WGPUQueue queue, const std::filesystem::pa
         mVertexData[i].normal = {attrib.normals[3 * idx.normal_index + 0], -attrib.normals[3 * idx.normal_index + 2],
                                  attrib.normals[3 * idx.normal_index + 1]};
 
-        mVertexData[i].color = {attrib.colors[3 * idx.vertex_index + 0], attrib.colors[3 * idx.vertex_index + 1],
-                                attrib.colors[3 * idx.vertex_index + 2]};
+        mVertexData[i].color = {attrib.colors[3 * idx.vertex_index + 0], attrib.colors[3 * idx.vertex_index + 2],
+                                attrib.colors[3 * idx.vertex_index + 1]};
 
         mVertexData[i].uv = {attrib.texcoords[2 * idx.texcoord_index + 0],
                              1 - attrib.texcoords[2 * idx.texcoord_index + 1]};
