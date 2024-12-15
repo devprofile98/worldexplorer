@@ -391,7 +391,7 @@ bool Application::initialize() {
         glfwTerminate();
         return false;
     }
-
+    glfwSwapInterval(0);
     // Set up Callbacks
     glfwSetWindowUserPointer(provided_window, this);  // set user pointer to be used in the callback function
     glfwSetFramebufferSizeCallback(provided_window, onWindowResize);
@@ -403,7 +403,7 @@ bool Application::initialize() {
         if (ypos <= 0) {
             glfwSetCursorPos(window, xpos, WINDOW_HEIGHT - 1);
             if (that != nullptr) that->getCamera().updateCursor(xpos, WINDOW_HEIGHT - 1);
-        } else if (ypos >= WINDOW_HEIGHT - 1) {
+        } else if (ypos > WINDOW_HEIGHT - 20) {
             glfwSetCursorPos(window, xpos, 1);
             if (that != nullptr) that->getCamera().updateCursor(xpos, 1);
         }
