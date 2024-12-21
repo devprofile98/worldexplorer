@@ -28,12 +28,26 @@ Camera::Camera(glm::vec3 translate, glm::vec3 scale, glm::vec3 rotationAxis, flo
     mProjectionMatrix = glm::perspective(fov, ratio, near, far);
 }
 
+Camera& Camera::setTarget(glm::vec3 target) {
+    (void)target;
+    mCameraFront = glm::normalize(target);
+    return *this;
+}
+
+Camera& Camera::setPosition(glm::vec3 position) {
+    mCameraPos = position;
+    return *this;
+}
+
 void Camera::processInput(int key, int scancode, int action, int mod) {
     (void)action;
     (void)scancode;
     (void)mod;
     (void)key;
-    const float cameraSpeed = 0.4f;  // adjust accordingly
+    float cameraSpeed = 0.4f;  // adjust accordingly
+    if (mDragState.active) {
+        cameraSpeed = 0.05f;
+    }
     if (GLFW_KEY_W == key) {
         mCameraPos += cameraSpeed * glm::normalize(mCameraFront);
     }
@@ -83,6 +97,8 @@ void Camera::processMouse(int x, int y) {
     // mCameraUp = glm::normalize(glm::cross(mRight, mCameraFront));
 }
 
+void Camera::processScroll(double value) { mCameraPos += (float)value * glm::normalize(mCameraFront); }
+
 void Camera::updateCursor(int x, int y) {
     mLastX = x;
     mLastY = y;
@@ -97,7 +113,6 @@ glm::mat4 Camera::getProjection() const { return mProjectionMatrix; };
 
 glm::mat4 Camera::getView() {
     mViewMatrix = glm::lookAt(mCameraPos, mCameraPos + mCameraFront, mCameraUp);
-
     return mViewMatrix;
 };
 
@@ -108,6 +123,7 @@ glm::mat4 Camera::getScale() const { return mScaleMatrix; };
 glm::mat4 Camera::getTranslate() const { return mTranslationMatrix; };
 
 glm::mat4 Camera::getRotation() const { return mRotationMatrix; };
+const glm::vec3& Camera::getPos() const { return mCameraPos; };
 
 DragState& Camera::getDrag() { return mDragState; }
 

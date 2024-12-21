@@ -42,6 +42,8 @@ class Camera {
         Camera(glm::vec3 translate, glm::vec3 scale, glm::vec3 rotationAxis, float rotationAngle);
 
         Camera& setViewMatrix(const glm::mat4 viewMatrix);
+        Camera& setTarget(glm::vec3 target);
+        Camera& setPosition(glm::vec3 position);
 
         // Getter
         glm::mat4 getProjection() const;
@@ -50,11 +52,13 @@ class Camera {
         glm::mat4 getScale() const;
         glm::mat4 getTranslate() const;
         glm::mat4 getRotation() const;
+        const glm::vec3& getPos() const;
         CameraState& getSate();
         DragState& getDrag();
 
         void processInput(int key, int scancode, int action, int mod);
         void processMouse(int x, int y);
+        void processScroll(double value);
         void updateCursor(int x, int y);
 
     private:

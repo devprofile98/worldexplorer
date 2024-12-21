@@ -20,6 +20,7 @@ struct MyUniform {
         glm::mat4 viewMatrix;
         glm::mat4 modelMatrix;
         glm::vec4 color;
+        glm::vec3 cameraWorldPosition;
         float time;
         float _padding[3];
 
@@ -74,6 +75,9 @@ class Application {
         void updateDragInertia();
         Model boat_model{};
         Model tower_model{};
+        Model arrow_model{};
+        std::vector<Model*> mLoadedModel;
+        Model* getModelCounter();
 
         bool initGui();                                    // called in onInit
         void terminateGui();                               // called in onFinish
@@ -118,6 +122,10 @@ class Application {
 
         WGPUTextureView mDepthTextureView;
         WGPUTexture mDepthTexture;
+
+        WGPURenderPipelineDescriptor mPipelineDescriptor;
+
+        Model* mSelectedModel = nullptr;
 };
 
 #endif  // TEST_WGPU_APPLICTION_H

@@ -233,7 +233,7 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
             mPixels.push_back(vertex_height);
             attr.position = {x, z, pixel_result * height_scale};
             attr.normal = {1.0, 0.0, 0.0};
-            std::cout << "height is : " << pixel_result << std::endl;
+            // std::cout << "height is : " << pixel_result << std::endl;
 
             if (pixel_result > 300) {
                 attr.color = height_color[4];

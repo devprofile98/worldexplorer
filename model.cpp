@@ -16,15 +16,12 @@ Model::Model()
     mObjectInfo.isFlat = 0;
 }
 
-Model& Model::load(WGPUDevice device, WGPUQueue queue, const std::filesystem::path& path, WGPUBindGroupLayout layout) {
+Model& Model::load(std::string name, WGPUDevice device, WGPUQueue queue, const std::filesystem::path& path,
+                   WGPUBindGroupLayout layout) {
     // load model from disk
-    // tinyobj::attrib_t attrib = {};
-    // std::vector<tinyobj::shape_t> shapes;
-    // std::vector<tinyobj::material_t> materials;
-
+    mName = name;
     std::string warn;
     std::string err;
-
     tinyobj::ObjReader reader;
     tinyobj::ObjReaderConfig reader_config;
     reader_config.triangulate = true;
@@ -47,14 +44,16 @@ Model& Model::load(WGPUDevice device, WGPUQueue queue, const std::filesystem::pa
 
     std::cout << materials.size() << " ::: " << materials[0].diffuse_texname << " \n";
 
-    std::string ddd = RESOURCE_DIR;
-    ddd += "/";
-    ddd += materials[0].diffuse_texname;
-    // auto a = std::filesystem::path{ddd.c_str()};
-    std::cout << "TinyObjReader: " << ddd << std::endl;
-    mTexture = new Texture{device, ddd};
-    mTextureView = mTexture->createView();
-    mTexture->uploadToGPU(queue);
+    if (!materials[0].diffuse_texname.empty()) {
+        std::string ddd = RESOURCE_DIR;
+        ddd += "/";
+        ddd += materials[0].diffuse_texname;
+        // auto a = std::filesystem::path{ddd.c_str()};
+        mTexture = new Texture{device, ddd};
+        std::cout << "TinyObjReader:2222 " << materials[0].diffuse_texname.empty() << std::endl;
+        mTextureView = mTexture->createView();
+        mTexture->uploadToGPU(queue);
+    }
 
     // bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.string().c_str());
     if (!warn.empty()) {
@@ -65,10 +64,6 @@ Model& Model::load(WGPUDevice device, WGPUQueue queue, const std::filesystem::pa
         std::cerr << err << std::endl;
     }
 
-    // if (!ret) {
-    //     return false;
-    // }
-
     // Fill in vertexData here
     const auto& shape = shapes[0];
     mVertexData.resize(shape.mesh.indices.size());
@@ -78,6 +73,14 @@ Model& Model::load(WGPUDevice device, WGPUQueue queue, const std::filesystem::pa
         mVertexData[i].position = {attrib.vertices[3 * idx.vertex_index + 0],
                                    -attrib.vertices[3 * idx.vertex_index + 2],
                                    attrib.vertices[3 * idx.vertex_index + 1]};
+
+        mBoundingBox.min.x = std::min(mBoundingBox.min.x, mVertexData[i].position.x);
+        mBoundingBox.min.y = std::min(mBoundingBox.min.y, mVertexData[i].position.y);
+        mBoundingBox.min.z = std::min(mBoundingBox.min.z, mVertexData[i].position.z);
+
+        mBoundingBox.max.x = std::max(mBoundingBox.max.x, mVertexData[i].position.x);
+        mBoundingBox.max.y = std::max(mBoundingBox.max.y, mVertexData[i].position.y);
+        mBoundingBox.max.z = std::max(mBoundingBox.max.z, mVertexData[i].position.z);
 
         mVertexData[i].normal = {attrib.normals[3 * idx.normal_index + 0], -attrib.normals[3 * idx.normal_index + 2],
                                  attrib.normals[3 * idx.normal_index + 1]};
@@ -106,10 +109,9 @@ Model& Model::moveBy(const glm::vec3& translationVec) {
     return *this;
 }
 Model& Model::moveTo(const glm::vec3& moveVec) {
-    // move to the position specified by `moveVec`
-    // (void)moveVec;
-    mTranslationMatrix = glm::translate(glm::mat4{1.0}, moveVec);
-    // mModelMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mPosition = moveVec;
+    // std::cout << "changed for " << getName() << ' ' << mPosition.x << '\n';
+    mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
     return *this;
 }
 
@@ -126,11 +128,6 @@ Model& Model::uploadToGPU(WGPUDevice device, WGPUQueue queue) {
     // Uploading data to GPU
     wgpuQueueWriteBuffer(queue, mVertexBuffer, 0, mVertexData.data(), buffer_descriptor.size);
 
-    // buffer_descriptor.size = mVertexData.size() * sizeof(uint16_t);
-    // buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
-    // buffer_descriptor.size = (buffer_descriptor.size + 3) & ~3;
-    // mIndexBuffer = wgpuDeviceCreateBuffer(device, &buffer_descriptor);
-    // wgpuQueueWriteBuffer(queue, mIndexBuffer, 0, index_data.data(), buffer_descriptor.size);
     return *this;
 };
 
@@ -162,32 +159,28 @@ void Model::createSomeBinding(Application* app) {
 }
 
 void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
-    bindingData[1].nextInChain = nullptr;
-    bindingData[1].binding = 1;
-    bindingData[1].textureView = mTextureView;
-    auto& desc = app->getBindingGroup().getDescriptor();
-    desc.entries = bindingData.data();
     auto& render_resource = app->getRendererResource();
     auto& uniform_data = app->getUniformData();
-    mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
+    if (mTextureView != nullptr) {
+        bindingData[1].nextInChain = nullptr;
+        bindingData[1].binding = 1;
+        bindingData[1].textureView = mTextureView;
+        auto& desc = app->getBindingGroup().getDescriptor();
+        desc.entries = bindingData.data();
+        mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
+    }
     uniform_data.modelMatrix = getModelMatrix();
-
-    // for (int i = 0; i < 4; ++i) {
-    //     std::cout << uniform_data.modelMatrix[i][0] << " " << uniform_data.modelMatrix[i][1] << " "
-    //               << uniform_data.modelMatrix[i][2] << " " << uniform_data.modelMatrix[i][3] << std::endl;
-    // }
     wgpuQueueWriteBuffer(render_resource.queue, app->getUniformBuffer(), offsetof(MyUniform, modelMatrix),
                          glm::value_ptr(uniform_data.modelMatrix), sizeof(glm::mat4));
 
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, getVertexBuffer(), 0, wgpuBufferGetSize(getVertexBuffer()));
-    wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindGroup, 0, nullptr);
+    if (mTextureView != nullptr) {
+        wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindGroup, 0, nullptr);
+    }
 
     wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, &mObjectInfo, sizeof(ObjectInfo));
-
-    // std::cout << mTrasBindGroupDesc.layout << " boat model is: +++++++++++++++\n";
     createSomeBinding(app);
     wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
-    // wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, glm::value_ptr(mModelMatrix), sizeof(glm::mat4));
 
     wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);
 }
@@ -223,3 +216,23 @@ Model& Model::scale(const glm::vec3& s) {
 }
 glm::vec3& Model::getPosition() { return mPosition; }
 glm::vec3& Model::getScale() { return mScale; }
+
+AABB& Model::getAABB() { return mBoundingBox; }
+
+float Model::calculateVolume() {
+    float dx = std::abs(mBoundingBox.min.x - mBoundingBox.max.x);
+    float dy = std::abs(mBoundingBox.min.y - mBoundingBox.max.y);
+    float dz = std::abs(mBoundingBox.min.z - mBoundingBox.max.z);
+
+    return dx * dy * dz;
+}
+
+glm::vec3 Model::getAABBSize() {
+    float dx = std::abs(mBoundingBox.min.x - mBoundingBox.max.x);
+    float dy = std::abs(mBoundingBox.min.y - mBoundingBox.max.y);
+    float dz = std::abs(mBoundingBox.min.z - mBoundingBox.max.z);
+
+    return glm::vec3{dx, dy, dz};
+}
+
+const std::string& Model::getName() { return mName; }

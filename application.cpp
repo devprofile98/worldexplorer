@@ -132,7 +132,7 @@ void Application::initializePipeline() {
     pipeline_descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     pipeline_descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
     pipeline_descriptor.primitive.frontFace = WGPUFrontFace_CCW;
-    pipeline_descriptor.primitive.cullMode = WGPUCullMode_None;
+    pipeline_descriptor.primitive.cullMode = WGPUCullMode_Back;
 
     // describe and configure fragment shader
     WGPUFragmentState fragment_state = {};
@@ -285,9 +285,11 @@ void Application::initializePipeline() {
     mTrasBindGroupDesc.label = "translation bind group";
     mTrasBindGroupDesc.layout = mBindGroupLayouts[1];
 
+    mPipelineDescriptor = pipeline_descriptor;
+
     bindGrouptrans = wgpuDeviceCreateBindGroup(mRendererResource.device, &mTrasBindGroupDesc);
 
-    mPipeline = wgpuDeviceCreateRenderPipeline(mRendererResource.device, &pipeline_descriptor);
+    mPipeline = wgpuDeviceCreateRenderPipeline(mRendererResource.device, &mPipelineDescriptor);
 
     // ---------------------------- End of Render Pipeline
 }
@@ -295,12 +297,22 @@ void Application::initializePipeline() {
 // Initializing Vertex Buffers
 void Application::initializeBuffers() {
     boat_model
-        .load(mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/fourareen.obj", mBindGroupLayouts[1])
+        .load("boat", mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/fourareen.obj",
+              mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0})
         .scale(glm::vec3{0.3})
         .uploadToGPU(mRendererResource.device, mRendererResource.queue);
-    tower_model.load(mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/tower.obj", mBindGroupLayouts[1])
+    tower_model
+        .load("tower", mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/tower.obj",
+              mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0})
+        .scale(glm::vec3{0.3})
+        .uploadToGPU(mRendererResource.device, mRendererResource.queue);
+
+    arrow_model
+        .load("arrow", mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/arrow.obj",
+              mBindGroupLayouts[1])
+        .moveTo(glm::vec3{2.0})
         .scale(glm::vec3{0.3})
         .uploadToGPU(mRendererResource.device, mRendererResource.queue);
 
@@ -308,7 +320,7 @@ void Application::initializeBuffers() {
 
     terrain.generate(100, 5).uploadToGpu(this);
 
-    // std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2222....\n";
+    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2222....\n";
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -372,6 +384,21 @@ void onWindowResize(GLFWwindow* window, int /* width */, int /* height */) {
 static int WINDOW_WIDTH = 1920;
 static int WINDOW_HEIGHT = 1080;
 
+Model* Application::getModelCounter() {
+    static size_t counter = 0;
+    if (mLoadedModel.size() == 0) {
+        return nullptr;
+    }
+
+    if (counter >= mLoadedModel.size()) {
+        counter = 0;
+    }
+    Model* temp = mLoadedModel[counter];
+    counter++;
+    std::cout << "the counter is " << counter << std::endl;
+    return temp;
+}
+
 bool Application::initialize() {
     // We create a descriptor
 
@@ -422,14 +449,28 @@ bool Application::initialize() {
     });
     glfwSetScrollCallback(provided_window, [](GLFWwindow* window, double xoffset, double yoffset) {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
-        if (that != nullptr) that->onScroll(xoffset, yoffset);
+        (void)xoffset;
+        // if (that != nullptr) that->onScroll(xoffset, yoffset);
+        if (that != nullptr) that->getCamera().processScroll(yoffset);
     });
 
     glfwSetKeyCallback(provided_window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         that->getCamera().processInput(key, scancode, action, mods);
-
-        // mCamera.setViewMatrix(glm::lookAt(position, glm::vec3(0.0f), glm::vec3(0, 0, 1)));
+        if (GLFW_KEY_KP_0 == key && action == GLFW_PRESS) {
+            Model* model = that->getModelCounter();
+            if (model) {
+                glm::vec3 temp_pos = model->getPosition();
+                glm::vec3 temp_aabb_size = model->getAABBSize();
+                float temp_smallest_size = std::min(temp_aabb_size.x, std::min(temp_aabb_size.y, temp_aabb_size.z));
+                temp_pos.z += temp_smallest_size;
+                temp_pos.x += temp_smallest_size;
+                temp_pos.y += temp_smallest_size;
+                that->getCamera().setPosition(temp_pos);
+                that->getCamera().setTarget(model->getPosition() - temp_pos);
+                std::cout << "volume calculation result  is: " << model->calculateVolume() << std::endl;
+            }
+        }
     });
 
     WGPUInstanceDescriptor desc = {};
@@ -567,6 +608,8 @@ bool Application::initialize() {
     boat_model.moveTo({1.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
+    mLoadedModel = {&boat_model, &tower_model, &arrow_model};
+
     return true;
 }
 
@@ -592,19 +635,14 @@ void Application::mainLoop() {
     }
 
     mUniforms.time = static_cast<float>(glfwGetTime());
-    // setupCamera(mUniforms);
     float viewZ = glm::mix(0.0f, 0.25f, cos(2 * Camera::PI * mUniforms.time / 4) * 0.5 + 0.5);
     glm::vec3 focal_point{0.0, viewZ, -2.5};
-    // glm::mat4 T2 = glm::translate(glm::mat4{1.0f}, -focal_point);
-
-    // // Rotate the view point
-    // float angle2 = 3.0 * Camera::PI / 4.0;
-    // glm::mat4 R2 = glm::rotate(glm::mat4{1.0f}, -angle2, glm::vec3{1.0, 0.0, 0.0});
-    // mCamera.setViewMatrix(T2 * R2);
 
     mUniforms.setCamera(mCamera);
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, viewMatrix),
                          &mUniforms.viewMatrix, sizeof(MyUniform::viewMatrix));
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, cameraWorldPosition),
+                         &mCamera.getPos(), sizeof(MyUniform::cameraWorldPosition));
 
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
@@ -648,19 +686,10 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline);
 
-    // wgpuRenderPassEncoderDrawIndexed(render_pass_encoder, mIndexCount, 1, 0, 0, 0);
-
-    // mUniforms.modelMatrix = tower_model.getModelMatrix();
-    // wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, modelMatrix),
-    //                      &mUniforms.modelMatrix, sizeof(MyUniform::modelMatrix));
-
-    // wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBufferTransform, 0, glm::value_ptr(mtransmodel),
-    //                      sizeof(glm::mat4));
-
     tower_model.draw(this, render_pass_encoder, mBindingData);
     boat_model.draw(this, render_pass_encoder, mBindingData);
+    arrow_model.draw(this, render_pass_encoder, mBindingData);
     terrain.draw(this, render_pass_encoder, mBindingData);
-
     updateGui(render_pass_encoder);
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);
@@ -674,8 +703,6 @@ void Application::mainLoop() {
 
     wgpuQueueSubmit(mRendererResource.queue, 1, &command);
     wgpuCommandBufferRelease(command);
-
-    // Select which render pipeline to use
 
     wgpuTextureViewRelease(target_view);
 
@@ -742,7 +769,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     required_limits.limits.maxBufferSize = 1000000 * sizeof(VertexAttributes);
     required_limits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
     required_limits.limits.maxSampledTexturesPerShaderStage = 1;
-    required_limits.limits.maxInterStageShaderComponents = 8;
+    required_limits.limits.maxInterStageShaderComponents = 11;
 
     // Binding groups
     required_limits.limits.maxBindGroups = 3;
@@ -776,10 +803,7 @@ bool Application::initSwapChain() {
     surface_configuration.presentMode = WGPUPresentMode_Fifo;
     surface_configuration.alphaMode = WGPUCompositeAlphaMode_Auto;
 
-    // std::cout << "LLLLLLLLLLLLLLLLLLLLL\n";
-    // glfwGetWGPUSurface(mRendererResource.insta)
     wgpuSurfaceConfigure(mRendererResource.surface, &surface_configuration);
-    // std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2222\n";
     return mRendererResource.surface != nullptr;
 }
 
@@ -853,6 +877,21 @@ void Application::onMouseMove(double xpos, double ypos) {
     // }
 }
 
+bool intersection(const glm::vec3& ray_origin, const glm::vec3& ray_dir, const glm::vec3& box_min,
+                  const glm::vec3& box_max) {
+    float tmin = 0.0, tmax = INFINITY;
+
+    for (int d = 0; d < 3; ++d) {
+        float t1 = (box_min[d] - ray_origin[d]) / ray_dir[d];
+        float t2 = (box_max[d] - ray_origin[d]) / ray_dir[d];
+
+        tmin = std::max(tmin, std::min(std::min(t1, t2), tmax));
+        tmax = std::min(tmax, std::max(std::max(t1, t2), tmin));
+    }
+
+    return tmin < tmax;
+}
+
 void Application::onMouseButton(int button, int action, int /* modifiers */) {
     ImGuiIO& io = ImGui::GetIO();
     if (io.WantCaptureMouse) {
@@ -860,16 +899,58 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
         // interaction at this frame.
         return;
     }
-    CameraState& camera_state = mCamera.getSate();
+    // CameraState& camera_state = mCamera.getSate();
     DragState& drag_state = mCamera.getDrag();
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        // switch (action) {
+        //     case GLFW_PRESS:
+        //         drag_state.active = true;
+        //         double xpos, ypos;
+        //         glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
+        //         drag_state.startMouse = glm::vec2(-(float)xpos, (float)ypos);
+        //         drag_state.startCameraState = camera_state;
+        //         break;
+        //     case GLFW_RELEASE:
+        //         drag_state.active = false;
+        //         break;
+        // }
+
+        // calculating the NDC for x and y
+        if (action == GLFW_PRESS) {
+            double xpos, ypos;
+            glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
+            double xndc = 2.0 * xpos / 1920.0 - 1.0;
+            double yndc = 1.0 - (2.0 * ypos) / 1024.0;
+            glm::vec4 clip_coords = glm::vec4{xndc, yndc, 0.0, 1.0};
+            // arrow_model.moveTo(mCamera.getPos());
+            glm::vec4 eyecoord = glm::inverse(mCamera.getProjection()) * clip_coords;
+            eyecoord = glm::vec4{eyecoord.x, eyecoord.y, -1.0f, 0.0f};
+
+            auto ray_origin = mCamera.getPos();
+
+            glm::vec4 worldray = glm::inverse(mCamera.getView()) * eyecoord;
+            auto normalized = glm::normalize(worldray);
+
+            for (auto* obj : mLoadedModel) {
+                auto obj_in_world_min = obj->getModelMatrix() * glm::vec4(obj->getAABB().min, 1.0);
+                auto obj_in_world_max = obj->getModelMatrix() * glm::vec4(obj->getAABB().max, 1.0);
+                bool does_intersect = intersection(ray_origin, normalized, obj_in_world_min, obj_in_world_max);
+                if (does_intersect) {
+                    mSelectedModel = obj;
+                    std::cout << std::format("the ray {}intersect with {}\n", does_intersect ? "" : "does not ",
+                                             obj->getName());
+                }
+            }
+        }
+
+    } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
         switch (action) {
             case GLFW_PRESS:
                 drag_state.active = true;
-                double xpos, ypos;
-                glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
-                drag_state.startMouse = glm::vec2(-(float)xpos, (float)ypos);
-                drag_state.startCameraState = camera_state;
+                // double xpos, ypos;
+                // glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
+                // drag_state.startMouse = glm::vec2(-(float)xpos, (float)ypos);
+                // drag_state.startCameraState = camera_state;
                 break;
             case GLFW_RELEASE:
                 drag_state.active = false;
@@ -941,52 +1022,48 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     // [...] Build our UI
     // Build our UI
     // static float x = 0.0f, y = 0.0f, z = 0.0f;
-    static glm::vec3& position = boat_model.getPosition();
-    static float scale = 1;
-    static int counter = 0;
-    static bool show_demo_window = true;
-    static bool show_another_window = false;
+    // static bool show_demo_window = true;
+    // static bool show_another_window = false;
     static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    ImGui::Begin("Hello, world!");  // Create a window called "Hello, world!" and append into it.
+    if (mSelectedModel) {
+        ImGui::Begin(mSelectedModel->getName().c_str());  // Create a window called "Hello, world!" and append into it.
 
-    ImGui::Text("This is some useful text.");           // Display some text (you can use a format strings too)
-    ImGui::Checkbox("Demo Window", &show_demo_window);  // Edit bools storing our window open/close state
-    ImGui::Checkbox("Another Window", &show_another_window);
+        float scale = 1;
+        glm::vec3 position = mSelectedModel->getPosition();
+        float scale_factor = scale;
 
-    glm::vec3 temp_pos = position;
-    float scale_factor = scale;
+        ImGui::SliderFloat("X position", &position.x, -10.0f,
+                           10.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
+        ImGui::SliderFloat("Y position", &position.y, -10.0f,
+                           10.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
+        ImGui::SliderFloat("Z position", &position.z, -10.0f,
+                           10.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
 
-    ImGui::SliderFloat("Boat x position", &position.x, -10.0f,
-                       10.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
-    ImGui::SliderFloat("Boat y position", &position.y, -10.0f,
-                       10.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
-    ImGui::SliderFloat("Boat z position", &position.z, -10.0f,
-                       10.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
+        ImGui::SliderFloat("Scale", &scale, 0.0f, 10.0f);
 
-    ImGui::SliderFloat("Boat Scale", &scale, 0.0f, 10.0f);
-    if (temp_pos != position) {
-        std::cout << "value Changed" << '\n';
-        tower_model.moveTo(position);
+        if (scale_factor != scale) {
+            mSelectedModel->scale(glm::vec3{(float)scale});
+        }
+        ImGui::ColorEdit3("clear color", (float*)&clear_color);  // Edit 3 floats representing a color
+        mSelectedModel->moveTo(position);
+
+        static int counter = 0;
+        // if (ImGui::Button("Button22")) {
+        // std::cout << "Scale Changed " << &boat_model << " " << mSelectedModel << '\n';
+        // boat_model.moveTo(glm::vec3{2.0, 2.0, 2.0});
+        // };
+        ImGui::SameLine();
+        ImGui::Text("counter = %d", counter);
+
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+        ImGui::End();
     }
-    if (scale_factor != scale) {
-        std::cout << "Scale Changed" << '\n';
-        tower_model.scale(glm::vec3{(float)scale});
-    }
-    ImGui::ColorEdit3("clear color", (float*)&clear_color);  // Edit 3 floats representing a color
-
-    if (ImGui::Button("Button"))  // Buttons return true when clicked (most widgets return true when edited/activated)
-        counter++;
-    ImGui::SameLine();
-    ImGui::Text("counter = %d", counter);
-
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-    ImGui::End();
 
     ImGui::Begin("Lighting");
     ImGui::ColorEdit3("Color #0", glm::value_ptr(mLightingUniforms.colors[0]));
-    ImGui::DragFloat3("Direction #0", glm::value_ptr(mLightingUniforms.directions[0]));
+    ImGui::DragFloat3("Direction #0", glm::value_ptr(mLightingUniforms.directions[0]), 0.1, -1.0, 1.0);
     ImGui::ColorEdit3("Color #1", glm::value_ptr(mLightingUniforms.colors[1]));
     ImGui::DragFloat3("Direction #1", glm::value_ptr(mLightingUniforms.directions[1]));
     ImGui::End();

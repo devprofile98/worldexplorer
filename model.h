@@ -3,6 +3,7 @@
 
 #include <array>
 #include <filesystem>
+#include <numeric>
 #include <vector>
 
 #include "glm/ext.hpp"
@@ -30,16 +31,25 @@ struct ObjectInfo {
         std::array<uint32_t, 3> padding;
 };
 
+struct AABB {
+        glm::vec3 min = glm::vec3{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
+                                  std::numeric_limits<float>::max()};
+        glm::vec3 max = glm::vec3{std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest(),
+                                  std::numeric_limits<float>::lowest()};
+};
+
 class Model {
     public:
         Model();
 
-        Model& load(WGPUDevice device, WGPUQueue queue, const std::filesystem::path& path, WGPUBindGroupLayout layout);
+        Model& load(std::string name, WGPUDevice device, WGPUQueue queue, const std::filesystem::path& path,
+                    WGPUBindGroupLayout layout);
         Model& moveBy(const glm::vec3& m);
         Model& moveTo(const glm::vec3& m);
         Model& scale(const glm::vec3& s);
         Model& uploadToGPU(WGPUDevice device, WGPUQueue queue);
         size_t getVertexCount() const;
+        float calculateVolume();
 
         WGPUBuffer getVertexBuffer();
         WGPUBuffer getIndexBuffer();
@@ -52,17 +62,22 @@ class Model {
         glm::mat4 getModelMatrix();
         glm::vec3& getPosition();
         glm::vec3& getScale();
+        AABB& getAABB();
+        glm::vec3 getAABBSize();
+        const std::string& getName();
 
         void createSomeBinding(Application* app);
 
     private:
+        std::string mName;
         glm::mat4 mScaleMatrix;
         glm::mat4 mTranslationMatrix;
         glm::mat4 mRotationMatrix;
         ObjectInfo mObjectInfo;
+        AABB mBoundingBox;
 
         Texture* mTexture;
-        WGPUTextureView mTextureView;
+        WGPUTextureView mTextureView = nullptr;
         WGPUBindGroup mBindGroup;
         WGPUBuffer mUniformBuffer;
 
