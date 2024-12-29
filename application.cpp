@@ -184,6 +184,13 @@ void Application::initializePipeline() {
     WGPUTextureView textureView = simple_texture.createView();
     simple_texture.uploadToGPU(mRendererResource.queue);
 
+    mDefaultDiffuse = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
+    WGPUTextureView default_diffuse_texture_view = mDefaultDiffuse->createView();
+    (void)default_diffuse_texture_view;
+    std::vector<uint8_t> texture_data = {255, 0, 255, 255};
+    mDefaultDiffuse->setBufferData(texture_data);
+    mDefaultDiffuse->uploadToGPU(mRendererResource.queue);
+
     if (!textureView) {
         std::cout << "Failed to Create Texture view!!!\n";
     }
@@ -200,6 +207,9 @@ void Application::initializePipeline() {
 
     mBindingGroup.addBuffer(3,  //
                             BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(LightingUniforms));
+
+    mBindingGroup.addBuffer(4,  //
+                            BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(PointLight));
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
 
@@ -235,7 +245,7 @@ void Application::initializePipeline() {
 
     mBindingData[1].nextInChain = nullptr;
     mBindingData[1].binding = 1;
-    mBindingData[1].textureView = textureView;
+    mBindingData[1].textureView = default_diffuse_texture_view;
 
     WGPUSamplerDescriptor samplerDesc = {};
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
@@ -258,6 +268,12 @@ void Application::initializePipeline() {
     mBindingData[3].buffer = mDirectionalLightBuffer;
     mBindingData[3].offset = 0;
     mBindingData[3].size = sizeof(LightingUniforms);
+
+    mBindingData[4].nextInChain = nullptr;
+    mBindingData[4].binding = 4;
+    mBindingData[4].buffer = mBuffer1;
+    mBindingData[4].offset = 0;
+    mBindingData[4].size = sizeof(PointLight);
 
     mBindingGroup.create(this, mBindingData);
 
@@ -312,15 +328,20 @@ void Application::initializeBuffers() {
     arrow_model
         .load("arrow", mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/arrow.obj",
               mBindGroupLayouts[1])
-        .moveTo(glm::vec3{2.0})
+        .moveTo(glm::vec3{0.725, 0.333, 2.0})
+        .scale(glm::vec3{0.3})
+        .uploadToGPU(mRendererResource.device, mRendererResource.queue);
+
+    desk_model
+        .load("desk", mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/desk.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{0.725, 0.333, 0.72})
+
         .scale(glm::vec3{0.3})
         .uploadToGPU(mRendererResource.device, mRendererResource.queue);
 
     // std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>....\n";
 
-    terrain.generate(100, 5).uploadToGpu(this);
-
-    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2222....\n";
+    terrain.generate(100, 8).uploadToGpu(this);
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -350,6 +371,19 @@ void Application::initializeBuffers() {
     // std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>....\n";
     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                          lighting_buffer_descriptor.size);
+
+    WGPUBufferDescriptor pointligth_buffer_descriptor = {};
+    pointligth_buffer_descriptor.nextInChain = nullptr;
+    pointligth_buffer_descriptor.label = ":::::";
+    pointligth_buffer_descriptor.size = sizeof(PointLight);
+    pointligth_buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
+    pointligth_buffer_descriptor.mappedAtCreation = false;
+    mBuffer1 = wgpuDeviceCreateBuffer(mRendererResource.device, &pointligth_buffer_descriptor);
+
+    glm::vec4 red = {1.0, 0.0, 0.0, 1.0};
+    mPointlight = PointLight{{0.0, 0.0, 1.0, 1.0}, red, red, red, 1.0, 0.09, 0.032};
+
+    wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, 0, &mPointlight, pointligth_buffer_descriptor.size);
 
     // updateViewMatrix();
 }
@@ -425,7 +459,11 @@ bool Application::initialize() {
     glfwSetCursorPosCallback(provided_window, [](GLFWwindow* window, double xpos, double ypos) {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         // if (that != nullptr) that->onMouseMove(xpos, ypos);
-        if (that != nullptr) that->getCamera().processMouse(xpos, ypos);
+
+        if (that != nullptr) {
+            DragState& drag_state = that->getCamera().getDrag();
+            if (drag_state.active) that->getCamera().processMouse(xpos, ypos);
+        }
 
         if (ypos <= 0) {
             glfwSetCursorPos(window, xpos, WINDOW_HEIGHT - 1);
@@ -555,7 +593,7 @@ bool Application::initialize() {
     buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
     buffer_descriptor.size = 16;
     buffer_descriptor.mappedAtCreation = false;
-    mBuffer1 = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
+    // mBuffer1 = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
 
     buffer_descriptor.label = "output buffer";
     buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
@@ -565,12 +603,12 @@ bool Application::initialize() {
     std::vector<uint8_t> numbers{16};
     for (uint8_t i = 0; i < 16; i++) numbers[i] = i;
 
-    wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, 0, numbers.data(), 16);
+    // wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, 0, numbers.data(), 16);
 
     // copy from buffer1 to buffer2
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, nullptr);
 
-    wgpuCommandEncoderCopyBufferToBuffer(encoder, mBuffer1, 0, mBuffer2, 0, 16);
+    // wgpuCommandEncoderCopyBufferToBuffer(encoder, mBuffer1, 0, mBuffer2, 0, 16);
 
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, nullptr);
     wgpuCommandEncoderRelease(encoder);
@@ -608,7 +646,7 @@ bool Application::initialize() {
     boat_model.moveTo({1.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel = {&boat_model, &tower_model, &arrow_model};
+    mLoadedModel = {&boat_model, &tower_model, &arrow_model, &desk_model};
 
     return true;
 }
@@ -689,6 +727,7 @@ void Application::mainLoop() {
     tower_model.draw(this, render_pass_encoder, mBindingData);
     boat_model.draw(this, render_pass_encoder, mBindingData);
     arrow_model.draw(this, render_pass_encoder, mBindingData);
+    desk_model.draw(this, render_pass_encoder, mBindingData);
     terrain.draw(this, render_pass_encoder, mBindingData);
     updateGui(render_pass_encoder);
 
@@ -769,7 +808,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     required_limits.limits.maxBufferSize = 1000000 * sizeof(VertexAttributes);
     required_limits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
     required_limits.limits.maxSampledTexturesPerShaderStage = 1;
-    required_limits.limits.maxInterStageShaderComponents = 11;
+    required_limits.limits.maxInterStageShaderComponents = 14;
 
     // Binding groups
     required_limits.limits.maxBindGroups = 3;
@@ -1069,6 +1108,28 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui::End();
     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                          sizeof(LightingUniforms));
+
+    ImGui::Begin("Point Light");
+
+    glm::vec4 tmp_ambient = mPointlight.mAmbient;
+    glm::vec3 tmp_pos = arrow_model.getPosition();
+    float tmp_linear = mPointlight.mLinear;
+    float tmp_quadratic = mPointlight.mQuadratic;
+    ImGui::ColorEdit3("Point Light Color #0", glm::value_ptr(mPointlight.mAmbient));
+    ImGui::DragFloat3("Point Ligth Position #0", glm::value_ptr(mPointlight.mPosition), 0.1, -10.0, 10.0);
+    ImGui::SliderFloat("Linear", &tmp_linear, -10.0f, 10.0f);
+    ImGui::SliderFloat("Quadratic", &tmp_quadratic, -10.0f, 10.0f);
+
+    if (tmp_ambient != mPointlight.mAmbient ||
+        (tmp_pos.x != mPointlight.mPosition.x || tmp_pos.y != mPointlight.mPosition.y ||
+         tmp_pos.z != mPointlight.mPosition.z || tmp_linear != mPointlight.mLinear ||
+         tmp_quadratic != mPointlight.mQuadratic)) {
+        mPointlight.mPosition = glm::vec4{tmp_pos, 1.0};
+        mPointlight.mLinear = tmp_linear;
+        mPointlight.mQuadratic = tmp_quadratic;
+        wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, 0, &mPointlight, sizeof(mPointlight));
+    }
+    ImGui::End();
 
     // Draw the UI
     ImGui::EndFrame();

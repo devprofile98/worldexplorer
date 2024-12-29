@@ -99,7 +99,8 @@ Model& Model::load(std::string name, WGPUDevice device, WGPUQueue queue, const s
     buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     buffer_descriptor.mappedAtCreation = false;
     mUniformBuffer = wgpuDeviceCreateBuffer(device, &buffer_descriptor);
-    std::cout << layout << " M Uniform buffer address after creation: +++++++++++++++\n";
+    (void)layout;
+    std::cout << mName << " M Uniform buffer address after creation: +++++++++++++++\n";
     return *this;
 }
 
@@ -161,6 +162,7 @@ void Model::createSomeBinding(Application* app) {
 void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
     auto& render_resource = app->getRendererResource();
     auto& uniform_data = app->getUniformData();
+    WGPUBindGroup& active_bind_group = app->getBindingGroup().getBindGroup();
     if (mTextureView != nullptr) {
         bindingData[1].nextInChain = nullptr;
         bindingData[1].binding = 1;
@@ -168,6 +170,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
         auto& desc = app->getBindingGroup().getDescriptor();
         desc.entries = bindingData.data();
         mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
+        active_bind_group = mBindGroup;
     }
     uniform_data.modelMatrix = getModelMatrix();
     wgpuQueueWriteBuffer(render_resource.queue, app->getUniformBuffer(), offsetof(MyUniform, modelMatrix),
@@ -175,7 +178,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
 
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, getVertexBuffer(), 0, wgpuBufferGetSize(getVertexBuffer()));
     if (mTextureView != nullptr) {
-        wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindGroup, 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
     }
 
     wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, &mObjectInfo, sizeof(ObjectInfo));

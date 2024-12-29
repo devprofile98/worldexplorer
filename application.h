@@ -11,6 +11,7 @@
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "model.h"
+#include "point_light.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
@@ -76,6 +77,7 @@ class Application {
         Model boat_model{};
         Model tower_model{};
         Model arrow_model{};
+        Model desk_model{};
         std::vector<Model*> mLoadedModel;
         Model* getModelCounter();
 
@@ -95,10 +97,14 @@ class Application {
         std::array<WGPUBindGroupLayout, 2> mBindGroupLayouts;
         Camera& getCamera();
 
+        // textures
+        Texture* mDefaultDiffuse = nullptr;
+
     private:
         Camera mCamera;
         Terrain terrain;
         LightingUniforms mLightingUniforms;
+        PointLight mPointlight;
 
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();
@@ -117,6 +123,7 @@ class Application {
         WGPUBuffer mUniformBuffer;
         WGPUBuffer mUniformBufferTransform;
         WGPUBuffer mDirectionalLightBuffer;
+        // WGPUBuffer mPointlightBuffer = {};
         MyUniform mUniforms;
         uint32_t mIndexCount;
 

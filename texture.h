@@ -12,6 +12,11 @@
 
 enum class TextureDimension { TEX_1D, TEX_2D, TEX_3D };
 
+// class TextureManager {
+//     public:
+//     private:
+// };
+
 class Texture {
     public:
         Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension);

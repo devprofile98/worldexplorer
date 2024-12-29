@@ -244,9 +244,6 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
             } else {
                 attr.color = height_color[0];
             }
-            // attr.color = height_color[1];
-
-            // attr.uv = {(double)x / gridSize, (double)z / gridSize};
             attr.uv = {0.0, 0.0};
             this->vertices.push_back(attr);
         }

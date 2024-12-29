@@ -25,7 +25,7 @@ Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, Texture
     mDescriptor.nextInChain = nullptr;
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(dimension);
     mDescriptor.format = WGPUTextureFormat_RGBA8Unorm;
-    mDescriptor.mipLevelCount = 8;
+    mDescriptor.mipLevelCount = 1;
     mDescriptor.sampleCount = 1;
     mDescriptor.size = {width, height, 1};
     mDescriptor.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
@@ -55,12 +55,14 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path) {
     mDescriptor.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
     mDescriptor.viewFormatCount = 0;
     mDescriptor.viewFormats = nullptr;
+
     mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
 
     size_t image_byte_size = (width * height * std::max(channels + 1, 1));
     mBufferData.reserve(image_byte_size);
     mBufferData.resize(image_byte_size);
-    memset(mBufferData.data() + (width * height * 3), 100, width * height * 1 - 2000000);
+    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2`222....\n";
+    // memset(mBufferData.data() + (width * height * 3), 100, width * height * 1 - 2000000);
     for (size_t cnt = 0, dst_cnt = 0;
          cnt < (size_t)width * height * channels || dst_cnt < (size_t)width * height * (channels + 1);
          cnt += 3, dst_cnt += 4) {
