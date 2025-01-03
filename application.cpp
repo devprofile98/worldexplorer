@@ -184,12 +184,21 @@ void Application::initializePipeline() {
     WGPUTextureView textureView = simple_texture.createView();
     simple_texture.uploadToGPU(mRendererResource.queue);
 
+    // creating default diffuse texture
     mDefaultDiffuse = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_diffuse_texture_view = mDefaultDiffuse->createView();
     (void)default_diffuse_texture_view;
     std::vector<uint8_t> texture_data = {255, 0, 255, 255};
     mDefaultDiffuse->setBufferData(texture_data);
     mDefaultDiffuse->uploadToGPU(mRendererResource.queue);
+
+    // Creating default meatlic-roughness texture
+    mDefaultMetallicRoughness = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
+    WGPUTextureView default_metallic_roughness_texture_view = mDefaultMetallicRoughness->createView();
+    // (void)default_diffuse_texture_view;
+    texture_data = {255, 255, 255, 255};
+    mDefaultMetallicRoughness->setBufferData(texture_data);
+    mDefaultMetallicRoughness->uploadToGPU(mRendererResource.queue);
 
     if (!textureView) {
         std::cout << "Failed to Create Texture view!!!\n";
@@ -210,6 +219,10 @@ void Application::initializePipeline() {
 
     mBindingGroup.addBuffer(4,  //
                             BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(PointLight));
+
+    mBindingGroup.addTexture(5,  //
+                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                             TextureViewDimension::VIEW_2D);
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
 
@@ -274,6 +287,11 @@ void Application::initializePipeline() {
     mBindingData[4].buffer = mBuffer1;
     mBindingData[4].offset = 0;
     mBindingData[4].size = sizeof(PointLight);
+
+    mBindingData[5] = {};
+    mBindingData[5].nextInChain = nullptr;
+    mBindingData[5].binding = 5;
+    mBindingData[5].textureView = default_metallic_roughness_texture_view;
 
     mBindingGroup.create(this, mBindingData);
 
@@ -807,7 +825,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     required_limits.limits.maxVertexBuffers = 1;
     required_limits.limits.maxBufferSize = 1000000 * sizeof(VertexAttributes);
     required_limits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
-    required_limits.limits.maxSampledTexturesPerShaderStage = 1;
+    required_limits.limits.maxSampledTexturesPerShaderStage = 2;
     required_limits.limits.maxInterStageShaderComponents = 14;
 
     // Binding groups

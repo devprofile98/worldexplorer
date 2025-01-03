@@ -99,6 +99,7 @@ class Application {
 
         // textures
         Texture* mDefaultDiffuse = nullptr;
+        Texture* mDefaultMetallicRoughness = nullptr;
 
     private:
         Camera mCamera;
@@ -116,7 +117,7 @@ class Application {
 
         WGPURenderPipeline mPipeline;
         BindingGroup mBindingGroup;
-        std::vector<WGPUBindGroupEntry> mBindingData{3};
+        std::vector<WGPUBindGroupEntry> mBindingData{5};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
         // WGPUBindGroup mBindGroup;
         WGPUBuffer mBuffer1, mBuffer2;

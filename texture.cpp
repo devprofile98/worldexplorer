@@ -4,7 +4,7 @@
 #include "stb_image.h"
 
 WGPUTextureView Texture::createView() {
-    WGPUTextureView tmp = nullptr;
+    // WGPUTextureView tmp = nullptr;
     if (mIsTextureAlive) {
         WGPUTextureViewDescriptor texture_view_desc = {};
         texture_view_desc.aspect = WGPUTextureAspect_All;
@@ -15,9 +15,10 @@ WGPUTextureView Texture::createView() {
         texture_view_desc.dimension = WGPUTextureViewDimension_2D;
         texture_view_desc.format = mDescriptor.format;
 
-        tmp = wgpuTextureCreateView(mTexture, &texture_view_desc);
+        mTextureView = wgpuTextureCreateView(mTexture, &texture_view_desc);
+        return mTextureView;
     }
-    return tmp;
+    return nullptr;
 }
 
 Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension) {
@@ -32,8 +33,6 @@ Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, Texture
     mDescriptor.viewFormatCount = 0;
     mDescriptor.viewFormats = nullptr;
     mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
-
-    // createView(mDescriptor);
 
     mIsTextureAlive = true;
 }
@@ -162,3 +161,5 @@ void Texture::Destroy() {
         mIsTextureAlive = false;
     }
 }
+
+WGPUTextureView Texture::getTextureView() { return mTextureView; }

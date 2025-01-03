@@ -76,8 +76,8 @@ class Model {
         ObjectInfo mObjectInfo;
         AABB mBoundingBox;
 
-        Texture* mTexture;
-        WGPUTextureView mTextureView = nullptr;
+        Texture* mTexture = nullptr;
+        Texture* mSpecularTexture = nullptr;
         WGPUBindGroup mBindGroup;
         WGPUBuffer mUniformBuffer;
 

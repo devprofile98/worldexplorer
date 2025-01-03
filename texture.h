@@ -25,6 +25,7 @@ class Texture {
 
         // access function
         WGPUTexture getTexture();
+        WGPUTextureView getTextureView();
 
         Texture& setBufferData(std::vector<uint8_t>& data);
         WGPUTextureView createView();
@@ -35,6 +36,7 @@ class Texture {
 
     private:
         WGPUTexture mTexture;
+        WGPUTextureView mTextureView = nullptr;
         WGPUTextureDescriptor mDescriptor;
         std::vector<uint8_t> mBufferData;
         bool mIsTextureAlive = false;  // Indicate whether the texure is still valid on VRAM or not

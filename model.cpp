@@ -1,5 +1,6 @@
 #include "model.h"
 
+#include <format>
 #include <iostream>
 
 #include "application.h"
@@ -42,20 +43,34 @@ Model& Model::load(std::string name, WGPUDevice device, WGPUQueue queue, const s
     auto& shapes = reader.GetShapes();
     auto& materials = reader.GetMaterials();
 
-    std::cout << materials.size() << " ::: " << materials[0].diffuse_texname << " \n";
+    std::cout << materials.size() << " Tiny Object einladung " << materials[0].specular_texname << " \n";
 
+    // Load and upload diffuse texture
     if (!materials[0].diffuse_texname.empty()) {
-        std::string ddd = RESOURCE_DIR;
-        ddd += "/";
-        ddd += materials[0].diffuse_texname;
-        // auto a = std::filesystem::path{ddd.c_str()};
-        mTexture = new Texture{device, ddd};
-        std::cout << "TinyObjReader:2222 " << materials[0].diffuse_texname.empty() << std::endl;
-        mTextureView = mTexture->createView();
+        std::string texture_path = RESOURCE_DIR;
+        texture_path += "/";
+        texture_path += materials[0].diffuse_texname;
+        // auto a = std::filesystem::path{texture_path.c_str()};
+        mTexture = new Texture{device, texture_path};
+        if (mTexture->createView() == nullptr) {
+            std::cout << std::format("Failed to create Diffuse Texture view for {}\n", mName);
+        }
         mTexture->uploadToGPU(queue);
     }
 
-    // bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.string().c_str());
+    // Load and upload specular texture
+    if (!materials[0].specular_texname.empty()) {
+        std::string texture_path = RESOURCE_DIR;
+        texture_path += "/";
+        texture_path += materials[0].specular_texname;
+        // auto a = std::filesystem::path{texture_path.c_str()};
+        mSpecularTexture = new Texture{device, texture_path};
+        if (mSpecularTexture->createView() == nullptr) {
+            std::cout << std::format("Failed to create Specular Texture view for {}\n", mName);
+        }
+        mSpecularTexture->uploadToGPU(queue);
+    }
+
     if (!warn.empty()) {
         std::cout << warn << std::endl;
     }
@@ -162,24 +177,35 @@ void Model::createSomeBinding(Application* app) {
 void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
     auto& render_resource = app->getRendererResource();
     auto& uniform_data = app->getUniformData();
-    WGPUBindGroup& active_bind_group = app->getBindingGroup().getBindGroup();
-    if (mTextureView != nullptr) {
-        bindingData[1].nextInChain = nullptr;
-        bindingData[1].binding = 1;
-        bindingData[1].textureView = mTextureView;
+    WGPUBindGroup active_bind_group = nullptr;
+
+    // Bind Diffuse texture for the model if existed
+    if (mTexture != nullptr) {
+        if (mTexture->getTextureView() != nullptr) {
+            bindingData[1].nextInChain = nullptr;
+            bindingData[1].binding = 1;
+            bindingData[1].textureView = mTexture->getTextureView();
+        }
+        if (mSpecularTexture != nullptr && mSpecularTexture->getTextureView() != nullptr) {
+            bindingData[5].nextInChain = nullptr;
+            bindingData[5].binding = 5;
+            bindingData[5].textureView = mSpecularTexture->getTextureView();
+        }
         auto& desc = app->getBindingGroup().getDescriptor();
         desc.entries = bindingData.data();
         mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
         active_bind_group = mBindGroup;
+    } else {
+        active_bind_group = app->getBindingGroup().getBindGroup();
     }
+
     uniform_data.modelMatrix = getModelMatrix();
     wgpuQueueWriteBuffer(render_resource.queue, app->getUniformBuffer(), offsetof(MyUniform, modelMatrix),
                          glm::value_ptr(uniform_data.modelMatrix), sizeof(glm::mat4));
 
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, getVertexBuffer(), 0, wgpuBufferGetSize(getVertexBuffer()));
-    if (mTextureView != nullptr) {
-        wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
-    }
+
+    wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
 
     wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, &mObjectInfo, sizeof(ObjectInfo));
     createSomeBinding(app);
