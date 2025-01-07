@@ -11,6 +11,7 @@
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "model.h"
+#include "pipeline.h"
 #include "point_light.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
@@ -106,6 +107,7 @@ class Application {
         Terrain terrain;
         LightingUniforms mLightingUniforms;
         PointLight mPointlight;
+        Pipeline* mPipeline;
 
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();
@@ -115,7 +117,7 @@ class Application {
         RendererResource mRendererResource;
         WGPUTextureFormat mSurfaceFormat = WGPUTextureFormat_Undefined;
 
-        WGPURenderPipeline mPipeline;
+        // WGPURenderPipeline mPipeline;
         BindingGroup mBindingGroup;
         std::vector<WGPUBindGroupEntry> mBindingData{5};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};

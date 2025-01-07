@@ -94,6 +94,26 @@ WGPUShaderModule loadShader(const fs::path& path, WGPUDevice device) {
     return wgpuDeviceCreateShaderModule(device, &shader_descriptor);
 }
 
+void setDefault(WGPUStencilFaceState& stencilFaceState) {
+    stencilFaceState.compare = WGPUCompareFunction_Always;
+    stencilFaceState.failOp = WGPUStencilOperation_Keep;
+    stencilFaceState.depthFailOp = WGPUStencilOperation_Keep;
+    stencilFaceState.passOp = WGPUStencilOperation_Keep;
+}
+
+void setDefault(WGPUDepthStencilState& depthStencilState) {
+    depthStencilState.format = WGPUTextureFormat_Undefined;
+    depthStencilState.depthWriteEnabled = false;
+    depthStencilState.depthCompare = WGPUCompareFunction_Always;
+    depthStencilState.stencilReadMask = 0xFFFFFFFF;
+    depthStencilState.stencilWriteMask = 0xFFFFFFFF;
+    depthStencilState.depthBias = 0;
+    depthStencilState.depthBiasSlopeScale = 0;
+    depthStencilState.depthBiasClamp = 0;
+    setDefault(depthStencilState.stencilFront);
+    setDefault(depthStencilState.stencilBack);
+}
+
 namespace noise {
 // permutation table
 uint8_t p[512] = {
@@ -453,3 +473,5 @@ WGPUVertexBufferLayout VertexBufferLayout::configure(uint64_t arrayStride, Verte
 
     return mLayout;
 }
+
+WGPUVertexBufferLayout VertexBufferLayout::getLayout() { return mLayout; }

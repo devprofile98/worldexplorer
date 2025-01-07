@@ -18,6 +18,9 @@ namespace fs = std::filesystem;
 
 class Appliaction;  // forward declaration of the app class
 
+void setDefault(WGPUDepthStencilState& depthStencilState);
+void setDefault(WGPUStencilFaceState& stencilFaceState);
+
 struct Terrain {
         std::vector<VertexAttributes> vertices;
         std::vector<uint16_t> indices;
@@ -65,6 +68,9 @@ enum class VertexStepMode {
 struct VertexBufferLayout {
         VertexBufferLayout& addAttribute(uint64_t offset, uint32_t location, WGPUVertexFormat format);
         WGPUVertexBufferLayout configure(uint64_t arrayStride, VertexStepMode stepMode);
+
+        // Getters
+        WGPUVertexBufferLayout getLayout();
 
     private:
         std::vector<WGPUVertexAttribute> mAttribs;

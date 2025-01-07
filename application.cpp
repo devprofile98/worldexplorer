@@ -75,26 +75,6 @@ void setDefault(WGPUBindGroupLayoutEntry& bindingLayout) {
     bindingLayout.texture.viewDimension = WGPUTextureViewDimension_Undefined;
 }
 
-void setDefault(WGPUStencilFaceState& stencilFaceState) {
-    stencilFaceState.compare = WGPUCompareFunction_Always;
-    stencilFaceState.failOp = WGPUStencilOperation_Keep;
-    stencilFaceState.depthFailOp = WGPUStencilOperation_Keep;
-    stencilFaceState.passOp = WGPUStencilOperation_Keep;
-}
-
-void setDefault(WGPUDepthStencilState& depthStencilState) {
-    depthStencilState.format = WGPUTextureFormat_Undefined;
-    depthStencilState.depthWriteEnabled = false;
-    depthStencilState.depthCompare = WGPUCompareFunction_Always;
-    depthStencilState.stencilReadMask = 0xFFFFFFFF;
-    depthStencilState.stencilWriteMask = 0xFFFFFFFF;
-    depthStencilState.depthBias = 0;
-    depthStencilState.depthBiasSlopeScale = 0;
-    depthStencilState.depthBiasClamp = 0;
-    setDefault(depthStencilState.stencilFront);
-    setDefault(depthStencilState.stencilBack);
-}
-
 void Application::initializePipeline() {
     // ---------------------------- Render pipeline
 
@@ -242,13 +222,17 @@ void Application::initializePipeline() {
     mBindGroupLayouts[0] = bind_group_layout;
     mBindGroupLayouts[1] = wgpuDeviceCreateBindGroupLayout(mRendererResource.device, &bind_group_layout_descriptor1);
 
-    WGPUPipelineLayoutDescriptor pipeline_layout_descriptor = {};
-    pipeline_layout_descriptor.nextInChain = nullptr;
-    pipeline_layout_descriptor.bindGroupLayoutCount = mBindGroupLayouts.size();
-    pipeline_layout_descriptor.bindGroupLayouts = mBindGroupLayouts.data();
-    WGPUPipelineLayout pipeline_layout =
-        wgpuDeviceCreatePipelineLayout(mRendererResource.device, &pipeline_layout_descriptor);
-    pipeline_descriptor.layout = pipeline_layout;
+    mPipeline = new Pipeline{{bind_group_layout, mBindGroupLayouts[1]}, pipeline_descriptor};
+
+    mPipeline->defaultConfiguration(this, mSurfaceFormat).createPipeline(this);
+
+    // WGPUPipelineLayoutDescriptor pipeline_layout_descriptor = {};
+    // pipeline_layout_descriptor.nextInChain = nullptr;
+    // pipeline_layout_descriptor.bindGroupLayoutCount = mBindGroupLayouts.size();
+    // pipeline_layout_descriptor.bindGroupLayouts = mBindGroupLayouts.data();
+    // WGPUPipelineLayout pipeline_layout =
+    //     wgpuDeviceCreatePipelineLayout(mRendererResource.device, &pipeline_layout_descriptor);
+    // pipeline_descriptor.layout = pipeline_layout;
 
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
@@ -319,11 +303,11 @@ void Application::initializePipeline() {
     mTrasBindGroupDesc.label = "translation bind group";
     mTrasBindGroupDesc.layout = mBindGroupLayouts[1];
 
-    mPipelineDescriptor = pipeline_descriptor;
+    mPipelineDescriptor = mPipeline->getDescriptor();
 
     bindGrouptrans = wgpuDeviceCreateBindGroup(mRendererResource.device, &mTrasBindGroupDesc);
 
-    mPipeline = wgpuDeviceCreateRenderPipeline(mRendererResource.device, &mPipelineDescriptor);
+    // mPipeline = wgpuDeviceCreateRenderPipeline(mRendererResource.device, &mPipelineDescriptor);
 
     // ---------------------------- End of Render Pipeline
 }
@@ -715,7 +699,7 @@ void Application::mainLoop() {
     render_pass_color_attachment.resolveTarget = nullptr;
     render_pass_color_attachment.loadOp = WGPULoadOp_Clear;
     render_pass_color_attachment.storeOp = WGPUStoreOp_Store;
-    render_pass_color_attachment.clearValue = WGPUColor{0.05, 0.05, 0.05, 1.0};
+    render_pass_color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
 #ifndef WEBGPU_BACKEND_WGPU
     render_pass_color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 #endif  // NOT WEBGPU_BACKEND_WGPU
@@ -740,7 +724,7 @@ void Application::mainLoop() {
 
     WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
 
-    wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline);
+    wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
 
     tower_model.draw(this, render_pass_encoder, mBindingData);
     boat_model.draw(this, render_pass_encoder, mBindingData);
@@ -782,7 +766,7 @@ void Application::terminate() {
 
     // wgpuBufferRelease(mIndexBuffer);
     // wgpuBufferRelease(mVertexBuffer);
-    wgpuRenderPipelineRelease(mPipeline);
+    wgpuRenderPipelineRelease(mPipeline->getPipeline());
     wgpuSurfaceUnconfigure(mRendererResource.surface);
     wgpuQueueRelease(mRendererResource.queue);
     wgpuSurfaceRelease(mRendererResource.surface);
