@@ -78,111 +78,27 @@ void setDefault(WGPUBindGroupLayoutEntry& bindingLayout) {
 void Application::initializePipeline() {
     // ---------------------------- Render pipeline
 
-    WGPURenderPipelineDescriptor pipeline_descriptor = {};
-    pipeline_descriptor.nextInChain = nullptr;
-
-    // Creation of shader module
-    // WGPUShaderModuleDescriptor shader_descriptor = {};
 #ifdef WEBGPU_BACKEND_WGPU
     shaderDesc.hintCount = 0;
     shaderDesc.hints = nullptr;
 #endif
 
-    WGPUShaderModule shader_module = loadShader(RESOURCE_DIR "/shader.wgsl", mRendererResource.device);
-
-    // --- describe the pipe line
-    // describe the vertex state
-
-    VertexBufferLayout vertex_buffer = {};
-    WGPUVertexBufferLayout vertex_buffer_layout =
-        vertex_buffer.addAttribute(0, 0, WGPUVertexFormat_Float32x3)
-            .addAttribute(3 * sizeof(float), 1, WGPUVertexFormat_Float32x3)
-            .addAttribute(6 * sizeof(float), 2, WGPUVertexFormat_Float32x3)
-            .addAttribute(offsetof(VertexAttributes, uv), 3, WGPUVertexFormat_Float32x2)
-            .configure(sizeof(VertexAttributes), VertexStepMode::VERTEX);
-
-    pipeline_descriptor.vertex.bufferCount = 1;
-    pipeline_descriptor.vertex.buffers = &vertex_buffer_layout;
-    pipeline_descriptor.vertex.module = shader_module;
-    pipeline_descriptor.vertex.entryPoint = "vs_main";
-    pipeline_descriptor.vertex.constantCount = 0;
-    pipeline_descriptor.vertex.constants = nullptr;
-
-    // describe primitive assembly and rasterization
-    pipeline_descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-    pipeline_descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-    pipeline_descriptor.primitive.frontFace = WGPUFrontFace_CCW;
-    pipeline_descriptor.primitive.cullMode = WGPUCullMode_Back;
-
-    // describe and configure fragment shader
-    WGPUFragmentState fragment_state = {};
-    fragment_state.module = shader_module;
-    fragment_state.entryPoint = "fs_main";
-    fragment_state.constants = nullptr;
-    fragment_state.constantCount = 0;
-    pipeline_descriptor.fragment = &fragment_state;
-
-    // depth and stencil
-    WGPUDepthStencilState depth_stencil_state = {};
-    setDefault(depth_stencil_state);
-
-    depth_stencil_state.depthCompare = WGPUCompareFunction_Less;
-    depth_stencil_state.depthWriteEnabled = true;
-
-    WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
-    depth_stencil_state.format = depth_texture_format;
-    depth_stencil_state.stencilReadMask = 0;
-    depth_stencil_state.stencilWriteMask = 0;
-
-    pipeline_descriptor.depthStencil = &depth_stencil_state;
-
     initDepthBuffer();
-
-    // blend state
-    WGPUBlendState blend_state = {};
-    blend_state.color.srcFactor = WGPUBlendFactor_SrcAlpha;
-    blend_state.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-    blend_state.color.operation = WGPUBlendOperation_Add;
-
-    blend_state.alpha.srcFactor = WGPUBlendFactor_Zero;
-    blend_state.alpha.dstFactor = WGPUBlendFactor_One;
-    blend_state.alpha.operation = WGPUBlendOperation_Add;
-
-    WGPUColorTargetState color_target = {};
-    color_target.format = mSurfaceFormat;
-    color_target.blend = &blend_state;
-    color_target.writeMask = WGPUColorWriteMask_All;
-
-    fragment_state.targetCount = 1;
-    fragment_state.targets = &color_target;
-
-    pipeline_descriptor.multisample.count = 1;
-    pipeline_descriptor.multisample.mask = ~0u;
-    pipeline_descriptor.multisample.alphaToCoverageEnabled = false;
-
-    Texture simple_texture{mRendererResource.device, RESOURCE_DIR "/texture.jpg"};
-    WGPUTextureView textureView = simple_texture.createView();
-    simple_texture.uploadToGPU(mRendererResource.queue);
 
     // creating default diffuse texture
     mDefaultDiffuse = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_diffuse_texture_view = mDefaultDiffuse->createView();
     (void)default_diffuse_texture_view;
-    std::vector<uint8_t> texture_data = {255, 0, 255, 255};
+    std::vector<uint8_t> texture_data = {255, 0, 255, 255};  // Purple color for Default texture color
     mDefaultDiffuse->setBufferData(texture_data);
     mDefaultDiffuse->uploadToGPU(mRendererResource.queue);
 
     // Creating default meatlic-roughness texture
     mDefaultMetallicRoughness = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_metallic_roughness_texture_view = mDefaultMetallicRoughness->createView();
-    // (void)default_diffuse_texture_view;
-    texture_data = {255, 255, 255, 255};
+    texture_data = {255, 255, 255, 255};  // White color for Default specular texture
     mDefaultMetallicRoughness->setBufferData(texture_data);
     mDefaultMetallicRoughness->uploadToGPU(mRendererResource.queue);
-
-    if (!textureView) {
-        std::cout << "Failed to Create Texture view!!!\n";
-    }
 
     mBindingGroup.addBuffer(0,  //
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(MyUniform));
@@ -222,17 +138,8 @@ void Application::initializePipeline() {
     mBindGroupLayouts[0] = bind_group_layout;
     mBindGroupLayouts[1] = wgpuDeviceCreateBindGroupLayout(mRendererResource.device, &bind_group_layout_descriptor1);
 
-    mPipeline = new Pipeline{{bind_group_layout, mBindGroupLayouts[1]}, pipeline_descriptor};
-
+    mPipeline = new Pipeline{{bind_group_layout, mBindGroupLayouts[1]}};
     mPipeline->defaultConfiguration(this, mSurfaceFormat).createPipeline(this);
-
-    // WGPUPipelineLayoutDescriptor pipeline_layout_descriptor = {};
-    // pipeline_layout_descriptor.nextInChain = nullptr;
-    // pipeline_layout_descriptor.bindGroupLayoutCount = mBindGroupLayouts.size();
-    // pipeline_layout_descriptor.bindGroupLayouts = mBindGroupLayouts.data();
-    // WGPUPipelineLayout pipeline_layout =
-    //     wgpuDeviceCreatePipelineLayout(mRendererResource.device, &pipeline_layout_descriptor);
-    // pipeline_descriptor.layout = pipeline_layout;
 
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
@@ -282,6 +189,7 @@ void Application::initializePipeline() {
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
     buffer_descriptor.label = "ahgmadasdsad f";
+
     // Create Uniform buffers
     buffer_descriptor.size = sizeof(ObjectInfo);
     buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
@@ -303,13 +211,7 @@ void Application::initializePipeline() {
     mTrasBindGroupDesc.label = "translation bind group";
     mTrasBindGroupDesc.layout = mBindGroupLayouts[1];
 
-    mPipelineDescriptor = mPipeline->getDescriptor();
-
     bindGrouptrans = wgpuDeviceCreateBindGroup(mRendererResource.device, &mTrasBindGroupDesc);
-
-    // mPipeline = wgpuDeviceCreateRenderPipeline(mRendererResource.device, &mPipelineDescriptor);
-
-    // ---------------------------- End of Render Pipeline
 }
 
 // Initializing Vertex Buffers
@@ -383,7 +285,7 @@ void Application::initializeBuffers() {
     mBuffer1 = wgpuDeviceCreateBuffer(mRendererResource.device, &pointligth_buffer_descriptor);
 
     glm::vec4 red = {1.0, 0.0, 0.0, 1.0};
-    mPointlight = PointLight{{0.0, 0.0, 1.0, 1.0}, red, red, red, 1.0, 0.09, 0.032};
+    mPointlight = PointLight{{0.0, 0.0, 1.0, 1.0}, red, red, red, 1.0, 0.7, 1.8};
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, 0, &mPointlight, pointligth_buffer_descriptor.size);
 
@@ -943,19 +845,6 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
     // CameraState& camera_state = mCamera.getSate();
     DragState& drag_state = mCamera.getDrag();
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
-        // switch (action) {
-        //     case GLFW_PRESS:
-        //         drag_state.active = true;
-        //         double xpos, ypos;
-        //         glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
-        //         drag_state.startMouse = glm::vec2(-(float)xpos, (float)ypos);
-        //         drag_state.startCameraState = camera_state;
-        //         break;
-        //     case GLFW_RELEASE:
-        //         drag_state.active = false;
-        //         break;
-        // }
-
         // calculating the NDC for x and y
         if (action == GLFW_PRESS) {
             double xpos, ypos;

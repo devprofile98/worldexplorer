@@ -2,10 +2,8 @@
 
 #include "application.h"
 
-Pipeline::Pipeline(std::vector<WGPUBindGroupLayout> bindGroupLayout, WGPURenderPipelineDescriptor desc)
-    : mDescriptor({}), mBindGroupLayouts(bindGroupLayout) {
-    (void)desc;
-}
+Pipeline::Pipeline(std::vector<WGPUBindGroupLayout> bindGroupLayout)
+    : mDescriptor({}), mBindGroupLayouts(bindGroupLayout) {}
 
 Pipeline& Pipeline::createPipeline(Application* app) {
     WGPUPipelineLayoutDescriptor pipeline_layout_descriptor = {};

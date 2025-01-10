@@ -11,7 +11,7 @@ class Application;
 
 class Pipeline {
     public:
-        Pipeline(std::vector<WGPUBindGroupLayout> bindGroupLayout, WGPURenderPipelineDescriptor desc);
+        Pipeline(std::vector<WGPUBindGroupLayout> bindGroupLayout);
 
         Pipeline& defaultConfiguration(Application* app, WGPUTextureFormat surfaceTexture);
         Pipeline& createPipeline(Application* app);
