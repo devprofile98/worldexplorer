@@ -331,7 +331,7 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
 
             } else {
                 attr.color = height_color[0];
-                attr.color.r = height_color_index[0];
+                attr.color.r = height_color_index[1];
             }
             attr.uv = {x, z};
             this->vertices.push_back(attr);

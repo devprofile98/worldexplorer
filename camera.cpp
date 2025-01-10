@@ -45,6 +45,7 @@ void Camera::processInput(int key, int scancode, int action, int mod) {
     (void)mod;
     (void)key;
     float cameraSpeed = 0.4f;  // adjust accordingly
+
     if (mDragState.active) {
         cameraSpeed = 0.05f;
     }
@@ -69,6 +70,11 @@ void Camera::processMouse(int x, int y) {
     float yoffset = mLastY - y;
     mLastX = x;
     mLastY = y;
+
+    if (mDragState.firstMouse) {
+        mDragState.firstMouse = false;
+        return;
+    }
 
     float sensitivity = 0.2f;
     xoffset *= sensitivity;

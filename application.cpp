@@ -864,13 +864,11 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
         switch (action) {
             case GLFW_PRESS:
                 drag_state.active = true;
-                // double xpos, ypos;
-                // glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
-                // drag_state.startMouse = glm::vec2(-(float)xpos, (float)ypos);
-                // drag_state.startCameraState = camera_state;
+                drag_state.firstMouse = true;
                 break;
             case GLFW_RELEASE:
                 drag_state.active = false;
+                drag_state.firstMouse = false;
                 break;
         }
     }
@@ -937,10 +935,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui::NewFrame();
 
     // [...] Build our UI
-    // Build our UI
-    // static float x = 0.0f, y = 0.0f, z = 0.0f;
-    // static bool show_demo_window = true;
-    // static bool show_another_window = false;
+
     static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     if (mSelectedModel) {
@@ -965,13 +960,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         ImGui::ColorEdit3("clear color", (float*)&clear_color);  // Edit 3 floats representing a color
         mSelectedModel->moveTo(position);
 
-        static int counter = 0;
-        // if (ImGui::Button("Button22")) {
-        // std::cout << "Scale Changed " << &boat_model << " " << mSelectedModel << '\n';
-        // boat_model.moveTo(glm::vec3{2.0, 2.0, 2.0});
-        // };
         ImGui::SameLine();
-        ImGui::Text("counter = %d", counter);
 
         ImGuiIO& io = ImGui::GetIO();
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);

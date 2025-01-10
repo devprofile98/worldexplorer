@@ -19,6 +19,7 @@ struct CameraState {
 struct DragState {
         // Whether a drag action is ongoing (i.e., we are between mouse press and mouse release)
         bool active = false;
+        bool firstMouse = false;
         // The position of the mouse at the beginning of the drag action
         glm::vec2 startMouse;
         // The camera state at the beginning of the drag action
