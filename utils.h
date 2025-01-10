@@ -21,6 +21,9 @@ class Appliaction;  // forward declaration of the app class
 void setDefault(WGPUDepthStencilState& depthStencilState);
 void setDefault(WGPUStencilFaceState& stencilFaceState);
 
+void setDefault(WGPUBindGroupLayoutEntry& bindingLayout);
+void setDefault(WGPULimits& limits);
+
 struct Terrain {
         std::vector<VertexAttributes> vertices;
         std::vector<uint16_t> indices;

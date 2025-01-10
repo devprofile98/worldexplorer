@@ -114,6 +114,61 @@ void setDefault(WGPUDepthStencilState& depthStencilState) {
     setDefault(depthStencilState.stencilBack);
 }
 
+void setDefault(WGPULimits& limits) {
+    limits.maxTextureDimension1D = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxTextureDimension2D = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxTextureDimension3D = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxTextureArrayLayers = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxBindGroups = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxBindGroupsPlusVertexBuffers = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxBindingsPerBindGroup = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxDynamicUniformBuffersPerPipelineLayout = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxDynamicStorageBuffersPerPipelineLayout = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxSampledTexturesPerShaderStage = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxSamplersPerShaderStage = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxStorageBuffersPerShaderStage = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxStorageTexturesPerShaderStage = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxUniformBuffersPerShaderStage = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxUniformBufferBindingSize = WGPU_LIMIT_U64_UNDEFINED;
+    limits.maxStorageBufferBindingSize = WGPU_LIMIT_U64_UNDEFINED;
+    limits.minUniformBufferOffsetAlignment = WGPU_LIMIT_U32_UNDEFINED;
+    limits.minStorageBufferOffsetAlignment = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxVertexBuffers = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxBufferSize = WGPU_LIMIT_U64_UNDEFINED;
+    limits.maxVertexAttributes = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxVertexBufferArrayStride = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxInterStageShaderComponents = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxInterStageShaderVariables = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxColorAttachments = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxColorAttachmentBytesPerSample = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxComputeWorkgroupStorageSize = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxComputeInvocationsPerWorkgroup = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxComputeWorkgroupSizeX = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxComputeWorkgroupSizeY = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxComputeWorkgroupSizeZ = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxComputeWorkgroupsPerDimension = WGPU_LIMIT_U32_UNDEFINED;
+}
+
+void setDefault(WGPUBindGroupLayoutEntry& bindingLayout) {
+    bindingLayout = {};
+    bindingLayout.buffer.nextInChain = nullptr;
+    bindingLayout.buffer.type = WGPUBufferBindingType_Undefined;
+    bindingLayout.buffer.hasDynamicOffset = false;
+
+    bindingLayout.sampler.nextInChain = nullptr;
+    bindingLayout.sampler.type = WGPUSamplerBindingType_Undefined;
+
+    bindingLayout.storageTexture.nextInChain = nullptr;
+    bindingLayout.storageTexture.access = WGPUStorageTextureAccess_Undefined;
+    bindingLayout.storageTexture.format = WGPUTextureFormat_Undefined;
+    bindingLayout.storageTexture.viewDimension = WGPUTextureViewDimension_Undefined;
+
+    bindingLayout.texture.nextInChain = nullptr;
+    bindingLayout.texture.multisampled = false;
+    bindingLayout.texture.sampleType = WGPUTextureSampleType_Undefined;
+    bindingLayout.texture.viewDimension = WGPUTextureViewDimension_Undefined;
+}
+
 namespace noise {
 // permutation table
 uint8_t p[512] = {
@@ -208,6 +263,14 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
         glm::vec3{255.0 / 255.0, 255.0 / 255.0, 255.0 / 255.0},  // Snow (White)
     };
 
+    std::array<uint8_t, 5> height_color_index = {
+        0,  // glm::vec3{0.0 / 255.0, 0.0 / 255.0, 139.0 / 255.0},      // Deep Water (Dark Blue)
+        1,  // glm::vec3{0.0 / 255.0, 0.0 / 255.0, 255.0 / 255.0},      // Shallow Water (Blue)
+        2,  // glm::vec3{34.0 / 255.0, 139.0 / 255.0, 34.0 / 255.0},    // Grassland (Green)
+        3,  // glm::vec3{139.0 / 255.0, 69.0 / 255.0, 19.0 / 255.0},    // Mountain (Brown)
+        4,  // glm::vec3{255.0 / 255.0, 255.0 / 255.0, 255.0 / 255.0},  // Snow (White)
+    };
+
     (void)octaves;
     // Terrain terrain;
     // terrain.vertices;
@@ -257,14 +320,20 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
 
             if (pixel_result > 300) {
                 attr.color = height_color[4];
+                attr.color.r = height_color_index[4];
             } else if (pixel_result > 260) {
                 attr.color = height_color[3];
+                attr.color.r = height_color_index[3];
+
             } else if (pixel_result > 210) {
                 attr.color = height_color[2];
+                attr.color.r = height_color_index[2];
+
             } else {
                 attr.color = height_color[0];
+                attr.color.r = height_color_index[0];
             }
-            attr.uv = {0.0, 0.0};
+            attr.uv = {x, z};
             this->vertices.push_back(attr);
         }
     }

@@ -20,61 +20,6 @@ void MyUniform::setCamera(Camera& camera) {
     modelMatrix = camera.getModel();
 }
 
-void setDefault(WGPULimits& limits) {
-    limits.maxTextureDimension1D = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxTextureDimension2D = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxTextureDimension3D = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxTextureArrayLayers = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxBindGroups = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxBindGroupsPlusVertexBuffers = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxBindingsPerBindGroup = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxDynamicUniformBuffersPerPipelineLayout = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxDynamicStorageBuffersPerPipelineLayout = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxSampledTexturesPerShaderStage = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxSamplersPerShaderStage = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxStorageBuffersPerShaderStage = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxStorageTexturesPerShaderStage = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxUniformBuffersPerShaderStage = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxUniformBufferBindingSize = WGPU_LIMIT_U64_UNDEFINED;
-    limits.maxStorageBufferBindingSize = WGPU_LIMIT_U64_UNDEFINED;
-    limits.minUniformBufferOffsetAlignment = WGPU_LIMIT_U32_UNDEFINED;
-    limits.minStorageBufferOffsetAlignment = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxVertexBuffers = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxBufferSize = WGPU_LIMIT_U64_UNDEFINED;
-    limits.maxVertexAttributes = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxVertexBufferArrayStride = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxInterStageShaderComponents = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxInterStageShaderVariables = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxColorAttachments = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxColorAttachmentBytesPerSample = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxComputeWorkgroupStorageSize = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxComputeInvocationsPerWorkgroup = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxComputeWorkgroupSizeX = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxComputeWorkgroupSizeY = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxComputeWorkgroupSizeZ = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxComputeWorkgroupsPerDimension = WGPU_LIMIT_U32_UNDEFINED;
-}
-
-void setDefault(WGPUBindGroupLayoutEntry& bindingLayout) {
-    bindingLayout = {};
-    bindingLayout.buffer.nextInChain = nullptr;
-    bindingLayout.buffer.type = WGPUBufferBindingType_Undefined;
-    bindingLayout.buffer.hasDynamicOffset = false;
-
-    bindingLayout.sampler.nextInChain = nullptr;
-    bindingLayout.sampler.type = WGPUSamplerBindingType_Undefined;
-
-    bindingLayout.storageTexture.nextInChain = nullptr;
-    bindingLayout.storageTexture.access = WGPUStorageTextureAccess_Undefined;
-    bindingLayout.storageTexture.format = WGPUTextureFormat_Undefined;
-    bindingLayout.storageTexture.viewDimension = WGPUTextureViewDimension_Undefined;
-
-    bindingLayout.texture.nextInChain = nullptr;
-    bindingLayout.texture.multisampled = false;
-    bindingLayout.texture.sampleType = WGPUTextureSampleType_Undefined;
-    bindingLayout.texture.viewDimension = WGPUTextureViewDimension_Undefined;
-}
-
 void Application::initializePipeline() {
     // ---------------------------- Render pipeline
 
@@ -84,6 +29,22 @@ void Application::initializePipeline() {
 #endif
 
     initDepthBuffer();
+
+    Texture grass_texture = Texture{mRendererResource.device, RESOURCE_DIR "/forrest_ground_diff.jpg"};
+    grass_texture.createView();
+    grass_texture.uploadToGPU(mRendererResource.queue);
+
+    Texture rock_texture = Texture{mRendererResource.device, RESOURCE_DIR "/tiger_rock_diff.jpg"};
+    rock_texture.createView();
+    rock_texture.uploadToGPU(mRendererResource.queue);
+
+    Texture sand_texture = Texture{mRendererResource.device, RESOURCE_DIR "/gravelly_sand_diff.jpg"};
+    sand_texture.createView();
+    sand_texture.uploadToGPU(mRendererResource.queue);
+
+    Texture snow_texture = Texture{mRendererResource.device, RESOURCE_DIR "/snow_diff.jpg"};
+    snow_texture.createView();
+    snow_texture.uploadToGPU(mRendererResource.queue);
 
     // creating default diffuse texture
     mDefaultDiffuse = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
@@ -117,6 +78,18 @@ void Application::initializePipeline() {
                             BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(PointLight));
 
     mBindingGroup.addTexture(5,  //
+                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                             TextureViewDimension::VIEW_2D);
+    mBindingGroup.addTexture(6,  //
+                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                             TextureViewDimension::VIEW_2D);
+    mBindingGroup.addTexture(7,  //
+                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                             TextureViewDimension::VIEW_2D);
+    mBindingGroup.addTexture(8,  //
+                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                             TextureViewDimension::VIEW_2D);
+    mBindingGroup.addTexture(9,  //
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                              TextureViewDimension::VIEW_2D);
 
@@ -184,6 +157,26 @@ void Application::initializePipeline() {
     mBindingData[5].binding = 5;
     mBindingData[5].textureView = default_metallic_roughness_texture_view;
 
+    mBindingData[6] = {};
+    mBindingData[6].nextInChain = nullptr;
+    mBindingData[6].binding = 6;
+    mBindingData[6].textureView = grass_texture.getTextureView();
+
+    mBindingData[7] = {};
+    mBindingData[7].nextInChain = nullptr;
+    mBindingData[7].binding = 7;
+    mBindingData[7].textureView = rock_texture.getTextureView();
+
+    mBindingData[8] = {};
+    mBindingData[8].nextInChain = nullptr;
+    mBindingData[8].binding = 8;
+    mBindingData[8].textureView = sand_texture.getTextureView();
+
+    mBindingData[9] = {};
+    mBindingData[9].nextInChain = nullptr;
+    mBindingData[9].binding = 9;
+    mBindingData[9].textureView = snow_texture.getTextureView();
+
     mBindingGroup.create(this, mBindingData);
 
     WGPUBufferDescriptor buffer_descriptor = {};
@@ -243,8 +236,6 @@ void Application::initializeBuffers() {
         .scale(glm::vec3{0.3})
         .uploadToGPU(mRendererResource.device, mRendererResource.queue);
 
-    // std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>....\n";
-
     terrain.generate(100, 8).uploadToGpu(this);
 
     WGPUBufferDescriptor buffer_descriptor = {};
@@ -272,7 +263,6 @@ void Application::initializeBuffers() {
 
     mLightingUniforms.directions = {glm::vec4{0.5, -0.9, 0.1, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
     mLightingUniforms.colors = {glm::vec4{1.0, 0.9, 0.6, 1.0}, glm::vec4{0.6, 0.9, 1.0, 1.0}};
-    // std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>....\n";
     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                          lighting_buffer_descriptor.size);
 
@@ -288,8 +278,6 @@ void Application::initializeBuffers() {
     mPointlight = PointLight{{0.0, 0.0, 1.0, 1.0}, red, red, red, 1.0, 0.7, 1.8};
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, 0, &mPointlight, pointligth_buffer_descriptor.size);
-
-    // updateViewMatrix();
 }
 
 // We define a function that hides implementation-specific variants of device polling:
@@ -485,7 +473,6 @@ bool Application::initialize() {
 
     // ImGui stuff
     initGui();
-    std::cout << " failed to run" << std::endl;
 
     initializeBuffers();
     initializePipeline();
@@ -711,7 +698,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     required_limits.limits.maxVertexBuffers = 1;
     required_limits.limits.maxBufferSize = 1000000 * sizeof(VertexAttributes);
     required_limits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
-    required_limits.limits.maxSampledTexturesPerShaderStage = 2;
+    required_limits.limits.maxSampledTexturesPerShaderStage = 6;
     required_limits.limits.maxInterStageShaderComponents = 14;
 
     // Binding groups
