@@ -124,6 +124,7 @@ Model& Model::moveBy(const glm::vec3& translationVec) {
     (void)translationVec;
     return *this;
 }
+
 Model& Model::moveTo(const glm::vec3& moveVec) {
     mPosition = moveVec;
     // std::cout << "changed for " << getName() << ' ' << mPosition.x << '\n';

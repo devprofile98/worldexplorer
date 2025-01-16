@@ -20,6 +20,8 @@ void MyUniform::setCamera(Camera& camera) {
     modelMatrix = camera.getModel();
 }
 
+WGPUTextureFormat Application::getTextureFormat() { return mSurfaceFormat; }
+
 void Application::initializePipeline() {
     // ---------------------------- Render pipeline
 
@@ -111,7 +113,7 @@ void Application::initializePipeline() {
     mBindGroupLayouts[0] = bind_group_layout;
     mBindGroupLayouts[1] = wgpuDeviceCreateBindGroupLayout(mRendererResource.device, &bind_group_layout_descriptor1);
 
-    mPipeline = new Pipeline{{bind_group_layout, mBindGroupLayouts[1]}};
+    mPipeline = new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1]}};
     mPipeline->defaultConfiguration(this, mSurfaceFormat).createPipeline(this);
 
     mBindingData[0].nextInChain = nullptr;
@@ -205,6 +207,8 @@ void Application::initializePipeline() {
     mTrasBindGroupDesc.layout = mBindGroupLayouts[1];
 
     bindGrouptrans = wgpuDeviceCreateBindGroup(mRendererResource.device, &mTrasBindGroupDesc);
+    // SkyBox skybox{this, "asdf"};
+    mSkybox = new SkyBox{this, "asdf"};
 }
 
 // Initializing Vertex Buffers
@@ -613,8 +617,22 @@ void Application::mainLoop() {
 
     WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
 
-    wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
+    glm::mat4 model{1.0f};
+    // Apply translation first
+    // model = glm::translate(model, glm::vec3{0.3f, 1.0f, 1.0f});
+    // // Apply scaling
+    // model = glm::scale(model, glm::vec3{1.0f, 1.0f, 2.0f});
 
+    glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mUniforms.viewMatrix));
+
+    // Compute the final MVP matrix
+    glm::mat4 mvp = mUniforms.projectMatrix * viewNoTranslation;
+    // glm::mat4 mvp = mUniforms.projectMatrix * mUniforms.viewMatrix * model;
+
+    wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mSkybox->getPipeline()->getPipeline());
+    mSkybox->draw(this, render_pass_encoder, mvp);
+
+    wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
     tower_model.draw(this, render_pass_encoder, mBindingData);
     boat_model.draw(this, render_pass_encoder, mBindingData);
     arrow_model.draw(this, render_pass_encoder, mBindingData);

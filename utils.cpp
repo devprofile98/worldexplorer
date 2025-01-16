@@ -504,10 +504,10 @@ void Terrain::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<
 
     wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, &mObjectInfo, sizeof(ObjectInfo));
 
-    // std::cout << mTrasBindGroupDesc.layout << " boat model is: +++++++++++++++\n";
     createSomeBinding(app);
     wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
 
+    // std::cout << " @@@@@@@@@@@@@@@@@@@ " << indices.size() << '\n';
     // // Draw 1 instance of a 3-vertices shape
     wgpuRenderPassEncoderDrawIndexed(encoder, indices.size(), 1, 0, 0, 0);
     // wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);

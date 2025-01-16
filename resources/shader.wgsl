@@ -142,14 +142,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         return vec4f(ambient + diffuse, 1.0);
     } else {
 
-        // let height_color: array<vec3<f32>, 5> = array<vec3<f32>, 5>(
-        //     vec3<f32>(0.0 / 255.0, 0.0 / 255.0, 139.0 / 255.0), // Deep Water (Dark Blue)
-        //     vec3<f32>(0.0 / 255.0, 0.0 / 255.0, 255.0 / 255.0), // Shallow Water (Blue)
-        //     vec3<f32>(34.0 / 255.0, 139.0 / 255.0, 34.0 / 255.0), // Grassland (Green)
-        //     vec3<f32>(139.0 / 255.0, 69.0 / 255.0, 19.0 / 255.0), // Mountain (Brown)
-        //     vec3<f32>(255.0 / 255.0, 255.0 / 255.0, 255.0 / 255.0) // Snow (White)
-        // );
-
         var height_color = vec3<f32>(0.0 / 255.0, 139.0 / 255.0, 139.0 / 255.0);
         if in.color.r < 0.5 {
             // height_color = 0;
@@ -190,7 +182,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
             color = textureSample(snow_mountain_texture, textureSampler, in.uv).rgb;
         }
         let ambient = color * shading;
-        let diffuse = pointLight.ambient.xyz * in.color * attenuation * diff;
+        let diffuse = pointLight.ambient.xyz * attenuation * diff;
         return vec4f(diffuse + ambient, 1.0);
         // return vec4f(color, 1.0);
     }

@@ -15,7 +15,7 @@ add_subdirectory(webgpu)
 
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 
-add_executable(App main.cpp wgpu_utils.cpp application.cpp utils.cpp texture.cpp binding_group.cpp camera.cpp model.cpp point_light.cpp pipeline.cpp)
+add_executable(App main.cpp wgpu_utils.cpp application.cpp utils.cpp texture.cpp binding_group.cpp camera.cpp model.cpp point_light.cpp pipeline.cpp skybox.cpp)
 target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")
 # target_compile_definitions(App PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
 

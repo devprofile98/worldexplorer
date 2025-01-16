@@ -13,6 +13,7 @@
 #include "model.h"
 #include "pipeline.h"
 #include "point_light.h"
+#include "skybox.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
@@ -97,6 +98,7 @@ class Application {
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
         std::array<WGPUBindGroupLayout, 2> mBindGroupLayouts;
         Camera& getCamera();
+        WGPUTextureFormat getTextureFormat();
 
         // textures
         Texture* mDefaultDiffuse = nullptr;
@@ -136,6 +138,7 @@ class Application {
         WGPURenderPipelineDescriptor mPipelineDescriptor;
 
         Model* mSelectedModel = nullptr;
+        SkyBox* mSkybox;
 };
 
 #endif  // TEST_WGPU_APPLICTION_H

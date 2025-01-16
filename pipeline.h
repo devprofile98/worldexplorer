@@ -11,7 +11,7 @@ class Application;
 
 class Pipeline {
     public:
-        Pipeline(std::vector<WGPUBindGroupLayout> bindGroupLayout);
+        Pipeline(Application* app, std::vector<WGPUBindGroupLayout> bindGroupLayout);
 
         Pipeline& defaultConfiguration(Application* app, WGPUTextureFormat surfaceTexture);
         Pipeline& createPipeline(Application* app);
@@ -21,7 +21,20 @@ class Pipeline {
         WGPURenderPipeline getPipeline();
         WGPURenderPipelineDescriptor getDescriptor();
 
+        // Setter
+        Pipeline& setShader(const std::filesystem::path& path);
+        Pipeline& setVertexBufferLayout(WGPUVertexBufferLayout layout);
+        Pipeline& setVertexState(size_t bufferCount = 1, const char* entryPoint = "vs_main",
+                                 std::vector<WGPUConstantEntry> constants = {});
+        Pipeline& setPrimitiveState();
+        Pipeline& setDepthStencilState();
+        Pipeline& setBlendState();
+        Pipeline& setColorTargetState();
+        Pipeline& setFragmentState();
+        VertexBufferLayout mVertexBufferLayout = {};
+
     private:
+        Application* mApp;
         WGPURenderPipelineDescriptor mDescriptor = {};
         std::vector<WGPUBindGroupLayout> mBindGroupLayouts;
         WGPUPipelineLayout mPipelineLayout;
@@ -32,7 +45,6 @@ class Pipeline {
 
         WGPUShaderModule mShaderModule;
         // state
-        VertexBufferLayout mVertexBufferLayout = {};
         WGPUDepthStencilState mDepthStencilState = {};
         WGPUBlendState mBlendState = {};
         WGPUColorTargetState mColorTargetState = {};

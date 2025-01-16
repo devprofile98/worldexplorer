@@ -33,8 +33,15 @@ WGPUTextureSampleType sampleTypeFrom(TextureSampleType type) {
 
 WGPUTextureViewDimension viewDimensionFrom(TextureViewDimension dim) {
     WGPUTextureViewDimension ret = WGPUTextureViewDimension_Undefined;
-    if (dim == TextureViewDimension::VIEW_2D) {
-        ret = WGPUTextureViewDimension_2D;
+    switch (dim) {
+        case TextureViewDimension::VIEW_2D:
+            /* code */
+            ret = WGPUTextureViewDimension_2D;
+            break;
+        case TextureViewDimension::CUBE:
+            ret = WGPUTextureViewDimension_Cube;
+        default:
+            break;
     }
 
     return ret;
@@ -129,10 +136,12 @@ WGPUBindGroupLayoutEntry* BindingGroup::getEntryData() { return mEntries.data();
 WGPUBindGroup& BindingGroup::getBindGroup() { return mBindGroup; }
 
 void BindingGroup::create(Application* app, std::vector<WGPUBindGroupEntry>& bindingData) {
+    mBindGroupDesc = {};
     mBindGroupDesc.nextInChain = nullptr;
     mBindGroupDesc.layout = mBindGroupLayout;
     mBindGroupDesc.entryCount = mBindGroupLayoutDesc.entryCount;
     mBindGroupDesc.entries = bindingData.data();
+    std::cout << "The depth stencil value is set as " << bindingData.data()[1].binding << std::endl;
 
     mBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mBindGroupDesc);
 };
