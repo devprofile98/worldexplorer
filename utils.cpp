@@ -480,17 +480,6 @@ void Terrain::createSomeBinding(Application* app) {
 void Terrain::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
     (void)bindingData;
 
-    // 1 - SET THE TEXTURE
-    // 2 - SET VERTEX BUFFER
-    // 3 - SET INDEX BUFFER
-
-    // 4 - DRAW INDEXED
-    // WGPUBindGroup mbidngroup = {};
-    // bindingData[1].nextInChain = nullptr;
-    // bindingData[1].binding = 1;
-    // bindingData[1].textureView = mTextureView;
-    // auto& desc = app->getBindingGroup().getDescriptor();
-    // desc.entries = bindingData.data();
     auto& render_resource = app->getRendererResource();
     // mbidngroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
 
@@ -498,16 +487,12 @@ void Terrain::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<
     wgpuRenderPassEncoderSetIndexBuffer(encoder, mIndexBuffer, WGPUIndexFormat_Uint16, 0,
                                         wgpuBufferGetSize(mIndexBuffer));
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, app->getBindingGroup().getBindGroup(), 0, nullptr);
-    // wgpuRenderPassEncoderSetBindGroup(encoder, 0, mbidngroup, 0, nullptr);
-
-    // wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindGroup, 0, nullptr);
 
     wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, &mObjectInfo, sizeof(ObjectInfo));
 
     createSomeBinding(app);
     wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
 
-    // std::cout << " @@@@@@@@@@@@@@@@@@@ " << indices.size() << '\n';
     // // Draw 1 instance of a 3-vertices shape
     wgpuRenderPassEncoderDrawIndexed(encoder, indices.size(), 1, 0, 0, 0);
     // wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);

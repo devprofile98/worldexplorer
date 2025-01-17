@@ -2,6 +2,9 @@
 
 #include "application.h"
 // Sample shader code
+
+// #define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 /*
 
 */
@@ -102,20 +105,78 @@ void SkyBox::CreateBuffer() {
 }
 
 SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
-    // const char* sides_index[] = {"top", "bottom", "front", "back", "right", "left"};
     // (void)cubeTexturePath;
 
     this->app = app;
 
-    for (int i = 0; i < 6; i++) {
+    // create Texture descriptor
+    WGPUTextureDescriptor texture_descriptor = {};
+    texture_descriptor.dimension = WGPUTextureDimension_2D;
+    texture_descriptor.size = {2048, 2048, 6};
+    texture_descriptor.format = WGPUTextureFormat_RGBA8Unorm;
+    texture_descriptor.usage = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding;
+    texture_descriptor.mipLevelCount = 1;
+    texture_descriptor.sampleCount = 1;
+    std::cout << "@@###@@@###@@@###@@@### \n";
+    WGPUTexture cubeMapTetxure = wgpuDeviceCreateTexture(app->getRendererResource().device, &texture_descriptor);
+
+    const char* sides_index[] = {"right", "left", "top", "bottom", "front", "back"};
+
+    std::vector<Texture> textures;
+
+    for (uint32_t i = 0; i < 6; i++) {
         // load each side first
+        WGPUImageCopyTexture copy_texture = {};
+        copy_texture.texture = cubeMapTetxure;
+        copy_texture.origin = {0, 0, i};
+
+        std::string path = cubeTexturePath.string() + "/";
+        path += sides_index[i];
+        path += ".jpg";
+
+        // textures.push_back(Texture{app->getRendererResource().device, path});
+
+        int width, height, channels;
+        unsigned char* pixel_data = stbi_load(path.c_str(), &width, &height, &channels, 0);
+        // If data is null, loading failed.
+        if (nullptr == pixel_data) return;
+
+        WGPUTextureDataLayout texture_data_layout = {};
+        texture_data_layout.offset = 0;
+        texture_data_layout.bytesPerRow = 2048 * 4;
+        texture_data_layout.rowsPerImage = 2048;
+
+        WGPUExtent3D copy_size = {2048, 2048, 1};
+        /////////////////////
+        ////////////////
+        size_t image_byte_size = (width * height * std::max(channels + 1, 1));
+        std::vector<uint8_t> buffer_data;
+        buffer_data.reserve(image_byte_size);
+        buffer_data.resize(image_byte_size);
+        std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2`222....\n";
+        // memset(mBufferData.data() + (width * height * 3), 100, width * height * 1 - 2000000);
+        for (size_t cnt = 0, dst_cnt = 0;
+             cnt < (size_t)width * height * channels || dst_cnt < (size_t)width * height * (channels + 1);
+             cnt += 3, dst_cnt += 4) {
+            buffer_data[dst_cnt] = pixel_data[cnt];
+            buffer_data[dst_cnt + 1] = pixel_data[cnt + 1];
+            buffer_data[dst_cnt + 2] = pixel_data[cnt + 2];
+            buffer_data[dst_cnt + 3] = 1;
+        }
+        //////////////////
+        /////////////////
+        std::cout << "Loading texture " << path.c_str() << ' ' << channels << std::endl;
+        wgpuQueueWriteTexture(app->getRendererResource().queue, &copy_texture, buffer_data.data(), 2048 * 2048 * 4,
+                              &texture_data_layout, &copy_size);
+
+        stbi_image_free(pixel_data);
     }
 
     // creating pipeline
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(glm::mat4));
     mBindingGroup.addSampler(1, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
-    // mBindingGroup.addTexture(2, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-    //                          TextureViewDimension::CUBE);
+    mBindingGroup.addTexture(2, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                             TextureViewDimension::CUBE);
 
     auto bind_group_layout = mBindingGroup.createLayout(app, "skybox pipeline");
 
@@ -137,7 +198,7 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
     // initialize buffers
     CreateBuffer();
 
-    mBindingData.reserve(2);
+    mBindingData.reserve(3);
 
     // Matrix Uniform Data
     mBindingData[0].nextInChain = nullptr;
@@ -165,7 +226,19 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
     mBindingData[1].binding = 1;
     mBindingData[1].sampler = sampler;
 
-    // mBindingData[2].
+    WGPUTextureViewDescriptor texture_view_descriptor = {};
+    texture_view_descriptor.nextInChain = nullptr;
+    texture_view_descriptor.format = WGPUTextureFormat_RGBA8Unorm;
+    texture_view_descriptor.dimension = WGPUTextureViewDimension_Cube;
+    texture_view_descriptor.baseMipLevel = 0;
+    texture_view_descriptor.mipLevelCount = 1;
+    texture_view_descriptor.baseArrayLayer = 0;
+    texture_view_descriptor.arrayLayerCount = 6;
+
+    WGPUTextureView texture_view = wgpuTextureCreateView(cubeMapTetxure, &texture_view_descriptor);
+    mBindingData[2].nextInChain = nullptr;
+    mBindingData[2].binding = 2;
+    mBindingData[2].textureView = texture_view;
 
     mBindingGroup.create(app, mBindingData);
 
@@ -192,45 +265,17 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
 }
 
 void SkyBox::draw(Application* app, WGPURenderPassEncoder encoder, const glm::mat4& mvp) {
-    // (void)bindingData;
-
-    // 1 - SET THE TEXTURE
-    // 2 - SET VERTEX BUFFER
-    // 3 - SET INDEX BUFFER
-
-    // 4 - DRAW INDEXED
-    // WGPUBindGroup mbidngroup = {};
-    // bindingData[1].nextInChain = nullptr;
-    // bindingData[1].binding = 1;
-    // bindingData[1].textureView = mTextureView;
-    // auto& desc = app->getBindingGroup().getDescriptor();
-    // desc.entries = bindingData.data();
-    // glm::mat4 matrix{1.0};
-    // // matrix = glm::rotate(matrix, 0.0f, glm::vec3{1.0f});
-    // // matrix = glm::scale(matrix, glm::vec3{1.0f});
-    // matrix = glm::translate(matrix, glm::vec3{0.3f, 0.0f, 0.0f});
-    // matrix = view * matrix;
-
     auto& render_resource = app->getRendererResource();
-    // mbidngroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
-    // std::cout << "@@###@@@###@@@###@@@### " << wgpuBufferGetSize(mCubeIndexDataBuffer) << ' '
-    //           << wgpuBufferGetSize(mCubeVertexDataBuffer) << '\n';
 
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mCubeVertexDataBuffer, 0,
                                          wgpuBufferGetSize(mCubeVertexDataBuffer));
     wgpuRenderPassEncoderSetIndexBuffer(encoder, mCubeIndexDataBuffer, WGPUIndexFormat_Uint16, 0,
                                         wgpuBufferGetSize(mCubeIndexDataBuffer));
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindingGroup.getBindGroup(), 0, nullptr);
-    // wgpuRenderPassEncoderSetBindGroup(encoder, 0, mbidngroup, 0, nullptr);
-
-    // wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindGroup, 0, nullptr);
 
     (void)mvp;
 
     wgpuQueueWriteBuffer(render_resource.queue, mMatrixBuffer, 0, &mvp, sizeof(glm::mat4));
-
-    // createSomeBinding(app);
-    // wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
 
     // // Draw 1 instance of a 3-vertices shape
     wgpuRenderPassEncoderDrawIndexed(encoder, sizeof(cubeIndexData) / 2, 1, 0, 0, 0);

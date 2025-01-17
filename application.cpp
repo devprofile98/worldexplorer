@@ -208,7 +208,7 @@ void Application::initializePipeline() {
 
     bindGrouptrans = wgpuDeviceCreateBindGroup(mRendererResource.device, &mTrasBindGroupDesc);
     // SkyBox skybox{this, "asdf"};
-    mSkybox = new SkyBox{this, "asdf"};
+    mSkybox = new SkyBox{this, RESOURCE_DIR "/skybox"};
 }
 
 // Initializing Vertex Buffers
@@ -726,7 +726,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
 
     required_limits.limits.maxTextureDimension1D = 2048;
     required_limits.limits.maxTextureDimension2D = 2048;
-    required_limits.limits.maxTextureArrayLayers = 1;
+    required_limits.limits.maxTextureArrayLayers = 6;
     required_limits.limits.maxSamplersPerShaderStage = 1;
 
     return required_limits;
