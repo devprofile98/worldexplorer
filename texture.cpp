@@ -163,3 +163,23 @@ void Texture::Destroy() {
 }
 
 WGPUTextureView Texture::getTextureView() { return mTextureView; }
+
+std::vector<uint8_t> Texture::expandToRGBA(uint8_t* data, size_t height, size_t width) {
+    if (!data) {
+        std::cout << "expandToRGBA: Data for Texture provided is null\n";
+    }
+    size_t image_byte_size = height * width * 4;
+    std::vector<uint8_t> buffer_data;
+    buffer_data.reserve(image_byte_size);
+    buffer_data.resize(image_byte_size);
+    // memset(mBufferData.data() + (width * height * 3), 100, width * height * 1 - 2000000);
+    for (size_t cnt = 0, dst_cnt = 0; cnt < (size_t)width * height * 3 || dst_cnt < (size_t)width * height * 4;
+         cnt += 3, dst_cnt += 4) {
+        buffer_data[dst_cnt] = data[cnt];
+        buffer_data[dst_cnt + 1] = data[cnt + 1];
+        buffer_data[dst_cnt + 2] = data[cnt + 2];
+        buffer_data[dst_cnt + 3] = 1;
+    }
+
+    return buffer_data;
+}

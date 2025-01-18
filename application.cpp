@@ -618,17 +618,8 @@ void Application::mainLoop() {
     WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
 
     glm::mat4 model{1.0f};
-    // Apply translation first
-    // model = glm::translate(model, glm::vec3{0.3f, 1.0f, 1.0f});
-    // // Apply scaling
-    // model = glm::scale(model, glm::vec3{1.0f, 1.0f, 2.0f});
-
     glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mUniforms.viewMatrix));
-
-    // Compute the final MVP matrix
     glm::mat4 mvp = mUniforms.projectMatrix * viewNoTranslation;
-    // glm::mat4 mvp = mUniforms.projectMatrix * mUniforms.viewMatrix * model;
-
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mSkybox->getPipeline()->getPipeline());
     mSkybox->draw(this, render_pass_encoder, mvp);
 
@@ -800,7 +791,7 @@ void Application::updateProjectionMatrix() {
     int width, height;
     glfwGetFramebufferSize(mRendererResource.window, &width, &height);
     float ratio = width / (float)height;
-    mUniforms.projectMatrix = glm::perspective(60 * Camera::PI / 180, ratio, 0.01f, 100.0f);
+    mUniforms.projectMatrix = glm::perspective(60 * Camera::PI / 180, ratio, 0.01f, 1000.0f);
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),
                          &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));

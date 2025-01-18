@@ -1,40 +1,7 @@
 #include "skybox.h"
 
 #include "application.h"
-// Sample shader code
-
-// #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-/*
-
-*/
-
-float ASPECT_RATIO = 1024.0f / 1080.0f;
-
-// float cubeVertexData[] = {
-
-//     -0.5, -0.5, 0.0,  //
-//     0.5, -0.5, 0.0,   //
-//     -0.5, 0.5, 0.0,   //
-//     0.5, 0.5, 0.0,    //
-//     0.5, -0.5, 0.0,   //
-//     -0.5, 0.5, 0.0,   //
-//                       //
-//     -0.5, -0.5, 0.5,  //
-//     0.5, -0.5, 0.5,   //
-//     -0.5, 0.5, 0.5,   //
-//     0.5, 0.5, 0.5,    //
-//     0.5, -0.5, 0.5,   //
-//     -0.5, 0.5, 0.5,   //
-//                       //
-//     -0.5, -0.5, 0.0,  //
-//     -0.5, -0.5, 0.5,  //
-//     -0.5, 0.5, 0.5,   //
-//     0.5, -0.5, 0.5,   //
-//     -0.5, -0.5, 0.5,  //
-//     -0.5, -0.5, 0.0,  //
-
-// };
 
 float cubeVertexData[] = {
 
@@ -48,47 +15,17 @@ float cubeVertexData[] = {
 
 uint16_t cubeIndexData[] = {
     // Back face
-    0,
-    1,
-    2,
-    2,
-    3,
-    0,
+    0, 1, 2, 2, 3, 0,  //
     // Front face
-    4,
-    5,
-    6,
-    6,
-    7,
-    4,
+    4, 5, 6, 6, 7, 4,  //
     // Left face
-    0,
-    3,
-    7,
-    7,
-    4,
-    0,
+    0, 3, 7, 7, 4, 0,  //
     // Right face
-    1,
-    2,
-    6,
-    6,
-    5,
-    1,
+    1, 2, 6, 6, 5, 1,  //
     // Bottom face
-    0,
-    1,
-    5,
-    5,
-    4,
-    0,
+    0, 1, 5, 5, 4, 0,  //
     // Top face
-    3,
-    2,
-    6,
-    6,
-    7,
-    3,
+    3, 2, 6, 6, 7, 3,  //
 
 };
 
@@ -105,8 +42,6 @@ void SkyBox::CreateBuffer() {
 }
 
 SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
-    // (void)cubeTexturePath;
-
     this->app = app;
 
     // create Texture descriptor
@@ -117,13 +52,11 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
     texture_descriptor.usage = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding;
     texture_descriptor.mipLevelCount = 1;
     texture_descriptor.sampleCount = 1;
-    std::cout << "@@###@@@###@@@###@@@### \n";
     WGPUTexture cubeMapTetxure = wgpuDeviceCreateTexture(app->getRendererResource().device, &texture_descriptor);
-
-    const char* sides_index[] = {"right", "left", "top", "bottom", "front", "back"};
 
     std::vector<Texture> textures;
 
+    const char* sides_index[] = {"right", "left", "top", "bottom", "front", "back"};
     for (uint32_t i = 0; i < 6; i++) {
         // load each side first
         WGPUImageCopyTexture copy_texture = {};
@@ -147,28 +80,17 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
         texture_data_layout.rowsPerImage = 2048;
 
         WGPUExtent3D copy_size = {2048, 2048, 1};
-        /////////////////////
-        ////////////////
-        size_t image_byte_size = (width * height * std::max(channels + 1, 1));
-        std::vector<uint8_t> buffer_data;
-        buffer_data.reserve(image_byte_size);
-        buffer_data.resize(image_byte_size);
-        std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2`222....\n";
-        // memset(mBufferData.data() + (width * height * 3), 100, width * height * 1 - 2000000);
-        for (size_t cnt = 0, dst_cnt = 0;
-             cnt < (size_t)width * height * channels || dst_cnt < (size_t)width * height * (channels + 1);
-             cnt += 3, dst_cnt += 4) {
-            buffer_data[dst_cnt] = pixel_data[cnt];
-            buffer_data[dst_cnt + 1] = pixel_data[cnt + 1];
-            buffer_data[dst_cnt + 2] = pixel_data[cnt + 2];
-            buffer_data[dst_cnt + 3] = 1;
-        }
-        //////////////////
-        /////////////////
-        std::cout << "Loading texture " << path.c_str() << ' ' << channels << std::endl;
-        wgpuQueueWriteTexture(app->getRendererResource().queue, &copy_texture, buffer_data.data(), 2048 * 2048 * 4,
-                              &texture_data_layout, &copy_size);
 
+        if (channels == 3) {
+            auto buffer_data = Texture::expandToRGBA(pixel_data, height, width);
+
+            std::cout << "Loading texture " << path.c_str() << ' ' << channels << std::endl;
+            wgpuQueueWriteTexture(app->getRendererResource().queue, &copy_texture, buffer_data.data(), 2048 * 2048 * 4,
+                                  &texture_data_layout, &copy_size);
+
+        } else {
+            std::cout << "Skybox: No support for textures channel != 3 channels\n";
+        }
         stbi_image_free(pixel_data);
     }
 
@@ -278,7 +200,7 @@ void SkyBox::draw(Application* app, WGPURenderPassEncoder encoder, const glm::ma
     wgpuQueueWriteBuffer(render_resource.queue, mMatrixBuffer, 0, &mvp, sizeof(glm::mat4));
 
     // // Draw 1 instance of a 3-vertices shape
-    wgpuRenderPassEncoderDrawIndexed(encoder, sizeof(cubeIndexData) / 2, 1, 0, 0, 0);
+    wgpuRenderPassEncoderDrawIndexed(encoder, sizeof(cubeIndexData) / sizeof(uint16_t), 1, 0, 0, 0);
     // wgpuRenderPassEncoderDraw(encoder, sizeof(cubeVertexData) / (3 * 4), 1, 0, 0);
 
     // wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);

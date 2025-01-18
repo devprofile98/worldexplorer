@@ -34,6 +34,8 @@ class Texture {
         // Remove the texture from the VRAM
         void Destroy();
 
+        static std::vector<uint8_t> expandToRGBA(uint8_t* data, size_t height, size_t width);
+
     private:
         WGPUTexture mTexture;
         WGPUTextureView mTextureView = nullptr;

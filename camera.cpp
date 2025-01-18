@@ -22,7 +22,7 @@ Camera::Camera(glm::vec3 translate, glm::vec3 scale, glm::vec3 rotationAxis, flo
     float ratio = 640.0f / 480.0f;
     float focal_length = 2.0;
     float near = 0.01f;
-    float far = 300.0f;
+    float far = 1000.0f;
     // float divider = 1.0f / (focal_length * (far - near));
     float fov = 2 * glm::atan(1 / focal_length);
     mProjectionMatrix = glm::perspective(fov, ratio, near, far);
