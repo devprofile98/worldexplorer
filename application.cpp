@@ -481,6 +481,10 @@ bool Application::initialize() {
     initializeBuffers();
     initializePipeline();
 
+    mShadowPass = new ShadowPass{this};
+    mShadowPass->createRenderPass();
+    mShadowPass->setupScene(glm::vec3{0.5, -0.9, 0.1});
+
     // Playing with buffers
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -584,6 +588,22 @@ void Application::mainLoop() {
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, &encoder_descriptor);
     updateDragInertia();
 
+    // -----------------------------
+    // ---------------- Preparing for shadow pass ---------------
+
+    WGPURenderPassEncoder shadow_pass_encoder =
+        wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor());
+    wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder, mShadowPass->getPipeline()->getPipeline());
+
+    mShadowPass->render(std::vector<Model*>{&tower_model, &boat_model, &arrow_model}, shadow_pass_encoder);
+
+    wgpuRenderPassEncoderEnd(shadow_pass_encoder);
+    wgpuRenderPassEncoderRelease(shadow_pass_encoder);
+
+    //-------------- End of shadow pass
+    //-----------------------------
+
+    // begining of the color render pass
     WGPURenderPassDescriptor render_pass_descriptor = {};
     render_pass_descriptor.nextInChain = nullptr;
 
@@ -633,6 +653,7 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
+    // end of color render pass
 
     WGPUCommandBufferDescriptor command_buffer_descriptor = {};
     command_buffer_descriptor.nextInChain = nullptr;
@@ -778,6 +799,7 @@ bool Application::initDepthBuffer() {
     depth_texture_view_desc.dimension = WGPUTextureViewDimension_2D;
     depth_texture_view_desc.format = depth_texture_format;
     mDepthTextureView = wgpuTextureCreateView(mDepthTexture, &depth_texture_view_desc);
+
     return mDepthTextureView != nullptr;
 }
 

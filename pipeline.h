@@ -20,17 +20,23 @@ class Pipeline {
         WGPUPipelineLayout getPipelineLayout();
         WGPURenderPipeline getPipeline();
         WGPURenderPipelineDescriptor getDescriptor();
+        WGPURenderPipelineDescriptor* getDescriptorPtr();
 
         // Setter
         Pipeline& setShader(const std::filesystem::path& path);
         Pipeline& setVertexBufferLayout(WGPUVertexBufferLayout layout);
         Pipeline& setVertexState(size_t bufferCount = 1, const char* entryPoint = "vs_main",
                                  std::vector<WGPUConstantEntry> constants = {});
-        Pipeline& setPrimitiveState();
-        Pipeline& setDepthStencilState();
+        Pipeline& setPrimitiveState(WGPUFrontFace frontFace = WGPUFrontFace_CCW,
+                                    WGPUCullMode cullMode = WGPUCullMode_None);
+        Pipeline& setDepthStencilState(bool depthWriteEnabled = false, uint32_t stencilReadMask = 0x0,
+                                       uint32_t stencilWriteMask = 0x0);
         Pipeline& setBlendState();
         Pipeline& setColorTargetState();
         Pipeline& setFragmentState();
+        Pipeline& setFragmentState(WGPUFragmentState fragmentState);
+        Pipeline& setMultiSampleState(/*WGPUMultisampleState multiSampleState*/);
+
         VertexBufferLayout mVertexBufferLayout = {};
 
     private:

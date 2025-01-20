@@ -13,6 +13,7 @@
 #include "model.h"
 #include "pipeline.h"
 #include "point_light.h"
+#include "shadow_pass.h"
 #include "skybox.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
@@ -111,6 +112,8 @@ class Application {
         PointLight mPointlight;
         Pipeline* mPipeline;
 
+        ShadowPass* mShadowPass;
+
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();
         void initializePipeline();
@@ -133,7 +136,9 @@ class Application {
         uint32_t mIndexCount;
 
         WGPUTextureView mDepthTextureView;
+        // WGPUTextureView mShadowDepthTextureView;
         WGPUTexture mDepthTexture;
+        // WGPUTexture mShadowDepthTexture;
 
         WGPURenderPipelineDescriptor mPipelineDescriptor;
 

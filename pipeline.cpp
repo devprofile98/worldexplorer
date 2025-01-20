@@ -16,6 +16,7 @@ Pipeline& Pipeline::createPipeline(Application* app) {
     mDescriptor.layout = mPipelineLayout;
 
     mPipeline = wgpuDeviceCreateRenderPipeline(app->getRendererResource().device, &mDescriptor);
+    std::cout << ":::::::::::::::::::::::::::::::$$$$$$$$$$$$\n\n";
     return *this;
 }
 
@@ -101,6 +102,7 @@ WGPURenderPipeline Pipeline::getPipeline() { return mPipeline; }
 WGPUPipelineLayout Pipeline::getPipelineLayout() { return mPipelineLayout; }
 
 WGPURenderPipelineDescriptor Pipeline::getDescriptor() { return mDescriptor; }
+WGPURenderPipelineDescriptor* Pipeline::getDescriptorPtr() { return &mDescriptor; }
 
 Pipeline& Pipeline::setShader(const std::filesystem::path& path) {
     mShaderModule = loadShader(path, mApp->getRendererResource().device);
@@ -125,26 +127,29 @@ Pipeline& Pipeline::setVertexState(size_t bufferCount, const char* entryPoint,
     return *this;
 }
 
-Pipeline& Pipeline::setPrimitiveState() {
+Pipeline& Pipeline::setPrimitiveState(WGPUFrontFace frontFace, WGPUCullMode cullMode) {
     WGPUPrimitiveState primitive_state = {};
     primitive_state.topology = WGPUPrimitiveTopology_TriangleList;
     primitive_state.stripIndexFormat = WGPUIndexFormat_Undefined;
-    primitive_state.frontFace = WGPUFrontFace_CCW;
-    primitive_state.cullMode = WGPUCullMode_None;
+    primitive_state.frontFace = frontFace;
+    primitive_state.cullMode = cullMode;
     mDescriptor.primitive = primitive_state;
     return *this;
 }
 
-Pipeline& Pipeline::setDepthStencilState() {
+Pipeline& Pipeline::setDepthStencilState(bool depthWriteEnabled, uint32_t stencilReadMask, uint32_t stencilWriteMask) {
     mDepthStencilState = {};
     setDefault(mDepthStencilState);
 
     mDepthStencilState.depthCompare = WGPUCompareFunction_Less;
-    mDepthStencilState.depthWriteEnabled = false;
+    mDepthStencilState.depthWriteEnabled = depthWriteEnabled;
 
     mDepthStencilState.format = mDepthTextureFormat;
-    mDepthStencilState.stencilReadMask = 0;
-    mDepthStencilState.stencilWriteMask = 0;
+    // mDepthStencilState.stencilFront = {};
+    // mDepthStencilState.stencilBack = {};
+    mDepthStencilState.stencilReadMask = stencilReadMask;
+    mDepthStencilState.stencilWriteMask = stencilWriteMask;
+    // mDepthStencilState.depthBias = 2.0;
     mDescriptor.depthStencil = &mDepthStencilState;
     return *this;
 }
@@ -175,6 +180,29 @@ Pipeline& Pipeline::setFragmentState() {
     mFragmentState.targetCount = 1;
     mFragmentState.targets = &mColorTargetState;
     mDescriptor.fragment = &mFragmentState;
+
+    mDescriptor.multisample.count = 1;
+    mDescriptor.multisample.mask = ~0u;
+    mDescriptor.multisample.alphaToCoverageEnabled = false;
+
+    return *this;
+}
+
+Pipeline& Pipeline::setMultiSampleState(/*WGPUMultisampleState multiSampleState*/) {
+    mDescriptor.multisample.count = 1;
+    mDescriptor.multisample.mask = ~0u;
+    mDescriptor.multisample.alphaToCoverageEnabled = false;
+    return *this;
+}
+
+Pipeline& Pipeline::setFragmentState(WGPUFragmentState fragmentState) {
+    // mFragmentState.module = mShaderModule;
+    // mFragmentState.entryPoint = "fs_main";
+    // mFragmentState.constants = nullptr;
+    // mFragmentState.constantCount = 0;
+    // mFragmentState.targetCount = 1;
+    // mFragmentState.targets = &mColorTargetState;
+    mDescriptor.fragment = &fragmentState;
 
     mDescriptor.multisample.count = 1;
     mDescriptor.multisample.mask = ~0u;
