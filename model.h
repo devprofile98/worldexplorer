@@ -1,6 +1,9 @@
 #ifndef WEBGPUTEST_MODEL_H
 #define WEBGPUTEST_MODEL_H
 
+#include "glm/fwd.hpp"
+#define DEVELOPMENT_BUILD 1
+
 #include <array>
 #include <filesystem>
 #include <numeric>
@@ -15,6 +18,28 @@
 // forward declaration
 class Application;
 
+// Hold the properties and needed object to represents the object transformation
+class Transform {
+    public:
+        Transform& moveBy(const glm::vec3& m);
+        Transform& moveTo(const glm::vec3& m);
+        Transform& scale(const glm::vec3& s);
+
+        glm::vec3& getPosition();
+        glm::vec3& getScale();
+	glm::mat4& getTranformMatrix();
+
+        glm::vec3 mPosition;
+        glm::vec3 mScale;
+
+        glm::mat4 mScaleMatrix;
+        glm::mat4 mTranslationMatrix;
+        glm::mat4 mRotationMatrix;
+
+	glm::mat4 mTransformMatrix;
+};
+
+// Shader-equivalant struct for vertex data
 struct VertexAttributes {
         glm::vec3 position;
         glm::vec3 normal;
@@ -31,6 +56,7 @@ struct ObjectInfo {
         std::array<uint32_t, 3> padding;
 };
 
+// Represents an Axis aligned bounding box
 struct AABB {
         glm::vec3 min = glm::vec3{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
                                   std::numeric_limits<float>::max()};
@@ -38,15 +64,12 @@ struct AABB {
                                   std::numeric_limits<float>::lowest()};
 };
 
-class Model {
+class Model : public Transform {
     public:
         Model();
 
         Model& load(std::string name, WGPUDevice device, WGPUQueue queue, const std::filesystem::path& path,
                     WGPUBindGroupLayout layout);
-        Model& moveBy(const glm::vec3& m);
-        Model& moveTo(const glm::vec3& m);
-        Model& scale(const glm::vec3& s);
         Model& uploadToGPU(WGPUDevice device, WGPUQueue queue);
         size_t getVertexCount() const;
         float calculateVolume();
@@ -56,35 +79,32 @@ class Model {
 
         void draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData);
 
-        void draw(Application* app);
-
         // Getters
         glm::mat4 getModelMatrix();
-        glm::vec3& getPosition();
-        glm::vec3& getScale();
+
         AABB& getAABB();
         glm::vec3 getAABBSize();
         const std::string& getName();
 
         void createSomeBinding(Application* app);
+        ObjectInfo mObjectInfo;
+
+#ifdef DEVELOPMENT_BUILD
+        // Common User-Interface to interact with Object in the Development state
+        // This function only gets called in development of the project
+        void userInterface();
+#endif  // DEVELOPMENT_BUILD
 
     private:
         std::string mName;
-        glm::mat4 mScaleMatrix;
-        glm::mat4 mTranslationMatrix;
-        glm::mat4 mRotationMatrix;
-        ObjectInfo mObjectInfo;
         AABB mBoundingBox;
 
         Texture* mTexture = nullptr;
         Texture* mSpecularTexture = nullptr;
-        WGPUBindGroup mBindGroup;
+        WGPUBindGroup mBindGroup = nullptr;
         WGPUBuffer mUniformBuffer;
 
         WGPUBindGroup ggg = {};
-        glm::vec3 mPosition;
-        glm::vec3 mScale;
-
         std::vector<VertexAttributes> mVertexData;
         WGPUBuffer mVertexBuffer = {};
         WGPUBuffer mIndexBuffer = {};

@@ -24,8 +24,18 @@ static void setDefaultValue(WGPUBindGroupLayoutEntry& bindingLayout) {
 
 WGPUTextureSampleType sampleTypeFrom(TextureSampleType type) {
     WGPUTextureSampleType ret = WGPUTextureSampleType_Undefined;
-    if (type == TextureSampleType::FLAOT) {
-        ret = WGPUTextureSampleType_Float;
+    switch (type) {
+        case TextureSampleType::FLAOT:
+            /* code */
+            ret = WGPUTextureSampleType_Float;
+            break;
+
+        case TextureSampleType::DEPTH:
+            /* code */
+            ret = WGPUTextureSampleType_Depth;
+            break;
+        default:
+            break;
     }
 
     return ret;
@@ -58,8 +68,15 @@ WGPUBufferBindingType bufferTypeFrom(BufferBindingType type) {
 
 WGPUSamplerBindingType sampleTypeFrom(SampleType type) {
     WGPUSamplerBindingType ret = WGPUSamplerBindingType_Undefined;
-    if (type == SampleType::Filtering) {
-        ret = WGPUSamplerBindingType_Filtering;
+    switch (type) {
+        case SampleType::Filtering:
+            ret = WGPUSamplerBindingType_Filtering;
+            break;
+        case SampleType::Compare:
+            ret = WGPUSamplerBindingType_Comparison;
+            break;
+        default:
+            break;
     }
 
     return ret;
@@ -145,5 +162,15 @@ void BindingGroup::create(Application* app, std::vector<WGPUBindGroupEntry>& bin
 
     mBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mBindGroupDesc);
 };
+
+WGPUBindGroup BindingGroup::createNew(Application* app, std::vector<WGPUBindGroupEntry>& bindingData) {
+    mBindGroupDesc = {};
+    mBindGroupDesc.nextInChain = nullptr;
+    mBindGroupDesc.layout = mBindGroupLayout;
+    mBindGroupDesc.entryCount = mBindGroupLayoutDesc.entryCount;
+    mBindGroupDesc.entries = bindingData.data();
+
+    return wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mBindGroupDesc);
+}
 
 WGPUBindGroupDescriptor& BindingGroup::getDescriptor() { return mBindGroupDesc; }

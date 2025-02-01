@@ -10,6 +10,7 @@
 #include "camera.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
+#include "gpu_buffer.h"
 #include "model.h"
 #include "pipeline.h"
 #include "point_light.h"
@@ -17,6 +18,7 @@
 #include "skybox.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
+#include "shapes.h"
 #include "webgpu/wgpu.h"
 
 struct MyUniform {
@@ -111,7 +113,7 @@ class Application {
         LightingUniforms mLightingUniforms;
         PointLight mPointlight;
         Pipeline* mPipeline;
-
+	Cube* shapes;
         ShadowPass* mShadowPass;
 
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
@@ -124,13 +126,15 @@ class Application {
 
         // WGPURenderPipeline mPipeline;
         BindingGroup mBindingGroup;
-        std::vector<WGPUBindGroupEntry> mBindingData{5};
+        std::vector<WGPUBindGroupEntry> mBindingData{10};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
         // WGPUBindGroup mBindGroup;
         WGPUBuffer mBuffer1, mBuffer2;
         WGPUBuffer mUniformBuffer;
         WGPUBuffer mUniformBufferTransform;
         WGPUBuffer mDirectionalLightBuffer;
+        Buffer mLightSpaceTransformation;
+
         // WGPUBuffer mPointlightBuffer = {};
         MyUniform mUniforms;
         uint32_t mIndexCount;

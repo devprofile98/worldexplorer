@@ -4,38 +4,23 @@
 
 ShadowPass::ShadowPass(Application* app) { mApp = app; }
 
-/*
-// Sample vertex shader for shadow pass
-
-layout (location = 0) in vec3 aPos;
-
-uniform mat4 lightSpaceMatrix;
-uniform mat4 model;
-
-void main()
-{
-    gl_Position = lightSpaceMatrix * model * vec4(aPos, 1.0);
-}
-
-
-*/
-
 void ShadowPass::createRenderPass() {
     WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
     WGPUTextureDescriptor shadow_depth_texture_descriptor = {};
+    shadow_depth_texture_descriptor.label = "Shadow Mapping Target Texture :)";
     shadow_depth_texture_descriptor.nextInChain = nullptr;
     shadow_depth_texture_descriptor.dimension = WGPUTextureDimension_2D;
     shadow_depth_texture_descriptor.format = depth_texture_format;
     shadow_depth_texture_descriptor.mipLevelCount = 1;
     shadow_depth_texture_descriptor.sampleCount = 1;
-    shadow_depth_texture_descriptor.size = {static_cast<uint32_t>(1024), static_cast<uint32_t>(1024), 1};
-    shadow_depth_texture_descriptor.usage = WGPUTextureUsage_RenderAttachment;
+    shadow_depth_texture_descriptor.size = {static_cast<uint32_t>(2048), static_cast<uint32_t>(2048), 1};
+    shadow_depth_texture_descriptor.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
     shadow_depth_texture_descriptor.viewFormatCount = 1;
     shadow_depth_texture_descriptor.viewFormats = &depth_texture_format;
     mShadowDepthTexture = wgpuDeviceCreateTexture(mApp->getRendererResource().device, &shadow_depth_texture_descriptor);
 
     WGPUTextureViewDescriptor sdtv_desc = {};  // shadow depth texture view
-    sdtv_desc.label = "test";
+    sdtv_desc.label = "SDTV desc";
     sdtv_desc.aspect = WGPUTextureAspect_DepthOnly;
     sdtv_desc.baseArrayLayer = 0;
     sdtv_desc.arrayLayerCount = 1;
@@ -75,8 +60,10 @@ void ShadowPass::createRenderPass() {
     mRenderPipeline = new Pipeline{mApp, {bind_group_layout}};
     WGPUVertexBufferLayout d = mRenderPipeline->mVertexBufferLayout
                                    .addAttribute(0, 0, WGPUVertexFormat_Float32x3)  // for position
-                                   .configure(sizeof(glm::vec3), VertexStepMode::VERTEX);
-    (void)d;
+                                   .addAttribute(3 * sizeof(float), 1, WGPUVertexFormat_Float32x3)
+                                   .addAttribute(6 * sizeof(float), 2, WGPUVertexFormat_Float32x3)
+                                   .addAttribute(offsetof(VertexAttributes, uv), 3, WGPUVertexFormat_Float32x2)
+                                   .configure(sizeof(VertexAttributes), VertexStepMode::VERTEX);
 
     static WGPUFragmentState mFragmentState = {};
     mFragmentState.nextInChain = nullptr;
@@ -120,14 +107,16 @@ void ShadowPass::createRenderPass() {
 }
 
 void ShadowPass::setupScene(const glm::vec3 lightPos) {
-    float near_plane = 1.0f, far_plane = 7.5f;
-    glm::mat4 projection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+    (void)lightPos;
+    float near_plane = 0.1f, far_plane = 10.5f;
+    glm::mat4 projection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, near_plane, far_plane);
 
-    auto view = glm::lookAt(lightPos, glm::vec3{0.0f}, glm::vec3{0.0f, 0.0f, 1.0f});
-    mScene.projection = projection * view;
-    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mSceneUniformBuffer, offsetof(Scene, projection), &mScene,
-                         sizeof(glm::mat4));
+    auto view = glm::lookAt(this->lightPos, glm::vec3{0.0f, 0.0f, 2.25f}, glm::vec3{0.0f, 0.0f, 1.0f});
+    mScene.projection = projection;
+    mScene.view = view;
 }
+
+Scene& ShadowPass::getScene() { return mScene; }
 
 Pipeline* ShadowPass::getPipeline() { return mRenderPipeline; }
 
@@ -135,47 +124,40 @@ WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor() { return &mRende
 
 void ShadowPass::render(std::vector<Model*> models, WGPURenderPassEncoder encoder) {
     auto& render_resource = mApp->getRendererResource();
-    // auto& uniform_data = mApp->getUniformData();
     for (auto* model : models) {
-        // WGPUBindGroup active_bind_group = nullptr;
+        WGPUBufferDescriptor buf = {};
 
-        // Bind Diffuse texture for the model if existed
-        // if (mTexture != nullptr) {
-        //     if (mTexture->getTextureView() != nullptr) {
-        //         bindingData[1].nextInChain = nullptr;
-        //         bindingData[1].binding = 1;
-        //         bindingData[1].textureView = mTexture->getTextureView();
-        //     }
-        //     if (mSpecularTexture != nullptr && mSpecularTexture->getTextureView() != nullptr) {
-        //         bindingData[5].nextInChain = nullptr;
-        //         bindingData[5].binding = 5;
-        //         bindingData[5].textureView = mSpecularTexture->getTextureView();
-        //     }
-        //     auto& desc = app->getBindingGroup().getDescriptor();
-        //     desc.entries = bindingData.data();
-        //     mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
-        //     active_bind_group = mBindGroup;
-        // } else {
-        //     active_bind_group = app->getBindingGroup().getBindGroup();
-        // }
+        buf.nextInChain = nullptr;
+        buf.label = "Model Uniform Buffer";
+        buf.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
+        buf.size = sizeof(mScene);
 
-        // mScene.projection = glm::mat4{1.0f};
+        WGPUBuffer modelUniformBuffer = wgpuDeviceCreateBuffer(render_resource.device, &buf);
+
         mScene.model = model->getModelMatrix();
-        wgpuQueueWriteBuffer(render_resource.queue, mSceneUniformBuffer, offsetof(Scene, model), &mScene,
-                             sizeof(glm::mat4));
-
-        // wgpuQueueWriteBuffer(render_resource.queue, mApp->getUniformBuffer(), offsetof(MyUniform, modelMatrix),
-        //                      glm::value_ptr(uniform_data.modelMatrix), sizeof(glm::mat4));
+        mBindingData[0].buffer = modelUniformBuffer;
+        auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
+        wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer, 0, &mScene, sizeof(mScene));
 
         wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, model->getVertexBuffer(), 0,
                                              wgpuBufferGetSize(model->getVertexBuffer()));
 
-        wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindingGroup.getBindGroup(), 0, nullptr);
-
-        // wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, &mObjectInfo, sizeof(ObjectInfo));
-        // createSomeBinding(app);
-        // wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
 
         wgpuRenderPassEncoderDraw(encoder, model->getVertexCount(), 1, 0, 0);
+
+        wgpuBufferRelease(modelUniformBuffer);
+        wgpuBindGroupRelease(bindgroup);
+    }
+}
+
+WGPUTextureView ShadowPass::getShadowMapView() { return mShadowDepthTextureView; }
+
+void printMatrix(const glm::mat4& matrix) {
+    for (int row = 0; row < 4; ++row) {
+        for (int col = 0; col < 4; ++col) {
+            std::cout << matrix[row][col] << " ";
+        }
+        std::cout << std::endl;
     }
 }

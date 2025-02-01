@@ -14,6 +14,7 @@ add_subdirectory(webgpu)
 # target_link_libraries(App PRIVATE webgpu)
 
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(
     App 
@@ -30,6 +31,8 @@ add_executable(
     pipeline.cpp
     skybox.cpp
     shadow_pass.cpp
+    gpu_buffer.cpp
+    shapes.cpp
 )
 
 target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")

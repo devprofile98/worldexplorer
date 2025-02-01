@@ -16,7 +16,6 @@ Pipeline& Pipeline::createPipeline(Application* app) {
     mDescriptor.layout = mPipelineLayout;
 
     mPipeline = wgpuDeviceCreateRenderPipeline(app->getRendererResource().device, &mDescriptor);
-    std::cout << ":::::::::::::::::::::::::::::::$$$$$$$$$$$$\n\n";
     return *this;
 }
 

@@ -16,7 +16,10 @@ class Application;
 struct Scene {
         glm::mat4 projection;
         glm::mat4 model;
+        glm::mat4 view;
 };
+
+void printMatrix(const glm::mat4& matrix);
 
 class ShadowPass {
     public:
@@ -27,7 +30,11 @@ class ShadowPass {
         WGPURenderPassDescriptor* getRenderPassDescriptor();
         void setupScene(const glm::vec3 lightPos);
         Pipeline* getPipeline();
+        WGPUTextureView getShadowMapView();
         void render(std::vector<Model*> models, WGPURenderPassEncoder encoder);
+        Scene& getScene();
+
+        glm::vec3 lightPos = glm::vec3{0.0f};
 
     private:
         Application* mApp;

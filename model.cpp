@@ -4,16 +4,16 @@
 #include <iostream>
 
 #include "application.h"
+#include "glm/fwd.hpp"
+#include "glm/gtc/type_ptr.hpp"
+#include "imgui.h"
 #include "tinyobjloader/tiny_obj_loader.h"
+#include "webgpu.h"
 
-Model::Model()
-    : mScaleMatrix(glm::mat4{1.0}),
-      mTranslationMatrix(glm::mat4{1.0}),
-      mRotationMatrix(glm::mat4{1.0}),
-      mPosition(glm::vec3{0.0}),
-      mScale(glm::vec3{1.0}) {
+Model::Model() : Transform({glm::vec3{0.0}}, glm::vec3{1.0}, glm::mat4{1.0}, glm::mat4{1.0}, glm::mat4{1.0}, glm::mat4{1.0}) {
     mScaleMatrix = glm::scale(mScaleMatrix, mScale);
-    mObjectInfo.transformation = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mTransformMatrix =  mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mObjectInfo.transformation =mTransformMatrix ;
     mObjectInfo.isFlat = 0;
 }
 
@@ -119,15 +119,14 @@ Model& Model::load(std::string name, WGPUDevice device, WGPUQueue queue, const s
     return *this;
 }
 
-Model& Model::moveBy(const glm::vec3& translationVec) {
+Transform& Transform::moveBy(const glm::vec3& translationVec) {
     // justify position by the factor `m`
     (void)translationVec;
     return *this;
 }
 
-Model& Model::moveTo(const glm::vec3& moveVec) {
+Transform& Transform::moveTo(const glm::vec3& moveVec) {
     mPosition = moveVec;
-    // std::cout << "changed for " << getName() << ' ' << mPosition.x << '\n';
     mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
     return *this;
 }
@@ -213,39 +212,45 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
     wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
 
     wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);
+    wgpuBindGroupRelease(ggg);
+    // if we created a binding group and didn't use the default appliaction binding-group
+    if (mBindGroup != nullptr) {
+        wgpuBindGroupRelease(mBindGroup);
+        mBindGroup = nullptr;
+    }
 }
 
-void Model::draw(Application* app) {
-    (void)app;
-    // auto bind_data = app->getBindingGroup().getEntryData();
-    // mBindGroup[1].nextInChain = nullptr;
-    // bindingData[1].binding = 1;
-    // bindingData[1].textureView = mTextureView;
-    // desc->entries = bindingData.data();
-    // bindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, desc);
-    // // (void)device;
+#ifdef DEVELOPMENT_BUILD
+void Model::userInterface() {
+    ImGui::SliderFloat("X", &mPosition.x, -10.0f, 10.0f);
+    ImGui::SliderFloat("Y", &mPosition.y, -10.0f, 10.0f);
+    ImGui::SliderFloat("Z", &mPosition.z, -10.0f, 10.0f);
 
-    // wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, getVertexBuffer(), 0, wgpuBufferGetSize(getVertexBuffer()));
-    // // wgpuRenderPassEncoderSetIndexBuffer(render_pass_encoder, mIndexBuffer, WGPUIndexFormat_Uint16, 0,
-    // //                                     wgpuBufferGetSize(mIndexBuffer));
-    // wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindGroup, 0, nullptr);
-
-    // // Draw 1 instance of a 3-vertices shape
-    // // wgpuRenderPassEncoderDrawIndexed(encoder, mIndexCount, 1, 0, 0, 0);
-    // wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);
+    ImGui::SliderFloat3("Scale", glm::value_ptr(mScale), 0.0f, 10.0f);
+    moveTo(this->mPosition);
+    scale(mScale);
+    getModelMatrix();
 }
+#endif  // DEVELOPMENT_BUILD
 
 glm::mat4 Model::getModelMatrix() {
-    mObjectInfo.transformation = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mTransformMatrix =  mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mObjectInfo.transformation = mTransformMatrix;
     return mObjectInfo.transformation;
 }
-Model& Model::scale(const glm::vec3& s) {
+
+Transform& Transform::scale(const glm::vec3& s) {
     mScale = s;
     mScaleMatrix = glm::scale(glm::mat4{1.0}, s);
     return *this;
 }
-glm::vec3& Model::getPosition() { return mPosition; }
-glm::vec3& Model::getScale() { return mScale; }
+glm::vec3& Transform::getPosition() { return mPosition; }
+glm::vec3& Transform::getScale() { return mScale; }
+
+glm::mat4& Transform::getTranformMatrix() {
+    mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    return mTransformMatrix;
+}
 
 AABB& Model::getAABB() { return mBoundingBox; }
 
