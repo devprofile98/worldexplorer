@@ -2,6 +2,7 @@
 #define WEBGPUTEST_MODEL_H
 
 #include "glm/fwd.hpp"
+#include "gpu_buffer.h"
 #define DEVELOPMENT_BUILD 1
 
 #include <array>
@@ -27,7 +28,7 @@ class Transform {
 
         glm::vec3& getPosition();
         glm::vec3& getScale();
-	glm::mat4& getTranformMatrix();
+        glm::mat4& getTranformMatrix();
 
         glm::vec3 mPosition;
         glm::vec3 mScale;
@@ -36,7 +37,19 @@ class Transform {
         glm::mat4 mTranslationMatrix;
         glm::mat4 mRotationMatrix;
 
-	glm::mat4 mTransformMatrix;
+        glm::mat4 mTransformMatrix;
+};
+
+class Drawable {
+    public:
+        Drawable();
+	void configure(Application* app);
+        virtual void draw(Application* app, WGPURenderPassEncoder encoder,
+                          std::vector<WGPUBindGroupEntry>& bindingData);
+
+	Buffer& getUniformBuffer();
+    private:
+        Buffer mUniformBuffer;
 };
 
 // Shader-equivalant struct for vertex data
@@ -64,12 +77,11 @@ struct AABB {
                                   std::numeric_limits<float>::lowest()};
 };
 
-class Model : public Transform {
+class Model : public Transform, public Drawable {
     public:
         Model();
 
-        Model& load(std::string name, WGPUDevice device, WGPUQueue queue, const std::filesystem::path& path,
-                    WGPUBindGroupLayout layout);
+        Model& load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout);
         Model& uploadToGPU(WGPUDevice device, WGPUQueue queue);
         size_t getVertexCount() const;
         float calculateVolume();
@@ -77,7 +89,8 @@ class Model : public Transform {
         WGPUBuffer getVertexBuffer();
         WGPUBuffer getIndexBuffer();
 
-        void draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData);
+        void draw(Application* app, WGPURenderPassEncoder encoder,
+                          std::vector<WGPUBindGroupEntry>&  bindingData) override;
 
         // Getters
         glm::mat4 getModelMatrix();
@@ -102,7 +115,8 @@ class Model : public Transform {
         Texture* mTexture = nullptr;
         Texture* mSpecularTexture = nullptr;
         WGPUBindGroup mBindGroup = nullptr;
-        WGPUBuffer mUniformBuffer;
+        /*WGPUBuffer mUniformBuffer;*/
+        /*Buffer mUniformBuffer;*/
 
         WGPUBindGroup ggg = {};
         std::vector<VertexAttributes> mVertexData;

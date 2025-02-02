@@ -75,21 +75,67 @@ Cube::Cube(Application* app)
 
     wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mIndexDataBuffer.getBuffer(), 0, &cubeIndexData,
                          sizeof(cubeIndexData));
+    Drawable::configure(app);
+    /**/
+    /*mUniformBuffer.setLabel("Uniform buffer for object for shape")*/
+    /*    .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)*/
+    /*    .setSize(sizeof(mObjectInfo))*/
+    /*    .setMappedAtCraetion()*/
+    /*    .create(app);*/
 }
 
-void Cube::draw(Application* app, WGPURenderPassEncoder encoder) {
+/*void createBindGroup() {*/
+/*    WGPUBindGroupEntry mBindGroupEntry = {};*/
+/*    mBindGroupEntry.nextInChain = nullptr;*/
+/*    mBindGroupEntry.binding = 0;*/
+/*    mBindGroupEntry.buffer = mUniformBuffer;*/
+/*    mBindGroupEntry.offset = 0;*/
+/*    mBindGroupEntry.size = sizeof(ObjectInfo);*/
+/**/
+/*    WGPUBindGroupDescriptor mTrasBindGroupDesc = {};*/
+/*    mTrasBindGroupDesc.nextInChain = nullptr;*/
+/*    mTrasBindGroupDesc.entries = &mBindGroupEntry;*/
+/*    mTrasBindGroupDesc.entryCount = 1;*/
+/*    mTrasBindGroupDesc.label = "translation bind group";*/
+/*    mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];*/
+/**/
+/*    ggg = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);*/
+/*}*/
+
+void Cube::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
     // draw indexed
     (void)app;
+    (void)bindingData;
     auto& render_resource = app->getRendererResource();
 
     mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
-    wgpuQueueWriteBuffer(render_resource.queue, app->getUniformBuffer(), offsetof(MyUniform, modelMatrix),
-                         glm::value_ptr(mTransformMatrix), sizeof(glm::mat4));
+    mObjectInfo.transformation = mTransformMatrix;
+    mObjectInfo.isFlat = false;
+    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo, sizeof(ObjectInfo));
 
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mVertexDataBuffer.getBuffer(), 0,
                                          wgpuBufferGetSize(mVertexDataBuffer.getBuffer()));
     wgpuRenderPassEncoderSetIndexBuffer(encoder, mIndexDataBuffer.getBuffer(), WGPUIndexFormat_Uint16, 0,
                                         wgpuBufferGetSize(mIndexDataBuffer.getBuffer()));
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, mApp->getBindingGroup().getBindGroup(), 0, nullptr);
+    WGPUBindGroupEntry mBindGroupEntry = {};
+    mBindGroupEntry.nextInChain = nullptr;
+    mBindGroupEntry.binding = 0;
+    mBindGroupEntry.buffer = Drawable::getUniformBuffer().getBuffer();
+    mBindGroupEntry.offset = 0;
+    mBindGroupEntry.size = sizeof(ObjectInfo);
+
+    WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
+    mTrasBindGroupDesc.nextInChain = nullptr;
+    mTrasBindGroupDesc.entries = &mBindGroupEntry;
+    mTrasBindGroupDesc.entryCount = 1;
+    mTrasBindGroupDesc.label = "translation bind group";
+    mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
+
+    WGPUBindGroup bindgroup_object = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);
+
+    wgpuRenderPassEncoderSetBindGroup(encoder, 1, bindgroup_object, 0, nullptr);
+
     wgpuRenderPassEncoderDraw(encoder, sizeof(cubeVertexData) / (11 * sizeof(float)), 1, 0, 0);
+    /*wgpurelease*/
 }

@@ -15,10 +15,10 @@
 #include "pipeline.h"
 #include "point_light.h"
 #include "shadow_pass.h"
+#include "shapes.h"
 #include "skybox.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
-#include "shapes.h"
 #include "webgpu/wgpu.h"
 
 struct MyUniform {
@@ -113,7 +113,7 @@ class Application {
         LightingUniforms mLightingUniforms;
         PointLight mPointlight;
         Pipeline* mPipeline;
-	Cube* shapes;
+        Cube* shapes;
         ShadowPass* mShadowPass;
 
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;

@@ -257,29 +257,22 @@ void Application::initializePipeline() {
 
 // Initializing Vertex Buffers
 void Application::initializeBuffers() {
-    boat_model
-        .load("boat", mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/fourareen.obj",
-              mBindGroupLayouts[1])
+    boat_model.load("boat", this, RESOURCE_DIR "/fourareen.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0})
         .scale(glm::vec3{0.3});
     boat_model.uploadToGPU(mRendererResource.device, mRendererResource.queue);
-    tower_model
-        .load("tower", mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/tower.obj",
-              mBindGroupLayouts[1])
+    tower_model.load("tower", this, RESOURCE_DIR "/tower.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0})
         .scale(glm::vec3{0.3});
     tower_model.uploadToGPU(mRendererResource.device, mRendererResource.queue);
 
     arrow_model
-        .load("arrow", mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/arrow.obj",
-              mBindGroupLayouts[1])
-        // .moveTo(glm::vec3{0.725, 0.333, 2.0})
+        .load("arrow", this, RESOURCE_DIR "/arrow.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{1.0f, 1.0f, 4.0f})
         .scale(glm::vec3{0.3});
     arrow_model.uploadToGPU(mRendererResource.device, mRendererResource.queue);
 
-    desk_model
-        .load("desk", mRendererResource.device, mRendererResource.queue, RESOURCE_DIR "/desk.obj", mBindGroupLayouts[1])
+    desk_model.load("desk", this, RESOURCE_DIR "/desk.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.725, 0.333, 0.72})
         .scale(glm::vec3{0.3});
     desk_model.uploadToGPU(mRendererResource.device, mRendererResource.queue);
@@ -287,7 +280,7 @@ void Application::initializeBuffers() {
     terrain.generate(100, 8).uploadToGpu(this);
 
     shapes = new Cube{this};
-
+    shapes->moveTo(glm::vec3{1.0f, 1.0f, 4.0f});
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
     // Create Uniform buffers
@@ -589,7 +582,7 @@ bool Application::initialize() {
     boat_model.moveTo({1.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel = {&boat_model, &tower_model, &arrow_model, &desk_model};
+    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model};
 
     return true;
 }
@@ -703,7 +696,7 @@ void Application::mainLoop() {
         model->draw(this, render_pass_encoder, mBindingData);
     }
 
-    shapes->draw(this, render_pass_encoder);
+    shapes->draw(this, render_pass_encoder, mBindingData);
 
     terrain.draw(this, render_pass_encoder, mBindingData);
     updateGui(render_pass_encoder);
@@ -1047,9 +1040,12 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     // ImGui::ColorEdit3("Color #1", glm::value_ptr(mLightingUniforms.colors[1]));
     ImGui::DragFloat3("sun pos direction", glm::value_ptr(pointlightshadow), 0.1, -10.0, 10.0);
     ImGui::End();
-    ImGui::SliderFloat3("Test Transform", glm::value_ptr(shapes->mPosition), -10.0, 10.0);
+    static glm::vec3 shape_vec = glm::vec3{0.0f};
+    ImGui::SliderFloat3("Test Transform", glm::value_ptr(shape_vec), -10.0, 10.0);
     /*shapes->getTranformMatrix();*/
-    shapes->moveTo(shapes->getPosition());
+    shapes->moveTo(shape_vec);
+    /*std::cout << std::format("{} {} {}\n", shapes->getPosition().x, shapes->getPosition().y,
+     * shapes->getPosition().z);*/
     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                          sizeof(LightingUniforms));
     mShadowPass->lightPos = pointlightshadow;

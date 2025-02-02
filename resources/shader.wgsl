@@ -1,5 +1,6 @@
 struct VertexOutput {
     @builtin(position) position: vec4f,
+    @location(5) shadowPos: vec4f,
     @location(0) color: vec3f,
     @location(1) normal: vec3f,
     @location(2) uv: vec2f,
@@ -49,6 +50,12 @@ struct PointLight {
     quadratic: f32,
 }
 
+struct Scene {
+    projection: mat4x4f,
+    model: mat4x4f,
+    view: mat4x4f,
+};
+
 
 @group(0) @binding(0) var<uniform> uMyUniform: MyUniform;
 @group(0) @binding(1) var diffuse_map: texture_2d<f32>;
@@ -60,6 +67,9 @@ struct PointLight {
 @group(0) @binding(7) var rock_mountain_texture: texture_2d<f32>;
 @group(0) @binding(8) var sand_lake_texture: texture_2d<f32>;
 @group(0) @binding(9) var snow_mountain_texture: texture_2d<f32>;
+@group(0) @binding(10) var depth_texture: texture_depth_2d;
+@group(0) @binding(11) var<uniform> lightSpaceTrans: Scene;
+@group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
@@ -82,22 +92,42 @@ fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
     return default_color;
 }
 
-// fn getElevationColor(index: i32) -> vec3<f32> {
-//     return height_color
-// }
-
-
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     let world_position = objectTranformation.transformations * vec4f(in.position, 1.0);
+    let shadow_position = lightSpaceTrans.projection * lightSpaceTrans.view * objectTranformation.transformations * vec4f(in.position, 1.0);
     out.position = uMyUniform.projectionMatrix * uMyUniform.viewMatrix * world_position;
     out.worldPos = world_position.xyz;
     out.viewDirection = uMyUniform.cameraWorldPosition - world_position.xyz;
     out.color = in.color;
     out.normal = (objectTranformation.transformations * vec4(in.normal, 0.0)).xyz;
     out.uv = in.uv;
+    out.shadowPos = shadow_position;
     return out;
+}
+
+
+fn calculateShadow(fragPosLightSpace: vec4f) -> f32 {
+    var projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    // projCoords = projCoords * 0.5 + 0.5;
+
+    projCoords = vec3(
+        projCoords.xy * vec2(0.5, -0.5) + vec2(0.5),
+        projCoords.z
+    );
+
+    var shadow = 0.0;
+    for (var i: i32 = -1; i <= 1; i++) {
+        for (var j: i32 = -1; j <= 1; j++) {
+            let closestDepth = textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), projCoords.z);
+            shadow += closestDepth;
+        }
+    }
+    shadow /= 9.0;
+    // let closestDepth = textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy, projCoords.z);
+    // return closestDepth;
+    return shadow;
 }
 
 @fragment
@@ -140,6 +170,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let ambient = linear_color;
         let diffuse = pointLight.ambient.xyz * attenuation * color * diff;
         return vec4f(ambient + diffuse, 1.0);
+	//	return vec4f(normal, 1.0);
     } else {
 
         var height_color = vec3<f32>(0.0 / 255.0, 139.0 / 255.0, 139.0 / 255.0);
@@ -181,9 +212,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         } else if in.color.r == 4 {
             color = textureSample(snow_mountain_texture, textureSampler, in.uv).rgb;
         }
+
+        let shadow = calculateShadow(in.shadowPos);
+
         let ambient = color * shading;
         let diffuse = pointLight.ambient.xyz * attenuation * diff;
-        return vec4f(diffuse + ambient, 1.0);
-        // return vec4f(color, 1.0);
+
+        return vec4f((diffuse + ambient) * (1 - shadow / 2.0), 1.0);
     }
 }

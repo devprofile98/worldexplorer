@@ -10,17 +10,40 @@
 #include "tinyobjloader/tiny_obj_loader.h"
 #include "webgpu.h"
 
-Model::Model() : Transform({glm::vec3{0.0}}, glm::vec3{1.0}, glm::mat4{1.0}, glm::mat4{1.0}, glm::mat4{1.0}, glm::mat4{1.0}) {
+Drawable::Drawable() {}
+
+void Drawable::configure(Application* app) {
+    mUniformBuffer.setLabel("Uniform buffer for object info")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .setSize(sizeof(ObjectInfo))
+        .setMappedAtCraetion()
+        .create(app);
+}
+
+void Drawable::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
+    (void)app;
+    (void)encoder;
+    (void)bindingData;
+}
+
+Buffer& Drawable::getUniformBuffer() {
+	return mUniformBuffer;
+}
+
+Model::Model()
+    : Transform({glm::vec3{0.0}}, glm::vec3{1.0}, glm::mat4{1.0}, glm::mat4{1.0}, glm::mat4{1.0}, glm::mat4{1.0}) {
     mScaleMatrix = glm::scale(mScaleMatrix, mScale);
-    mTransformMatrix =  mRotationMatrix * mTranslationMatrix * mScaleMatrix;
-    mObjectInfo.transformation =mTransformMatrix ;
+    mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mObjectInfo.transformation = mTransformMatrix;
     mObjectInfo.isFlat = 0;
 }
 
-Model& Model::load(std::string name, WGPUDevice device, WGPUQueue queue, const std::filesystem::path& path,
-                   WGPUBindGroupLayout layout) {
+Model& Model::load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout) {
     // load model from disk
     mName = name;
+
+    Drawable::configure(app);
+
     std::string warn;
     std::string err;
     tinyobj::ObjReader reader;
@@ -46,16 +69,17 @@ Model& Model::load(std::string name, WGPUDevice device, WGPUQueue queue, const s
     std::cout << materials.size() << " Tiny Object einladung " << materials[0].specular_texname << " \n";
 
     // Load and upload diffuse texture
+    auto& render_resource = app->getRendererResource();
     if (!materials[0].diffuse_texname.empty()) {
         std::string texture_path = RESOURCE_DIR;
         texture_path += "/";
         texture_path += materials[0].diffuse_texname;
         // auto a = std::filesystem::path{texture_path.c_str()};
-        mTexture = new Texture{device, texture_path};
+        mTexture = new Texture{render_resource.device, texture_path};
         if (mTexture->createView() == nullptr) {
             std::cout << std::format("Failed to create Diffuse Texture view for {}\n", mName);
         }
-        mTexture->uploadToGPU(queue);
+        mTexture->uploadToGPU(render_resource.queue);
     }
 
     // Load and upload specular texture
@@ -64,11 +88,11 @@ Model& Model::load(std::string name, WGPUDevice device, WGPUQueue queue, const s
         texture_path += "/";
         texture_path += materials[0].specular_texname;
         // auto a = std::filesystem::path{texture_path.c_str()};
-        mSpecularTexture = new Texture{device, texture_path};
+        mSpecularTexture = new Texture{render_resource.device, texture_path};
         if (mSpecularTexture->createView() == nullptr) {
             std::cout << std::format("Failed to create Specular Texture view for {}\n", mName);
         }
-        mSpecularTexture->uploadToGPU(queue);
+        mSpecularTexture->uploadToGPU(render_resource.queue);
     }
 
     if (!warn.empty()) {
@@ -107,15 +131,7 @@ Model& Model::load(std::string name, WGPUDevice device, WGPUQueue queue, const s
                              1 - attrib.texcoords[2 * idx.texcoord_index + 1]};
     }
 
-    WGPUBufferDescriptor buffer_descriptor = {};
-    buffer_descriptor.nextInChain = nullptr;
-    // Create Uniform buffers
-    buffer_descriptor.size = sizeof(ObjectInfo);
-    buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-    buffer_descriptor.mappedAtCreation = false;
-    mUniformBuffer = wgpuDeviceCreateBuffer(device, &buffer_descriptor);
     (void)layout;
-    std::cout << mName << " M Uniform buffer address after creation: +++++++++++++++\n";
     return *this;
 }
 
@@ -160,7 +176,7 @@ void Model::createSomeBinding(Application* app) {
     WGPUBindGroupEntry mBindGroupEntry = {};
     mBindGroupEntry.nextInChain = nullptr;
     mBindGroupEntry.binding = 0;
-    mBindGroupEntry.buffer = mUniformBuffer;
+    mBindGroupEntry.buffer = Drawable::getUniformBuffer().getBuffer();
     mBindGroupEntry.offset = 0;
     mBindGroupEntry.size = sizeof(ObjectInfo);
 
@@ -176,7 +192,7 @@ void Model::createSomeBinding(Application* app) {
 
 void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
     auto& render_resource = app->getRendererResource();
-    auto& uniform_data = app->getUniformData();
+    /*auto& uniform_data = app->getUniformData();*/
     WGPUBindGroup active_bind_group = nullptr;
 
     // Bind Diffuse texture for the model if existed
@@ -199,15 +215,11 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
         active_bind_group = app->getBindingGroup().getBindGroup();
     }
 
-    uniform_data.modelMatrix = getModelMatrix();
-    wgpuQueueWriteBuffer(render_resource.queue, app->getUniformBuffer(), offsetof(MyUniform, modelMatrix),
-                         glm::value_ptr(uniform_data.modelMatrix), sizeof(glm::mat4));
-
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, getVertexBuffer(), 0, wgpuBufferGetSize(getVertexBuffer()));
 
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
+    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo, sizeof(ObjectInfo));
 
-    wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, &mObjectInfo, sizeof(ObjectInfo));
     createSomeBinding(app);
     wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
 
@@ -234,7 +246,7 @@ void Model::userInterface() {
 #endif  // DEVELOPMENT_BUILD
 
 glm::mat4 Model::getModelMatrix() {
-    mTransformMatrix =  mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
     mObjectInfo.transformation = mTransformMatrix;
     return mObjectInfo.transformation;
 }
