@@ -31,7 +31,7 @@ class ShadowPass {
         void setupScene(const glm::vec3 lightPos);
         Pipeline* getPipeline();
         WGPUTextureView getShadowMapView();
-        void render(std::vector<Model*> models, WGPURenderPassEncoder encoder);
+        void render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder);
         Scene& getScene();
 
         glm::vec3 lightPos = glm::vec3{0.0f};

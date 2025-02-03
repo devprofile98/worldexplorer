@@ -83,8 +83,8 @@ class Application {
         Model tower_model{};
         Model arrow_model{};
         Model desk_model{};
-        std::vector<Model*> mLoadedModel;
-        Model* getModelCounter();
+        std::vector<BaseModel*> mLoadedModel;
+        BaseModel* getModelCounter();
 
         bool initGui();                                    // called in onInit
         void terminateGui();                               // called in onFinish
@@ -129,7 +129,7 @@ class Application {
         std::vector<WGPUBindGroupEntry> mBindingData{10};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
         // WGPUBindGroup mBindGroup;
-        WGPUBuffer mBuffer1, mBuffer2;
+        WGPUBuffer mBuffer1;
         WGPUBuffer mUniformBuffer;
         WGPUBuffer mUniformBufferTransform;
         WGPUBuffer mDirectionalLightBuffer;
@@ -146,7 +146,7 @@ class Application {
 
         WGPURenderPipelineDescriptor mPipelineDescriptor;
 
-        Model* mSelectedModel = nullptr;
+        BaseModel* mSelectedModel = nullptr;
         SkyBox* mSkybox;
 };
 

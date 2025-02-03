@@ -9,6 +9,7 @@
 #include "glm/trigonometric.hpp"
 #include "model.h"
 #include "webgpu.h"
+#include "imgui.h"
 
 static float cubeVertexData[] = {
     -1.0f, -1.0f, -1.0f, 1.0f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,  0.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  0.0f,
@@ -54,17 +55,16 @@ static uint16_t cubeIndexData[] = {
 
 };
 
-Cube::Cube(Application* app)
-    : Transform({glm::vec3{0.0}}, glm::vec3{1.0}, glm::mat4{1.0}, glm::mat4{1.0}, glm::mat4{1.0}, glm::mat4{1.0}) {
+Cube::Cube(Application* app) : BaseModel() {
     mApp = app;
-
-    mVertexDataBuffer.setLabel("Shape vertex buffer")
+    mName = "Cube";
+    mVertexBuffer.setLabel("Shape vertex buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
         .setSize(sizeof(cubeVertexData))
         .setMappedAtCraetion()
         .create(mApp);
 
-    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mVertexDataBuffer.getBuffer(), 0, &cubeVertexData,
+    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mVertexBuffer.getBuffer(), 0, &cubeVertexData,
                          sizeof(cubeVertexData));
 
     mIndexDataBuffer.setLabel("Shape indices buffer")
@@ -76,48 +76,43 @@ Cube::Cube(Application* app)
     wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mIndexDataBuffer.getBuffer(), 0, &cubeIndexData,
                          sizeof(cubeIndexData));
     Drawable::configure(app);
-    /**/
-    /*mUniformBuffer.setLabel("Uniform buffer for object for shape")*/
-    /*    .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)*/
-    /*    .setSize(sizeof(mObjectInfo))*/
-    /*    .setMappedAtCraetion()*/
-    /*    .create(app);*/
 }
 
-/*void createBindGroup() {*/
-/*    WGPUBindGroupEntry mBindGroupEntry = {};*/
-/*    mBindGroupEntry.nextInChain = nullptr;*/
-/*    mBindGroupEntry.binding = 0;*/
-/*    mBindGroupEntry.buffer = mUniformBuffer;*/
-/*    mBindGroupEntry.offset = 0;*/
-/*    mBindGroupEntry.size = sizeof(ObjectInfo);*/
-/**/
-/*    WGPUBindGroupDescriptor mTrasBindGroupDesc = {};*/
-/*    mTrasBindGroupDesc.nextInChain = nullptr;*/
-/*    mTrasBindGroupDesc.entries = &mBindGroupEntry;*/
-/*    mTrasBindGroupDesc.entryCount = 1;*/
-/*    mTrasBindGroupDesc.label = "translation bind group";*/
-/*    mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];*/
-/**/
-/*    ggg = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);*/
-/*}*/
+size_t Cube::getVertexCount() const { return sizeof(cubeVertexData) / (11 * sizeof(float)); }
+
+#ifdef DEVELOPMENT_BUILD
+void Cube::userInterface() {
+    /*ImGui::SliderFloat("X", &mPosition.x, -10.0f, 10.0f);*/
+    /*ImGui::SliderFloat("Y", &mPosition.y, -10.0f, 10.0f);*/
+    /*ImGui::SliderFloat("Z", &mPosition.z, -10.0f, 10.0f);*/
+
+    ImGui::SliderFloat3("Position", glm::value_ptr(mPosition), 0.0f, 10.0f);
+    ImGui::SliderFloat3("Scale", glm::value_ptr(mScale), 0.0f, 10.0f);
+    /*moveTo(this->mPosition);*/
+    mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
+    scale(mScale);
+    getTranformMatrix();
+}
+#endif  // DEVELOPMENT_BUILD
+
 
 void Cube::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
     // draw indexed
-    (void)app;
     (void)bindingData;
     auto& render_resource = app->getRendererResource();
 
-    mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    /*mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;*/
     mObjectInfo.transformation = mTransformMatrix;
     mObjectInfo.isFlat = false;
-    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo, sizeof(ObjectInfo));
+    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
+                         sizeof(ObjectInfo));
 
-    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mVertexDataBuffer.getBuffer(), 0,
-                                         wgpuBufferGetSize(mVertexDataBuffer.getBuffer()));
+    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mVertexBuffer.getBuffer(), 0,
+                                         wgpuBufferGetSize(mVertexBuffer.getBuffer()));
     wgpuRenderPassEncoderSetIndexBuffer(encoder, mIndexDataBuffer.getBuffer(), WGPUIndexFormat_Uint16, 0,
                                         wgpuBufferGetSize(mIndexDataBuffer.getBuffer()));
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, mApp->getBindingGroup().getBindGroup(), 0, nullptr);
+
     WGPUBindGroupEntry mBindGroupEntry = {};
     mBindGroupEntry.nextInChain = nullptr;
     mBindGroupEntry.binding = 0;
@@ -136,6 +131,7 @@ void Cube::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGP
 
     wgpuRenderPassEncoderSetBindGroup(encoder, 1, bindgroup_object, 0, nullptr);
 
-    wgpuRenderPassEncoderDraw(encoder, sizeof(cubeVertexData) / (11 * sizeof(float)), 1, 0, 0);
+    wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);
+    wgpuBindGroupRelease(bindgroup_object);
     /*wgpurelease*/
 }

@@ -26,12 +26,9 @@ void Drawable::draw(Application* app, WGPURenderPassEncoder encoder, std::vector
     (void)bindingData;
 }
 
-Buffer& Drawable::getUniformBuffer() {
-	return mUniformBuffer;
-}
+Buffer& Drawable::getUniformBuffer() { return mUniformBuffer; }
 
-Model::Model()
-    : Transform({glm::vec3{0.0}}, glm::vec3{1.0}, glm::mat4{1.0}, glm::mat4{1.0}, glm::mat4{1.0}, glm::mat4{1.0}) {
+Model::Model() : BaseModel() {
     mScaleMatrix = glm::scale(mScaleMatrix, mScale);
     mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
     mObjectInfo.transformation = mTransformMatrix;
@@ -113,13 +110,13 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
                                    -attrib.vertices[3 * idx.vertex_index + 2],
                                    attrib.vertices[3 * idx.vertex_index + 1]};
 
-        mBoundingBox.min.x = std::min(mBoundingBox.min.x, mVertexData[i].position.x);
-        mBoundingBox.min.y = std::min(mBoundingBox.min.y, mVertexData[i].position.y);
-        mBoundingBox.min.z = std::min(mBoundingBox.min.z, mVertexData[i].position.z);
+        min.x = std::min(min.x, mVertexData[i].position.x);
+        min.y = std::min(min.y, mVertexData[i].position.y);
+        min.z = std::min(min.z, mVertexData[i].position.z);
 
-        mBoundingBox.max.x = std::max(mBoundingBox.max.x, mVertexData[i].position.x);
-        mBoundingBox.max.y = std::max(mBoundingBox.max.y, mVertexData[i].position.y);
-        mBoundingBox.max.z = std::max(mBoundingBox.max.z, mVertexData[i].position.z);
+        max.x = std::max(max.x, mVertexData[i].position.x);
+        max.y = std::max(max.y, mVertexData[i].position.y);
+        max.z = std::max(max.z, mVertexData[i].position.z);
 
         mVertexData[i].normal = {attrib.normals[3 * idx.normal_index + 0], -attrib.normals[3 * idx.normal_index + 2],
                                  attrib.normals[3 * idx.normal_index + 1]};
@@ -144,33 +141,29 @@ Transform& Transform::moveBy(const glm::vec3& translationVec) {
 Transform& Transform::moveTo(const glm::vec3& moveVec) {
     mPosition = moveVec;
     mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
+getTranformMatrix();
     return *this;
 }
 
-Model& Model::uploadToGPU(WGPUDevice device, WGPUQueue queue) {
+Model& Model::uploadToGPU(Application* app) {
     // upload vertex attribute data to GPU
+    mVertexBuffer.setLabel("Uniform buffer for object info")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
+        .setSize(mVertexData.size() * sizeof(VertexAttributes))
+        .setMappedAtCraetion()
+        .create(app);
 
-    WGPUBufferDescriptor buffer_descriptor = {};
-    buffer_descriptor.nextInChain = nullptr;
-    buffer_descriptor.size = mVertexData.size() * sizeof(VertexAttributes);
-    buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
-    buffer_descriptor.mappedAtCreation = false;
-
-    mVertexBuffer = wgpuDeviceCreateBuffer(device, &buffer_descriptor);
-    // Uploading data to GPU
-    wgpuQueueWriteBuffer(queue, mVertexBuffer, 0, mVertexData.data(), buffer_descriptor.size);
+    wgpuQueueWriteBuffer(app->getRendererResource().queue, mVertexBuffer.getBuffer(), 0, mVertexData.data(),
+                         mVertexData.size() * sizeof(VertexAttributes));
 
     return *this;
 };
 
-size_t Model::getVertexCount() const { return mVertexData.size(); }
+size_t BaseModel::getVertexCount() const { return mVertexData.size(); }
 
-WGPUBuffer Model::getVertexBuffer() {
-    //
-    return mVertexBuffer;
-}
+Buffer BaseModel::getVertexBuffer() { return mVertexBuffer; }
 
-WGPUBuffer Model::getIndexBuffer() { return mIndexBuffer; }
+Buffer BaseModel::getIndexBuffer() { return mIndexBuffer; }
 
 void Model::createSomeBinding(Application* app) {
     WGPUBindGroupEntry mBindGroupEntry = {};
@@ -215,10 +208,12 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
         active_bind_group = app->getBindingGroup().getBindGroup();
     }
 
-    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, getVertexBuffer(), 0, wgpuBufferGetSize(getVertexBuffer()));
+    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, getVertexBuffer().getBuffer(), 0,
+                                         wgpuBufferGetSize(getVertexBuffer().getBuffer()));
 
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
-    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo, sizeof(ObjectInfo));
+    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
+                         sizeof(ObjectInfo));
 
     createSomeBinding(app);
     wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
@@ -241,45 +236,41 @@ void Model::userInterface() {
     ImGui::SliderFloat3("Scale", glm::value_ptr(mScale), 0.0f, 10.0f);
     moveTo(this->mPosition);
     scale(mScale);
-    getModelMatrix();
+    getTranformMatrix();
 }
 #endif  // DEVELOPMENT_BUILD
-
-glm::mat4 Model::getModelMatrix() {
-    mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
-    mObjectInfo.transformation = mTransformMatrix;
-    return mObjectInfo.transformation;
-}
 
 Transform& Transform::scale(const glm::vec3& s) {
     mScale = s;
     mScaleMatrix = glm::scale(glm::mat4{1.0}, s);
+    getTranformMatrix();
     return *this;
 }
+
 glm::vec3& Transform::getPosition() { return mPosition; }
+
 glm::vec3& Transform::getScale() { return mScale; }
 
 glm::mat4& Transform::getTranformMatrix() {
     mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mObjectInfo.transformation = mTransformMatrix;
     return mTransformMatrix;
 }
 
-AABB& Model::getAABB() { return mBoundingBox; }
-
-float Model::calculateVolume() {
-    float dx = std::abs(mBoundingBox.min.x - mBoundingBox.max.x);
-    float dy = std::abs(mBoundingBox.min.y - mBoundingBox.max.y);
-    float dz = std::abs(mBoundingBox.min.z - mBoundingBox.max.z);
+float AABB::calculateVolume() {
+    float dx = std::abs(min.x - max.x);
+    float dy = std::abs(min.y - max.y);
+    float dz = std::abs(min.z - max.z);
 
     return dx * dy * dz;
 }
 
-glm::vec3 Model::getAABBSize() {
-    float dx = std::abs(mBoundingBox.min.x - mBoundingBox.max.x);
-    float dy = std::abs(mBoundingBox.min.y - mBoundingBox.max.y);
-    float dz = std::abs(mBoundingBox.min.z - mBoundingBox.max.z);
+glm::vec3 AABB::getAABBSize() {
+    float dx = std::abs(min.x - max.x);
+    float dy = std::abs(min.y - max.y);
+    float dz = std::abs(min.z - max.z);
 
     return glm::vec3{dx, dy, dz};
 }
 
-const std::string& Model::getName() { return mName; }
+const std::string& BaseModel::getName() { return mName; }

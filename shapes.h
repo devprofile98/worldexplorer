@@ -9,23 +9,32 @@
 
 class Application;
 
-class Cube: public Transform, public Drawable{
+class Cube: public BaseModel{
     public:
         Cube(Application* app);
-        virtual void draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData);
+        virtual void draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) override;
+	void userInterface() override;
+	size_t getVertexCount() const override;
 
     private:
 	ObjectInfo mObjectInfo;
-        // vertex data
-        Buffer mVertexDataBuffer = {};
-
         // vertex indices
         Buffer mIndexDataBuffer = {};
-
-	/*Buffer mUniformBuffer = {};*/
-
         // ? material
-	
+	Application* mApp;
+};
+
+class Plane: public BaseModel{
+    public:
+        Plane(Application* app);
+        virtual void draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) override;
+	size_t getVertexCount() const override;
+
+    private:
+	ObjectInfo mObjectInfo;
+        // vertex indices
+        Buffer mIndexDataBuffer = {};
+        // ? material
 	Application* mApp;
 };
 

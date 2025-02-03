@@ -243,7 +243,6 @@ void Application::initializePipeline() {
     mBindGroupEntry.offset = 0;
     mBindGroupEntry.size = sizeof(ObjectInfo);
 
-    // WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
     mTrasBindGroupDesc.nextInChain = nullptr;
     mTrasBindGroupDesc.entries = &mBindGroupEntry;
     mTrasBindGroupDesc.entryCount = 1;
@@ -251,7 +250,6 @@ void Application::initializePipeline() {
     mTrasBindGroupDesc.layout = mBindGroupLayouts[1];
 
     bindGrouptrans = wgpuDeviceCreateBindGroup(mRendererResource.device, &mTrasBindGroupDesc);
-    // SkyBox skybox{this, "asdf"};
     mSkybox = new SkyBox{this, RESOURCE_DIR "/skybox"};
 }
 
@@ -260,27 +258,27 @@ void Application::initializeBuffers() {
     boat_model.load("boat", this, RESOURCE_DIR "/fourareen.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0})
         .scale(glm::vec3{0.3});
-    boat_model.uploadToGPU(mRendererResource.device, mRendererResource.queue);
+    boat_model.uploadToGPU(this);
+
     tower_model.load("tower", this, RESOURCE_DIR "/tower.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0})
         .scale(glm::vec3{0.3});
-    tower_model.uploadToGPU(mRendererResource.device, mRendererResource.queue);
+    tower_model.uploadToGPU(this);
 
-    arrow_model
-        .load("arrow", this, RESOURCE_DIR "/arrow.obj", mBindGroupLayouts[1])
+    arrow_model.load("arrow", this, RESOURCE_DIR "/arrow.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{1.0f, 1.0f, 4.0f})
         .scale(glm::vec3{0.3});
-    arrow_model.uploadToGPU(mRendererResource.device, mRendererResource.queue);
+    arrow_model.uploadToGPU(this);
 
     desk_model.load("desk", this, RESOURCE_DIR "/desk.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.725, 0.333, 0.72})
         .scale(glm::vec3{0.3});
-    desk_model.uploadToGPU(mRendererResource.device, mRendererResource.queue);
+    desk_model.uploadToGPU(this);
 
     terrain.generate(100, 8).uploadToGpu(this);
 
     shapes = new Cube{this};
-    shapes->moveTo(glm::vec3{1.0f, 1.0f, 4.0f});
+    shapes->moveTo(glm::vec3{10.0f, 1.0f, 4.0f});
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
     // Create Uniform buffers
@@ -359,7 +357,7 @@ void onWindowResize(GLFWwindow* window, int /* width */, int /* height */) {
 static int WINDOW_WIDTH = 1920;
 static int WINDOW_HEIGHT = 1080;
 
-Model* Application::getModelCounter() {
+BaseModel* Application::getModelCounter() {
     static size_t counter = 0;
     if (mLoadedModel.size() == 0) {
         return nullptr;
@@ -368,7 +366,7 @@ Model* Application::getModelCounter() {
     if (counter >= mLoadedModel.size()) {
         counter = 0;
     }
-    Model* temp = mLoadedModel[counter];
+    BaseModel* temp = mLoadedModel[counter];
     counter++;
     std::cout << "the counter is " << counter << std::endl;
     return temp;
@@ -437,7 +435,7 @@ bool Application::initialize() {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         that->getCamera().processInput(key, scancode, action, mods);
         if (GLFW_KEY_KP_0 == key && action == GLFW_PRESS) {
-            Model* model = that->getModelCounter();
+            BaseModel* model = that->getModelCounter();
             if (model) {
                 glm::vec3 temp_pos = model->getPosition();
                 glm::vec3 temp_aabb_size = model->getAABBSize();
@@ -493,8 +491,6 @@ bool Application::initialize() {
     mRendererResource.surface = provided_surface;
     mRendererResource.window = provided_window;
 
-    // Create windows to show our daste gol
-
     // Configuring the surface
     WGPUSurfaceConfiguration surface_configuration = {};
     surface_configuration.nextInChain = nullptr;
@@ -528,61 +524,16 @@ bool Application::initialize() {
     initializeBuffers();
     initializePipeline();
 
-    // Playing with buffers
-    WGPUBufferDescriptor buffer_descriptor = {};
-    buffer_descriptor.nextInChain = nullptr;
-    buffer_descriptor.label = "Some GPU-side data buffer";
-    buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
-    buffer_descriptor.size = 16;
-    buffer_descriptor.mappedAtCreation = false;
-    // mBuffer1 = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
-
-    buffer_descriptor.label = "output buffer";
-    buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
-    mBuffer2 = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
-
-    // Writing to buffer
-    std::vector<uint8_t> numbers{16};
-    for (uint8_t i = 0; i < 16; i++) numbers[i] = i;
-
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, nullptr);
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, nullptr);
     wgpuCommandEncoderRelease(encoder);
     wgpuQueueSubmit(mRendererResource.queue, 1, &command);
     wgpuCommandBufferRelease(command);
 
-    struct Context {
-            bool ready;
-            WGPUBuffer buffer;
-    };
-
-    auto on_buffer2_mapped = [](WGPUBufferMapAsyncStatus status, void* userData) {
-        Context* context = reinterpret_cast<Context*>(userData);
-        if (status != WGPUBufferMapAsyncStatus_Success) {
-            return;
-        }
-        std::cout << std::format("the status for Async buffer 2 mapping is: {:d}\n", (size_t)status);
-        context->ready = true;
-    };
-    Context user_data = {};
-    user_data.buffer = mBuffer2;
-    user_data.ready = false;
-
-    wgpuBufferMapAsync(mBuffer2, WGPUMapMode_Read, 0, 16, on_buffer2_mapped, &user_data);
-    while (!user_data.ready) {
-        wgpuPollEvents(mRendererResource.device, true);
-    }
-
-    uint8_t* buffer_mapped_data = (uint8_t*)wgpuBufferGetConstMappedRange(user_data.buffer, 0, 16);
-
-    for (size_t i = 0; i < 16; i++) {
-        std::cout << std::format("Element {} is {}\n", i, buffer_mapped_data[i]);
-    }
-
     boat_model.moveTo({1.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model};
+    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model, shapes};
 
     return true;
 }
@@ -609,9 +560,6 @@ void Application::mainLoop() {
     }
 
     mUniforms.time = static_cast<float>(glfwGetTime());
-    /*float viewZ = glm::mix(0.0f, 0.25f, cos(2 * Camera::PI * mUniforms.time / 4) * 0.5 + 0.5);*/
-    /*glm::vec3 focal_point{0.0, viewZ, -2.5};*/
-
     mUniforms.setCamera(mCamera);
     if (look_as_light) {
         mUniforms.projectMatrix = mShadowPass->getScene().projection;
@@ -691,12 +639,11 @@ void Application::mainLoop() {
                          sizeof(Scene));
 
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
+
     // Drawing objects in the world
     for (const auto& model : mLoadedModel) {
         model->draw(this, render_pass_encoder, mBindingData);
     }
-
-    shapes->draw(this, render_pass_encoder, mBindingData);
 
     terrain.draw(this, render_pass_encoder, mBindingData);
     updateGui(render_pass_encoder);
@@ -729,12 +676,9 @@ void Application::mainLoop() {
 
 void Application::terminate() {
     wgpuBufferRelease(mBuffer1);
-    wgpuBufferRelease(mBuffer2);
     wgpuBufferRelease(mUniformBuffer);
     terminateGui();
 
-    // wgpuBufferRelease(mIndexBuffer);
-    // wgpuBufferRelease(mVertexBuffer);
     wgpuRenderPipelineRelease(mPipeline->getPipeline());
     wgpuSurfaceUnconfigure(mRendererResource.surface);
     wgpuQueueRelease(mRendererResource.queue);
@@ -930,13 +874,15 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
             auto normalized = glm::normalize(worldray);
 
             for (auto* obj : mLoadedModel) {
-                auto obj_in_world_min = obj->getModelMatrix() * glm::vec4(obj->getAABB().min, 1.0);
-                auto obj_in_world_max = obj->getModelMatrix() * glm::vec4(obj->getAABB().max, 1.0);
+                /*auto obj = dynamic_cast<BaseModel*>(obj1);*/
+                /*if (obj) {*/
+                auto obj_in_world_min = obj->getTranformMatrix() * glm::vec4(obj->min, 1.0);
+                auto obj_in_world_max = obj->getTranformMatrix() * glm::vec4(obj->max, 1.0);
                 bool does_intersect = intersection(ray_origin, normalized, obj_in_world_min, obj_in_world_max);
                 if (does_intersect) {
                     mSelectedModel = obj;
-                    std::cout << std::format("the ray {}intersect with {}\n", does_intersect ? "" : "does not ",
-                                             obj->getName());
+                    std::cout << std::format("the ray {}intersect with {}\n", "", obj->getName());
+                    break;
                 }
             }
         }
@@ -994,7 +940,6 @@ bool Application::initGui() {
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOther(mRendererResource.window, true);
-    //, 3, WGPUTextureFormat_BGRA8UnormSrgb, WGPUTextureFormat_Depth24Plus
     ImGui_ImplWGPU_InitInfo init_info;
     init_info.Device = mRendererResource.device;
     init_info.NumFramesInFlight = 3;
@@ -1015,16 +960,12 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    /*static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);*/
-
     if (mSelectedModel) {
         ImGui::Begin(mSelectedModel->getName().c_str());  // Create a window called "Hello, world!" and append into it.
 
 #ifdef DEVELOPMENT_BUILD
         mSelectedModel->userInterface();
 #endif  // DEVELOPMENT_BUILD
-
-        /*ImGui::ColorEdit3("clear color", (float*)&clear_color);  // Edit 3 floats representing a color*/
 
         ImGui::SameLine();
 
@@ -1040,17 +981,10 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     // ImGui::ColorEdit3("Color #1", glm::value_ptr(mLightingUniforms.colors[1]));
     ImGui::DragFloat3("sun pos direction", glm::value_ptr(pointlightshadow), 0.1, -10.0, 10.0);
     ImGui::End();
-    static glm::vec3 shape_vec = glm::vec3{0.0f};
-    ImGui::SliderFloat3("Test Transform", glm::value_ptr(shape_vec), -10.0, 10.0);
-    /*shapes->getTranformMatrix();*/
-    shapes->moveTo(shape_vec);
-    /*std::cout << std::format("{} {} {}\n", shapes->getPosition().x, shapes->getPosition().y,
-     * shapes->getPosition().z);*/
     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                          sizeof(LightingUniforms));
     mShadowPass->lightPos = pointlightshadow;
     mShadowPass->setupScene({1.0f, 1.0f, 4.0f});
-    // mShadowPass->setupScene(mLightingUniforms.directions[0]);
 
     ImGui::Begin("Point Light");
 

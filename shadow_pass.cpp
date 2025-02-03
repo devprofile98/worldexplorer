@@ -122,7 +122,7 @@ Pipeline* ShadowPass::getPipeline() { return mRenderPipeline; }
 
 WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor() { return &mRenderPassDesc; }
 
-void ShadowPass::render(std::vector<Model*> models, WGPURenderPassEncoder encoder) {
+void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder) {
     auto& render_resource = mApp->getRendererResource();
     for (auto* model : models) {
         WGPUBufferDescriptor buf = {};
@@ -134,13 +134,13 @@ void ShadowPass::render(std::vector<Model*> models, WGPURenderPassEncoder encode
 
         WGPUBuffer modelUniformBuffer = wgpuDeviceCreateBuffer(render_resource.device, &buf);
 
-        mScene.model = model->getModelMatrix();
+        mScene.model = model->getTranformMatrix();
         mBindingData[0].buffer = modelUniformBuffer;
         auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
         wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer, 0, &mScene, sizeof(mScene));
 
-        wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, model->getVertexBuffer(), 0,
-                                             wgpuBufferGetSize(model->getVertexBuffer()));
+        wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, model->getVertexBuffer().getBuffer(), 0,
+                                             wgpuBufferGetSize(model->getVertexBuffer().getBuffer()));
 
         wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
 
