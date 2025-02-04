@@ -114,6 +114,7 @@ class Application {
         PointLight mPointlight;
         Pipeline* mPipeline;
         Cube* shapes;
+        Plane* plane;
         ShadowPass* mShadowPass;
 
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;

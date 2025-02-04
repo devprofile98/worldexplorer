@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 
+#include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_wgpu.h"
@@ -279,6 +280,11 @@ void Application::initializeBuffers() {
 
     shapes = new Cube{this};
     shapes->moveTo(glm::vec3{10.0f, 1.0f, 4.0f});
+
+    plane = new Plane{this};
+    plane->mName = "Plane";
+    plane->moveTo(glm::vec3{3.0f, 1.0f, 4.0f}).scale(glm::vec3{0.01, 1.0, 1.0});
+
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
     // Create Uniform buffers
@@ -445,7 +451,7 @@ bool Application::initialize() {
                 temp_pos.y += temp_smallest_size;
                 that->getCamera().setPosition(temp_pos);
                 that->getCamera().setTarget(model->getPosition() - temp_pos);
-                std::cout << "volume calculation result  is: " << model->calculateVolume() << std::endl;
+                std::cout << "volume calculation result for "<<model->getName()<< " is: " << model->calculateVolume() << std::endl;
             }
         } else if (GLFW_KEY_KP_1 == key && action == GLFW_PRESS) {
             look_as_light = !look_as_light;
@@ -533,7 +539,7 @@ bool Application::initialize() {
     boat_model.moveTo({1.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model, shapes};
+    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model, shapes, plane};
 
     return true;
 }

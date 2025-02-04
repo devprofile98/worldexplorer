@@ -17,25 +17,24 @@ class Cube: public BaseModel{
 	size_t getVertexCount() const override;
 
     private:
-	ObjectInfo mObjectInfo;
         // vertex indices
         Buffer mIndexDataBuffer = {};
         // ? material
 	Application* mApp;
 };
 
-class Plane: public BaseModel{
+class Plane: public Cube{
     public:
         Plane(Application* app);
-        virtual void draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) override;
-	size_t getVertexCount() const override;
+	/*       virtual void draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) override;*/
+	/*void userInterface() override;*/
+	/*size_t getVertexCount() const override;*/
 
     private:
-	ObjectInfo mObjectInfo;
         // vertex indices
-        Buffer mIndexDataBuffer = {};
+        /*Buffer mIndexDataBuffer = {};*/
         // ? material
-	Application* mApp;
+	/*Application* mApp;*/
 };
 
 #endif  // WEBGPUTEST_SHAPE_H
