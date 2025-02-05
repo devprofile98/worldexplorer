@@ -581,12 +581,12 @@ void Application::mainLoop() {
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
     encoder_descriptor.nextInChain = nullptr;
-    encoder_descriptor.label = "my command encoder";
+    encoder_descriptor.label = "command encoder descriptor";
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, &encoder_descriptor);
     updateDragInertia();
 
-    // -----------------------------
-    // ---------------- Preparing for shadow pass ---------------
+    // ---------------- 1 - Preparing for shadow pass ---------------
+    // The first pass is the shadow pass, only based on the opaque objects
 
     WGPURenderPassEncoder shadow_pass_encoder =
         wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor());
@@ -599,9 +599,8 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderRelease(shadow_pass_encoder);
 
     //-------------- End of shadow pass
-    //-----------------------------
 
-    // begining of the color render pass
+    // ---------------- 2 - begining of the opaque object color pass ---------------
     WGPURenderPassDescriptor render_pass_descriptor = {};
     render_pass_descriptor.nextInChain = nullptr;
 
@@ -646,7 +645,7 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
 
-    // Drawing objects in the world
+    // Drawing opaque objects in the world
     for (const auto& model : mLoadedModel) {
         model->draw(this, render_pass_encoder, mBindingData);
     }
@@ -657,6 +656,16 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
     // end of color render pass
+
+
+    // ------------ 3- Transparent pass
+    // Calculate the Accumulation Buffer from the transparent object, this pass does not draw
+    // on the render Target
+
+
+    // ------------ 4- Composition pass
+    // In this pass we will compose the result from opaque pass and the transparent pass
+
 
     WGPUCommandBufferDescriptor command_buffer_descriptor = {};
     command_buffer_descriptor.nextInChain = nullptr;

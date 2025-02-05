@@ -55,7 +55,7 @@ class ShadowPass {
         WGPUTexture mShadowDepthTexture;
 
         // buffers
-        WGPUBuffer mSceneUniformBuffer;
+        Buffer mSceneUniformBuffer;
 
         // scene
         Scene mScene;

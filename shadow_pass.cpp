@@ -1,6 +1,7 @@
 #include "shadow_pass.h"
 
 #include "application.h"
+#include "webgpu.h"
 
 ShadowPass::ShadowPass(Application* app) { mApp = app; }
 
@@ -53,8 +54,7 @@ void ShadowPass::createRenderPass() {
     // creating pipeline
     // for projection
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(Scene));
-    // for model
-    // mBindingGroup.addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(glm::mat4));
+
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
 
     mRenderPipeline = new Pipeline{mApp, {bind_group_layout}};
@@ -89,17 +89,16 @@ void ShadowPass::createRenderPass() {
     mRenderPipeline->setMultiSampleState().createPipeline(mApp);
 
     // creating and writing to buffer
-    WGPUBufferDescriptor buffer_descriptor = {};
-    buffer_descriptor.label = "shadow map pass scene buffer";
-    buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-    buffer_descriptor.size = sizeof(Scene);
-    buffer_descriptor.mappedAtCreation = false;
-    mSceneUniformBuffer = wgpuDeviceCreateBuffer(mApp->getRendererResource().device, &buffer_descriptor);
+    mSceneUniformBuffer.setLabel("shadow map pass scene buffer")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .setSize(sizeof(Scene))
+        .setMappedAtCraetion()
+        .create(mApp);
 
     // fill bindgroup
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
-    mBindingData[0].buffer = mSceneUniformBuffer;
+    mBindingData[0].buffer = mSceneUniformBuffer.getBuffer();
     mBindingData[0].offset = 0;
     mBindingData[0].size = sizeof(Scene);
 
