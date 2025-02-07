@@ -18,6 +18,7 @@
 #include "utils.h"
 #include "webgpu/webgpu.h"
 #include "transparency_pass.h"
+#include "composition_pass.h"
 
 struct MyUniform {
         glm::mat4 projectMatrix;
@@ -115,6 +116,7 @@ class Application {
         Plane* plane;
         ShadowPass* mShadowPass;
 	TransparencyPass* mTransparencyPass;
+	CompositionPass* mCompositionPass;
 
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();

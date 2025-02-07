@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 
+#include "composition_pass.h"
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "imgui/backends/imgui_impl_glfw.h"
@@ -199,6 +200,9 @@ void Application::initializePipeline() {
     // mShadowPass->setupScene(glm::vec3{0.5, -0.9, 0.1});
     mTransparencyPass = new TransparencyPass{this};
     mTransparencyPass->initializePass();
+
+    mCompositionPass = new CompositionPass{this};
+    mCompositionPass->initializePass();
 
     mBindingData[10] = {};
     mBindingData[10].nextInChain = nullptr;
@@ -684,6 +688,18 @@ void Application::mainLoop() {
 
     // ------------ 4- Composition pass
     // In this pass we will compose the result from opaque pass and the transparent pass
+    
+    mCompositionPass->mRenderPassDepthStencilAttachment.view = mDepthTextureView;
+    mCompositionPass->mRenderPassColorAttachment.view = target_view;
+    auto composition_pass_desc = mCompositionPass->getRenderPassDescriptor();
+    WGPURenderPassEncoder composition_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, composition_pass_desc);
+    wgpuRenderPassEncoderSetPipeline(composition_pass_encoder, mCompositionPass->getPipeline()->getPipeline());
+
+    /*mShadowPass->setupScene({1.0f, 1.0f, 4.0f});*/
+    mCompositionPass->render(mLoadedModel, composition_pass_encoder, &render_pass_color_attachment);
+
+    wgpuRenderPassEncoderEnd(composition_pass_encoder);
+    wgpuRenderPassEncoderRelease(composition_pass_encoder);
 
     WGPUCommandBufferDescriptor command_buffer_descriptor = {};
     command_buffer_descriptor.nextInChain = nullptr;

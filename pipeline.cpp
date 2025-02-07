@@ -167,6 +167,11 @@ Pipeline& Pipeline::setBlendState() {
     return *this;
 }
 
+Pipeline& Pipeline::setBlendState(WGPUBlendState blendState) {
+	mBlendState = blendState;
+	return *this;
+}
+
 Pipeline& Pipeline::setColorTargetState() {
     mColorTargetState.format = mApp->getTextureFormat();
     mColorTargetState.blend = &mBlendState;
@@ -174,12 +179,12 @@ Pipeline& Pipeline::setColorTargetState() {
     return *this;
 }
 
-Pipeline& Pipeline::setColorTargetState(WGPUColorTargetState colorTargetState){
-	/*mColorTargetState = colorTargetState;*/
-	(void) colorTargetState;
-	mFragmentState.targetCount = 0;
-	mFragmentState.targets = nullptr;
-	return *this;
+Pipeline& Pipeline::setColorTargetState(WGPUColorTargetState colorTargetState) {
+    /*mColorTargetState = colorTargetState;*/
+    (void)colorTargetState;
+    mFragmentState.targetCount = 0;
+    mFragmentState.targets = nullptr;
+    return *this;
 }
 
 Pipeline& Pipeline::setFragmentState() {

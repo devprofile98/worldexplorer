@@ -32,6 +32,7 @@ class Pipeline {
         Pipeline& setDepthStencilState(bool depthWriteEnabled = false, uint32_t stencilReadMask = 0x0,
                                        uint32_t stencilWriteMask = 0x0);
         Pipeline& setBlendState();
+        Pipeline& setBlendState(WGPUBlendState blendState);
         Pipeline& setColorTargetState();
         Pipeline& setColorTargetState(WGPUColorTargetState colorTargetState);
         Pipeline& setFragmentState();

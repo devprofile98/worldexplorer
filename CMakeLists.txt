@@ -34,6 +34,7 @@ add_executable(
     gpu_buffer.cpp
     shapes.cpp
     transparency_pass.cpp
+    composition_pass.cpp
 )
 
 target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")

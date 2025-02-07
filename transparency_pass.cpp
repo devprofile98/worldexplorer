@@ -7,12 +7,6 @@
 #include "glm/fwd.hpp"
 #include "model.h"
 #include "webgpu.h"
-/**/
-/*@binding(0) @group(0) var<uniform> uniforms: Uniforms;*/
-/*@binding(1) @group(0) var<storage, read_write> heads: Heads;*/
-/*@binding(2) @group(0) var<storage, read_write> linkedList: LinkedList;*/
-/*@binding(3) @group(0) var opaqueDepthTexture: texture_depth_2d;*/
-/*@binding(4) @group(0) var<uniform> sliceInfo: SliceInfo;*/
 
 TransparencyPass::TransparencyPass(Application* app) : mApp(app) {
     // creating bindings for the pass
@@ -20,7 +14,6 @@ TransparencyPass::TransparencyPass(Application* app) : mApp(app) {
     // 2 - a storage buffer for Heads
     // 3 - a storage buffer for linkedlist
     // 4 - the depth texture from the opaque pass
-    mApp = app;
 
     mUniformBuffer.setLabel("Transparency Uniform buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
@@ -130,9 +123,9 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
                               WGPUTextureView opaqueDepthTextureView) {
     auto& render_resource = mApp->getRendererResource();
     for (auto* model : models) {
-	    if (!model->isTransparent()){
-	    	continue;
-	    }
+        if (!model->isTransparent()) {
+            continue;
+        }
         Buffer object_info_buffer;
         object_info_buffer.setSize(sizeof(ObjectInfo))
             .setLabel("object info for oit")
@@ -146,7 +139,8 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
         wgpuQueueWriteBuffer(mApp->getRendererResource().queue, object_info_buffer.getBuffer(), 0,
                              &model->getTranformMatrix(), sizeof(glm::mat4));
 
-        wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer.getBuffer(), 0, &mApp->getUniformData(), sizeof(MyUniform));
+        wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer.getBuffer(), 0, &mApp->getUniformData(),
+                             sizeof(MyUniform));
 
         auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
 
@@ -161,6 +155,7 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
         wgpuBindGroupRelease(bindgroup);
     }
 }
+
 WGPURenderPassDescriptor* TransparencyPass::getRenderPassDescriptor() { return &mRenderPassDesc; }
 
 Pipeline* TransparencyPass::getPipeline() { return mRenderPipeline; }
