@@ -141,7 +141,7 @@ Transform& Transform::moveBy(const glm::vec3& translationVec) {
 Transform& Transform::moveTo(const glm::vec3& moveVec) {
     mPosition = moveVec;
     mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
-getTranformMatrix();
+    getTranformMatrix();
     return *this;
 }
 
@@ -164,6 +164,9 @@ size_t BaseModel::getVertexCount() const { return mVertexData.size(); }
 Buffer BaseModel::getVertexBuffer() { return mVertexBuffer; }
 
 Buffer BaseModel::getIndexBuffer() { return mIndexBuffer; }
+
+void BaseModel::setTransparent() { mIsTransparent = true; }
+bool BaseModel::isTransparent() { return mIsTransparent; }
 
 void Model::createSomeBinding(Application* app) {
     WGPUBindGroupEntry mBindGroupEntry = {};

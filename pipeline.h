@@ -21,7 +21,7 @@ class Pipeline {
         WGPURenderPipeline getPipeline();
         WGPURenderPipelineDescriptor getDescriptor();
         WGPURenderPipelineDescriptor* getDescriptorPtr();
-
+	WGPUVertexBufferLayout getDefaultVertexBufferLayout();
         // Setter
         Pipeline& setShader(const std::filesystem::path& path);
         Pipeline& setVertexBufferLayout(WGPUVertexBufferLayout layout);
@@ -33,6 +33,7 @@ class Pipeline {
                                        uint32_t stencilWriteMask = 0x0);
         Pipeline& setBlendState();
         Pipeline& setColorTargetState();
+        Pipeline& setColorTargetState(WGPUColorTargetState colorTargetState);
         Pipeline& setFragmentState();
         Pipeline& setFragmentState(WGPUFragmentState fragmentState);
         Pipeline& setMultiSampleState(/*WGPUMultisampleState multiSampleState*/);

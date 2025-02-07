@@ -8,8 +8,6 @@
 
 #include "binding_group.h"
 #include "camera.h"
-#include "glm/ext.hpp"
-#include "glm/glm.hpp"
 #include "gpu_buffer.h"
 #include "model.h"
 #include "pipeline.h"
@@ -19,7 +17,7 @@
 #include "skybox.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
-#include "webgpu/wgpu.h"
+#include "transparency_pass.h"
 
 struct MyUniform {
         glm::mat4 projectMatrix;
@@ -116,9 +114,11 @@ class Application {
         Cube* shapes;
         Plane* plane;
         ShadowPass* mShadowPass;
+	TransparencyPass* mTransparencyPass;
 
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();
+
         void initializePipeline();
         void initializeBuffers();
 

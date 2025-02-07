@@ -5,6 +5,9 @@
 #include <iostream>
 #include <vector>
 
+#include "webgpu.h"
+#include "wgpu.h"
+
 // request webgpu adapter
 WGPUAdapter requestAdapterSync(WGPUInstance instance, WGPUSurface surface) {
     WGPURequestAdapterOptions options = {};
@@ -37,9 +40,11 @@ WGPUAdapter requestAdapterSync(WGPUInstance instance, WGPUSurface surface) {
 // request webgpu device
 WGPUDevice requestDeviceSync(WGPUAdapter adapter, WGPURequiredLimits limits) {
     WGPUDeviceDescriptor descriptor = {};
+    /*std::vector<WGPUFeatureName> features = {WGPUNativeFeature_VertexWritableStorage};*/
     descriptor.nextInChain = nullptr;
     descriptor.label = "My Device";       // anything works here, that's your
     descriptor.requiredFeatureCount = 0;  // we do not require any
+    /*descriptor.requiredFeatures;*/
     descriptor.requiredLimits = &limits;  // we do not require any
     descriptor.defaultQueue.nextInChain = nullptr;
     descriptor.defaultQueue.label = "The default queue";
@@ -140,5 +145,7 @@ void inspectDevice(WGPUDevice device) {
     bool success = wgpuDeviceGetLimits(device, &supported_limits);
     if (success) {
         std::cout << " - Device.MaxVertexAttribute: " << supported_limits.limits.maxVertexAttributes << std::endl;
+	 std::cout << " - Device.maxStorageBufferBindingSize: " << supported_limits.limits.maxStorageBufferBindingSize << std::endl;
+	
     }
 }

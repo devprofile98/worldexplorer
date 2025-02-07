@@ -16,8 +16,14 @@ class Application;
 
 class TransparencyPass {
     public:
+        void render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder,
+                    WGPUTextureView opaqueDepthTextureView);
         TransparencyPass(Application* app);
         void initializePass();
+        // Getters
+        WGPURenderPassDescriptor* getRenderPassDescriptor();
+        Pipeline* getPipeline();
+        WGPURenderPassDepthStencilAttachment mRenderPassDepthStencilAttachment;
 
     private:
         Application* mApp;
@@ -31,9 +37,9 @@ class TransparencyPass {
         BindingGroup mBindingGroup;
         std::vector<WGPUBindGroupEntry> mBindingData{5};
 
-	Buffer mUniformBuffer;
-	Buffer mHeadsBuffer;
-	Buffer mLinkedlistBuffer;
+        Buffer mUniformBuffer;
+        Buffer mHeadsBuffer;
+        Buffer mLinkedlistBuffer;
 
         // textures and views
         WGPUTextureView mDepthTextureView;
@@ -43,7 +49,6 @@ class TransparencyPass {
 
         // buffers
         /*WGPUBuffer mSceneUniformBuffer;*/
-
         // scene
         /*Scene mScene;*/
 };

@@ -104,6 +104,11 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
         Buffer mVertexBuffer = {};
         Buffer mIndexBuffer = {};
         virtual size_t getVertexCount() const;
+	void setTransparent();
+	bool isTransparent();
+
+    private:
+	bool mIsTransparent = false;
 };
 
 class Model : public BaseModel {

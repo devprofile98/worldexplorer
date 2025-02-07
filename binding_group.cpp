@@ -1,6 +1,7 @@
 #include "binding_group.h"
 
 #include "application.h"
+#include "webgpu.h"
 
 static void setDefaultValue(WGPUBindGroupLayoutEntry& bindingLayout) {
     bindingLayout = {};
@@ -59,8 +60,16 @@ WGPUTextureViewDimension viewDimensionFrom(TextureViewDimension dim) {
 
 WGPUBufferBindingType bufferTypeFrom(BufferBindingType type) {
     WGPUBufferBindingType ret = WGPUBufferBindingType_Undefined;
-    if (type == BufferBindingType::UNIFORM) {
-        ret = WGPUBufferBindingType_Uniform;
+    switch (type) {
+        case BufferBindingType::UNIFORM:
+            ret = WGPUBufferBindingType_Uniform;
+            break;
+        case BufferBindingType::STORAGE:
+            ret = WGPUBufferBindingType_Storage;
+            break;
+        default:
+            ret = WGPUBufferBindingType_Undefined;
+            break;
     }
 
     return ret;

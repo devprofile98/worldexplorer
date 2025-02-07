@@ -12,7 +12,10 @@
 #include "imgui/imgui.h"
 #include "shapes.h"
 #include "texture.h"
+#include "transparency_pass.h"
 #include "utils.h"
+#include "webgpu.h"
+#include "wgpu.h"
 #include "wgpu_utils.h"
 
 // #define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
@@ -194,6 +197,8 @@ void Application::initializePipeline() {
     mShadowPass = new ShadowPass{this};
     mShadowPass->createRenderPass();
     // mShadowPass->setupScene(glm::vec3{0.5, -0.9, 0.1});
+    mTransparencyPass = new TransparencyPass{this};
+    mTransparencyPass->initializePass();
 
     mBindingData[10] = {};
     mBindingData[10].nextInChain = nullptr;
@@ -280,10 +285,12 @@ void Application::initializeBuffers() {
 
     shapes = new Cube{this};
     shapes->moveTo(glm::vec3{10.0f, 1.0f, 4.0f});
+    shapes->setTransparent();
 
     plane = new Plane{this};
     plane->mName = "Plane";
     plane->moveTo(glm::vec3{3.0f, 1.0f, 4.0f}).scale(glm::vec3{0.01, 1.0, 1.0});
+    plane->setTransparent();
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -451,7 +458,8 @@ bool Application::initialize() {
                 temp_pos.y += temp_smallest_size;
                 that->getCamera().setPosition(temp_pos);
                 that->getCamera().setTarget(model->getPosition() - temp_pos);
-                std::cout << "volume calculation result for "<<model->getName()<< " is: " << model->calculateVolume() << std::endl;
+                std::cout << "volume calculation result for " << model->getName() << " is: " << model->calculateVolume()
+                          << std::endl;
             }
         } else if (GLFW_KEY_KP_1 == key && action == GLFW_PRESS) {
             look_as_light = !look_as_light;
@@ -647,7 +655,9 @@ void Application::mainLoop() {
 
     // Drawing opaque objects in the world
     for (const auto& model : mLoadedModel) {
-        model->draw(this, render_pass_encoder, mBindingData);
+        if (!model->isTransparent()) {
+            model->draw(this, render_pass_encoder, mBindingData);
+        }
     }
 
     terrain.draw(this, render_pass_encoder, mBindingData);
@@ -657,15 +667,23 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderRelease(render_pass_encoder);
     // end of color render pass
 
-
     // ------------ 3- Transparent pass
     // Calculate the Accumulation Buffer from the transparent object, this pass does not draw
     // on the render Target
+    auto transparency_pass_desc = mTransparencyPass->getRenderPassDescriptor();
+    mTransparencyPass->mRenderPassDepthStencilAttachment.view = mDepthTextureView;
+    WGPURenderPassEncoder transparency_pass_encoder =
+        wgpuCommandEncoderBeginRenderPass(encoder, transparency_pass_desc);
+    wgpuRenderPassEncoderSetPipeline(transparency_pass_encoder, mTransparencyPass->getPipeline()->getPipeline());
 
+    /*mShadowPass->setupScene({1.0f, 1.0f, 4.0f});*/
+    mTransparencyPass->render(mLoadedModel, transparency_pass_encoder, mDepthTextureView);
+
+    wgpuRenderPassEncoderEnd(transparency_pass_encoder);
+    wgpuRenderPassEncoderRelease(transparency_pass_encoder);
 
     // ------------ 4- Composition pass
     // In this pass we will compose the result from opaque pass and the transparent pass
-
 
     WGPUCommandBufferDescriptor command_buffer_descriptor = {};
     command_buffer_descriptor.nextInChain = nullptr;
@@ -735,7 +753,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
 
     required_limits.limits.maxVertexAttributes = 4;
     required_limits.limits.maxVertexBuffers = 1;
-    required_limits.limits.maxBufferSize = 1000000 * sizeof(VertexAttributes);
+    required_limits.limits.maxBufferSize = 134217728;  // 1000000 * sizeof(VertexAttributes);
     required_limits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
     required_limits.limits.maxSampledTexturesPerShaderStage = 7;
     required_limits.limits.maxInterStageShaderComponents = 116;
@@ -743,6 +761,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     // Binding groups
     required_limits.limits.maxBindGroups = 3;
     required_limits.limits.maxUniformBuffersPerShaderStage = 4;
+    /*required_limits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float);*/
     required_limits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float);
 
     required_limits.limits.maxTextureDimension1D = 2048;
@@ -788,18 +807,20 @@ bool Application::initDepthBuffer() {
     WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
     WGPUTextureDescriptor depth_texture_descriptor = {};
     depth_texture_descriptor.nextInChain = nullptr;
+    depth_texture_descriptor.label = "Depth texture for framebuffer";
     depth_texture_descriptor.dimension = WGPUTextureDimension_2D;
     depth_texture_descriptor.format = depth_texture_format;
     depth_texture_descriptor.mipLevelCount = 1;
     depth_texture_descriptor.sampleCount = 1;
     depth_texture_descriptor.size = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
-    depth_texture_descriptor.usage = WGPUTextureUsage_RenderAttachment;
+    depth_texture_descriptor.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
     depth_texture_descriptor.viewFormatCount = 1;
     depth_texture_descriptor.viewFormats = &depth_texture_format;
     mDepthTexture = wgpuDeviceCreateTexture(mRendererResource.device, &depth_texture_descriptor);
 
     // Create the view of the depth texture manipulated by the rasterizer
     WGPUTextureViewDescriptor depth_texture_view_desc = {};
+    depth_texture_view_desc.label = "opaque path depth texture";
     depth_texture_view_desc.aspect = WGPUTextureAspect_DepthOnly;
     depth_texture_view_desc.baseArrayLayer = 0;
     depth_texture_view_desc.arrayLayerCount = 1;

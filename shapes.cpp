@@ -94,11 +94,11 @@ Cube::Cube(Application* app) : BaseModel() {
     for (size_t i = 0; i < getVertexCount(); i++) {
         size_t idx = i * 11;
         min.x = std::min(min.x, cubeVertexData[idx]);
-        min.y = std::min(min.y, cubeVertexData[idx+1]);
-        min.z = std::min(min.z, cubeVertexData[idx+2]);
+        min.y = std::min(min.y, cubeVertexData[idx + 1]);
+        min.z = std::min(min.z, cubeVertexData[idx + 2]);
         max.x = std::max(max.x, cubeVertexData[idx]);
-        max.y = std::max(max.y, cubeVertexData[idx+1]);
-        max.z = std::max(max.z, cubeVertexData[idx+2]);
+        max.y = std::max(max.y, cubeVertexData[idx + 1]);
+        max.z = std::max(max.z, cubeVertexData[idx + 2]);
     }
 }
 

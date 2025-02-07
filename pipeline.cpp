@@ -19,17 +19,20 @@ Pipeline& Pipeline::createPipeline(Application* app) {
     return *this;
 }
 
+WGPUVertexBufferLayout Pipeline::getDefaultVertexBufferLayout() {
+    return mVertexBufferLayout.addAttribute(0, 0, WGPUVertexFormat_Float32x3)
+        .addAttribute(3 * sizeof(float), 1, WGPUVertexFormat_Float32x3)
+        .addAttribute(6 * sizeof(float), 2, WGPUVertexFormat_Float32x3)
+        .addAttribute(offsetof(VertexAttributes, uv), 3, WGPUVertexFormat_Float32x2)
+        .configure(sizeof(VertexAttributes), VertexStepMode::VERTEX);
+}
+
 Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat surfaceTexture) {
     // 0 - Load Default shader
 
     mShaderModule = loadShader(RESOURCE_DIR "/shader.wgsl", app->getRendererResource().device);
     // 1 - vertex state
-    mlVertexBufferLayout = mVertexBufferLayout.addAttribute(0, 0, WGPUVertexFormat_Float32x3)
-                               .addAttribute(3 * sizeof(float), 1, WGPUVertexFormat_Float32x3)
-                               .addAttribute(6 * sizeof(float), 2, WGPUVertexFormat_Float32x3)
-                               .addAttribute(offsetof(VertexAttributes, uv), 3, WGPUVertexFormat_Float32x2)
-                               .configure(sizeof(VertexAttributes), VertexStepMode::VERTEX);
-
+    mlVertexBufferLayout = getDefaultVertexBufferLayout();
     mDescriptor.nextInChain = nullptr;
 
     WGPUVertexState vertex_state = {};
@@ -169,6 +172,14 @@ Pipeline& Pipeline::setColorTargetState() {
     mColorTargetState.blend = &mBlendState;
     mColorTargetState.writeMask = WGPUColorWriteMask_All;
     return *this;
+}
+
+Pipeline& Pipeline::setColorTargetState(WGPUColorTargetState colorTargetState){
+	/*mColorTargetState = colorTargetState;*/
+	(void) colorTargetState;
+	mFragmentState.targetCount = 0;
+	mFragmentState.targets = nullptr;
+	return *this;
 }
 
 Pipeline& Pipeline::setFragmentState() {
