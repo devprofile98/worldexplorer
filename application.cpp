@@ -664,6 +664,7 @@ void Application::mainLoop() {
         }
     }
 
+    
     terrain.draw(this, render_pass_encoder, mBindingData);
     updateGui(render_pass_encoder);
 
@@ -688,7 +689,8 @@ void Application::mainLoop() {
 
     // ------------ 4- Composition pass
     // In this pass we will compose the result from opaque pass and the transparent pass
-    
+    auto ssbo_buffers = mTransparencyPass->getSSBOBuffers(); 
+    mCompositionPass->setSSBOBuffers(ssbo_buffers.first, ssbo_buffers.second);
     mCompositionPass->mRenderPassDepthStencilAttachment.view = mDepthTextureView;
     mCompositionPass->mRenderPassColorAttachment.view = target_view;
     auto composition_pass_desc = mCompositionPass->getRenderPassDescriptor();

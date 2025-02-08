@@ -218,6 +218,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let ambient = color * shading;
         let diffuse = pointLight.ambient.xyz * attenuation * diff;
 
-        return vec4f((diffuse + ambient) * (1 - shadow / 2.0), 1.0);
+        return vec4f((diffuse + ambient) * (1 - shadow/ 2), 1.0);
     }
 }

@@ -11,7 +11,7 @@ CompositionPass::CompositionPass(Application* app) : mApp(app) {
     /*    .setMappedAtCraetion()*/
     /*    .create(app);*/
     /**/
-    /*// head struct consists of: 1- number of added elems, 2- array<head index, size of screen in pixel>*/
+    // head struct consists of: 1- number of added elems, 2- array<head index, size of screen in pixel>
     /*size_t head_size = (1920 * 1080) * sizeof(uint32_t) + sizeof(uint32_t);*/
     /*mHeadsBuffer.setLabel("Heads buffer")*/
     /*    .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)*/
@@ -60,8 +60,13 @@ void CompositionPass::initializePass() {
     mRenderPassDesc.timestampWrites = nullptr;
 
     // Creating binding group layout
-    auto bind_group_layout = mBindingGroup.createLayout(mApp, "composition pass pipeline");
+    size_t linkedlist_size = (1920 * 1080 * 2) * (sizeof(glm::vec4) + sizeof(float) + sizeof(uint32_t));
+    size_t head_size = (1920 * 1080) * sizeof(uint32_t) + sizeof(uint32_t);
 
+    mBindingGroup.addBuffer(0, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::STORAGE, head_size);
+    mBindingGroup.addBuffer(1, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::STORAGE, linkedlist_size);
+
+    auto bind_group_layout = mBindingGroup.createLayout(mApp, "composition pass pipeline");
     mRenderPipeline = new Pipeline{mApp, {bind_group_layout}};
 
     /*WGPUVertexBufferLayout d = mRenderPipeline->getDefaultVertexBufferLayout();*/
@@ -83,6 +88,16 @@ void CompositionPass::initializePass() {
         .setFragmentState();
 
     mRenderPipeline->setMultiSampleState().createPipeline(mApp);
+
+    mBindingData[0].nextInChain = nullptr;
+    mBindingData[0].binding = 0;
+    mBindingData[0].size = head_size;
+    mBindingData[0].buffer = mHeadsBuffer;
+
+    mBindingData[1].nextInChain = nullptr;
+    mBindingData[1].binding = 1;
+    mBindingData[1].size = linkedlist_size;
+    mBindingData[1].buffer = mLinkedlistBuffer;
 }
 
 // Getters
@@ -90,12 +105,21 @@ WGPURenderPassDescriptor* CompositionPass::getRenderPassDescriptor() { return &m
 Pipeline* CompositionPass::getPipeline() { return mRenderPipeline; }
 /*WGPURenderPassDepthStencilAttachment CompositionPass::mRenderPassDepthStencilAttachment{}*/
 
+void CompositionPass::setSSBOBuffers(WGPUBuffer headBuffer, WGPUBuffer linkedlistBuffer) {
+    mLinkedlistBuffer = linkedlistBuffer;
+    mHeadsBuffer = headBuffer;
+}
+
 void CompositionPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder,
                              WGPURenderPassColorAttachment* colorAttachment) {
     (void)models;
     (void)encoder;
     (void)colorAttachment;
     /*mRenderPassDesc.colorAttachments = colorAttachment;*/
+
+    mBindingData[0].buffer = mHeadsBuffer;
+    mBindingData[1].buffer = mLinkedlistBuffer;
+
     auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
     wgpuRenderPassEncoderDraw(encoder, 6, 1, 0, 0);

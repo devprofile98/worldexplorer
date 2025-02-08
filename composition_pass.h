@@ -22,6 +22,7 @@ class CompositionPass {
         Pipeline* getPipeline();
         WGPURenderPassDepthStencilAttachment mRenderPassDepthStencilAttachment;
         WGPURenderPassColorAttachment mRenderPassColorAttachment;
+	void setSSBOBuffers(WGPUBuffer headBuffer, WGPUBuffer linkedlistBuffer);
 
     private:
         Application* mApp;
@@ -36,8 +37,8 @@ class CompositionPass {
         std::vector<WGPUBindGroupEntry> mBindingData{5};
 
         Buffer mUniformBuffer;
-        Buffer mHeadsBuffer;
-        Buffer mLinkedlistBuffer;
+        WGPUBuffer mHeadsBuffer;
+        WGPUBuffer mLinkedlistBuffer;
 
         // textures and views
         /*WGPUTextureView mDepthTextureView;*/

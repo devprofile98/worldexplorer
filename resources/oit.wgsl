@@ -57,17 +57,39 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     return out;
 } 
 
+fn isEven(index: u32) -> vec4f {
+    if index % 2 == 0 {
+        return vec4f(1.0, 0.0, 0.0, 0.3);
+    } else {return vec4f(0.0, 0.0, 1.0, 0.3);}
+}
 @fragment
 fn fs_main(in: VertexOutput) {
-    // return vec4f(1.0, 0.0, 0.0, 0.0);
     let fragCoords = vec2i(in.position.xy);
+    let opaqueDepth = textureLoad(opaqueDepthTexture, fragCoords, 0);
+
+  // reject fragments behind opaque objects
+    if in.position.z >= opaqueDepth {
+    discard;
+    }
     let headsIndex = u32(fragCoords.y) * 1920 + u32(fragCoords.x);
     let fragIndex = atomicAdd(&heads.numFragments, 1u);
+
     if fragIndex < 1920 * 1080 * 2 {
         let lastHead = atomicExchange(&heads.data[headsIndex], fragIndex);
         linkedList.data[fragIndex].depth = in.position.z;
         linkedList.data[fragIndex].next = lastHead;
-        linkedList.data[fragIndex].color = vec4(1.0, 1.0, 1.0, 0.3);
+        //linkedList.data[fragIndex].color = vec4(cos(fragCoords.y + fragCoords.x), sin(fragCoords.y + fragCoords.x), 1.0, 0.3);
+        //linkedList.data[fragIndex].color = vec4(1.0, 1.0, 1.0, 0.3);
+
+        //linkedList.data[fragIndex].color = vec4f(
+        //    isEven(lastHead),
+        //    0.0,
+        //    1.0,
+        //    0.3
+        //);
+
+        linkedList.data[fragIndex].color = isEven(lastHead);
+          
     }
 }
 

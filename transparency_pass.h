@@ -1,6 +1,7 @@
 #ifndef WEBGPUTEST_TRANSPARENCY_PASS_H
 #define WEBGPUTEST_TRANSPARENCY_PASS_H
 
+#include <utility>
 #include <vector>
 
 #include "binding_group.h"
@@ -14,6 +15,12 @@
 
 class Application;
 
+struct LinkedListElement {
+        glm::vec4 color = {};
+        float alpha = 0.0;
+        uint32_t next = 0;
+};
+
 class TransparencyPass {
     public:
         void render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder,
@@ -24,6 +31,10 @@ class TransparencyPass {
         WGPURenderPassDescriptor* getRenderPassDescriptor();
         Pipeline* getPipeline();
         WGPURenderPassDepthStencilAttachment mRenderPassDepthStencilAttachment;
+        std::pair<WGPUBuffer, WGPUBuffer> getSSBOBuffers();
+
+        std::vector<uint32_t> headsData;
+        std::vector<LinkedListElement> linkedListData;
 
     private:
         Application* mApp;

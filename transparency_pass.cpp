@@ -65,8 +65,10 @@ void TransparencyPass::initializePass() {
     // Creating binding group layout
     //
 
-    size_t head_size = (1920 * 1080) * sizeof(uint32_t) + sizeof(uint32_t);
-    size_t linkedlist_size = (1920 * 1080 * 2) * (sizeof(glm::vec4) + sizeof(float) + sizeof(uint32_t));
+    constexpr size_t head_size = (1920 * 1080) * sizeof(uint32_t) + sizeof(uint32_t);
+    size_t linkedlist_size =
+        (1920 * 1080 * 2) * sizeof(LinkedListElement);  // (sizeof(glm::vec4) + sizeof(float) + sizeof(uint32_t));
+    /*sizeof(LinkedListElement);*/
     std::cout << "the linkedlist size is" << linkedlist_size << '\n';
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(MyUniform));
     mBindingGroup.addBuffer(1, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::STORAGE, head_size);
@@ -117,11 +119,32 @@ void TransparencyPass::initializePass() {
     mBindingData[4].binding = 4;
     mBindingData[4].size = sizeof(ObjectInfo);
     mBindingData[4].buffer = nullptr;
+
+    // Prepare CPU-side data to reset the buffers
+    headsData = std::vector<uint32_t>(1920 * 1080, 0xFFFFFFFF);  // Set all to 0xFFFFFFFF
+	std::cout <<"TTTTTTTTTTTTTTTTTTTTTTTTTT the value is " << headsData.size() << '\n';
+
+    linkedListData = std::vector<LinkedListElement>(1920 * 1080 * 2);  // Default-initialize
+}
+
+std::pair<WGPUBuffer, WGPUBuffer> TransparencyPass::getSSBOBuffers() {
+    return {mHeadsBuffer.getBuffer(), mLinkedlistBuffer.getBuffer()};
 }
 
 void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder,
                               WGPUTextureView opaqueDepthTextureView) {
     auto& render_resource = mApp->getRendererResource();
+
+    // Write reset data to heads buffer
+    uint32_t num = 0;
+    wgpuQueueWriteBuffer(render_resource.queue, mHeadsBuffer.getBuffer(), 0, &num, sizeof(uint32_t));  // Reset numFragments
+    wgpuQueueWriteBuffer(render_resource.queue, mHeadsBuffer.getBuffer(), sizeof(uint32_t), headsData.data(),
+                         headsData.size() * sizeof(uint32_t));  // Reset heads.data
+
+    // Write reset data to linked list buffer
+    wgpuQueueWriteBuffer(render_resource.queue, mLinkedlistBuffer.getBuffer(), 0, linkedListData.data(),
+                         linkedListData.size() * sizeof(LinkedListElement));
+
     for (auto* model : models) {
         if (!model->isTransparent()) {
             continue;
