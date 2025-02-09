@@ -25,7 +25,7 @@ struct Heads {
 };
 
 struct LinkedListElement {
-  color: vec4f,
+  color: u32,
   depth: f32,
   next: u32
 };
@@ -57,11 +57,23 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     return out;
 } 
 
+fn rgbaToU32(color: vec4f) -> u32 {
+    // Scale each component from [0.0, 1.0] to [0, 255] and cast to u32
+    let r = u32(color.r * 255.0);
+    let g = u32(color.g * 255.0);
+    let b = u32(color.b * 255.0);
+    let a = u32(color.a * 255.0);
+
+    // Pack the 8-bit values into a single u32
+    return (a << 24) | (b << 16) | (g << 8) | r;
+}
+
 fn isEven(index: u32) -> vec4f {
     if index % 2 == 0 {
         return vec4f(1.0, 0.0, 0.0, 0.3);
     } else {return vec4f(0.0, 0.0, 1.0, 0.3);}
 }
+
 @fragment
 fn fs_main(in: VertexOutput) {
     let fragCoords = vec2i(in.position.xy);
@@ -78,18 +90,7 @@ fn fs_main(in: VertexOutput) {
         let lastHead = atomicExchange(&heads.data[headsIndex], fragIndex);
         linkedList.data[fragIndex].depth = in.position.z;
         linkedList.data[fragIndex].next = lastHead;
-        //linkedList.data[fragIndex].color = vec4(cos(fragCoords.y + fragCoords.x), sin(fragCoords.y + fragCoords.x), 1.0, 0.3);
-        //linkedList.data[fragIndex].color = vec4(1.0, 1.0, 1.0, 0.3);
-
-        //linkedList.data[fragIndex].color = vec4f(
-        //    isEven(lastHead),
-        //    0.0,
-        //    1.0,
-        //    0.3
-        //);
-
-        linkedList.data[fragIndex].color = isEven(lastHead);
-          
+        linkedList.data[fragIndex].color = rgbaToU32(isEven(lastHead));
     }
 }
 

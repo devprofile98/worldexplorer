@@ -16,7 +16,7 @@
 class Application;
 
 struct LinkedListElement {
-        glm::vec4 color = {};
+        uint32_t color;
         float alpha = 0.0;
         uint32_t next = 0;
 };

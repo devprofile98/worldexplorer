@@ -30,7 +30,7 @@ TransparencyPass::TransparencyPass(Application* app) : mApp(app) {
         .create(app);
 
     // the struct consists of : 1 - color:vec4, 2- depth (f32), 3- next: u32
-    size_t linkedlist_size = (1920 * 1080 * 2) * (sizeof(glm::vec4) + sizeof(float) + sizeof(uint32_t));
+    size_t linkedlist_size = (1920 * 1080 * 2) * sizeof(LinkedListElement);
     mLinkedlistBuffer.setLabel("Linkedlist buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setSize(linkedlist_size)
@@ -88,7 +88,7 @@ void TransparencyPass::initializePass() {
     mRenderPipeline->setShader(RESOURCE_DIR "/oit.wgsl")
         .setVertexBufferLayout(d)
         .setVertexState()
-        .setPrimitiveState()
+        .setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_None)
         .setDepthStencilState()
         .setBlendState()
         .setFragmentState()
