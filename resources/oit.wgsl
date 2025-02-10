@@ -17,6 +17,7 @@ struct MyUniform {
 
 struct VertexOutput {
     @builtin(position) position: vec4f,
+    @location(2) uv: vec2f,
 };
 
 struct Heads {
@@ -47,6 +48,8 @@ struct ObjectInfo {
 @binding(2) @group(0) var<storage, read_write> linkedList: LinkedList;
 @binding(3) @group(0) var opaqueDepthTexture: texture_depth_2d;
 @binding(4) @group(0) var<uniform> objectTranformation: ObjectInfo;
+@binding(5) @group(0) var diffuseTexture: texture_2d<f32>;
+@binding(6) @group(0) var textureSampler: sampler;
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
@@ -54,6 +57,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     let world_position = objectTranformation.transformations * vec4f(in.position, 1.0);
     //let shadow_position = lightSpaceTrans.projection * lightSpaceTrans.view * objectTranformation.transformations * vec4f(in.position, 1.0);
     out.position = uniforms.projectionMatrix * uniforms.viewMatrix * world_position;
+    out.uv = in.uv;
     return out;
 } 
 
@@ -70,7 +74,7 @@ fn rgbaToU32(color: vec4f) -> u32 {
 
 fn isEven(index: u32) -> vec4f {
     if index % 2 == 0 {
-        return vec4f(1.0, 0.0, 0.0, 0.3);
+        return vec4f(0.0, 0.0, 1.0, 0.3);
     } else {return vec4f(0.0, 0.0, 1.0, 0.3);}
 }
 
@@ -78,6 +82,10 @@ fn isEven(index: u32) -> vec4f {
 fn fs_main(in: VertexOutput) {
     let fragCoords = vec2i(in.position.xy);
     let opaqueDepth = textureLoad(opaqueDepthTexture, fragCoords, 0);
+    let fragmentColor = textureSample(diffuseTexture, textureSampler, in.uv);
+    var color = vec4f(fragmentColor.rgba);
+    
+   //var color = vec4f(fragmentColor.aaa / 255.0, 1.0);
 
   // reject fragments behind opaque objects
     if in.position.z >= opaqueDepth {
@@ -86,11 +94,12 @@ fn fs_main(in: VertexOutput) {
     let headsIndex = u32(fragCoords.y) * 1920 + u32(fragCoords.x);
     let fragIndex = atomicAdd(&heads.numFragments, 1u);
 
-    if fragIndex < 1920 * 1080 * 2 {
+    if fragIndex < 1920 * 1080 * 4 {
         let lastHead = atomicExchange(&heads.data[headsIndex], fragIndex);
         linkedList.data[fragIndex].depth = in.position.z;
         linkedList.data[fragIndex].next = lastHead;
-        linkedList.data[fragIndex].color = rgbaToU32(isEven(lastHead));
+        //linkedList.data[fragIndex].color = rgbaToU32(isEven(lastHead));
+        linkedList.data[fragIndex].color = rgbaToU32(vec4f(color.rgb, color.a ));
     }
 }
 

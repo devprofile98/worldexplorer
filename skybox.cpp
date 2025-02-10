@@ -183,7 +183,6 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
     mCubeIndexDataBuffer = wgpuDeviceCreateBuffer(app->getRendererResource().device, &index_buffer);
     wgpuQueueWriteBuffer(app->getRendererResource().queue, mCubeIndexDataBuffer, 0, cubeIndexData,
                          sizeof(cubeIndexData));
-    std::cout << cubeTexturePath.c_str() << std::endl;
 }
 
 void SkyBox::draw(Application* app, WGPURenderPassEncoder encoder, const glm::mat4& mvp) {
@@ -195,13 +194,8 @@ void SkyBox::draw(Application* app, WGPURenderPassEncoder encoder, const glm::ma
                                         wgpuBufferGetSize(mCubeIndexDataBuffer));
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindingGroup.getBindGroup(), 0, nullptr);
 
-    (void)mvp;
-
     wgpuQueueWriteBuffer(render_resource.queue, mMatrixBuffer, 0, &mvp, sizeof(glm::mat4));
 
     // // Draw 1 instance of a 3-vertices shape
     wgpuRenderPassEncoderDrawIndexed(encoder, sizeof(cubeIndexData) / sizeof(uint16_t), 1, 0, 0, 0);
-    // wgpuRenderPassEncoderDraw(encoder, sizeof(cubeVertexData) / (3 * 4), 1, 0, 0);
-
-    // wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);
 }

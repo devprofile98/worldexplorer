@@ -56,14 +56,14 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     }
 
     if (!reader.Warning().empty()) {
-        std::cout << "TinyObjReader: " << reader.Warning();
+        std::cout << "TinyObjReader: " << reader.Warning() << '\n';
     }
 
     auto& attrib = reader.GetAttrib();
     auto& shapes = reader.GetShapes();
     auto& materials = reader.GetMaterials();
 
-    std::cout << materials.size() << " Tiny Object einladung " << materials[0].specular_texname << " \n";
+    std::cout << materials.size() << " Tiny Object " << materials[0].specular_texname << " \n";
 
     // Load and upload diffuse texture
     auto& render_resource = app->getRendererResource();
@@ -71,7 +71,6 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         std::string texture_path = RESOURCE_DIR;
         texture_path += "/";
         texture_path += materials[0].diffuse_texname;
-        // auto a = std::filesystem::path{texture_path.c_str()};
         mTexture = new Texture{render_resource.device, texture_path};
         if (mTexture->createView() == nullptr) {
             std::cout << std::format("Failed to create Diffuse Texture view for {}\n", mName);
@@ -277,3 +276,5 @@ glm::vec3 AABB::getAABBSize() {
 }
 
 const std::string& BaseModel::getName() { return mName; }
+
+Texture* BaseModel::getDiffuseTexture() { return mTexture; }

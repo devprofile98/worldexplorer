@@ -31,6 +31,8 @@ void MyUniform::setCamera(Camera& camera) {
 
 WGPUTextureFormat Application::getTextureFormat() { return mSurfaceFormat; }
 
+WGPUSampler Application::getDefaultSampler() { return mDefaultSampler; }
+
 void Application::initializePipeline() {
     // ---------------------------- Render pipeline
 
@@ -153,10 +155,10 @@ void Application::initializePipeline() {
     samplerDesc.lodMaxClamp = 8.0f;
     samplerDesc.compare = WGPUCompareFunction_Undefined;
     samplerDesc.maxAnisotropy = 1;
-    WGPUSampler sampler = wgpuDeviceCreateSampler(mRendererResource.device, &samplerDesc);
+    mDefaultSampler = wgpuDeviceCreateSampler(mRendererResource.device, &samplerDesc);
 
     mBindingData[2].binding = 2;
-    mBindingData[2].sampler = sampler;
+    mBindingData[2].sampler = mDefaultSampler;
 
     mBindingData[3].nextInChain = nullptr;
     mBindingData[3].binding = 3;
@@ -285,6 +287,12 @@ void Application::initializeBuffers() {
         .scale(glm::vec3{0.3});
     desk_model.uploadToGPU(this);
 
+    grass_model.load("grass", this, RESOURCE_DIR "/grass.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{0.725, -1.0, 0.72})
+        .scale(glm::vec3{0.3});
+    grass_model.uploadToGPU(this);
+    grass_model.setTransparent();
+
     terrain.generate(100, 8).uploadToGpu(this);
 
     shapes = new Cube{this};
@@ -294,7 +302,7 @@ void Application::initializeBuffers() {
     plane = new Plane{this};
     plane->mName = "Plane";
     plane->moveTo(glm::vec3{3.0f, 1.0f, 4.0f}).scale(glm::vec3{0.01, 1.0, 1.0});
-    plane->setTransparent();
+    /*plane->setTransparent();*/
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -551,9 +559,10 @@ bool Application::initialize() {
     boat_model.moveTo({1.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model, shapes, plane};
+    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model, &grass_model, shapes, plane};
 
     return true;
+
 }
 
 void Application::updateViewMatrix() {
@@ -664,7 +673,6 @@ void Application::mainLoop() {
         }
     }
 
-    
     terrain.draw(this, render_pass_encoder, mBindingData);
     updateGui(render_pass_encoder);
 
@@ -689,7 +697,7 @@ void Application::mainLoop() {
 
     // ------------ 4- Composition pass
     // In this pass we will compose the result from opaque pass and the transparent pass
-    auto ssbo_buffers = mTransparencyPass->getSSBOBuffers(); 
+    auto ssbo_buffers = mTransparencyPass->getSSBOBuffers();
     mCompositionPass->setSSBOBuffers(ssbo_buffers.first, ssbo_buffers.second);
     mCompositionPass->mRenderPassDepthStencilAttachment.view = mDepthTextureView;
     mCompositionPass->mRenderPassColorAttachment.view = target_view;
@@ -697,7 +705,6 @@ void Application::mainLoop() {
     WGPURenderPassEncoder composition_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, composition_pass_desc);
     wgpuRenderPassEncoderSetPipeline(composition_pass_encoder, mCompositionPass->getPipeline()->getPipeline());
 
-    /*mShadowPass->setupScene({1.0f, 1.0f, 4.0f});*/
     mCompositionPass->render(mLoadedModel, composition_pass_encoder, &render_pass_color_attachment);
 
     wgpuRenderPassEncoderEnd(composition_pass_encoder);

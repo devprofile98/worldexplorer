@@ -61,7 +61,7 @@ void CompositionPass::initializePass() {
     mRenderPassDesc.timestampWrites = nullptr;
 
     // Creating binding group layout
-    size_t linkedlist_size = (1920 * 1080 * 2) * (sizeof(uint32_t) + sizeof(float) + sizeof(uint32_t));
+    size_t linkedlist_size = (1920 * 1080 * 4) * (sizeof(uint32_t) + sizeof(float) + sizeof(uint32_t));
     size_t head_size = (1920 * 1080) * sizeof(uint32_t) + sizeof(uint32_t);
 
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::STORAGE, head_size);

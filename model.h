@@ -104,11 +104,13 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
         Buffer mVertexBuffer = {};
         Buffer mIndexBuffer = {};
         virtual size_t getVertexCount() const;
-	void setTransparent();
-	bool isTransparent();
+        void setTransparent();
+        bool isTransparent();
+        Texture* getDiffuseTexture();
+        Texture* mTexture = nullptr;
 
     private:
-	bool mIsTransparent = false;
+        bool mIsTransparent = false;
 };
 
 class Model : public BaseModel {
@@ -121,9 +123,7 @@ class Model : public BaseModel {
                   std::vector<WGPUBindGroupEntry>& bindingData) override;
 
         // Getters
-        /*glm::mat4 getModelMatrix();*/
         void createSomeBinding(Application* app);
-
 #ifdef DEVELOPMENT_BUILD
         // Common User-Interface to interact with Object in the Development state
         // This function only gets called in development of the project
@@ -131,7 +131,6 @@ class Model : public BaseModel {
 #endif  // DEVELOPMENT_BUILD
 
     private:
-        Texture* mTexture = nullptr;
         Texture* mSpecularTexture = nullptr;
         WGPUBindGroup mBindGroup = nullptr;
         WGPUBindGroup ggg = {};

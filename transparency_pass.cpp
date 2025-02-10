@@ -30,7 +30,7 @@ TransparencyPass::TransparencyPass(Application* app) : mApp(app) {
         .create(app);
 
     // the struct consists of : 1 - color:vec4, 2- depth (f32), 3- next: u32
-    size_t linkedlist_size = (1920 * 1080 * 2) * sizeof(LinkedListElement);
+    size_t linkedlist_size = (1920 * 1080 * 4) * sizeof(LinkedListElement);
     mLinkedlistBuffer.setLabel("Linkedlist buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setSize(linkedlist_size)
@@ -67,7 +67,7 @@ void TransparencyPass::initializePass() {
 
     constexpr size_t head_size = (1920 * 1080) * sizeof(uint32_t) + sizeof(uint32_t);
     size_t linkedlist_size =
-        (1920 * 1080 * 2) * sizeof(LinkedListElement);  // (sizeof(glm::vec4) + sizeof(float) + sizeof(uint32_t));
+        (1920 * 1080 * 4) * sizeof(LinkedListElement);  // (sizeof(glm::vec4) + sizeof(float) + sizeof(uint32_t));
     /*sizeof(LinkedListElement);*/
     std::cout << "the linkedlist size is" << linkedlist_size << '\n';
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(MyUniform));
@@ -77,6 +77,10 @@ void TransparencyPass::initializePass() {
                              TextureViewDimension::VIEW_2D);
 
     mBindingGroup.addBuffer(4, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(ObjectInfo));
+    mBindingGroup.addTexture(5, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                             TextureViewDimension::VIEW_2D);
+
+    mBindingGroup.addSampler(6, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
 
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
 
@@ -88,7 +92,7 @@ void TransparencyPass::initializePass() {
     mRenderPipeline->setShader(RESOURCE_DIR "/oit.wgsl")
         .setVertexBufferLayout(d)
         .setVertexState()
-        .setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_None)
+        .setPrimitiveState()
         .setDepthStencilState()
         .setBlendState()
         .setFragmentState()
@@ -120,11 +124,33 @@ void TransparencyPass::initializePass() {
     mBindingData[4].size = sizeof(ObjectInfo);
     mBindingData[4].buffer = nullptr;
 
+    mBindingData[5] = {};
+    mBindingData[5].nextInChain = nullptr;
+    mBindingData[5].binding = 5;
+    mBindingData[5].textureView = nullptr;
+
+    WGPUSamplerDescriptor samplerDesc = {};
+    samplerDesc.addressModeU = WGPUAddressMode_Repeat;
+    samplerDesc.addressModeV = WGPUAddressMode_Repeat;
+    samplerDesc.addressModeW = WGPUAddressMode_Repeat;
+    samplerDesc.magFilter = WGPUFilterMode_Linear;
+    samplerDesc.minFilter = WGPUFilterMode_Linear;
+    samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+    samplerDesc.lodMinClamp = 0.0f;
+    samplerDesc.lodMaxClamp = 1000.0f;
+    samplerDesc.compare = WGPUCompareFunction_Undefined;
+    samplerDesc.maxAnisotropy = 1;
+    mSampler = wgpuDeviceCreateSampler(mApp->getRendererResource().device, &samplerDesc);
+
+    mBindingData[6] = {};
+    mBindingData[6].nextInChain = nullptr;
+    mBindingData[6].binding = 6;
+    mBindingData[6].sampler = mSampler;  // mApp->getDefaultSampler();
+
     // Prepare CPU-side data to reset the buffers
     headsData = std::vector<uint32_t>(1920 * 1080, 0xFFFFFFFF);  // Set all to 0xFFFFFFFF
-	std::cout <<"TTTTTTTTTTTTTTTTTTTTTTTTTT the value is " << headsData.size() << '\n';
 
-    linkedListData = std::vector<LinkedListElement>(1920 * 1080 * 2);  // Default-initialize
+    linkedListData = std::vector<LinkedListElement>(1920 * 1080 * 4);  // Default-initialize
 }
 
 std::pair<WGPUBuffer, WGPUBuffer> TransparencyPass::getSSBOBuffers() {
@@ -137,7 +163,8 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
 
     // Write reset data to heads buffer
     uint32_t num = 0;
-    wgpuQueueWriteBuffer(render_resource.queue, mHeadsBuffer.getBuffer(), 0, &num, sizeof(uint32_t));  // Reset numFragments
+    wgpuQueueWriteBuffer(render_resource.queue, mHeadsBuffer.getBuffer(), 0, &num,
+                         sizeof(uint32_t));  // Reset numFragments
     wgpuQueueWriteBuffer(render_resource.queue, mHeadsBuffer.getBuffer(), sizeof(uint32_t), headsData.data(),
                          headsData.size() * sizeof(uint32_t));  // Reset heads.data
 
@@ -156,17 +183,23 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
             .setMappedAtCraetion()
             .create(mApp);
 
+        mBindingData[0].buffer = mApp->getUniformBuffer();
         mBindingData[3].textureView = opaqueDepthTextureView;
         mBindingData[4].buffer = object_info_buffer.getBuffer();
 
+        auto model_texture = model->getDiffuseTexture();
+        if (model_texture != nullptr) {
+            mBindingData[5].textureView = model_texture->getTextureView();
+        } else {
+            mBindingData[5].textureView = mApp->mDefaultDiffuse->getTextureView();
+        }
+        /*mBindingData[5].textureView = mApp->mDefaultDiffuse->getTextureView();*/
+        /*model_texture ? model_texture->getTextureView() : mApp->mDefaultDiffuse->getTextureView();*/
+        /*mBindingData[6].sampler = mSampler;*/
+        /**/
         wgpuQueueWriteBuffer(mApp->getRendererResource().queue, object_info_buffer.getBuffer(), 0,
                              &model->getTranformMatrix(), sizeof(glm::mat4));
-
-        wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer.getBuffer(), 0, &mApp->getUniformData(),
-                             sizeof(MyUniform));
-
         auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
-
         wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, model->getVertexBuffer().getBuffer(), 0,
                                              wgpuBufferGetSize(model->getVertexBuffer().getBuffer()));
 

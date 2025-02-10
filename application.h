@@ -8,6 +8,7 @@
 
 #include "binding_group.h"
 #include "camera.h"
+#include "composition_pass.h"
 #include "gpu_buffer.h"
 #include "model.h"
 #include "pipeline.h"
@@ -15,10 +16,9 @@
 #include "shadow_pass.h"
 #include "shapes.h"
 #include "skybox.h"
+#include "transparency_pass.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
-#include "transparency_pass.h"
-#include "composition_pass.h"
 
 struct MyUniform {
         glm::mat4 projectMatrix;
@@ -82,6 +82,7 @@ class Application {
         Model tower_model{};
         Model arrow_model{};
         Model desk_model{};
+        Model grass_model{};
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();
 
@@ -101,7 +102,7 @@ class Application {
         std::array<WGPUBindGroupLayout, 2> mBindGroupLayouts;
         Camera& getCamera();
         WGPUTextureFormat getTextureFormat();
-
+        WGPUSampler getDefaultSampler();
         // textures
         Texture* mDefaultDiffuse = nullptr;
         Texture* mDefaultMetallicRoughness = nullptr;
@@ -115,9 +116,9 @@ class Application {
         Cube* shapes;
         Plane* plane;
         ShadowPass* mShadowPass;
-	TransparencyPass* mTransparencyPass;
-	CompositionPass* mCompositionPass;
-
+        TransparencyPass* mTransparencyPass;
+        CompositionPass* mCompositionPass;
+        WGPUSampler mDefaultSampler;
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();
 

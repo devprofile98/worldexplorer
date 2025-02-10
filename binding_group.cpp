@@ -167,7 +167,6 @@ void BindingGroup::create(Application* app, std::vector<WGPUBindGroupEntry>& bin
     mBindGroupDesc.layout = mBindGroupLayout;
     mBindGroupDesc.entryCount = mBindGroupLayoutDesc.entryCount;
     mBindGroupDesc.entries = bindingData.data();
-    std::cout << "The depth stencil value is set as " << bindingData.data()[1].binding << std::endl;
 
     mBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mBindGroupDesc);
 };

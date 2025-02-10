@@ -51,17 +51,13 @@ class TransparencyPass {
         Buffer mUniformBuffer;
         Buffer mHeadsBuffer;
         Buffer mLinkedlistBuffer;
-
+	WGPUSampler mSampler;
         // textures and views
         WGPUTextureView mDepthTextureView;
         WGPUTextureView mShadowDepthTextureView;
         WGPUTexture mDepthTexture;
         WGPUTexture mShadowDepthTexture;
 
-        // buffers
-        /*WGPUBuffer mSceneUniformBuffer;*/
-        // scene
-        /*Scene mScene;*/
 };
 
 #endif  // !WEBGPUTEST_TRANSPARENCY_PASS_H

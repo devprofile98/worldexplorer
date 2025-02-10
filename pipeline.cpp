@@ -1,6 +1,7 @@
 #include "pipeline.h"
 
 #include "application.h"
+#include "webgpu.h"
 
 Pipeline::Pipeline(Application* app, std::vector<WGPUBindGroupLayout> bindGroupLayout)
     : mApp(app), mDescriptor({}), mBindGroupLayouts(bindGroupLayout) {}
@@ -50,7 +51,7 @@ Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat sur
     primitive_state.topology = WGPUPrimitiveTopology_TriangleList;
     primitive_state.stripIndexFormat = WGPUIndexFormat_Undefined;
     primitive_state.frontFace = WGPUFrontFace_CCW;
-    primitive_state.cullMode = WGPUCullMode_Back;
+    primitive_state.cullMode = WGPUCullMode_None;
     mDescriptor.primitive = primitive_state;
 
     // 4 - depth stencil state

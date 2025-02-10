@@ -15,6 +15,7 @@ WGPUTextureView Texture::createView() {
         texture_view_desc.dimension = WGPUTextureViewDimension_2D;
         texture_view_desc.format = mDescriptor.format;
 
+        std::cout << "fuck yout\n" << mDescriptor.format << "\n";
         mTextureView = wgpuTextureCreateView(mTexture, &texture_view_desc);
         return mTextureView;
     }
@@ -57,30 +58,19 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path) {
 
     mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
 
-    size_t image_byte_size = (width * height * std::max(channels + 1, 1));
+    size_t image_byte_size = (width * height * 4);
     mBufferData.reserve(image_byte_size);
     mBufferData.resize(image_byte_size);
-    std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>2`222....\n";
-    // memset(mBufferData.data() + (width * height * 3), 100, width * height * 1 - 2000000);
-    for (size_t cnt = 0, dst_cnt = 0;
-         cnt < (size_t)width * height * channels || dst_cnt < (size_t)width * height * (channels + 1);
-         cnt += 3, dst_cnt += 4) {
-        mBufferData[dst_cnt] = pixel_data[cnt];
-        mBufferData[dst_cnt + 1] = pixel_data[cnt + 1];
-        mBufferData[dst_cnt + 2] = pixel_data[cnt + 2];
-        mBufferData[dst_cnt + 3] = 1;
+    // Copy pixel data into mBufferData
+    for (size_t i = 0, j = 0; i < (size_t)width * height * channels; i += channels, j += 4) {
+        mBufferData[j] = pixel_data[i];                                  // Red
+        mBufferData[j + 1] = pixel_data[i + 1];                          // Green
+        mBufferData[j + 2] = pixel_data[i + 2];                          // Blue
+        mBufferData[j + 3] = (channels == 4) ? pixel_data[i + 3] : 1.0;  // Alpha (default to 255 if no alpha channel)
     }
-    // memcpy(mBufferData.data(), pixel_data, width * height * 3);
-    std::cout << "buffer size is _______________________ " << channels << " " << mBufferData.size() << std::endl;
-    // mBufferData = std::vector<uint8_t>{pixel_data, pixel_data + image_byte_size};
-
-    // Upload data to the GPU texture (to be implemented!)
-    // writeMipMaps(device, texture, textureDesc.size, textureDesc.mipLevelCount, pixelData);
-
-    // Use the width, height, channels and data variables here
-    // [...]
 
     stbi_image_free(pixel_data);
+    std::cout << "buffer size is _______________________ " << channels << " " << mBufferData.size() << std::endl;
     mIsTextureAlive = true;
 }
 
@@ -141,8 +131,8 @@ void Texture::uploadToGPU(WGPUQueue deviceQueue) {
                 p[0] = (p00[0] + p01[0] + p10[0] + p11[0]) / 4;
                 p[1] = (p00[1] + p01[1] + p10[1] + p11[1]) / 4;
                 p[2] = (p00[2] + p01[2] + p10[2] + p11[2]) / 4;
-                // p[3] = (p00[3] + p01[3] + p10[3] + p11[3]) / 4;
-                p[3] = 1.0;
+                p[3] = (p00[3] + p01[3] + p10[3] + p11[3]) / 4;
+                /*p[3] = 1.0;*/
             }
         }
 

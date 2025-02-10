@@ -48,12 +48,12 @@ fn fs_main(@builtin(position) position: vec4f) -> @location(0) vec4f {
     let fragCoords = vec2i(position.xy);
     let headsIndex = u32(fragCoords.y) * 1920 + u32(fragCoords.x);
 
-    var layers: array<LinkedListElement, 2>;
+    var layers: array<LinkedListElement, 4>;
 
     var head = heads.data[headsIndex];
     var numLayers = 0u;
 
-    while head != 0xFFFFFFFFu && numLayers < 2 {
+    while head != 0xFFFFFFFFu && numLayers < 4 {
         layers[numLayers] = linkedList.data[head];
         numLayers++;
         head = linkedList.data[head].next;
@@ -65,7 +65,8 @@ fn fs_main(@builtin(position) position: vec4f) -> @location(0) vec4f {
     let tmp_color = u32ToRgba(layers[0].color);
     var color = vec4(tmp_color.a * tmp_color.rgb, tmp_color.a);
 
-  // sort the fragments by depth
+     //sort the fragments by depth
+
     //for (var i = 1u; i < numLayers; i++) {
     //    let toInsert = layers[i];
     //    var j = i;
