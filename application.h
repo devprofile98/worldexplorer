@@ -82,6 +82,7 @@ class Application {
         Model tower_model{};
         Model arrow_model{};
         Model desk_model{};
+        Model tree_model{};
         Model grass_model{};
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();

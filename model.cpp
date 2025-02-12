@@ -67,15 +67,16 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
     // Load and upload diffuse texture
     auto& render_resource = app->getRendererResource();
+    std::cout << "Model " << getName() << " Has " << materials.size() << " Different materials\n";
     if (!materials[0].diffuse_texname.empty()) {
         std::string texture_path = RESOURCE_DIR;
         texture_path += "/";
         texture_path += materials[0].diffuse_texname;
-        mTexture = new Texture{render_resource.device, texture_path};
-        if (mTexture->createView() == nullptr) {
+        mesh.mTexture = new Texture{render_resource.device, texture_path};
+        if (mesh.mTexture->createView() == nullptr) {
             std::cout << std::format("Failed to create Diffuse Texture view for {}\n", mName);
         }
-        mTexture->uploadToGPU(render_resource.queue);
+        mesh.mTexture->uploadToGPU(render_resource.queue);
     }
 
     // Load and upload specular texture
@@ -101,30 +102,37 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
     // Fill in vertexData here
     const auto& shape = shapes[0];
-    mVertexData.resize(shape.mesh.indices.size());
+    /*if (getName() == "tree") {*/
+    /*    for (auto i : shape.mesh.material_ids) {*/
+    /*        std::cout << "material is " << shape.mesh.indices.size() << " " << shape.mesh.material_ids.size() <<" " <<
+     * i << '\n';*/
+    /*    }*/
+    /*}*/
+    mesh.mVertexData.resize(shape.mesh.indices.size());
     for (size_t i = 0; i < shape.mesh.indices.size(); i++) {
         const tinyobj::index_t& idx = shape.mesh.indices[i];
 
-        mVertexData[i].position = {attrib.vertices[3 * idx.vertex_index + 0],
-                                   -attrib.vertices[3 * idx.vertex_index + 2],
-                                   attrib.vertices[3 * idx.vertex_index + 1]};
+        mesh.mVertexData[i].position = {attrib.vertices[3 * idx.vertex_index + 0],
+                                        -attrib.vertices[3 * idx.vertex_index + 2],
+                                        attrib.vertices[3 * idx.vertex_index + 1]};
 
-        min.x = std::min(min.x, mVertexData[i].position.x);
-        min.y = std::min(min.y, mVertexData[i].position.y);
-        min.z = std::min(min.z, mVertexData[i].position.z);
+        min.x = std::min(min.x, mesh.mVertexData[i].position.x);
+        min.y = std::min(min.y, mesh.mVertexData[i].position.y);
+        min.z = std::min(min.z, mesh.mVertexData[i].position.z);
 
-        max.x = std::max(max.x, mVertexData[i].position.x);
-        max.y = std::max(max.y, mVertexData[i].position.y);
-        max.z = std::max(max.z, mVertexData[i].position.z);
+        max.x = std::max(max.x, mesh.mVertexData[i].position.x);
+        max.y = std::max(max.y, mesh.mVertexData[i].position.y);
+        max.z = std::max(max.z, mesh.mVertexData[i].position.z);
 
-        mVertexData[i].normal = {attrib.normals[3 * idx.normal_index + 0], -attrib.normals[3 * idx.normal_index + 2],
-                                 attrib.normals[3 * idx.normal_index + 1]};
+        mesh.mVertexData[i].normal = {attrib.normals[3 * idx.normal_index + 0],
+                                      -attrib.normals[3 * idx.normal_index + 2],
+                                      attrib.normals[3 * idx.normal_index + 1]};
 
-        mVertexData[i].color = {attrib.colors[3 * idx.vertex_index + 0], attrib.colors[3 * idx.vertex_index + 2],
-                                attrib.colors[3 * idx.vertex_index + 1]};
+        mesh.mVertexData[i].color = {attrib.colors[3 * idx.vertex_index + 0], attrib.colors[3 * idx.vertex_index + 2],
+                                     attrib.colors[3 * idx.vertex_index + 1]};
 
-        mVertexData[i].uv = {attrib.texcoords[2 * idx.texcoord_index + 0],
-                             1 - attrib.texcoords[2 * idx.texcoord_index + 1]};
+        mesh.mVertexData[i].uv = {attrib.texcoords[2 * idx.texcoord_index + 0],
+                                  1 - attrib.texcoords[2 * idx.texcoord_index + 1]};
     }
 
     (void)layout;
@@ -148,17 +156,17 @@ Model& Model::uploadToGPU(Application* app) {
     // upload vertex attribute data to GPU
     mVertexBuffer.setLabel("Uniform buffer for object info")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
-        .setSize(mVertexData.size() * sizeof(VertexAttributes))
+        .setSize(mesh.mVertexData.size() * sizeof(VertexAttributes))
         .setMappedAtCraetion()
         .create(app);
 
-    wgpuQueueWriteBuffer(app->getRendererResource().queue, mVertexBuffer.getBuffer(), 0, mVertexData.data(),
-                         mVertexData.size() * sizeof(VertexAttributes));
+    wgpuQueueWriteBuffer(app->getRendererResource().queue, mVertexBuffer.getBuffer(), 0, mesh.mVertexData.data(),
+                         mesh.mVertexData.size() * sizeof(VertexAttributes));
 
     return *this;
 };
 
-size_t BaseModel::getVertexCount() const { return mVertexData.size(); }
+size_t BaseModel::getVertexCount() const { return mesh.mVertexData.size(); }
 
 Buffer BaseModel::getVertexBuffer() { return mVertexBuffer; }
 
@@ -191,42 +199,44 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
     WGPUBindGroup active_bind_group = nullptr;
 
     // Bind Diffuse texture for the model if existed
-    if (mTexture != nullptr) {
-        if (mTexture->getTextureView() != nullptr) {
-            bindingData[1].nextInChain = nullptr;
-            bindingData[1].binding = 1;
-            bindingData[1].textureView = mTexture->getTextureView();
+    /*for (const auto& mesh : mMeshes) {*/
+        if (mesh.mTexture != nullptr) {
+            if (mesh.mTexture->getTextureView() != nullptr) {
+                bindingData[1].nextInChain = nullptr;
+                bindingData[1].binding = 1;
+                bindingData[1].textureView = mesh.mTexture->getTextureView();
+            }
+            if (mSpecularTexture != nullptr && mSpecularTexture->getTextureView() != nullptr) {
+                bindingData[5].nextInChain = nullptr;
+                bindingData[5].binding = 5;
+                bindingData[5].textureView = mSpecularTexture->getTextureView();
+            }
+            auto& desc = app->getBindingGroup().getDescriptor();
+            desc.entries = bindingData.data();
+            mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
+            active_bind_group = mBindGroup;
+        } else {
+            active_bind_group = app->getBindingGroup().getBindGroup();
         }
-        if (mSpecularTexture != nullptr && mSpecularTexture->getTextureView() != nullptr) {
-            bindingData[5].nextInChain = nullptr;
-            bindingData[5].binding = 5;
-            bindingData[5].textureView = mSpecularTexture->getTextureView();
+
+        wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, getVertexBuffer().getBuffer(), 0,
+                                             wgpuBufferGetSize(getVertexBuffer().getBuffer()));
+
+        wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
+        wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
+                             sizeof(ObjectInfo));
+
+        createSomeBinding(app);
+        wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
+
+        wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);
+        wgpuBindGroupRelease(ggg);
+        // if we created a binding group and didn't use the default appliaction binding-group
+        if (mBindGroup != nullptr) {
+            wgpuBindGroupRelease(mBindGroup);
+            mBindGroup = nullptr;
         }
-        auto& desc = app->getBindingGroup().getDescriptor();
-        desc.entries = bindingData.data();
-        mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
-        active_bind_group = mBindGroup;
-    } else {
-        active_bind_group = app->getBindingGroup().getBindGroup();
-    }
-
-    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, getVertexBuffer().getBuffer(), 0,
-                                         wgpuBufferGetSize(getVertexBuffer().getBuffer()));
-
-    wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
-    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
-                         sizeof(ObjectInfo));
-
-    createSomeBinding(app);
-    wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
-
-    wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);
-    wgpuBindGroupRelease(ggg);
-    // if we created a binding group and didn't use the default appliaction binding-group
-    if (mBindGroup != nullptr) {
-        wgpuBindGroupRelease(mBindGroup);
-        mBindGroup = nullptr;
-    }
+    /*}*/
 }
 
 #ifdef DEVELOPMENT_BUILD
@@ -277,4 +287,4 @@ glm::vec3 AABB::getAABBSize() {
 
 const std::string& BaseModel::getName() { return mName; }
 
-Texture* BaseModel::getDiffuseTexture() { return mTexture; }
+Texture* BaseModel::getDiffuseTexture() { return mesh.mTexture; }

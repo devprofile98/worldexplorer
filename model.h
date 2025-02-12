@@ -15,19 +15,12 @@
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "texture.h"
+#include "mesh.h"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
 
 // forward declaration
 class Application;
-
-// Shader-equivalant struct for vertex data
-struct VertexAttributes {
-        glm::vec3 position;
-        glm::vec3 normal;
-        glm::vec3 color;
-        glm::vec2 uv;
-};
 
 /*
  * hold the object specific configuration for rendering in shader
@@ -100,14 +93,13 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
 
         Buffer getVertexBuffer();
         Buffer getIndexBuffer();
-        std::vector<VertexAttributes> mVertexData;
         Buffer mVertexBuffer = {};
         Buffer mIndexBuffer = {};
         virtual size_t getVertexCount() const;
         void setTransparent();
         bool isTransparent();
         Texture* getDiffuseTexture();
-        Texture* mTexture = nullptr;
+	Mesh mesh;
 
     private:
         bool mIsTransparent = false;

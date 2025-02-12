@@ -35,6 +35,7 @@ add_executable(
     shapes.cpp
     transparency_pass.cpp
     composition_pass.cpp
+    mesh.cpp
 )
 
 target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")

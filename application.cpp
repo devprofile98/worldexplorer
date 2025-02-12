@@ -293,11 +293,17 @@ void Application::initializeBuffers() {
     grass_model.uploadToGPU(this);
     grass_model.setTransparent();
 
+    tree_model.load("tree", this, RESOURCE_DIR "/tree1.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{0.725, -1.0, 0.72})
+        .scale(glm::vec3{0.9});
+    tree_model.uploadToGPU(this);
+    tree_model.setTransparent();
+
     terrain.generate(100, 8).uploadToGpu(this);
 
     shapes = new Cube{this};
     shapes->moveTo(glm::vec3{10.0f, 1.0f, 4.0f});
-    shapes->setTransparent();
+    /*shapes->setTransparent();*/
 
     plane = new Plane{this};
     plane->mName = "Plane";
@@ -559,10 +565,9 @@ bool Application::initialize() {
     boat_model.moveTo({1.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model, &grass_model, shapes, plane};
+    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model, &grass_model, &tree_model, shapes, plane};
 
     return true;
-
 }
 
 void Application::updateViewMatrix() {
