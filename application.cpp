@@ -297,7 +297,7 @@ void Application::initializeBuffers() {
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
         .scale(glm::vec3{0.9});
     tree_model.uploadToGPU(this);
-    tree_model.setTransparent();
+    /*tree_model.setTransparent();*/
 
     terrain.generate(100, 8).uploadToGpu(this);
 

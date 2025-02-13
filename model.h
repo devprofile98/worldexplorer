@@ -99,7 +99,7 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
         void setTransparent();
         bool isTransparent();
         Texture* getDiffuseTexture();
-	Mesh mesh;
+	std::map<int, Mesh> mMeshes;
 
     private:
         bool mIsTransparent = false;
