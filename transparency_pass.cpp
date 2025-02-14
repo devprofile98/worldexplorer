@@ -81,6 +81,7 @@ void TransparencyPass::initializePass() {
                              TextureViewDimension::VIEW_2D);
 
     mBindingGroup.addSampler(6, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
+    mBindingGroup.addBuffer(7, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(glm::vec4) * 10);
 
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
 
@@ -147,6 +148,13 @@ void TransparencyPass::initializePass() {
     mBindingData[6].binding = 6;
     mBindingData[6].sampler = mSampler;  // mApp->getDefaultSampler();
 
+    mBindingData[7] = {};
+    mBindingData[7].nextInChain = nullptr;
+    mBindingData[7].buffer = nullptr;
+    mBindingData[7].binding = 7;
+    mBindingData[7].offset = 0;
+    mBindingData[7].size = sizeof(glm::vec4) * 10;
+
     // Prepare CPU-side data to reset the buffers
     headsData = std::vector<uint32_t>(1920 * 1080, 0xFFFFFFFF);  // Set all to 0xFFFFFFFF
 
@@ -173,42 +181,44 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
                          linkedListData.size() * sizeof(LinkedListElement));
 
     for (auto* model : models) {
-        if (!model->isTransparent()) {
-            continue;
+        for (auto& mesh_obj : model->mMeshes) {
+            auto& mesh = mesh_obj.second;
+            if (!mesh.isTransparent) {
+                continue;
+            }
+            Buffer object_info_buffer;
+            object_info_buffer.setSize(sizeof(ObjectInfo))
+                .setLabel("object info for oit")
+                .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+                .setMappedAtCraetion()
+                .create(mApp);
+
+            mBindingData[0].buffer = mApp->getUniformBuffer();
+            mBindingData[3].textureView = opaqueDepthTextureView;
+            mBindingData[4].buffer = object_info_buffer.getBuffer();
+            mBindingData[7].buffer = mApp->offset_buffer.getBuffer();
+
+            auto mesh_texture = mesh.mTexture;
+            if (mesh_texture != nullptr) {
+                mBindingData[5].textureView = mesh_texture->getTextureView();
+            } else {
+                mBindingData[5].textureView = mApp->mDefaultDiffuse->getTextureView();
+            }
+
+            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, object_info_buffer.getBuffer(), 0,
+                                 &model->getTranformMatrix(), sizeof(glm::mat4));
+            auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
+            wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
+                                                 wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
+
+            wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
+
+            size_t instances = (model->getName() == "tree") ? 10 : 1;
+            wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(), instances, 0, 0);
+
+            wgpuBufferRelease(object_info_buffer.getBuffer());
+            wgpuBindGroupRelease(bindgroup);
         }
-        Buffer object_info_buffer;
-        object_info_buffer.setSize(sizeof(ObjectInfo))
-            .setLabel("object info for oit")
-            .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-            .setMappedAtCraetion()
-            .create(mApp);
-
-        mBindingData[0].buffer = mApp->getUniformBuffer();
-        mBindingData[3].textureView = opaqueDepthTextureView;
-        mBindingData[4].buffer = object_info_buffer.getBuffer();
-
-        auto model_texture = model->getDiffuseTexture();
-        if (model_texture != nullptr) {
-            mBindingData[5].textureView = model_texture->getTextureView();
-        } else {
-            mBindingData[5].textureView = mApp->mDefaultDiffuse->getTextureView();
-        }
-        /*mBindingData[5].textureView = mApp->mDefaultDiffuse->getTextureView();*/
-        /*model_texture ? model_texture->getTextureView() : mApp->mDefaultDiffuse->getTextureView();*/
-        /*mBindingData[6].sampler = mSampler;*/
-        /**/
-        wgpuQueueWriteBuffer(mApp->getRendererResource().queue, object_info_buffer.getBuffer(), 0,
-                             &model->getTranformMatrix(), sizeof(glm::mat4));
-        auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
-        wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, model->getVertexBuffer().getBuffer(), 0,
-                                             wgpuBufferGetSize(model->getVertexBuffer().getBuffer()));
-
-        wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
-
-        wgpuRenderPassEncoderDraw(encoder, model->getVertexCount(), 1, 0, 0);
-
-        wgpuBufferRelease(object_info_buffer.getBuffer());
-        wgpuBindGroupRelease(bindgroup);
     }
 }
 

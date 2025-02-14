@@ -56,6 +56,10 @@ struct Scene {
     view: mat4x4f,
 };
 
+struct OffsetData {
+    offsets: array<vec4f, 10>, // Array of 10 offset vectors
+};
+
 
 @group(0) @binding(0) var<uniform> uMyUniform: MyUniform;
 @group(0) @binding(1) var diffuse_map: texture_2d<f32>;
@@ -70,6 +74,7 @@ struct Scene {
 @group(0) @binding(10) var depth_texture: texture_depth_2d;
 @group(0) @binding(11) var<uniform> lightSpaceTrans: Scene;
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
+@group(0) @binding(13) var<uniform> offsetData: OffsetData;
 
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
@@ -93,9 +98,9 @@ fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
 }
 
 @vertex
-fn vs_main(in: VertexInput) -> VertexOutput {
+fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
-    let world_position = objectTranformation.transformations * vec4f(in.position, 1.0);
+    let world_position = objectTranformation.transformations * vec4f(in.position + offsetData.offsets[instance_index].xyz, 1.0);
     let shadow_position = lightSpaceTrans.projection * lightSpaceTrans.view * objectTranformation.transformations * vec4f(in.position, 1.0);
     out.position = uMyUniform.projectionMatrix * uMyUniform.viewMatrix * world_position;
     out.worldPos = world_position.xyz;
@@ -133,6 +138,7 @@ fn calculateShadow(fragPosLightSpace: vec4f) -> f32 {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
+
     let normal = normalize(in.normal);
 
     let view_direction = normalize(in.viewDirection);
@@ -140,7 +146,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     var shading = vec3f(0.0);
     // for (var i = 0; i < 1; i++) {
-    let color = lightingInfos.colors[0].rgb;
+    var color = lightingInfos.colors[0].rgb;
     let direction = normalize(lightingInfos.directions[0].xyz);
     let reflection = reflect(-direction, normal);
         // The closer the cosine is to 1.0, the closer V is to R
@@ -156,7 +162,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         shading += specular / 1.0;
     }
 
-
     let distance_dir = pointLight.position.xyz - in.worldPos;
     let distance = length(pointLight.position.xyz - in.worldPos);
     let attenuation = 1.0 / (pointLight.constant + pointLight.linear * distance + pointLight.quadratic * (distance * distance));
@@ -164,30 +169,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let diff = max(dot(normal, light_dir), 0.0);
 
     if objectTranformation.isFlat == 0 {
-        var color = textureSample(diffuse_map, textureSampler, in.uv).rgb;
-        let color2 = shading * color;
+        let fragment_color = textureSample(diffuse_map, textureSampler, in.uv).rgba;
+        var base_diffuse = fragment_color.rgb;
+        let color2 = shading * base_diffuse;
         let linear_color = pow(color2, vec3f(2.2));
         let ambient = linear_color;
         let diffuse = pointLight.ambient.xyz * attenuation * color * diff;
-        return vec4f(ambient + diffuse, 1.0);
-	//	return vec4f(normal, 1.0);
+        color = vec4f(ambient + diffuse, 1.0).rgb;
     } else {
-
-        var height_color = vec3<f32>(0.0 / 255.0, 139.0 / 255.0, 139.0 / 255.0);
-        if in.color.r < 0.5 {
-            // height_color = 0;
-        } else if in.color.r < 1.5 {
-            height_color = vec3<f32>(0.0 / 255.0, 0.0 / 255.0, 255.0 / 255.0);
-        } else if in.color.r < 2.5 {
-            // height_color = vec3<f32>(34.0 / 255.0, 139.0 / 255.0, 34.0 / 255.0);
-            height_color = vec3<f32>(255.0 / 255.0, 0.0 / 255.0, 0.0 / 255.0);
-        } else if in.color.r < 3.5 {
-            // height_color = vec3<f32>(139.0 / 255.0, 69.0 / 255.0, 19.0 / 255.0);
-            height_color = vec3<f32>(255.0 / 255.0, 0.0 / 255.0, 0.0 / 255.0);
-        } else if in.color.r < 4.5 {
-            height_color = vec3<f32>(255.0 / 255.0, 255.0 / 255.0, 255.0 / 255.0);
-        }
-        var color = height_color;
         if in.color.r == 1 {
             color = textureSample(sand_lake_texture, textureSampler, in.uv).rgb;
         } else if in.color.r > 1 && in.color.r < 2 {
@@ -212,12 +201,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         } else if in.color.r == 4 {
             color = textureSample(snow_mountain_texture, textureSampler, in.uv).rgb;
         }
-
-        let shadow = calculateShadow(in.shadowPos);
-
-        let ambient = color * shading;
-        let diffuse = pointLight.ambient.xyz * attenuation * diff;
-
-        return vec4f((diffuse + ambient) * (1 - shadow/ 2), 1.0);
     }
+    let shadow = calculateShadow(in.shadowPos);
+
+    let ambient = color * shading;
+    let diffuse_final = pointLight.ambient.xyz * attenuation * diff;
+
+    return vec4f((diffuse_final + ambient) * (1 - shadow / 2), 1.0);
 }

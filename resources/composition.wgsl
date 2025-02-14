@@ -81,7 +81,14 @@ fn fs_main(@builtin(position) position: vec4f) -> @location(0) vec4f {
 
     for (var i = 1u; i < numLayers; i++) {
         let tmp_color = u32ToRgba(layers[i].color);
-        let mixed = mix(color.rgb, tmp_color.rgb, tmp_color.aaa);
+        let mixed = mix(color.rgb, tmp_color.rgb, tmp_color.a);
+
+	//var alpha = 1.0;
+	//if color.a > 0.9 {
+        //   alpha = 1.0;
+	//}else{
+	//   alpha = 0.0;
+	//}
         color = vec4(mixed, color.a);
     }
     return color;

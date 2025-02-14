@@ -42,6 +42,7 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path) {
     std::cout << "Loading texture " << path.c_str() << std::endl;
     int width, height, channels;
     unsigned char* pixel_data = stbi_load(path.string().c_str(), &width, &height, &channels, 0);
+
     // If data is null, loading failed.
     if (nullptr == pixel_data) return;
 
@@ -61,6 +62,7 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path) {
     size_t image_byte_size = (width * height * 4);
     mBufferData.reserve(image_byte_size);
     mBufferData.resize(image_byte_size);
+    mHasAlphaChannel = (channels == 4);
     // Copy pixel data into mBufferData
     for (size_t i = 0, j = 0; i < (size_t)width * height * channels; i += channels, j += 4) {
         mBufferData[j] = pixel_data[i];                                  // Red
@@ -70,7 +72,7 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path) {
     }
 
     stbi_image_free(pixel_data);
-    std::cout << "buffer size is _______________________ " << channels << " " << mBufferData.size() << std::endl;
+    /*std::cout << "buffer size is _______________________ " << channels << " " << mBufferData.size() << std::endl;*/
     mIsTextureAlive = true;
 }
 
@@ -87,6 +89,8 @@ Texture& Texture::setBufferData(std::vector<uint8_t>& data) {
     mBufferData = data;
     return *this;
 }
+
+bool Texture::isTransparent() { return mHasAlphaChannel; }
 
 void Texture::uploadToGPU(WGPUQueue deviceQueue) {
     WGPUImageCopyTexture destination;

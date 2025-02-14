@@ -43,6 +43,11 @@ struct ObjectInfo {
     padding3: i32,
 }
 
+struct OffsetData {
+    offsets: array<vec4f, 10>, // Array of 10 offset vectors
+};
+
+
 @binding(0) @group(0) var<uniform> uniforms: MyUniform;
 @binding(1) @group(0) var<storage, read_write> heads: Heads;
 @binding(2) @group(0) var<storage, read_write> linkedList: LinkedList;
@@ -50,12 +55,12 @@ struct ObjectInfo {
 @binding(4) @group(0) var<uniform> objectTranformation: ObjectInfo;
 @binding(5) @group(0) var diffuseTexture: texture_2d<f32>;
 @binding(6) @group(0) var textureSampler: sampler;
+@binding(7) @group(0) var<uniform> offsetData: OffsetData;
 
 @vertex
-fn vs_main(in: VertexInput) -> VertexOutput {
+fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
-    let world_position = objectTranformation.transformations * vec4f(in.position, 1.0);
-    //let shadow_position = lightSpaceTrans.projection * lightSpaceTrans.view * objectTranformation.transformations * vec4f(in.position, 1.0);
+    let world_position = objectTranformation.transformations * vec4f(in.position + offsetData.offsets[instance_index].xyz, 1.0);
     out.position = uniforms.projectionMatrix * uniforms.viewMatrix * world_position;
     out.uv = in.uv;
     return out;
@@ -99,7 +104,7 @@ fn fs_main(in: VertexOutput) {
         linkedList.data[fragIndex].depth = in.position.z;
         linkedList.data[fragIndex].next = lastHead;
         //linkedList.data[fragIndex].color = rgbaToU32(isEven(lastHead));
-        linkedList.data[fragIndex].color = rgbaToU32(vec4f(color.rgb, color.a ));
+        linkedList.data[fragIndex].color = rgbaToU32(vec4f(color.rgb, color.a));
     }
 }
 

@@ -1,5 +1,6 @@
 #include "application.h"
 
+#include <array>
 #include <cstdint>
 #include <format>
 #include <iostream>
@@ -112,6 +113,9 @@ void Application::initializePipeline() {
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene));
     mBindingGroup.addSampler(12,  //
                              BindGroupEntryVisibility::FRAGMENT, SampleType::Compare);
+
+    mBindingGroup.addBuffer(13,  //
+                            BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(glm::vec4) * 10);
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
 
@@ -235,6 +239,27 @@ void Application::initializePipeline() {
     mBindingData[12].binding = 12;
     mBindingData[12].sampler = shadow_sampler;
 
+    offset_buffer.setSize(sizeof(glm::vec4) * 10)
+        .setLabel("aaa offset buffer")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .setMappedAtCraetion()
+        .create(this);
+
+    std::array<glm::vec4, 10> dddata = {};
+    for (size_t i = 0; i < 10; i++) {
+        dddata[i] = glm::vec4{0.0, i * 2, 0.0, 0.0};
+    }
+
+    wgpuQueueWriteBuffer(this->getRendererResource().queue, offset_buffer.getBuffer(), 0, &dddata,
+                         sizeof(glm::vec4) * 10);
+
+    mBindingData[13] = {};
+    mBindingData[13].nextInChain = nullptr;
+    mBindingData[13].buffer = offset_buffer.getBuffer();
+    mBindingData[13].binding = 13;
+    mBindingData[13].offset = 0;
+    mBindingData[13].size = sizeof(glm::vec4) * 10;
+
     mBindingGroup.create(this, mBindingData);
 
     WGPUBufferDescriptor buffer_descriptor = {};
@@ -297,6 +322,7 @@ void Application::initializeBuffers() {
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
         .scale(glm::vec3{0.9});
     tree_model.uploadToGPU(this);
+    tree_model.setInstanced(10);
     /*tree_model.setTransparent();*/
 
     terrain.generate(100, 8).uploadToGpu(this);
@@ -1040,7 +1066,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         ImGui::End();
     }
 
-    static glm::vec3 pointlightshadow = glm::vec3{1.0f, 1.0f, 4.0f};
+    static glm::vec3 pointlightshadow = glm::vec3{5.6f, -2.1f, 6.0f};
     ImGui::Begin("Lighting");
     ImGui::ColorEdit3("Color #0", glm::value_ptr(mLightingUniforms.colors[0]));
     ImGui::DragFloat3("Direction #0", glm::value_ptr(mLightingUniforms.directions[0]), 0.1, -1.0, 1.0);

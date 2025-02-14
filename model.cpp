@@ -34,59 +34,6 @@ Model::Model() : BaseModel() {
     mObjectInfo.transformation = mTransformMatrix;
     mObjectInfo.isFlat = 0;
 }
-/**/
-/*void loadOBJ(const std::string& filepath) {*/
-/*    tinyobj::attrib_t attrib;*/
-/*    std::vector<tinyobj::shape_t> shapes;*/
-/*    std::vector<tinyobj::material_t> materials;*/
-/*    std::string warn, err;*/
-/**/
-/*    // Load the OBJ file*/
-/*    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filepath.c_str())) {*/
-/*        throw std::runtime_error("Failed to load OBJ file: " + warn + err);*/
-/*    }*/
-/**/
-/*    // Iterate through shapes*/
-/*    for (const auto& shape : shapes) {*/
-/*        // Iterate through faces*/
-/*        for (size_t faceIdx = 0; faceIdx < shape.mesh.num_face_vertices.size(); ++faceIdx) {*/
-/*            int materialId = shape.mesh.material_ids[faceIdx];        // Material ID for this face*/
-/*            int numVertices = shape.mesh.num_face_vertices[faceIdx];  // Number of vertices in this face*/
-/**/
-/*            // Iterate through vertices in the face*/
-/*            for (int v = 0; v < numVertices; ++v) {*/
-/*                tinyobj::index_t idx = shape.mesh.indices[faceIdx * 3 + v];  // Vertex index*/
-/**/
-/*                // Create a Vertex object*/
-/*                Vertex vertex;*/
-/*                vertex.position[0] = attrib.vertices[3 * idx.vertex_index + 0];*/
-/*                vertex.position[1] = attrib.vertices[3 * idx.vertex_index + 1];*/
-/*                vertex.position[2] = attrib.vertices[3 * idx.vertex_index + 2];*/
-/**/
-/*                if (idx.normal_index >= 0) {*/
-/*                    vertex.normal[0] = attrib.normals[3 * idx.normal_index + 0];*/
-/*                    vertex.normal[1] = attrib.normals[3 * idx.normal_index + 1];*/
-/*                    vertex.normal[2] = attrib.normals[3 * idx.normal_index + 2];*/
-/*                }*/
-/**/
-/*                if (idx.texcoord_index >= 0) {*/
-/*                    vertex.texcoord[0] = attrib.texcoords[2 * idx.texcoord_index + 0];*/
-/*                    vertex.texcoord[1] = attrib.texcoords[2 * idx.texcoord_index + 1];*/
-/*                }*/
-/**/
-/*                // Add the vertex to the corresponding material's Mesh*/
-/*                materialMeshes[materialId].vertices.push_back(vertex);*/
-/*                materialMeshes[materialId].indices.push_back(materialMeshes[materialId].vertices.size() - 1);*/
-/*            }*/
-/*        }*/
-/*    }*/
-/**/
-/*    // Assign diffuse texture paths to each Mesh*/
-/*    for (const auto& material : materials) {*/
-/*        int materialId = &material - &materials[0];  // Get material ID*/
-/*        materialMeshes[materialId].diffuseTexture = material.diffuse_texname;*/
-/*    }*/
-/*}*/
 
 Model& Model::load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout) {
     // load model from disk
@@ -172,12 +119,11 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
     for (const auto& material : materials) {
         size_t material_id = &material - &materials[0];
-	if (material_id > mMeshes.size() - 1){
-		break;
-	}
-	auto& mesh = mMeshes[material_id];
+        if (material_id > mMeshes.size() - 1) {
+            break;
+        }
+        auto& mesh = mMeshes[material_id];
         if (!material.diffuse_texname.empty()) {
-
             std::string texture_path = RESOURCE_DIR;
             texture_path += "/";
             texture_path += material.diffuse_texname;
@@ -186,6 +132,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
                 std::cout << std::format("Failed to create Diffuse Texture view for {}\n", mName);
             }
             mesh.mTexture->uploadToGPU(render_resource.queue);
+            mesh.isTransparent = mesh.mTexture->isTransparent();
         }
     }
     // Load and upload specular texture
@@ -193,7 +140,6 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         std::string texture_path = RESOURCE_DIR;
         texture_path += "/";
         texture_path += materials[0].specular_texname;
-        // auto a = std::filesystem::path{texture_path.c_str()};
         mSpecularTexture = new Texture{render_resource.device, texture_path};
         if (mSpecularTexture->createView() == nullptr) {
             std::cout << std::format("Failed to create Specular Texture view for {}\n", mName);
@@ -201,115 +147,27 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         mSpecularTexture->uploadToGPU(render_resource.queue);
     }
 
+    offset_buffer.setSize(sizeof(glm::vec4) * 10)
+        .setLabel("offset buffer")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .setMappedAtCraetion()
+        .create(app);
+
+    std::array<glm::vec4, 10> dddata = {};
+    for (size_t i = 0; i < 10; i++) {
+        dddata[i] = glm::vec4{0.0, i * 2, 0.0, 0.0};
+    }
+    wgpuQueueWriteBuffer(app->getRendererResource().queue, offset_buffer.getBuffer(), 0, &dddata,
+                         sizeof(glm::vec4) * 10);
+
     (void)layout;
     return *this;
 }
 
-/**/
-/*Model& Model::load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout)
- * {*/
-/*    // load model from disk*/
-/*    mName = name;*/
-/**/
-/*    Drawable::configure(app);*/
-/**/
-/*    std::string warn;*/
-/*    std::string err;*/
-/*    tinyobj::ObjReader reader;*/
-/*    tinyobj::ObjReaderConfig reader_config;*/
-/*    reader_config.triangulate = true;*/
-/*    reader_config.mtl_search_path = "/home/ahmad/Documents/project/cpp/wgputest/resources";*/
-/**/
-/*    if (!reader.ParseFromFile(path.string().c_str(), reader_config)) {*/
-/*        if (!reader.Error().empty()) {*/
-/*            std::cerr << "TinyObjReader: " << reader.Error();*/
-/*        }*/
-/*        exit(1);*/
-/*    }*/
-/**/
-/*    if (!reader.Warning().empty()) {*/
-/*        std::cout << "TinyObjReader: " << reader.Warning() << '\n';*/
-/*    }*/
-/**/
-/*    auto& attrib = reader.GetAttrib();*/
-/*    auto& shapes = reader.GetShapes();*/
-/*    auto& materials = reader.GetMaterials();*/
-/**/
-/*    std::cout << materials.size() << " Tiny Object " << materials[0].specular_texname << " \n";*/
-/**/
-/*    // Load and upload diffuse texture*/
-/*    auto& render_resource = app->getRendererResource();*/
-/*    std::cout << "Model " << getName() << " Has " << materials.size() << " Different materials\n";*/
-/*    if (!materials[0].diffuse_texname.empty()) {*/
-/*        std::string texture_path = RESOURCE_DIR;*/
-/*        texture_path += "/";*/
-/*        texture_path += materials[0].diffuse_texname;*/
-/*        mesh.mTexture = new Texture{render_resource.device, texture_path};*/
-/*        if (mesh.mTexture->createView() == nullptr) {*/
-/*            std::cout << std::format("Failed to create Diffuse Texture view for {}\n", mName);*/
-/*        }*/
-/*        mesh.mTexture->uploadToGPU(render_resource.queue);*/
-/*    }*/
-/**/
-/*    // Load and upload specular texture*/
-/*    if (!materials[0].specular_texname.empty()) {*/
-/*        std::string texture_path = RESOURCE_DIR;*/
-/*        texture_path += "/";*/
-/*        texture_path += materials[0].specular_texname;*/
-/*        // auto a = std::filesystem::path{texture_path.c_str()};*/
-/*        mSpecularTexture = new Texture{render_resource.device, texture_path};*/
-/*        if (mSpecularTexture->createView() == nullptr) {*/
-/*            std::cout << std::format("Failed to create Specular Texture view for {}\n", mName);*/
-/*        }*/
-/*        mSpecularTexture->uploadToGPU(render_resource.queue);*/
-/*    }*/
-/**/
-/*    if (!warn.empty()) {*/
-/*        std::cout << warn << std::endl;*/
-/*    }*/
-/**/
-/*    if (!err.empty()) {*/
-/*        std::cerr << err << std::endl;*/
-/*    }*/
-/**/
-/*    // Fill in vertexData here*/
-/*    const auto& shape = shapes[0];*/
-/**/
-/*    if (getName() == "tree"){*/
-/*    	std::cout << "Shape has ------------------ " << shapes.size() << std::endl;*/
-/*    }*/
-/**/
-/*    mesh.mVertexData.resize(shape.mesh.indices.size());*/
-/*    for (size_t i = 0; i < shape.mesh.indices.size(); i++) {*/
-/*        const tinyobj::index_t& idx = shape.mesh.indices[i];*/
-/**/
-/*        mesh.mVertexData[i].position = {attrib.vertices[3 * idx.vertex_index + 0],*/
-/*                                        -attrib.vertices[3 * idx.vertex_index + 2],*/
-/*                                        attrib.vertices[3 * idx.vertex_index + 1]};*/
-/**/
-/*        min.x = std::min(min.x, mesh.mVertexData[i].position.x);*/
-/*        min.y = std::min(min.y, mesh.mVertexData[i].position.y);*/
-/*        min.z = std::min(min.z, mesh.mVertexData[i].position.z);*/
-/**/
-/*        max.x = std::max(max.x, mesh.mVertexData[i].position.x);*/
-/*        max.y = std::max(max.y, mesh.mVertexData[i].position.y);*/
-/*        max.z = std::max(max.z, mesh.mVertexData[i].position.z);*/
-/**/
-/*        mesh.mVertexData[i].normal = {attrib.normals[3 * idx.normal_index + 0],*/
-/*                                      -attrib.normals[3 * idx.normal_index + 2],*/
-/*                                      attrib.normals[3 * idx.normal_index + 1]};*/
-/**/
-/*        mesh.mVertexData[i].color = {attrib.colors[3 * idx.vertex_index + 0], attrib.colors[3 * idx.vertex_index +
- * 2],*/
-/*                                     attrib.colors[3 * idx.vertex_index + 1]};*/
-/**/
-/*        mesh.mVertexData[i].uv = {attrib.texcoords[2 * idx.texcoord_index + 0],*/
-/*                                  1 - attrib.texcoords[2 * idx.texcoord_index + 1]};*/
-/*    }*/
-/**/
-/*    (void)layout;*/
-/*    return *this;*/
-/*}*/
+Model& Model::setInstanced(size_t instances) {
+    this->instances = instances;
+    return *this;
+}
 
 Transform& Transform::moveBy(const glm::vec3& translationVec) {
     // justify position by the factor `m`
@@ -326,25 +184,27 @@ Transform& Transform::moveTo(const glm::vec3& moveVec) {
 
 Model& Model::uploadToGPU(Application* app) {
     // upload vertex attribute data to GPU
-    mVertexBuffer.setLabel("Uniform buffer for object info")
-        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
-        .setSize(mMeshes[0].mVertexData.size() * sizeof(VertexAttributes))
-        .setMappedAtCraetion()
-        .create(app);
+    for (auto& mesh : mMeshes) {
+        mesh.second.mVertexBuffer.setLabel("Uniform buffer for object info")
+            .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
+            .setSize(mesh.second.mVertexData.size() * sizeof(VertexAttributes))
+            .setMappedAtCraetion()
+            .create(app);
 
-    wgpuQueueWriteBuffer(app->getRendererResource().queue, mVertexBuffer.getBuffer(), 0, mMeshes[0].mVertexData.data(),
-                         mMeshes[0].mVertexData.size() * sizeof(VertexAttributes));
-
+        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.second.mVertexBuffer.getBuffer(), 0,
+                             mesh.second.mVertexData.data(), mesh.second.mVertexData.size() * sizeof(VertexAttributes));
+    }
     return *this;
 };
 
 size_t BaseModel::getVertexCount() const { return mMeshes.at(0).mVertexData.size(); }
 
-Buffer BaseModel::getVertexBuffer() { return mVertexBuffer; }
+/*Buffer BaseModel::getVertexBuffer() { return mVertexBuffer; }*/
 
 Buffer BaseModel::getIndexBuffer() { return mIndexBuffer; }
 
 void BaseModel::setTransparent() { mIsTransparent = true; }
+
 bool BaseModel::isTransparent() { return mIsTransparent; }
 
 void Model::createSomeBinding(Application* app) {
@@ -370,47 +230,54 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
     /*auto& uniform_data = app->getUniformData();*/
     WGPUBindGroup active_bind_group = nullptr;
 
-    auto mesh = mMeshes.size() <= 1 ? mMeshes[0] : mMeshes[1];
     // Bind Diffuse texture for the model if existed
-    /*for (const auto& mesh : mMeshes) {*/
-    if (mesh.mTexture != nullptr) {
-        if (mesh.mTexture->getTextureView() != nullptr) {
-            bindingData[1].nextInChain = nullptr;
-            bindingData[1].binding = 1;
-            bindingData[1].textureView = mesh.mTexture->getTextureView();
+    for (auto& mesh_obj : mMeshes) {
+        auto& mesh = mesh_obj.second;
+
+        if (mesh.isTransparent) {
+            continue;
         }
-        if (mSpecularTexture != nullptr && mSpecularTexture->getTextureView() != nullptr) {
-            bindingData[5].nextInChain = nullptr;
-            bindingData[5].binding = 5;
-            bindingData[5].textureView = mSpecularTexture->getTextureView();
+
+        if (mesh.mTexture != nullptr) {
+            if (mesh.mTexture->getTextureView() != nullptr) {
+                bindingData[1].nextInChain = nullptr;
+                bindingData[1].binding = 1;
+                bindingData[1].textureView = mesh.mTexture->getTextureView();
+            }
+            if (mSpecularTexture != nullptr && mSpecularTexture->getTextureView() != nullptr) {
+                bindingData[5].nextInChain = nullptr;
+                bindingData[5].binding = 5;
+                bindingData[5].textureView = mSpecularTexture->getTextureView();
+            }
+            auto& desc = app->getBindingGroup().getDescriptor();
+            desc.entries = bindingData.data();
+            mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
+            active_bind_group = mBindGroup;
+        } else {
+            active_bind_group = app->getBindingGroup().getBindGroup();
         }
-        auto& desc = app->getBindingGroup().getDescriptor();
-        desc.entries = bindingData.data();
-        mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
-        active_bind_group = mBindGroup;
-    } else {
-        active_bind_group = app->getBindingGroup().getBindGroup();
+
+        wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
+                                             wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
+
+        wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
+        wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
+                             sizeof(ObjectInfo));
+
+        createSomeBinding(app);
+        wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
+
+        wgpuRenderPassEncoderDraw(encoder, getVertexCount(), this->instances, 0, 0);
+        wgpuBindGroupRelease(ggg);
+        // if we created a binding group and didn't use the default appliaction binding-group
+        if (mBindGroup != nullptr) {
+            wgpuBindGroupRelease(mBindGroup);
+            mBindGroup = nullptr;
+        }
     }
-
-    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, getVertexBuffer().getBuffer(), 0,
-                                         wgpuBufferGetSize(getVertexBuffer().getBuffer()));
-
-    wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
-    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
-                         sizeof(ObjectInfo));
-
-    createSomeBinding(app);
-    wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
-
-    wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);
-    wgpuBindGroupRelease(ggg);
-    // if we created a binding group and didn't use the default appliaction binding-group
-    if (mBindGroup != nullptr) {
-        wgpuBindGroupRelease(mBindGroup);
-        mBindGroup = nullptr;
-    }
-    /*}*/
 }
+
+size_t Model::getInstaceCount() { return this->instances; }
 
 #ifdef DEVELOPMENT_BUILD
 void Model::userInterface() {

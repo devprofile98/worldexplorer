@@ -8,6 +8,7 @@ static void setDefaultValue(WGPUBindGroupLayoutEntry& bindingLayout) {
     bindingLayout.buffer.nextInChain = nullptr;
     bindingLayout.buffer.type = WGPUBufferBindingType_Undefined;
     bindingLayout.buffer.hasDynamicOffset = false;
+    bindingLayout.buffer.minBindingSize = 100;
 
     bindingLayout.sampler.nextInChain = nullptr;
     bindingLayout.sampler.type = WGPUSamplerBindingType_Undefined;

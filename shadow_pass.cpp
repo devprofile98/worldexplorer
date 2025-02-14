@@ -1,6 +1,7 @@
 #include "shadow_pass.h"
 
 #include "application.h"
+#include "gpu_buffer.h"
 #include "webgpu.h"
 
 ShadowPass::ShadowPass(Application* app) { mApp = app; }
@@ -122,31 +123,36 @@ Pipeline* ShadowPass::getPipeline() { return mRenderPipeline; }
 WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor() { return &mRenderPassDesc; }
 
 void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder) {
-    auto& render_resource = mApp->getRendererResource();
+    /*auto& render_resource = mApp->getRendererResource();*/
     for (auto* model : models) {
-        WGPUBufferDescriptor buf = {};
+        for (auto& mesh_obj : model->mMeshes) {
+            auto& mesh = mesh_obj.second;
 
-        buf.nextInChain = nullptr;
-        buf.label = "Model Uniform Buffer";
-        buf.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
-        buf.size = sizeof(mScene);
+            Buffer modelUniformBuffer = {};
+            modelUniformBuffer.setLabel("Model Uniform Buffer")
+                .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
+                .setSize(sizeof(mScene))
+                .setMappedAtCraetion()
+                .create(mApp);
 
-        WGPUBuffer modelUniformBuffer = wgpuDeviceCreateBuffer(render_resource.device, &buf);
+            /*WGPUBuffer modelUniformBuffer = wgpuDeviceCreateBuffer(render_resource.device, &buf.getBuffer());*/
 
-        mScene.model = model->getTranformMatrix();
-        mBindingData[0].buffer = modelUniformBuffer;
-        auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
-        wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer, 0, &mScene, sizeof(mScene));
+            mScene.model = model->getTranformMatrix();
+            mBindingData[0].buffer = modelUniformBuffer.getBuffer();
+            auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
+            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer.getBuffer(), 0, &mScene,
+                                 sizeof(mScene));
 
-        wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, model->getVertexBuffer().getBuffer(), 0,
-                                             wgpuBufferGetSize(model->getVertexBuffer().getBuffer()));
+            wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
+                                                 wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
 
-        wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
 
-        wgpuRenderPassEncoderDraw(encoder, model->getVertexCount(), 1, 0, 0);
+            wgpuRenderPassEncoderDraw(encoder, model->getVertexCount(), 1, 0, 0);
 
-        wgpuBufferRelease(modelUniformBuffer);
-        wgpuBindGroupRelease(bindgroup);
+            wgpuBufferRelease(modelUniformBuffer.getBuffer());
+            wgpuBindGroupRelease(bindgroup);
+        }
     }
 }
 

@@ -91,9 +91,8 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
         std::string mName;
         const std::string& getName();
 
-        Buffer getVertexBuffer();
+        /*Buffer getVertexBuffer();*/
         Buffer getIndexBuffer();
-        Buffer mVertexBuffer = {};
         Buffer mIndexBuffer = {};
         virtual size_t getVertexCount() const;
         void setTransparent();
@@ -114,8 +113,11 @@ class Model : public BaseModel {
         void draw(Application* app, WGPURenderPassEncoder encoder,
                   std::vector<WGPUBindGroupEntry>& bindingData) override;
 
+	Model& setInstanced(size_t instances);
         // Getters
         void createSomeBinding(Application* app);
+	size_t getInstaceCount();
+
 #ifdef DEVELOPMENT_BUILD
         // Common User-Interface to interact with Object in the Development state
         // This function only gets called in development of the project
@@ -123,6 +125,8 @@ class Model : public BaseModel {
 #endif  // DEVELOPMENT_BUILD
 
     private:
+	Buffer offset_buffer = {};
+	size_t instances = 1;
         Texture* mSpecularTexture = nullptr;
         WGPUBindGroup mBindGroup = nullptr;
         WGPUBindGroup ggg = {};
