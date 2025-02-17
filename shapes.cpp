@@ -163,7 +163,7 @@ void Cube::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGP
     wgpuRenderPassEncoderSetIndexBuffer(encoder, mIndexDataBuffer.getBuffer(), WGPUIndexFormat_Uint16, 0,
                                         wgpuBufferGetSize(mIndexDataBuffer.getBuffer()));
 
-    bindingData[13].buffer = offset_buffer.getBuffer();
+    /*bindingData[13].buffer = offset_buffer.getBuffer();*/
     auto& desc = app->getBindingGroup().getDescriptor();
     desc.entries = bindingData.data();
     auto bindgroup0 = wgpuDeviceCreateBindGroup(render_resource.device, &desc);

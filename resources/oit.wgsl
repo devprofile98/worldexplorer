@@ -44,7 +44,7 @@ struct ObjectInfo {
 }
 
 struct OffsetData {
-    offsets: array<vec4f, 10>, // Array of 10 offset vectors
+    offsets: vec4f, // Array of 10 offset vectors
 };
 
 
@@ -55,12 +55,13 @@ struct OffsetData {
 @binding(4) @group(0) var<uniform> objectTranformation: ObjectInfo;
 @binding(5) @group(0) var diffuseTexture: texture_2d<f32>;
 @binding(6) @group(0) var textureSampler: sampler;
-@binding(7) @group(0) var<uniform> offsetData: OffsetData;
+//@binding(7) @group(0) var<uniform> offsetData: OffsetData;
+@group(0) @binding(7) var<storage, read> offsetInstance: array<OffsetData>;
 
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
-    let world_position = objectTranformation.transformations * vec4f(in.position + offsetData.offsets[instance_index].xyz, 1.0);
+    let world_position = objectTranformation.transformations * vec4f(in.position + offsetInstance[instance_index].offsets.xyz, 1.0);
     out.position = uniforms.projectionMatrix * uniforms.viewMatrix * world_position;
     out.uv = in.uv;
     return out;

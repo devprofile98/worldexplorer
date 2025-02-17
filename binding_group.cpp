@@ -68,6 +68,9 @@ WGPUBufferBindingType bufferTypeFrom(BufferBindingType type) {
         case BufferBindingType::STORAGE:
             ret = WGPUBufferBindingType_Storage;
             break;
+        case BufferBindingType::STORAGE_READONLY:
+            ret = WGPUBufferBindingType_ReadOnlyStorage;
+            break;
         default:
             ret = WGPUBufferBindingType_Undefined;
             break;

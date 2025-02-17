@@ -115,7 +115,8 @@ void Application::initializePipeline() {
                              BindGroupEntryVisibility::FRAGMENT, SampleType::Compare);
 
     mBindingGroup.addBuffer(13,  //
-                            BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(glm::vec4) * 10);
+                            BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+                            sizeof(glm::vec4) * 10000);
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
 
@@ -239,26 +240,29 @@ void Application::initializePipeline() {
     mBindingData[12].binding = 12;
     mBindingData[12].sampler = shadow_sampler;
 
-    offset_buffer.setSize(sizeof(glm::vec4) * 10)
-        .setLabel("aaa offset buffer")
-        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+    offset_buffer.setSize(sizeof(glm::vec4) * 10000)
+        .setLabel("aaabbb offset buffer")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setMappedAtCraetion()
         .create(this);
 
-    std::array<glm::vec4, 10> dddata = {};
-    for (size_t i = 0; i < 10; i++) {
-        dddata[i] = glm::vec4{0.0, i * 2, 0.0, 0.0};
+    std::array<glm::vec4, 10000> dddata = {};
+    size_t counter = 0;
+    for (size_t i = 0; i < 50; i++) {
+        for (size_t j = 0; j < 50; j++) {
+            dddata[counter++] = glm::vec4{i * 2 , j * 2, 0.0, 0.0};
+        }
     }
 
     wgpuQueueWriteBuffer(this->getRendererResource().queue, offset_buffer.getBuffer(), 0, &dddata,
-                         sizeof(glm::vec4) * 10);
+                         sizeof(glm::vec4) * 10000);
 
     mBindingData[13] = {};
     mBindingData[13].nextInChain = nullptr;
     mBindingData[13].buffer = offset_buffer.getBuffer();
     mBindingData[13].binding = 13;
     mBindingData[13].offset = 0;
-    mBindingData[13].size = sizeof(glm::vec4) * 10;
+    mBindingData[13].size = sizeof(glm::vec4) * 10000;
 
     mBindingGroup.create(this, mBindingData);
 
@@ -322,7 +326,7 @@ void Application::initializeBuffers() {
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
         .scale(glm::vec3{0.9});
     tree_model.uploadToGPU(this);
-    tree_model.setInstanced(10);
+    tree_model.setInstanced(2500);
     /*tree_model.setTransparent();*/
 
     terrain.generate(100, 8).uploadToGpu(this);

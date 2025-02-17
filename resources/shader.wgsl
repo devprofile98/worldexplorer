@@ -57,7 +57,7 @@ struct Scene {
 };
 
 struct OffsetData {
-    offsets: array<vec4f, 10>, // Array of 10 offset vectors
+    offsets: vec4f, // Array of 10 offset vectors
 };
 
 
@@ -74,7 +74,7 @@ struct OffsetData {
 @group(0) @binding(10) var depth_texture: texture_depth_2d;
 @group(0) @binding(11) var<uniform> lightSpaceTrans: Scene;
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
-@group(0) @binding(13) var<uniform> offsetData: OffsetData;
+@group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
 
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
@@ -100,7 +100,7 @@ fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
-    let world_position = objectTranformation.transformations * vec4f(in.position + offsetData.offsets[instance_index].xyz, 1.0);
+    let world_position = objectTranformation.transformations * vec4f(in.position + offsetInstance[instance_index].offsets.xyz, 1.0);
     let shadow_position = lightSpaceTrans.projection * lightSpaceTrans.view * objectTranformation.transformations * vec4f(in.position, 1.0);
     out.position = uMyUniform.projectionMatrix * uMyUniform.viewMatrix * world_position;
     out.worldPos = world_position.xyz;
