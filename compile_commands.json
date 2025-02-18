@@ -1,0 +1,302 @@
+[
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/main.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/main.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/main.cpp",
+  "output": "CMakeFiles/App.dir/main.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/wgpu_utils.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/wgpu_utils.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/wgpu_utils.cpp",
+  "output": "CMakeFiles/App.dir/wgpu_utils.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/application.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/application.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/application.cpp",
+  "output": "CMakeFiles/App.dir/application.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/utils.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/utils.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/utils.cpp",
+  "output": "CMakeFiles/App.dir/utils.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/texture.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/texture.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/texture.cpp",
+  "output": "CMakeFiles/App.dir/texture.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/binding_group.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/binding_group.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/binding_group.cpp",
+  "output": "CMakeFiles/App.dir/binding_group.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/camera.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/camera.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/camera.cpp",
+  "output": "CMakeFiles/App.dir/camera.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/model.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/model.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/model.cpp",
+  "output": "CMakeFiles/App.dir/model.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/point_light.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/point_light.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/point_light.cpp",
+  "output": "CMakeFiles/App.dir/point_light.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/pipeline.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/pipeline.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/pipeline.cpp",
+  "output": "CMakeFiles/App.dir/pipeline.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/skybox.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/skybox.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/skybox.cpp",
+  "output": "CMakeFiles/App.dir/skybox.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/shadow_pass.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/shadow_pass.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/shadow_pass.cpp",
+  "output": "CMakeFiles/App.dir/shadow_pass.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/gpu_buffer.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/gpu_buffer.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/gpu_buffer.cpp",
+  "output": "CMakeFiles/App.dir/gpu_buffer.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/shapes.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/shapes.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/shapes.cpp",
+  "output": "CMakeFiles/App.dir/shapes.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/transparency_pass.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/transparency_pass.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/transparency_pass.cpp",
+  "output": "CMakeFiles/App.dir/transparency_pass.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest",
+  "command": "/usr/bin/c++ -DRESOURCE_DIR=\\\"./resources\\\" -I/home/ahmad/Documents/project/cpp/wgputest/webgpu -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -std=c++20 -Wall -Wextra -pedantic -Werror -o CMakeFiles/App.dir/composition_pass.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/composition_pass.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/composition_pass.cpp",
+  "output": "CMakeFiles/App.dir/composition_pass.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/imgui",
+  "command": "/usr/bin/c++ -DIMGUI_IMPL_WEBGPU_BACKEND_WGPU -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include  -o CMakeFiles/imgui.dir/backends/imgui_impl_wgpu.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/imgui/backends/imgui_impl_wgpu.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/imgui/backends/imgui_impl_wgpu.cpp",
+  "output": "imgui/CMakeFiles/imgui.dir/backends/imgui_impl_wgpu.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/imgui",
+  "command": "/usr/bin/c++ -DIMGUI_IMPL_WEBGPU_BACKEND_WGPU -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include  -o CMakeFiles/imgui.dir/backends/imgui_impl_glfw.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/imgui/backends/imgui_impl_glfw.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/imgui/backends/imgui_impl_glfw.cpp",
+  "output": "imgui/CMakeFiles/imgui.dir/backends/imgui_impl_glfw.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/imgui",
+  "command": "/usr/bin/c++ -DIMGUI_IMPL_WEBGPU_BACKEND_WGPU -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include  -o CMakeFiles/imgui.dir/misc/cpp/imgui_stdlib.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/imgui/misc/cpp/imgui_stdlib.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/imgui/misc/cpp/imgui_stdlib.cpp",
+  "output": "imgui/CMakeFiles/imgui.dir/misc/cpp/imgui_stdlib.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/imgui",
+  "command": "/usr/bin/c++ -DIMGUI_IMPL_WEBGPU_BACKEND_WGPU -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include  -o CMakeFiles/imgui.dir/imgui.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/imgui/imgui.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/imgui/imgui.cpp",
+  "output": "imgui/CMakeFiles/imgui.dir/imgui.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/imgui",
+  "command": "/usr/bin/c++ -DIMGUI_IMPL_WEBGPU_BACKEND_WGPU -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include  -o CMakeFiles/imgui.dir/imgui_draw.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/imgui/imgui_draw.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/imgui/imgui_draw.cpp",
+  "output": "imgui/CMakeFiles/imgui.dir/imgui_draw.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/imgui",
+  "command": "/usr/bin/c++ -DIMGUI_IMPL_WEBGPU_BACKEND_WGPU -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include  -o CMakeFiles/imgui.dir/imgui_tables.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/imgui/imgui_tables.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/imgui/imgui_tables.cpp",
+  "output": "imgui/CMakeFiles/imgui.dir/imgui_tables.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/imgui",
+  "command": "/usr/bin/c++ -DIMGUI_IMPL_WEBGPU_BACKEND_WGPU -I/home/ahmad/Documents/project/cpp/wgputest/imgui/. -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include  -o CMakeFiles/imgui.dir/imgui_widgets.cpp.o -c /home/ahmad/Documents/project/cpp/wgputest/imgui/imgui_widgets.cpp",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/imgui/imgui_widgets.cpp",
+  "output": "imgui/CMakeFiles/imgui.dir/imgui_widgets.cpp.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/context.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/context.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/context.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/context.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/init.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/init.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/init.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/init.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/input.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/input.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/input.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/input.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/monitor.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/monitor.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/monitor.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/monitor.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/platform.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/platform.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/platform.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/platform.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/vulkan.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/vulkan.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/vulkan.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/vulkan.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/window.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/window.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/window.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/window.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/egl_context.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/egl_context.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/egl_context.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/egl_context.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/osmesa_context.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/osmesa_context.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/osmesa_context.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/osmesa_context.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/null_init.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/null_init.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/null_init.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/null_init.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/null_monitor.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/null_monitor.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/null_monitor.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/null_monitor.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/null_window.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/null_window.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/null_window.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/null_window.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/null_joystick.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/null_joystick.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/null_joystick.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/null_joystick.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/posix_module.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/posix_module.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/posix_module.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/posix_module.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/posix_time.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/posix_time.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/posix_time.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/posix_time.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/posix_thread.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/posix_thread.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/posix_thread.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/posix_thread.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/x11_init.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/x11_init.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/x11_init.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/x11_init.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/x11_monitor.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/x11_monitor.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/x11_monitor.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/x11_monitor.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/x11_window.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/x11_window.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/x11_window.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/x11_window.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/xkb_unicode.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/xkb_unicode.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/xkb_unicode.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/xkb_unicode.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/glx_context.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/glx_context.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/glx_context.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/glx_context.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/wl_init.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/wl_init.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/wl_init.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/wl_init.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/wl_monitor.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/wl_monitor.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/wl_monitor.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/wl_monitor.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/wl_window.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/wl_window.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/wl_window.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/wl_window.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/linux_joystick.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/linux_joystick.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/linux_joystick.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/linux_joystick.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src",
+  "command": "/usr/bin/cc -DHAVE_MEMFD_CREATE -D_DEFAULT_SOURCE -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include -I/home/ahmad/Documents/project/cpp/wgputest/glfw/src -std=c99 -fPIC -Wall -o CMakeFiles/glfw.dir/posix_poll.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw/src/posix_poll.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw/src/posix_poll.c",
+  "output": "glfw/src/CMakeFiles/glfw.dir/posix_poll.c.o"
+},
+{
+  "directory": "/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu",
+  "command": "/usr/bin/cc -D_GLFW_WAYLAND -D_GLFW_X11 -I/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/. -I/home/ahmad/Documents/project/cpp/wgputest/glfw/include  -o CMakeFiles/glfw3webgpu.dir/glfw3webgpu.c.o -c /home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/glfw3webgpu.c",
+  "file": "/home/ahmad/Documents/project/cpp/wgputest/glfw3webgpu/glfw3webgpu.c",
+  "output": "glfw3webgpu/CMakeFiles/glfw3webgpu.dir/glfw3webgpu.c.o"
+}
+]

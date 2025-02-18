@@ -35,6 +35,7 @@ struct Terrain {
         Terrain& generate(size_t gridSize, uint8_t octaves);
         void draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData);
         void createSomeBinding(Application* app);
+	static float perlin(float x, float y);
 
     private:
         WGPUBuffer mVertexBuffer;

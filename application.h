@@ -84,6 +84,7 @@ class Application {
         Model desk_model{};
         Model tree_model{};
         Model grass_model{};
+        Model grass2_model{};
         Buffer offset_buffer;
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();

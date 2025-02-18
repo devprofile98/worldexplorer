@@ -174,7 +174,7 @@ void Cube::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGP
 
     wgpuRenderPassEncoderSetBindGroup(encoder, 1, bindgroup_object, 0, nullptr);
 
-    wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 10, 0, 0);
+    wgpuRenderPassEncoderDraw(encoder, getVertexCount(), 1, 0, 0);
     wgpuBindGroupRelease(bindgroup_object);
     wgpuBindGroupRelease(bindgroup0);
 }

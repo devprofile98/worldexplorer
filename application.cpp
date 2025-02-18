@@ -159,7 +159,7 @@ void Application::initializePipeline() {
     samplerDesc.lodMinClamp = 0.0f;
     samplerDesc.lodMaxClamp = 8.0f;
     samplerDesc.compare = WGPUCompareFunction_Undefined;
-    samplerDesc.maxAnisotropy = 1;
+    samplerDesc.maxAnisotropy = 16.0;
     mDefaultSampler = wgpuDeviceCreateSampler(mRendererResource.device, &samplerDesc);
 
     mBindingData[2].binding = 2;
@@ -248,9 +248,11 @@ void Application::initializePipeline() {
 
     std::array<glm::vec4, 10000> dddata = {};
     size_t counter = 0;
-    for (size_t i = 0; i < 50; i++) {
-        for (size_t j = 0; j < 50; j++) {
-            dddata[counter++] = glm::vec4{i * 2 , j * 2, 0.0, 0.0};
+    for (size_t i = 0; i < 100; i++) {
+        for (size_t j = 0; j < 100; j++) {
+            /*size_t x = i / 5.0f;*/
+            /*size_t y = j / 5.0f;*/
+            dddata[counter++] = glm::vec4{i / 5.0, j / 5.0, Terrain::perlin(i / 5.0, j / 5.0), 0.0};
         }
     }
 
@@ -322,11 +324,18 @@ void Application::initializeBuffers() {
     grass_model.uploadToGPU(this);
     grass_model.setTransparent();
 
+    grass2_model.load("grass2", this, RESOURCE_DIR "/grass2.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{-10.0, -10.0, 0.72})
+        .scale(glm::vec3{1.0f});
+    grass2_model.uploadToGPU(this);
+    grass2_model.setTransparent(false);
+    grass2_model.setInstanced(100);
+
     tree_model.load("tree", this, RESOURCE_DIR "/tree1.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
         .scale(glm::vec3{0.9});
     tree_model.uploadToGPU(this);
-    tree_model.setInstanced(2500);
+    /*tree_model.setInstanced(900);*/
     /*tree_model.setTransparent();*/
 
     terrain.generate(100, 8).uploadToGpu(this);
@@ -595,7 +604,8 @@ bool Application::initialize() {
     boat_model.moveTo({1.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model, &grass_model, &tree_model, shapes, plane};
+    mLoadedModel = {&boat_model,   &tower_model, &desk_model, &arrow_model, &grass_model,
+                    &grass2_model, &tree_model,  shapes,      plane};
 
     return true;
 }
@@ -725,7 +735,7 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetPipeline(transparency_pass_encoder, mTransparencyPass->getPipeline()->getPipeline());
 
     /*mShadowPass->setupScene({1.0f, 1.0f, 4.0f});*/
-    mTransparencyPass->render(mLoadedModel, transparency_pass_encoder, mDepthTextureView);
+    /*mTransparencyPass->render(mLoadedModel, transparency_pass_encoder, mDepthTextureView);*/
 
     wgpuRenderPassEncoderEnd(transparency_pass_encoder);
     wgpuRenderPassEncoderRelease(transparency_pass_encoder);
@@ -740,7 +750,7 @@ void Application::mainLoop() {
     WGPURenderPassEncoder composition_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, composition_pass_desc);
     wgpuRenderPassEncoderSetPipeline(composition_pass_encoder, mCompositionPass->getPipeline()->getPipeline());
 
-    mCompositionPass->render(mLoadedModel, composition_pass_encoder, &render_pass_color_attachment);
+    /*mCompositionPass->render(mLoadedModel, composition_pass_encoder, &render_pass_color_attachment);*/
 
     wgpuRenderPassEncoderEnd(composition_pass_encoder);
     wgpuRenderPassEncoderRelease(composition_pass_encoder);

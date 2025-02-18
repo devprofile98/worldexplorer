@@ -213,7 +213,8 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
 
             wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
 
-            size_t instances = (model->getName() == "tree") ? 2500 : 1;
+            /*size_t instances = (model->getName() == "tree") ? 900 : 1;*/
+	    size_t instances = 1;
             wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(), instances, 0, 0);
 
             wgpuBufferRelease(object_info_buffer.getBuffer());

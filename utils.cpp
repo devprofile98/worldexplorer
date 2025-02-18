@@ -247,6 +247,8 @@ double perlin(double x, double y, double z) {
 }
 }  // namespace noise
 
+float Terrain::perlin(float x, float y) { return noise::perlin(x, y, 0.0); }
+
 Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
     mRotationMatrix = glm::mat4{1.0};
     mTranslationMatrix = glm::mat4{1.0};

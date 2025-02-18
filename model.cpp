@@ -203,7 +203,12 @@ size_t BaseModel::getVertexCount() const { return mMeshes.at(0).mVertexData.size
 
 Buffer BaseModel::getIndexBuffer() { return mIndexBuffer; }
 
-void BaseModel::setTransparent() { mIsTransparent = true; }
+void BaseModel::setTransparent(bool value) {
+    for (auto& [mat_id, mesh] : mMeshes) {
+        mesh.isTransparent = value;
+    }
+    mIsTransparent = value;
+}
 
 bool BaseModel::isTransparent() { return mIsTransparent; }
 

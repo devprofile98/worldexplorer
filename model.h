@@ -95,7 +95,7 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
         Buffer getIndexBuffer();
         Buffer mIndexBuffer = {};
         virtual size_t getVertexCount() const;
-        void setTransparent();
+        void setTransparent(bool value = true);
         bool isTransparent();
         Texture* getDiffuseTexture();
 	std::map<int, Mesh> mMeshes;
