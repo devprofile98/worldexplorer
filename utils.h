@@ -32,7 +32,7 @@ struct Terrain {
         /*
          * @brief Generate Terrain vertices and indices for the gridsize
          */
-        Terrain& generate(size_t gridSize, uint8_t octaves);
+        Terrain& generate(size_t gridSize, uint8_t octaves, std::vector<glm::vec3>& output);
         void draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData);
         void createSomeBinding(Application* app);
 	static float perlin(float x, float y);

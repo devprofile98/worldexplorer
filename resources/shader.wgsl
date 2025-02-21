@@ -57,7 +57,7 @@ struct Scene {
 };
 
 struct OffsetData {
-    offsets: vec4f, // Array of 10 offset vectors
+    transformation: mat4x4f, // Array of 10 offset vectors
 };
 
 
@@ -100,7 +100,14 @@ fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
-    let world_position = objectTranformation.transformations * vec4f(in.position + offsetInstance[instance_index].offsets.xyz, 1.0);
+ //let world_position = objectTranformation.transformations * vec4f(in.position + offsetInstance[instance_index].offsets.xyz, 1.0);
+    var world_position: vec4f;
+    if instance_index == 0 {
+        world_position = objectTranformation.transformations * vec4f(in.position, 1.0);
+    }else{
+        world_position = offsetInstance[instance_index].transformation * vec4f(in.position, 1.0);
+    }
+    //let world_position = offsetInstance[instance_index].transformation * vec4f(in.position, 1.0);
     let shadow_position = lightSpaceTrans.projection * lightSpaceTrans.view * objectTranformation.transformations * vec4f(in.position, 1.0);
     out.position = uMyUniform.projectionMatrix * uMyUniform.viewMatrix * world_position;
     out.worldPos = world_position.xyz;

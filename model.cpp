@@ -63,8 +63,6 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     auto& shapes = reader.GetShapes();
     auto& materials = reader.GetMaterials();
 
-    std::cout << materials.size() << " Tiny Object " << materials[0].specular_texname << " \n";
-
     // Load and upload diffuse texture
     auto& render_resource = app->getRendererResource();
 
@@ -76,10 +74,12 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         std::cerr << err << std::endl;
     }
 
+    std::cout << getName() << " has " << materials.size() << " Tiny Object " << materials[0].specular_texname << " \n";
     // Fill in vertexData here
 
     for (const auto& shape : shapes) {
         // Iterate through faces
+
         for (size_t faceIdx = 0; faceIdx < shape.mesh.num_face_vertices.size(); ++faceIdx) {
             int materialId = shape.mesh.material_ids[faceIdx];        // Material ID for this face
             int numVertices = shape.mesh.num_face_vertices[faceIdx];  // Number of vertices in this face
@@ -92,7 +92,6 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
                 vertex.position[0] = attrib.vertices[3 * idx.vertex_index + 0];
                 vertex.position[2] = attrib.vertices[3 * idx.vertex_index + 1];
                 vertex.position[1] = attrib.vertices[3 * idx.vertex_index + 2];
-
                 /**/
                 min.x = std::min(min.x, vertex.position.x);
                 min.y = std::min(min.y, vertex.position.y);
@@ -107,9 +106,16 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
                 /**/
                 vertex.color = {attrib.colors[3 * idx.vertex_index + 0], attrib.colors[3 * idx.vertex_index + 2],
                                 attrib.colors[3 * idx.vertex_index + 1]};
+                if (getName() == "car") {
+                    std::cout << "bettr tahn noting " << attrib.texcoords.size() << '\n';
+                }
 
-                vertex.uv = {attrib.texcoords[2 * idx.texcoord_index + 0],
-                             1 - attrib.texcoords[2 * idx.texcoord_index + 1]};
+                if (attrib.texcoords.empty()) {
+                    vertex.uv = {0.0, 0.0};
+                } else {
+                    vertex.uv = {attrib.texcoords[2 * idx.texcoord_index + 0],
+                                 1 - attrib.texcoords[2 * idx.texcoord_index + 1]};
+                }
                 mMeshes[materialId].mVertexData.push_back(vertex);
             }
         }

@@ -249,12 +249,12 @@ double perlin(double x, double y, double z) {
 
 float Terrain::perlin(float x, float y) { return noise::perlin(x, y, 0.0); }
 
-Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
+Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::vec3>& output) {
     mRotationMatrix = glm::mat4{1.0};
     mTranslationMatrix = glm::mat4{1.0};
     mScaleMatrix = glm::mat4{1.0};
-    mScaleMatrix = glm::scale(mScaleMatrix, glm::vec3{2.0});
-    mObjectInfo.transformation = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mScaleMatrix = glm::scale(mScaleMatrix, glm::vec3{1.0});
+    mObjectInfo.transformation = mScaleMatrix * mRotationMatrix * mTranslationMatrix;
     mObjectInfo.isFlat = 1;
 
     std::array<glm::vec3, 5> height_color = {
@@ -273,9 +273,6 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
         4,  // glm::vec3{255.0 / 255.0, 255.0 / 255.0, 255.0 / 255.0},  // Snow (White)
     };
 
-    (void)octaves;
-    // Terrain terrain;
-    // terrain.vertices;
     mGridSize = gridSize;
     mPixels.reserve(mGridSize * mGridSize);
 
@@ -346,8 +343,16 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves) {
         e.position.z -= 25;
         e.position.x -= 50;
         e.position.y -= 50;
+        output.push_back(e.position);
     }
 
+    for (size_t x = 0; x < 100; x++) {
+        for (size_t y = 0; y < 10; y++) {
+            for (size_t z = 0; z < 10; z++) {
+
+            }
+        }
+    }
     // std::vector<size_t> terrain.indices;
     for (size_t x = 0; x < gridSize - 1; x++) {
         for (size_t z = 0; z < gridSize - 1; z++) {

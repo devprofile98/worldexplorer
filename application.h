@@ -85,10 +85,12 @@ class Application {
         Model tree_model{};
         Model grass_model{};
         Model grass2_model{};
+        Model car{};
         Buffer offset_buffer;
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();
 
+        std::vector<glm::vec3> output = {};
         bool initGui();                                    // called in onInit
         void terminateGui();                               // called in onFinish
         void updateGui(WGPURenderPassEncoder renderPass);  // called in onFrame

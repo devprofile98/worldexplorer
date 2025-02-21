@@ -7,8 +7,10 @@
 #include <vector>
 
 #include "composition_pass.h"
+#include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
+#include "glm/trigonometric.hpp"
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_wgpu.h"
 #include "imgui/imgui.h"
@@ -116,7 +118,7 @@ void Application::initializePipeline() {
 
     mBindingGroup.addBuffer(13,  //
                             BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
-                            sizeof(glm::vec4) * 10000);
+                            sizeof(glm::mat4) * 10000);
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
 
@@ -240,31 +242,42 @@ void Application::initializePipeline() {
     mBindingData[12].binding = 12;
     mBindingData[12].sampler = shadow_sampler;
 
-    offset_buffer.setSize(sizeof(glm::vec4) * 10000)
+    offset_buffer.setSize(sizeof(glm::mat4) * 10000)
         .setLabel("aaabbb offset buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setMappedAtCraetion()
         .create(this);
 
-    std::array<glm::vec4, 10000> dddata = {};
-    size_t counter = 0;
-    for (size_t i = 0; i < 100; i++) {
-        for (size_t j = 0; j < 100; j++) {
-            /*size_t x = i / 5.0f;*/
-            /*size_t y = j / 5.0f;*/
-            dddata[counter++] = glm::vec4{i / 5.0, j / 5.0, Terrain::perlin(i / 5.0, j / 5.0), 0.0};
-        }
-    }
+    std::array<glm::mat4, 10000> dddata = {};
 
+    for (size_t i = 0; i < 10000; i++) {
+        glm::vec3 position = glm::vec3(output[i].x, output[i].y, output[i].z);
+        /*glm::mat4 transform = glm::mat4{1.0f};*/
+        auto trans = glm::translate(glm::mat4{1.0f}, position);
+        auto rotate = glm::rotate(glm::mat4{1.0f}, glm::radians(0.0f), glm::vec3{1.0, 0.0, 0.0});
+        auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.3f});
+        dddata[i] = trans * rotate * scale;
+    std::cout << "The output buffer is:" << output.size() << " " << position.x << " " << position.y << '\n';
+    }
+    /*dddata[0] = glm::vec4(0.0, 0.0, 0.0, 0.0);*/
+    glm::vec3 position = glm::vec3(-30.0, -30.0f, 0.0f);
+    glm::mat4 transform = glm::mat4{1.0f};
+    transform = glm::translate(transform, position);
+    transform = glm::rotate(transform, glm::radians(0.0f), glm::vec3{1.0, 0.0, 0.0});
+    transform = glm::scale(transform, glm::vec3{1.0, 1.0, 1.0});
+    dddata[0] = transform;
+
+    std::cout << "One print should be here\n";
     wgpuQueueWriteBuffer(this->getRendererResource().queue, offset_buffer.getBuffer(), 0, &dddata,
-                         sizeof(glm::vec4) * 10000);
+                         sizeof(glm::mat4) * 10000);
+    std::cout << "One print should be here" << dddata.size() << "\n";
 
     mBindingData[13] = {};
     mBindingData[13].nextInChain = nullptr;
     mBindingData[13].buffer = offset_buffer.getBuffer();
     mBindingData[13].binding = 13;
     mBindingData[13].offset = 0;
-    mBindingData[13].size = sizeof(glm::vec4) * 10000;
+    mBindingData[13].size = sizeof(glm::mat4) * 10000;
 
     mBindingGroup.create(this, mBindingData);
 
@@ -324,21 +337,27 @@ void Application::initializeBuffers() {
     grass_model.uploadToGPU(this);
     grass_model.setTransparent();
 
-    grass2_model.load("grass2", this, RESOURCE_DIR "/grass2.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{-10.0, -10.0, 0.72})
-        .scale(glm::vec3{1.0f});
+    grass2_model.load("grass2", this, RESOURCE_DIR "/grass3.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{0.0, 0.0, 0.0})
+        .scale(glm::vec3{0.5f});
     grass2_model.uploadToGPU(this);
     grass2_model.setTransparent(false);
-    grass2_model.setInstanced(100);
+    grass2_model.setInstanced(10000);
+
+    car.load("car", this, RESOURCE_DIR "/car.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{0.725, -1.0, 0.72})
+        .scale(glm::vec3{0.3});
+    car.uploadToGPU(this);
+    car.setTransparent();
+
 
     tree_model.load("tree", this, RESOURCE_DIR "/tree1.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
         .scale(glm::vec3{0.9});
     tree_model.uploadToGPU(this);
-    /*tree_model.setInstanced(900);*/
-    /*tree_model.setTransparent();*/
 
-    terrain.generate(100, 8).uploadToGpu(this);
+    terrain.generate(100, 8, output).uploadToGpu(this);
+    std::cout << "Generate is " << output.size() << '\n';
 
     shapes = new Cube{this};
     shapes->moveTo(glm::vec3{10.0f, 1.0f, 4.0f});
