@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <format>
 #include <iostream>
+#include <random>
 #include <vector>
 
 #include "composition_pass.h"
@@ -118,7 +119,7 @@ void Application::initializePipeline() {
 
     mBindingGroup.addBuffer(13,  //
                             BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
-                            sizeof(glm::mat4) * 10000);
+                            sizeof(glm::mat4) * 63690);
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
 
@@ -242,22 +243,24 @@ void Application::initializePipeline() {
     mBindingData[12].binding = 12;
     mBindingData[12].sampler = shadow_sampler;
 
-    offset_buffer.setSize(sizeof(glm::mat4) * 10000)
+    offset_buffer.setSize(sizeof(glm::mat4) * 63690)
         .setLabel("aaabbb offset buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setMappedAtCraetion()
         .create(this);
 
-    std::array<glm::mat4, 10000> dddata = {};
+    std::array<glm::mat4, 63690> dddata = {};
+    std::random_device rd;   // Seed the random number generator
+    std::mt19937 gen(rd());  // Mersenne Twister PRNG
+    std::uniform_real_distribution<float> dist(0.9, 1.5);
+    grass2_model.setInstanced(63690);
 
-    for (size_t i = 0; i < 10000; i++) {
+    for (size_t i = 0; i < 63690; i++) {
         glm::vec3 position = glm::vec3(output[i].x, output[i].y, output[i].z);
-        /*glm::mat4 transform = glm::mat4{1.0f};*/
         auto trans = glm::translate(glm::mat4{1.0f}, position);
         auto rotate = glm::rotate(glm::mat4{1.0f}, glm::radians(0.0f), glm::vec3{1.0, 0.0, 0.0});
-        auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.3f});
+        auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f * dist(gen)});
         dddata[i] = trans * rotate * scale;
-    std::cout << "The output buffer is:" << output.size() << " " << position.x << " " << position.y << '\n';
     }
     /*dddata[0] = glm::vec4(0.0, 0.0, 0.0, 0.0);*/
     glm::vec3 position = glm::vec3(-30.0, -30.0f, 0.0f);
@@ -269,7 +272,7 @@ void Application::initializePipeline() {
 
     std::cout << "One print should be here\n";
     wgpuQueueWriteBuffer(this->getRendererResource().queue, offset_buffer.getBuffer(), 0, &dddata,
-                         sizeof(glm::mat4) * 10000);
+                         sizeof(glm::mat4) * 63690);
     std::cout << "One print should be here" << dddata.size() << "\n";
 
     mBindingData[13] = {};
@@ -277,7 +280,7 @@ void Application::initializePipeline() {
     mBindingData[13].buffer = offset_buffer.getBuffer();
     mBindingData[13].binding = 13;
     mBindingData[13].offset = 0;
-    mBindingData[13].size = sizeof(glm::mat4) * 10000;
+    mBindingData[13].size = sizeof(glm::mat4) * 63690;
 
     mBindingGroup.create(this, mBindingData);
 
@@ -342,14 +345,12 @@ void Application::initializeBuffers() {
         .scale(glm::vec3{0.5f});
     grass2_model.uploadToGPU(this);
     grass2_model.setTransparent(false);
-    grass2_model.setInstanced(10000);
 
     car.load("car", this, RESOURCE_DIR "/car.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
         .scale(glm::vec3{0.3});
     car.uploadToGPU(this);
     car.setTransparent();
-
 
     tree_model.load("tree", this, RESOURCE_DIR "/tree1.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
@@ -624,7 +625,7 @@ bool Application::initialize() {
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
     mLoadedModel = {&boat_model,   &tower_model, &desk_model, &arrow_model, &grass_model,
-                    &grass2_model, &tree_model,  shapes,      plane};
+                    &grass2_model, &tree_model, &car,  shapes,      plane};
 
     return true;
 }

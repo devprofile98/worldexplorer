@@ -99,6 +99,7 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
         bool isTransparent();
         Texture* getDiffuseTexture();
 	std::map<int, Mesh> mMeshes;
+	size_t instances = 1;
 
     private:
         bool mIsTransparent = false;
@@ -126,7 +127,6 @@ class Model : public BaseModel {
 
     private:
 	Buffer offset_buffer = {};
-	size_t instances = 1;
         Texture* mSpecularTexture = nullptr;
         WGPUBindGroup mBindGroup = nullptr;
         WGPUBindGroup ggg = {};

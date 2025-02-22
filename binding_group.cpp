@@ -171,6 +171,7 @@ void BindingGroup::create(Application* app, std::vector<WGPUBindGroupEntry>& bin
     mBindGroupDesc.layout = mBindGroupLayout;
     mBindGroupDesc.entryCount = mBindGroupLayoutDesc.entryCount;
     mBindGroupDesc.entries = bindingData.data();
+    std::cout << "fuck fuck fukc you " << bindingData.size() << "\n";
 
     mBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mBindGroupDesc);
 };

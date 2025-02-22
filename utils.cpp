@@ -256,6 +256,7 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
     mScaleMatrix = glm::scale(mScaleMatrix, glm::vec3{1.0});
     mObjectInfo.transformation = mScaleMatrix * mRotationMatrix * mTranslationMatrix;
     mObjectInfo.isFlat = 1;
+    std::vector<VertexAttributes> foliage_positions;
 
     std::array<glm::vec3, 5> height_color = {
         glm::vec3{0.0 / 255.0, 0.0 / 255.0, 139.0 / 255.0},      // Deep Water (Dark Blue)
@@ -334,6 +335,18 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
             }
             attr.uv = {x, z};
             this->vertices.push_back(attr);
+            // Generate foliage positions
+            if (pixel_result > 210 && pixel_result < 260) {  // Place foliage only on higher terrain
+                for (int i = 0; i < 15; i++) {                // Add multiple foliage per grid cell
+                    double offsetX = (rand() % 100) / 100.0;
+                    double offsetZ = (rand() % 100) / 100.0;
+                    double foliage_x = x + offsetX;
+                    double foliage_z = z + offsetZ;
+                    double foliage_height = pixel_result * height_scale + 0.2;  // Slightly above terrain
+                    foliage_positions.push_back(
+                        {{foliage_x, foliage_z, foliage_height}, {0.0, 1.0, 0.0}, {0, 255, 0}, {foliage_x, foliage_z}});
+                }
+            }
         }
     }
 
@@ -343,16 +356,16 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
         e.position.z -= 25;
         e.position.x -= 50;
         e.position.y -= 50;
-        output.push_back(e.position);
+        /*output.push_back(e.position);*/
     }
 
-    for (size_t x = 0; x < 100; x++) {
-        for (size_t y = 0; y < 10; y++) {
-            for (size_t z = 0; z < 10; z++) {
-
-            }
-        }
+    for (auto& f : foliage_positions) {
+        f.position.z -= 25;
+        f.position.x -= 50;
+        f.position.y -= 50;
+        output.push_back(f.position);
     }
+
     // std::vector<size_t> terrain.indices;
     for (size_t x = 0; x < gridSize - 1; x++) {
         for (size_t z = 0; z < gridSize - 1; z++) {

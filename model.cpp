@@ -79,7 +79,9 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
     for (const auto& shape : shapes) {
         // Iterate through faces
-
+        if (getName() == "car") {
+            std::cout << "Fuck you Fuck you fuck you " << shape.mesh.num_face_vertices.size() << " " << shape.mesh.material_ids.size() << std::endl;
+        }
         for (size_t faceIdx = 0; faceIdx < shape.mesh.num_face_vertices.size(); ++faceIdx) {
             int materialId = shape.mesh.material_ids[faceIdx];        // Material ID for this face
             int numVertices = shape.mesh.num_face_vertices[faceIdx];  // Number of vertices in this face
@@ -106,9 +108,6 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
                 /**/
                 vertex.color = {attrib.colors[3 * idx.vertex_index + 0], attrib.colors[3 * idx.vertex_index + 2],
                                 attrib.colors[3 * idx.vertex_index + 1]};
-                if (getName() == "car") {
-                    std::cout << "bettr tahn noting " << attrib.texcoords.size() << '\n';
-                }
 
                 if (attrib.texcoords.empty()) {
                     vertex.uv = {0.0, 0.0};

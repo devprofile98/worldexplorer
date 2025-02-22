@@ -55,6 +55,9 @@ void ShadowPass::createRenderPass() {
     // creating pipeline
     // for projection
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(Scene));
+    /*mBindingGroup.addBuffer(1,  //*/
+    /*                        BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,*/
+    /*                        sizeof(glm::mat4) * 63690);*/
 
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
 
@@ -103,6 +106,13 @@ void ShadowPass::createRenderPass() {
     mBindingData[0].offset = 0;
     mBindingData[0].size = sizeof(Scene);
 
+    /*mBindingData[1] = {};*/
+    /*mBindingData[1].nextInChain = nullptr;*/
+    /*mBindingData[1].buffer = nullptr;*/
+    /*mBindingData[1].binding = 1;*/
+    /*mBindingData[1].offset = 0;*/
+    /*mBindingData[1].size = sizeof(glm::mat4) * 63690;*/
+    /**/
     mBindingGroup.create(mApp, mBindingData);
 }
 
@@ -135,10 +145,9 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
                 .setMappedAtCraetion()
                 .create(mApp);
 
-            /*WGPUBuffer modelUniformBuffer = wgpuDeviceCreateBuffer(render_resource.device, &buf.getBuffer());*/
-
             mScene.model = model->getTranformMatrix();
             mBindingData[0].buffer = modelUniformBuffer.getBuffer();
+            /*mBindingData[1].buffer = mApp->offset_buffer.getBuffer();*/
             auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
             wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer.getBuffer(), 0, &mScene,
                                  sizeof(mScene));
