@@ -28,7 +28,8 @@ class Application;
 struct ObjectInfo {
         glm::mat4 transformation;
         uint32_t isFlat;
-        std::array<uint32_t, 3> padding;
+	uint32_t useTexture;
+        std::array<uint32_t, 2> padding;
 };
 
 // Hold the properties and needed object to represents the object transformation

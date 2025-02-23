@@ -135,8 +135,7 @@ WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor() { return &mRende
 void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder) {
     /*auto& render_resource = mApp->getRendererResource();*/
     for (auto* model : models) {
-        for (auto& mesh_obj : model->mMeshes) {
-            auto& mesh = mesh_obj.second;
+        for (auto& [mat_id, mesh] : model->mMeshes) {
 
             Buffer modelUniformBuffer = {};
             modelUniformBuffer.setLabel("Model Uniform Buffer")
@@ -157,7 +156,7 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
 
             wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
 
-            wgpuRenderPassEncoderDraw(encoder, model->getVertexCount(), 1, 0, 0);
+            wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(), 1, 0, 0);
 
             wgpuBufferRelease(modelUniformBuffer.getBuffer());
             wgpuBindGroupRelease(bindgroup);

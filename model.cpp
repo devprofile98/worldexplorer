@@ -33,6 +33,7 @@ Model::Model() : BaseModel() {
     mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
     mObjectInfo.transformation = mTransformMatrix;
     mObjectInfo.isFlat = 0;
+    mObjectInfo.useTexture = 0;
 }
 
 Model& Model::load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout) {
@@ -79,9 +80,6 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
     for (const auto& shape : shapes) {
         // Iterate through faces
-        if (getName() == "car") {
-            std::cout << "Fuck you Fuck you fuck you " << shape.mesh.num_face_vertices.size() << " " << shape.mesh.material_ids.size() << std::endl;
-        }
         for (size_t faceIdx = 0; faceIdx < shape.mesh.num_face_vertices.size(); ++faceIdx) {
             int materialId = shape.mesh.material_ids[faceIdx];        // Material ID for this face
             int numVertices = shape.mesh.num_face_vertices[faceIdx];  // Number of vertices in this face
@@ -105,9 +103,14 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
                 /**/
                 vertex.normal = {attrib.normals[3 * idx.normal_index + 0], -attrib.normals[3 * idx.normal_index + 2],
                                  attrib.normals[3 * idx.normal_index + 1]};
-                /**/
-                vertex.color = {attrib.colors[3 * idx.vertex_index + 0], attrib.colors[3 * idx.vertex_index + 2],
-                                attrib.colors[3 * idx.vertex_index + 1]};
+
+                glm::vec3 materialColor = {1.0f, 1.0f, 1.0f};  // Default color (white)
+                if (materialId >= 0 && materialId < (int)materials.size()) {
+                    materialColor = {materials[materialId].diffuse[0], materials[materialId].diffuse[1],
+                                     materials[materialId].diffuse[2]};
+		    /*mObjectInfo.useTexture = 1;*/
+                }
+		vertex.color = materialColor;
 
                 if (attrib.texcoords.empty()) {
                     vertex.uv = {0.0, 0.0};
@@ -189,15 +192,18 @@ Transform& Transform::moveTo(const glm::vec3& moveVec) {
 
 Model& Model::uploadToGPU(Application* app) {
     // upload vertex attribute data to GPU
-    for (auto& mesh : mMeshes) {
-        mesh.second.mVertexBuffer.setLabel("Uniform buffer for object info")
+    for (auto& [_mat_id, mesh] : mMeshes) {
+        if (getName() == "car") {
+            std::cout << "mesh has " << mesh.mVertexData.size() << '\n';
+        }
+        mesh.mVertexBuffer.setLabel("Uniform buffer for object info")
             .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
-            .setSize(mesh.second.mVertexData.size() * sizeof(VertexAttributes))
+            .setSize(mesh.mVertexData.size() * sizeof(VertexAttributes))
             .setMappedAtCraetion()
             .create(app);
 
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.second.mVertexBuffer.getBuffer(), 0,
-                             mesh.second.mVertexData.data(), mesh.second.mVertexData.size() * sizeof(VertexAttributes));
+        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mVertexBuffer.getBuffer(), 0,
+                             mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
     }
     return *this;
 };
@@ -241,9 +247,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
     WGPUBindGroup active_bind_group = nullptr;
 
     // Bind Diffuse texture for the model if existed
-    for (auto& mesh_obj : mMeshes) {
-        auto& mesh = mesh_obj.second;
-
+    for (auto& [mat_id, mesh] : mMeshes) {
         if (mesh.isTransparent) {
             continue;
         }
@@ -271,13 +275,16 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
                                              wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
 
         wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
+	if (getName() =="car"){
+		mObjectInfo.useTexture = 1;
+	}
         wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
                              sizeof(ObjectInfo));
 
         createSomeBinding(app);
         wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
 
-        wgpuRenderPassEncoderDraw(encoder, getVertexCount(), this->instances, 0, 0);
+        wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(), this->instances, 0, 0);
         wgpuBindGroupRelease(ggg);
         // if we created a binding group and didn't use the default appliaction binding-group
         if (mBindGroup != nullptr) {

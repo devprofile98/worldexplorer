@@ -33,7 +33,7 @@ struct LightingUniforms {
 struct ObjectInfo {
     transformations: mat4x4f,
     isFlat: i32,
-    padding1: i32,
+    useTexture: i32,
     padding2: i32,
     padding3: i32,
 }
@@ -182,7 +182,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let linear_color = pow(color2, vec3f(2.2));
         let ambient = linear_color;
         let diffuse = pointLight.ambient.xyz * attenuation * color * diff;
-        color = vec4f(ambient + diffuse, 1.0).rgb;
+
+    	if objectTranformation.useTexture == 0 {
+        	color = vec4f(ambient + diffuse, 1.0).rgb;
+	} else{
+        	color = in.color.rgb;
+	}
     } else {
         if in.color.r == 1 {
             color = textureSample(sand_lake_texture, textureSampler, in.uv).rgb;
@@ -215,4 +220,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let diffuse_final = pointLight.ambient.xyz * attenuation * diff;
 
     return vec4f((diffuse_final + ambient) * (1 - shadow / 2), 1.0);
+    //return vec4f(in.color.rgb * (1 - shadow / 2), 1.0);
 }
+

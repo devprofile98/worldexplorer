@@ -348,9 +348,9 @@ void Application::initializeBuffers() {
 
     car.load("car", this, RESOURCE_DIR "/car.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
-        .scale(glm::vec3{0.3});
+        .scale(glm::vec3{0.2});
     car.uploadToGPU(this);
-    car.setTransparent();
+    car.setTransparent(false);
 
     tree_model.load("tree", this, RESOURCE_DIR "/tree1.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
