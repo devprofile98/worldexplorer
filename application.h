@@ -86,6 +86,7 @@ class Application {
         Model grass_model{};
         Model grass2_model{};
         Model car{};
+        Model water{};
         Buffer offset_buffer;
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();

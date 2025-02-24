@@ -68,7 +68,7 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path) {
         mBufferData[j] = pixel_data[i];                                  // Red
         mBufferData[j + 1] = pixel_data[i + 1];                          // Green
         mBufferData[j + 2] = pixel_data[i + 2];                          // Blue
-        mBufferData[j + 3] = (channels == 4) ? pixel_data[i + 3] : 1.0;  // Alpha (default to 255 if no alpha channel)
+        mBufferData[j + 3] = (channels == 4) ? pixel_data[i + 3] : 255.0;  // Alpha (default to 255 if no alpha channel)
     }
 
     stbi_image_free(pixel_data);

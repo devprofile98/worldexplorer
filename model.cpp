@@ -4,8 +4,10 @@
 #include <iostream>
 
 #include "application.h"
+#include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
+#include "glm/trigonometric.hpp"
 #include "imgui.h"
 #include "tinyobjloader/tiny_obj_loader.h"
 #include "webgpu.h"
@@ -33,7 +35,8 @@ Model::Model() : BaseModel() {
     mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
     mObjectInfo.transformation = mTransformMatrix;
     mObjectInfo.isFlat = 0;
-    mObjectInfo.useTexture = 0;
+    mObjectInfo.useTexture = 1;
+    mObjectInfo.isFoliage = 0;
 }
 
 Model& Model::load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout) {
@@ -108,9 +111,9 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
                 if (materialId >= 0 && materialId < (int)materials.size()) {
                     materialColor = {materials[materialId].diffuse[0], materials[materialId].diffuse[1],
                                      materials[materialId].diffuse[2]};
-		    /*mObjectInfo.useTexture = 1;*/
+                    /*mObjectInfo.useTexture = 1;*/
                 }
-		vertex.color = materialColor;
+                vertex.color = materialColor;
 
                 if (attrib.texcoords.empty()) {
                     vertex.uv = {0.0, 0.0};
@@ -174,6 +177,16 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
 Model& Model::setInstanced(size_t instances) {
     this->instances = instances;
+    return *this;
+}
+
+Model& Model::setFoliage() {
+    this->mObjectInfo.isFoliage = 1;
+    return *this;
+}
+
+Model& Model::useTexture(bool use) {
+    this->mObjectInfo.useTexture = use ? 1 : 0;
     return *this;
 }
 
@@ -275,9 +288,10 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
                                              wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
 
         wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
-	if (getName() =="car"){
-		mObjectInfo.useTexture = 1;
-	}
+        /*if (getName() == "car") {*/
+        /*    mObjectInfo.useTexture = 1;*/
+        /*}*/
+
         wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
                              sizeof(ObjectInfo));
 
@@ -298,9 +312,9 @@ size_t Model::getInstaceCount() { return this->instances; }
 
 #ifdef DEVELOPMENT_BUILD
 void Model::userInterface() {
-    ImGui::SliderFloat("X", &mPosition.x, -10.0f, 10.0f);
-    ImGui::SliderFloat("Y", &mPosition.y, -10.0f, 10.0f);
-    ImGui::SliderFloat("Z", &mPosition.z, -10.0f, 10.0f);
+    ImGui::SliderFloat("X", &mPosition.x, -20.0f, 20.0f);
+    ImGui::SliderFloat("Y", &mPosition.y, -100.0f, 100.0f);
+    ImGui::SliderFloat("Z", &mPosition.z, -100.0f, 100.0f);
 
     ImGui::SliderFloat3("Scale", glm::value_ptr(mScale), 0.0f, 10.0f);
     moveTo(this->mPosition);
@@ -313,6 +327,11 @@ Transform& Transform::scale(const glm::vec3& s) {
     mScale = s;
     mScaleMatrix = glm::scale(glm::mat4{1.0}, s);
     getTranformMatrix();
+    return *this;
+}
+
+Transform& Transform::rotate(const glm::vec3& around, float degree) {
+    this->mRotationMatrix = glm::rotate(glm::mat4{1.0f}, glm::radians(degree), around);
     return *this;
 }
 

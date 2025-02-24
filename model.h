@@ -14,8 +14,8 @@
 
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
-#include "texture.h"
 #include "mesh.h"
+#include "texture.h"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
 
@@ -28,8 +28,9 @@ class Application;
 struct ObjectInfo {
         glm::mat4 transformation;
         uint32_t isFlat;
-	uint32_t useTexture;
-        std::array<uint32_t, 2> padding;
+        uint32_t useTexture;
+        uint32_t isFoliage;
+        uint32_t padding;
 };
 
 // Hold the properties and needed object to represents the object transformation
@@ -38,6 +39,7 @@ class Transform {
         Transform& moveBy(const glm::vec3& m);
         Transform& moveTo(const glm::vec3& m);
         Transform& scale(const glm::vec3& s);
+	Transform& rotate(const glm::vec3& around, float degree);
 
         glm::vec3& getPosition();
         glm::vec3& getScale();
@@ -99,8 +101,8 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
         void setTransparent(bool value = true);
         bool isTransparent();
         Texture* getDiffuseTexture();
-	std::map<int, Mesh> mMeshes;
-	size_t instances = 1;
+        std::map<int, Mesh> mMeshes;
+        size_t instances = 1;
 
     private:
         bool mIsTransparent = false;
@@ -115,10 +117,12 @@ class Model : public BaseModel {
         void draw(Application* app, WGPURenderPassEncoder encoder,
                   std::vector<WGPUBindGroupEntry>& bindingData) override;
 
-	Model& setInstanced(size_t instances);
+        Model& setInstanced(size_t instances);
+        Model& setFoliage();
+        Model& useTexture(bool use = true);
         // Getters
         void createSomeBinding(Application* app);
-	size_t getInstaceCount();
+        size_t getInstaceCount();
 
 #ifdef DEVELOPMENT_BUILD
         // Common User-Interface to interact with Object in the Development state
@@ -127,7 +131,7 @@ class Model : public BaseModel {
 #endif  // DEVELOPMENT_BUILD
 
     private:
-	Buffer offset_buffer = {};
+        Buffer offset_buffer = {};
         Texture* mSpecularTexture = nullptr;
         WGPUBindGroup mBindGroup = nullptr;
         WGPUBindGroup ggg = {};

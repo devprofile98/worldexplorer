@@ -252,13 +252,19 @@ void Application::initializePipeline() {
     std::array<glm::mat4, 63690> dddata = {};
     std::random_device rd;   // Seed the random number generator
     std::mt19937 gen(rd());  // Mersenne Twister PRNG
-    std::uniform_real_distribution<float> dist(0.9, 1.5);
-    grass2_model.setInstanced(63690);
+    std::uniform_real_distribution<float> dist(1.5, 2.5);
+    std::uniform_real_distribution<float> dist_for_rotation(0.0, 180.0);
+    if (output.size() > 63690) {
+        std::cout << "EEEEEEEEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRRRRRRROOOOOOOOOOOOOOOOORRRRRRRRRRRRRRRR\n";
+    }
+    grass_model.setInstanced(output.size());
+
+    std::cout << "The Fooliage count is: " << output.size() << '\n';
 
     for (size_t i = 0; i < 63690; i++) {
         glm::vec3 position = glm::vec3(output[i].x, output[i].y, output[i].z);
         auto trans = glm::translate(glm::mat4{1.0f}, position);
-        auto rotate = glm::rotate(glm::mat4{1.0f}, glm::radians(0.0f), glm::vec3{1.0, 0.0, 0.0});
+        auto rotate = glm::rotate(glm::mat4{1.0f}, glm::radians(dist_for_rotation(gen)), glm::vec3{0.0, 0.0, 1.0});
         auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f * dist(gen)});
         dddata[i] = trans * rotate * scale;
     }
@@ -315,7 +321,7 @@ void Application::initializePipeline() {
 // Initializing Vertex Buffers
 void Application::initializeBuffers() {
     boat_model.load("boat", this, RESOURCE_DIR "/fourareen.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.0})
+        .moveTo(glm::vec3{-10.0, 0.0, 0.0})
         .scale(glm::vec3{0.3});
     boat_model.uploadToGPU(this);
 
@@ -338,7 +344,8 @@ void Application::initializeBuffers() {
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
         .scale(glm::vec3{0.3});
     grass_model.uploadToGPU(this);
-    grass_model.setTransparent();
+    grass_model.setTransparent(false);
+    grass_model.setFoliage();
 
     grass2_model.load("grass2", this, RESOURCE_DIR "/grass3.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0, 0.0, 0.0})
@@ -348,14 +355,25 @@ void Application::initializeBuffers() {
 
     car.load("car", this, RESOURCE_DIR "/car.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
-        .scale(glm::vec3{0.2});
+        .scale(glm::vec3{0.2})
+        .rotate(glm::vec3{0.0, 0.0, 1.0}, 90.0f);
     car.uploadToGPU(this);
     car.setTransparent(false);
+    car.useTexture(false);
 
     tree_model.load("tree", this, RESOURCE_DIR "/tree1.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.725, -1.0, 0.72})
+        .moveTo(glm::vec3{0.725, -7.640, 1.125})
         .scale(glm::vec3{0.9});
     tree_model.uploadToGPU(this);
+    tree_model.setTransparent(false);
+    tree_model.setFoliage();
+
+    water.load("water", this, RESOURCE_DIR "/bluecube.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{-3.725, -7.640, -3.425})
+        .scale(glm::vec3{30.0, 30.0, 1.0});
+    water.uploadToGPU(this);
+    water.setTransparent(false);
+    water.useTexture(false);
 
     terrain.generate(100, 8, output).uploadToGpu(this);
     std::cout << "Generate is " << output.size() << '\n';
@@ -621,11 +639,11 @@ bool Application::initialize() {
     wgpuQueueSubmit(mRendererResource.queue, 1, &command);
     wgpuCommandBufferRelease(command);
 
-    boat_model.moveTo({1.0, -4.0, 0.0});
+    boat_model.moveTo({-10.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel = {&boat_model,   &tower_model, &desk_model, &arrow_model, &grass_model,
-                    &grass2_model, &tree_model, &car,  shapes,      plane};
+    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model, &grass_model, &grass2_model,
+                    &tree_model, &car,         &water,      shapes,       plane};
 
     return true;
 }

@@ -34,7 +34,7 @@ struct ObjectInfo {
     transformations: mat4x4f,
     isFlat: i32,
     useTexture: i32,
-    padding2: i32,
+    isFoliage: i32,
     padding3: i32,
 }
 
@@ -154,6 +154,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     var shading = vec3f(0.0);
     // for (var i = 0; i < 1; i++) {
     var color = lightingInfos.colors[0].rgb;
+
     let direction = normalize(lightingInfos.directions[0].xyz);
     let reflection = reflect(-direction, normal);
         // The closer the cosine is to 1.0, the closer V is to R
@@ -162,7 +163,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let specular = pow(RoV, hardness) ;
 
     let intensity = dot(direction, normal);
-    let diffuse = max(0.2, intensity) * color;
+    var min_intensity = 0.2;
+    if objectTranformation.isFoliage == 1 {
+      min_intensity = 0.6;
+    }
+    let diffuse = max(min_intensity, intensity) * color;
     // let diffuse = abs(intensity) * color;
     shading += diffuse;
     if objectTranformation.isFlat == 0 {
@@ -183,11 +188,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let ambient = linear_color;
         let diffuse = pointLight.ambient.xyz * attenuation * color * diff;
 
-    	if objectTranformation.useTexture == 0 {
+    	if objectTranformation.useTexture != 0 {
         	color = vec4f(ambient + diffuse, 1.0).rgb;
 	} else{
         	color = in.color.rgb;
 	}
+    if fragment_color.a < 0.1 {
+    	discard;
+    }
     } else {
         if in.color.r == 1 {
             color = textureSample(sand_lake_texture, textureSampler, in.uv).rgb;
@@ -213,13 +221,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         } else if in.color.r == 4 {
             color = textureSample(snow_mountain_texture, textureSampler, in.uv).rgb;
         }
+
+        //color = pow(color, vec3f(1.7));
     }
     let shadow = calculateShadow(in.shadowPos);
 
     let ambient = color * shading;
     let diffuse_final = pointLight.ambient.xyz * attenuation * diff;
 
-    return vec4f((diffuse_final + ambient) * (1 - shadow / 2), 1.0);
+    return vec4f((diffuse_final + ambient) * (1 - shadow * (0.75)), 1.0);
     //return vec4f(in.color.rgb * (1 - shadow / 2), 1.0);
 }
 

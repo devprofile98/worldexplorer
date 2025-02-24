@@ -336,8 +336,8 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
             attr.uv = {x, z};
             this->vertices.push_back(attr);
             // Generate foliage positions
-            if (pixel_result > 210 && pixel_result < 260) {  // Place foliage only on higher terrain
-                for (int i = 0; i < 15; i++) {                // Add multiple foliage per grid cell
+            if (pixel_result > 220 && pixel_result < 260) {  // Place foliage only on higher terrain
+                for (int i = 0; i < 9; i++) {                // Add multiple foliage per grid cell
                     double offsetX = (rand() % 100) / 100.0;
                     double offsetZ = (rand() % 100) / 100.0;
                     double foliage_x = x + offsetX;
