@@ -81,7 +81,8 @@ void TransparencyPass::initializePass() {
                              TextureViewDimension::VIEW_2D);
 
     mBindingGroup.addSampler(6, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
-    mBindingGroup.addBuffer(7, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY, sizeof(glm::vec4) * 10000);
+    mBindingGroup.addBuffer(7, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+                            sizeof(glm::vec4) * 10000);
 
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
 
@@ -196,7 +197,7 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
             mBindingData[0].buffer = mApp->getUniformBuffer();
             mBindingData[3].textureView = opaqueDepthTextureView;
             mBindingData[4].buffer = object_info_buffer.getBuffer();
-            mBindingData[7].buffer = mApp->offset_buffer.getBuffer();
+            mBindingData[7].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
 
             auto mesh_texture = mesh.mTexture;
             if (mesh_texture != nullptr) {
@@ -214,7 +215,7 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
             wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
 
             /*size_t instances = (model->getName() == "tree") ? 900 : 1;*/
-	    size_t instances = 1;
+            size_t instances = 1;
             wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(), instances, 0, 0);
 
             wgpuBufferRelease(object_info_buffer.getBuffer());

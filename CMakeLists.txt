@@ -36,6 +36,7 @@ add_executable(
     transparency_pass.cpp
     composition_pass.cpp
     mesh.cpp
+    instance.cpp
 )
 
 target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")

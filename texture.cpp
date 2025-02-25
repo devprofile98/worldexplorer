@@ -4,7 +4,6 @@
 #include "stb_image.h"
 
 WGPUTextureView Texture::createView() {
-    // WGPUTextureView tmp = nullptr;
     if (mIsTextureAlive) {
         WGPUTextureViewDescriptor texture_view_desc = {};
         texture_view_desc.aspect = WGPUTextureAspect_All;
@@ -14,8 +13,6 @@ WGPUTextureView Texture::createView() {
         texture_view_desc.mipLevelCount = mDescriptor.mipLevelCount;
         texture_view_desc.dimension = WGPUTextureViewDimension_2D;
         texture_view_desc.format = mDescriptor.format;
-
-        std::cout << "fuck yout\n" << mDescriptor.format << "\n";
         mTextureView = wgpuTextureCreateView(mTexture, &texture_view_desc);
         return mTextureView;
     }

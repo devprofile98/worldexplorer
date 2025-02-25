@@ -19,6 +19,7 @@
 #include "transparency_pass.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
+#include "instance.h"
 
 struct MyUniform {
         glm::mat4 projectMatrix;
@@ -87,10 +88,10 @@ class Application {
         Model grass2_model{};
         Model car{};
         Model water{};
-        Buffer offset_buffer;
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();
 
+	InstanceManager * mInstanceManager;
         std::vector<glm::vec3> output = {};
         bool initGui();                                    // called in onInit
         void terminateGui();                               // called in onFinish

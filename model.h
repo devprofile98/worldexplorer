@@ -11,7 +11,7 @@
 #include <filesystem>
 #include <numeric>
 #include <vector>
-
+#include "instance.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "mesh.h"
@@ -30,7 +30,7 @@ struct ObjectInfo {
         uint32_t isFlat;
         uint32_t useTexture;
         uint32_t isFoliage;
-        uint32_t padding;
+        uint32_t instanceOffsetId;
 };
 
 // Hold the properties and needed object to represents the object transformation
@@ -103,6 +103,8 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
         Texture* getDiffuseTexture();
         std::map<int, Mesh> mMeshes;
         size_t instances = 1;
+	Instance *instance = nullptr;
+        void setInstanced(Instance* instance);
 
     private:
         bool mIsTransparent = false;
@@ -117,9 +119,9 @@ class Model : public BaseModel {
         void draw(Application* app, WGPURenderPassEncoder encoder,
                   std::vector<WGPUBindGroupEntry>& bindingData) override;
 
-        Model& setInstanced(size_t instances);
         Model& setFoliage();
         Model& useTexture(bool use = true);
+
         // Getters
         void createSomeBinding(Application* app);
         size_t getInstaceCount();

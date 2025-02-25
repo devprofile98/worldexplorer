@@ -15,6 +15,7 @@
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_wgpu.h"
 #include "imgui/imgui.h"
+#include "instance.h"
 #include "shapes.h"
 #include "texture.h"
 #include "transparency_pass.h"
@@ -119,7 +120,7 @@ void Application::initializePipeline() {
 
     mBindingGroup.addBuffer(13,  //
                             BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
-                            sizeof(glm::mat4) * 63690);
+                            mInstanceManager->mBufferSize);
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
 
@@ -243,50 +244,57 @@ void Application::initializePipeline() {
     mBindingData[12].binding = 12;
     mBindingData[12].sampler = shadow_sampler;
 
-    offset_buffer.setSize(sizeof(glm::mat4) * 63690)
-        .setLabel("aaabbb offset buffer")
-        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
-        .setMappedAtCraetion()
-        .create(this);
-
-    std::array<glm::mat4, 63690> dddata = {};
+    std::vector<glm::mat4> dddata = {};
+    std::vector<glm::mat4> dddata_tree = {};
+    /*dddata.reserve(100000);*/
     std::random_device rd;   // Seed the random number generator
     std::mt19937 gen(rd());  // Mersenne Twister PRNG
     std::uniform_real_distribution<float> dist(1.5, 2.5);
     std::uniform_real_distribution<float> dist_for_rotation(0.0, 180.0);
+    std::uniform_real_distribution<float> dist_for_tree(1.0, 1.4);
     if (output.size() > 63690) {
         std::cout << "EEEEEEEEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRRRRRRROOOOOOOOOOOOOOOOORRRRRRRRRRRRRRRR\n";
     }
-    grass_model.setInstanced(output.size());
 
-    std::cout << "The Fooliage count is: " << output.size() << '\n';
-
-    for (size_t i = 0; i < 63690; i++) {
+    for (size_t i = 0; i < output.size(); i++) {
         glm::vec3 position = glm::vec3(output[i].x, output[i].y, output[i].z);
         auto trans = glm::translate(glm::mat4{1.0f}, position);
         auto rotate = glm::rotate(glm::mat4{1.0f}, glm::radians(dist_for_rotation(gen)), glm::vec3{0.0, 0.0, 1.0});
         auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f * dist(gen)});
-        dddata[i] = trans * rotate * scale;
+        dddata.push_back(trans * rotate * scale);
+        if (i % 30 == 0) {
+            scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.9f * dist_for_tree(gen)});
+            dddata_tree.push_back(trans * rotate * scale);
+        }
     }
-    /*dddata[0] = glm::vec4(0.0, 0.0, 0.0, 0.0);*/
     glm::vec3 position = glm::vec3(-30.0, -30.0f, 0.0f);
     glm::mat4 transform = glm::mat4{1.0f};
     transform = glm::translate(transform, position);
     transform = glm::rotate(transform, glm::radians(0.0f), glm::vec3{1.0, 0.0, 0.0});
     transform = glm::scale(transform, glm::vec3{1.0, 1.0, 1.0});
     dddata[0] = transform;
+    dddata_tree[0] = transform;
 
-    std::cout << "One print should be here\n";
-    wgpuQueueWriteBuffer(this->getRendererResource().queue, offset_buffer.getBuffer(), 0, &dddata,
-                         sizeof(glm::mat4) * 63690);
-    std::cout << "One print should be here" << dddata.size() << "\n";
+    wgpuQueueWriteBuffer(this->getRendererResource().queue, mInstanceManager->getInstancingBuffer().getBuffer(), 0,
+                         dddata.data(), sizeof(glm::mat4) * (dddata.size() - 1));
+
+    wgpuQueueWriteBuffer(this->getRendererResource().queue, mInstanceManager->getInstancingBuffer().getBuffer(),
+                         100000 * sizeof(glm::mat4), dddata_tree.data(), sizeof(glm::mat4) * (dddata_tree.size() - 1));
+
+    auto* ins = new Instance{dddata};
+    auto* ins_tree = new Instance{dddata_tree};
+    grass_model.setInstanced(ins);
+    grass_model.mObjectInfo.instanceOffsetId = 0;
+
+    tree_model.setInstanced(ins_tree);
+    tree_model.mObjectInfo.instanceOffsetId = 1;
 
     mBindingData[13] = {};
     mBindingData[13].nextInChain = nullptr;
-    mBindingData[13].buffer = offset_buffer.getBuffer();
+    mBindingData[13].buffer = mInstanceManager->getInstancingBuffer().getBuffer();
     mBindingData[13].binding = 13;
     mBindingData[13].offset = 0;
-    mBindingData[13].size = sizeof(glm::mat4) * 63690;
+    mBindingData[13].size = mInstanceManager->mBufferSize;
 
     mBindingGroup.create(this, mBindingData);
 
@@ -320,6 +328,9 @@ void Application::initializePipeline() {
 
 // Initializing Vertex Buffers
 void Application::initializeBuffers() {
+    // initialize The instancing buffer
+    mInstanceManager = new InstanceManager{this, sizeof(glm::mat4) * 100000 * 15, 100000};
+
     boat_model.load("boat", this, RESOURCE_DIR "/fourareen.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{-10.0, 0.0, 0.0})
         .scale(glm::vec3{0.3});
@@ -416,7 +427,7 @@ void Application::initializeBuffers() {
         .setMappedAtCraetion()
         .create(this);
 
-    mLightingUniforms.directions = {glm::vec4{0.5, -0.9, 0.1, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
+    mLightingUniforms.directions = {glm::vec4{0.5, 0.5, 0.4, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
     mLightingUniforms.colors = {glm::vec4{1.0, 0.9, 0.6, 1.0}, glm::vec4{0.6, 0.9, 1.0, 1.0}};
     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                          lighting_buffer_descriptor.size);

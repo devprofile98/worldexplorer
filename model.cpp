@@ -175,9 +175,10 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     return *this;
 }
 
-Model& Model::setInstanced(size_t instances) {
-    this->instances = instances;
-    return *this;
+void BaseModel::setInstanced(Instance* instance) {
+    /*this->instances = instances;*/
+    this->instance = instance;
+    /*return *this;*/
 }
 
 Model& Model::setFoliage() {
@@ -298,7 +299,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
         createSomeBinding(app);
         wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
 
-        wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(), this->instances, 0, 0);
+        wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(), this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0);
         wgpuBindGroupRelease(ggg);
         // if we created a binding group and didn't use the default appliaction binding-group
         if (mBindGroup != nullptr) {
@@ -306,6 +307,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
             mBindGroup = nullptr;
         }
     }
+
 }
 
 size_t Model::getInstaceCount() { return this->instances; }
