@@ -1,6 +1,7 @@
 #include "shadow_pass.h"
 
 #include "application.h"
+#include "glm/fwd.hpp"
 #include "gpu_buffer.h"
 #include "webgpu.h"
 
@@ -55,9 +56,10 @@ void ShadowPass::createRenderPass() {
     // creating pipeline
     // for projection
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(Scene));
-    /*mBindingGroup.addBuffer(1,  //*/
-    /*                        BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,*/
-    /*                        sizeof(glm::mat4) * 63690);*/
+    /*mBindingGroup.addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(glm::vec3));*/
+    mBindingGroup.addBuffer(1,  //
+                            BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+                            mApp->mInstanceManager->mBufferSize);
 
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
 
@@ -79,6 +81,26 @@ void ShadowPass::createRenderPass() {
     mFragmentState.targets = nullptr;
     (void)mFragmentState;
 
+
+    // fill bindgroup
+    mBindingData.push_back({});
+    mBindingData[0].nextInChain = nullptr;
+    mBindingData[0].binding = 0;
+    mBindingData[0].buffer = nullptr;
+    mBindingData[0].offset = 0;
+    mBindingData[0].size = sizeof(Scene);
+
+    mBindingData.push_back({});
+    mBindingData[1] = {};
+    mBindingData[1].nextInChain = nullptr;
+    mBindingData[1].buffer = nullptr;
+    mBindingData[1].binding = 1;
+    mBindingData[1].offset = 0;
+    mBindingData[1].size = mApp->mInstanceManager->mBufferSize;
+    /*mBindingData[1].size = sizeof(glm::vec3);*/
+    /**/
+    /*mBindingGroup.create(mApp, mBindingData);*/
+
     mRenderPipeline->setShader(RESOURCE_DIR "/shadow.wgsl")
         .setVertexBufferLayout(d)
         .setVertexState()
@@ -99,21 +121,6 @@ void ShadowPass::createRenderPass() {
         .setMappedAtCraetion()
         .create(mApp);
 
-    // fill bindgroup
-    mBindingData[0].nextInChain = nullptr;
-    mBindingData[0].binding = 0;
-    mBindingData[0].buffer = mSceneUniformBuffer.getBuffer();
-    mBindingData[0].offset = 0;
-    mBindingData[0].size = sizeof(Scene);
-
-    /*mBindingData[1] = {};*/
-    /*mBindingData[1].nextInChain = nullptr;*/
-    /*mBindingData[1].buffer = nullptr;*/
-    /*mBindingData[1].binding = 1;*/
-    /*mBindingData[1].offset = 0;*/
-    /*mBindingData[1].size = sizeof(glm::mat4) * 63690;*/
-    /**/
-    mBindingGroup.create(mApp, mBindingData);
 }
 
 void ShadowPass::setupScene(const glm::vec3 lightPos) {
@@ -136,7 +143,6 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
     /*auto& render_resource = mApp->getRendererResource();*/
     for (auto* model : models) {
         for (auto& [mat_id, mesh] : model->mMeshes) {
-
             Buffer modelUniformBuffer = {};
             modelUniformBuffer.setLabel("Model Uniform Buffer")
                 .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
@@ -144,19 +150,29 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
                 .setMappedAtCraetion()
                 .create(mApp);
 
+	    /*static Buffer tre = {};*/
+	    /*       tre.setLabel("Model Uniform Buffer")*/
+	    /*           .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)*/
+	    /*           .setSize(sizeof(glm::vec3))*/
+	    /*           .setMappedAtCraetion()*/
+	    /*           .create(mApp);*/
+
             mScene.model = model->getTranformMatrix();
             mBindingData[0].buffer = modelUniformBuffer.getBuffer();
-            /*mBindingData[1].buffer = mApp->offset_buffer.getBuffer();*/
+            mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
             auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
             wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer.getBuffer(), 0, &mScene,
                                  sizeof(mScene));
 
+	    /*static glm::vec3 fucking_vec3 = glm::vec3{1.0f};*/
+            /*wgpuQueueWriteBuffer(mApp->getRendererResource().queue, tre.getBuffer(), 0, &fucking_vec3,*/
+            /*                     sizeof(glm::vec3));*/
             wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                                  wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
 
             wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
 
-            wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(), 1, 0, 0);
+            wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(), model->instance == nullptr ? 1 : model->instance->getInstanceCount(), 0, 0);
 
             wgpuBufferRelease(modelUniformBuffer.getBuffer());
             wgpuBindGroupRelease(bindgroup);

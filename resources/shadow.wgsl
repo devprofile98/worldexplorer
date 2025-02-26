@@ -25,17 +25,21 @@ struct OffsetData {
 
 @group(0) @binding(0) var<uniform> scene: Scene;
 @group(0) @binding(1) var<storage, read> offsetInstance: array<OffsetData>;
+//@group(0) @binding(1) var<uniform> lightSpaceTrans: vec3f;
 
 @vertex
 fn vs_main(vertex: Vertex) -> VSOutput {
 
-    //var world_position: vec4f;
-    //if vertex.instance_index == 0 {
-    //    world_position = scene.model * vec4f(vertex.position, 1.0);
-    //} else {
-    //    world_position = offsetInstance[vertex.instance_index].transformation * vec4f(vertex.position, 1.0);
-    //}
+    var world_position: vec4f;
+    //let off_id: u32 = objectTranformation.offsetId * 100000;
+    if vertex.instance_index == 0 {
+        world_position = scene.projection * scene.view * vec4f(vertex.position, 1.0);
+    	//out.normal = (objectTranformation.transformations * vec4(in.normal, 0.0)).xyz;
+    }else{
+        world_position = offsetInstance[vertex.instance_index].transformation * vec4f(vertex.position, 1.0);
+    	//out.normal = (offsetInstance[instance_index+ off_id].transformation * vec4(in.normal, 0.0)).xyz;
+    }
     var vsOut: VSOutput;
-    vsOut.position = scene.projection * scene.view * scene.model * vec4f(vertex.position, 1.0);
+    vsOut.position = scene.projection * scene.view * world_position;
     return vsOut;
 }

@@ -46,7 +46,7 @@ class ShadowPass {
 
         // bindings
         BindingGroup mBindingGroup;
-        std::vector<WGPUBindGroupEntry> mBindingData{2};
+        std::vector<WGPUBindGroupEntry> mBindingData;
 
         // textures and views
         WGPUTextureView mDepthTextureView;

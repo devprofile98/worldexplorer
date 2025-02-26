@@ -206,14 +206,16 @@ void Application::initializePipeline() {
     mBindingData[9].binding = 9;
     mBindingData[9].textureView = snow_texture.getTextureView();
 
-    mShadowPass = new ShadowPass{this};
-    mShadowPass->createRenderPass();
-    // mShadowPass->setupScene(glm::vec3{0.5, -0.9, 0.1});
     mTransparencyPass = new TransparencyPass{this};
     mTransparencyPass->initializePass();
 
     mCompositionPass = new CompositionPass{this};
     mCompositionPass->initializePass();
+
+
+    mShadowPass = new ShadowPass{this};
+    mShadowPass->createRenderPass();
+    // mShadowPass->setupScene(glm::vec3{0.5, -0.9, 0.1});
 
     mBindingData[10] = {};
     mBindingData[10].nextInChain = nullptr;
