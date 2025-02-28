@@ -3,6 +3,7 @@
 #include "application.h"
 #include "glm/fwd.hpp"
 #include "gpu_buffer.h"
+#include "model.h"
 #include "webgpu.h"
 
 ShadowPass::ShadowPass(Application* app) { mApp = app; }
@@ -33,10 +34,20 @@ void ShadowPass::createRenderPass() {
     sdtv_desc.format = depth_texture_format;
     mShadowDepthTextureView = wgpuTextureCreateView(mShadowDepthTexture, &sdtv_desc);
 
+    render_target = new Texture{mApp->getRendererResource().device, 2048, 2048, TextureDimension::TEX_2D,
+                                WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};
+    render_target->createView();
+
+    mRenderPassColorAttachment.view = render_target->getTextureView();
+    mRenderPassColorAttachment.resolveTarget = nullptr;
+    mRenderPassColorAttachment.loadOp = WGPULoadOp_Load;
+    mRenderPassColorAttachment.storeOp = WGPUStoreOp_Discard;
+    mRenderPassColorAttachment.clearValue = WGPUColor{0.02, 0.80, 0.92, 1.0};
+
     mRenderPassDesc = {};
     mRenderPassDesc.nextInChain = nullptr;
-    mRenderPassDesc.colorAttachmentCount = 0;
-    mRenderPassDesc.colorAttachments = nullptr;
+    mRenderPassDesc.colorAttachmentCount = 1;
+    mRenderPassDesc.colorAttachments = &mRenderPassColorAttachment;
 
     static WGPURenderPassDepthStencilAttachment shadow_pass_depth_stencil_attachment;
     shadow_pass_depth_stencil_attachment.view = mShadowDepthTextureView;
@@ -56,10 +67,19 @@ void ShadowPass::createRenderPass() {
     // creating pipeline
     // for projection
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(Scene));
-    /*mBindingGroup.addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(glm::vec3));*/
     mBindingGroup.addBuffer(1,  //
                             BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                             mApp->mInstanceManager->mBufferSize);
+
+    mBindingGroup.addBuffer(2, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
+                            sizeof(ObjectInfo));
+
+    mBindingGroup.addTexture(3,  //
+                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                             TextureViewDimension::VIEW_2D);
+
+    mBindingGroup.addSampler(4,  //
+                             BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
 
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
 
@@ -81,36 +101,47 @@ void ShadowPass::createRenderPass() {
     mFragmentState.targets = nullptr;
     (void)mFragmentState;
 
-
     // fill bindgroup
-    mBindingData.push_back({});
+    mBindingData.reserve(5);
+
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
     mBindingData[0].buffer = nullptr;
     mBindingData[0].offset = 0;
     mBindingData[0].size = sizeof(Scene);
 
-    mBindingData.push_back({});
     mBindingData[1] = {};
     mBindingData[1].nextInChain = nullptr;
     mBindingData[1].buffer = nullptr;
     mBindingData[1].binding = 1;
     mBindingData[1].offset = 0;
     mBindingData[1].size = mApp->mInstanceManager->mBufferSize;
-    /*mBindingData[1].size = sizeof(glm::vec3);*/
-    /**/
-    /*mBindingGroup.create(mApp, mBindingData);*/
+
+    mBindingData[2].nextInChain = nullptr;
+    mBindingData[2].binding = 2;
+    mBindingData[2].buffer = nullptr;
+    mBindingData[2].offset = 0;
+    mBindingData[2].size = sizeof(ObjectInfo);
+
+    mBindingData[3] = {};
+    mBindingData[3].nextInChain = nullptr;
+    mBindingData[3].binding = 3;
+    mBindingData[3].textureView = nullptr;
+
+    mBindingData[4] = {};
+    mBindingData[4].binding = 4;
+    mBindingData[4].sampler = mApp->getDefaultSampler();
 
     mRenderPipeline->setShader(RESOURCE_DIR "/shadow.wgsl")
         .setVertexBufferLayout(d)
         .setVertexState()
         .setPrimitiveState()
         .setDepthStencilState(true, 0xFF, 0xFF)
-        .setBlendState();
-    // .setColorTargetState()
-    // .setFragmentState(mFragmentState)
+        .setBlendState()
+        .setColorTargetState(WGPUTextureFormat_RGBA8Unorm)
+        .setFragmentState();
 
-    mRenderPipeline->getDescriptorPtr()->fragment = nullptr;
+    /*mRenderPipeline->getDescriptorPtr()->fragment = nullptr;*/
 
     mRenderPipeline->setMultiSampleState().createPipeline(mApp);
 
@@ -120,7 +151,6 @@ void ShadowPass::createRenderPass() {
         .setSize(sizeof(Scene))
         .setMappedAtCraetion()
         .create(mApp);
-
 }
 
 void ShadowPass::setupScene(const glm::vec3 lightPos) {
@@ -150,29 +180,28 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
                 .setMappedAtCraetion()
                 .create(mApp);
 
-	    /*static Buffer tre = {};*/
-	    /*       tre.setLabel("Model Uniform Buffer")*/
-	    /*           .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)*/
-	    /*           .setSize(sizeof(glm::vec3))*/
-	    /*           .setMappedAtCraetion()*/
-	    /*           .create(mApp);*/
-
             mScene.model = model->getTranformMatrix();
             mBindingData[0].buffer = modelUniformBuffer.getBuffer();
             mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
+            mBindingData[2].buffer = model->getUniformBuffer().getBuffer();
+            if (mesh.mTexture != nullptr && mesh.mTexture->getTextureView() != nullptr) {
+                mBindingData[3].textureView = model->getDiffuseTexture()->getTextureView();
+            } else {
+                mBindingData[3].textureView = mApp->mDefaultDiffuse->getTextureView();
+            }
+            mBindingData[4].sampler = mApp->getDefaultSampler();
+
             auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
             wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer.getBuffer(), 0, &mScene,
                                  sizeof(mScene));
 
-	    /*static glm::vec3 fucking_vec3 = glm::vec3{1.0f};*/
-            /*wgpuQueueWriteBuffer(mApp->getRendererResource().queue, tre.getBuffer(), 0, &fucking_vec3,*/
-            /*                     sizeof(glm::vec3));*/
             wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                                  wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
 
             wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
 
-            wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(), model->instance == nullptr ? 1 : model->instance->getInstanceCount(), 0, 0);
+            wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
+                                      model->instance == nullptr ? 1 : model->instance->getInstanceCount(), 0, 0);
 
             wgpuBufferRelease(modelUniformBuffer.getBuffer());
             wgpuBindGroupRelease(bindgroup);

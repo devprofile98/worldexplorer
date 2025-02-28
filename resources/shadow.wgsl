@@ -1,5 +1,3 @@
-
-
 struct Scene {
     projection: mat4x4f,
     model: mat4x4f,
@@ -16,6 +14,7 @@ struct Vertex {
 
 struct VSOutput {
     @builtin(position) position: vec4f,
+    @location(0) uv: vec2f,
 };
 
 struct OffsetData {
@@ -23,23 +22,43 @@ struct OffsetData {
 };
 
 
+struct ObjectInfo {
+    transformations: mat4x4f,
+    isFlat: i32,
+    useTexture: i32,
+    isFoliage: i32,
+    offsetId: u32,
+}
+
 @group(0) @binding(0) var<uniform> scene: Scene;
 @group(0) @binding(1) var<storage, read> offsetInstance: array<OffsetData>;
-//@group(0) @binding(1) var<uniform> lightSpaceTrans: vec3f;
+@group(0) @binding(2) var<uniform> objectTranformation: ObjectInfo;
+@group(0) @binding(3) var diffuseMap: texture_2d<f32>;
+@group(0) @binding(4) var textureSampler: sampler;
 
 @vertex
 fn vs_main(vertex: Vertex) -> VSOutput {
 
     var world_position: vec4f;
-    //let off_id: u32 = objectTranformation.offsetId * 100000;
+    let off_id: u32 = objectTranformation.offsetId * 100000;
     if vertex.instance_index == 0 {
         world_position = scene.projection * scene.view * vec4f(vertex.position, 1.0);
-    	//out.normal = (objectTranformation.transformations * vec4(in.normal, 0.0)).xyz;
-    }else{
-        world_position = offsetInstance[vertex.instance_index].transformation * vec4f(vertex.position, 1.0);
-    	//out.normal = (offsetInstance[instance_index+ off_id].transformation * vec4(in.normal, 0.0)).xyz;
+    } else {
+        world_position = offsetInstance[vertex.instance_index + off_id].transformation * vec4f(vertex.position, 1.0);
     }
     var vsOut: VSOutput;
     vsOut.position = scene.projection * scene.view * world_position;
+    vsOut.uv = vertex.uv;
     return vsOut;
+}
+
+@fragment
+fn fs_main(in: VSOutput) -> @location(0) vec4f {
+
+    var pos = in.position;
+    let transparency = textureSample(diffuseMap, textureSampler, in.uv).a;
+    if transparency == 0.0 {
+       discard; 
+    }
+    return pos;
 }

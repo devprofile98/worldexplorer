@@ -169,12 +169,12 @@ Pipeline& Pipeline::setBlendState() {
 }
 
 Pipeline& Pipeline::setBlendState(WGPUBlendState blendState) {
-	mBlendState = blendState;
-	return *this;
+    mBlendState = blendState;
+    return *this;
 }
 
-Pipeline& Pipeline::setColorTargetState() {
-    mColorTargetState.format = mApp->getTextureFormat();
+Pipeline& Pipeline::setColorTargetState(WGPUTextureFormat format) {
+    mColorTargetState.format = format == WGPUTextureFormat_Undefined ? mApp->getTextureFormat() : format;
     mColorTargetState.blend = &mBlendState;
     mColorTargetState.writeMask = WGPUColorWriteMask_All;
     return *this;

@@ -67,7 +67,6 @@ void Application::initializePipeline() {
     // creating default diffuse texture
     mDefaultDiffuse = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_diffuse_texture_view = mDefaultDiffuse->createView();
-    (void)default_diffuse_texture_view;
     std::vector<uint8_t> texture_data = {255, 0, 255, 255};  // Purple color for Default texture color
     mDefaultDiffuse->setBufferData(texture_data);
     mDefaultDiffuse->uploadToGPU(mRendererResource.queue);
@@ -130,7 +129,7 @@ void Application::initializePipeline() {
     object_transformation.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
     object_transformation.buffer.type = WGPUBufferBindingType_Uniform;
     object_transformation.buffer.minBindingSize = sizeof(ObjectInfo);
-    // mBindingGroup.add(binding_layout_entries);
+
     WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor1 = {};
     bind_group_layout_descriptor1.nextInChain = nullptr;
     bind_group_layout_descriptor1.label = "Object Tranformation Matrix uniform";
@@ -264,7 +263,7 @@ void Application::initializePipeline() {
         auto rotate = glm::rotate(glm::mat4{1.0f}, glm::radians(dist_for_rotation(gen)), glm::vec3{0.0, 0.0, 1.0});
         auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f * dist(gen)});
         dddata.push_back(trans * rotate * scale);
-        if (i % 30 == 0) {
+        if (i % 40 == 0) {
             scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.9f * dist_for_tree(gen)});
             dddata_tree.push_back(trans * rotate * scale);
         }
@@ -705,10 +704,10 @@ void Application::mainLoop() {
     // ---------------- 1 - Preparing for shadow pass ---------------
     // The first pass is the shadow pass, only based on the opaque objects
 
+    /*mShadowPass->mRenderPassColorAttachment.view = target_view;*/
     WGPURenderPassEncoder shadow_pass_encoder =
         wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor());
     wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder, mShadowPass->getPipeline()->getPipeline());
-
     mShadowPass->setupScene({1.0f, 1.0f, 4.0f});
     mShadowPass->render(mLoadedModel, shadow_pass_encoder);
 

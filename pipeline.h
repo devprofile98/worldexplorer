@@ -33,7 +33,7 @@ class Pipeline {
                                        uint32_t stencilWriteMask = 0x0);
         Pipeline& setBlendState();
         Pipeline& setBlendState(WGPUBlendState blendState);
-        Pipeline& setColorTargetState();
+        Pipeline& setColorTargetState(WGPUTextureFormat format = WGPUTextureFormat_Undefined);
         Pipeline& setColorTargetState(WGPUColorTargetState colorTargetState);
         Pipeline& setFragmentState();
         Pipeline& setFragmentState(WGPUFragmentState fragmentState);

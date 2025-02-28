@@ -83,7 +83,6 @@ const PI: f32 = 3.141592653589793;
 
 fn degreeToRadians(degrees: f32) -> f32 {
     return degrees * (PI / 180.0); // Convert 90 degrees to radians
-    // Rest of your shader code
 }
 
 fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
@@ -100,15 +99,14 @@ fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
- //let world_position = objectTranformation.transformations * vec4f(in.position + offsetInstance[instance_index].offsets.xyz, 1.0);
     var world_position: vec4f;
     let off_id: u32 = objectTranformation.offsetId * 100000;
     if instance_index == 0 {
         world_position = objectTranformation.transformations * vec4f(in.position, 1.0);
-    	out.normal = (objectTranformation.transformations * vec4(in.normal, 0.0)).xyz;
-    }else{
+        out.normal = (objectTranformation.transformations * vec4(in.normal, 0.0)).xyz;
+    } else {
         world_position = offsetInstance[instance_index + off_id].transformation * vec4f(in.position, 1.0);
-    	out.normal = (offsetInstance[instance_index+ off_id].transformation * vec4(in.normal, 0.0)).xyz;
+        out.normal = (offsetInstance[instance_index + off_id].transformation * vec4(in.normal, 0.0)).xyz;
     }
     //let world_position = offsetInstance[instance_index].transformation * vec4f(in.position, 1.0);
     out.position = uMyUniform.projectionMatrix * uMyUniform.viewMatrix * world_position;
@@ -163,36 +161,39 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let intensity = dot(direction, normal);
     var min_intensity = 0.3;
     if objectTranformation.isFoliage == 1 {
-      min_intensity = 0.6;
+        min_intensity = 0.6;
     }
     let diffuse = max(min_intensity, intensity) * color;
     // let diffuse = abs(intensity) * color;
     shading += diffuse + vec3f(0.1, 0.1, 0.15) ;
-	if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
-	    shading += specular;
-	}
+    if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
+        shading += specular;
+    }
     let distance_dir = pointLight.position.xyz - in.worldPos;
     let distance = length(pointLight.position.xyz - in.worldPos);
-    let attenuation = 1.0 / (pointLight.constant + pointLight.linear * distance + pointLight.quadratic * (distance * distance));
-    let light_dir = normalize(pointLight.position.xyz - in.worldPos);
-    let diff = max(dot(normal, light_dir), 0.0);
-
+    var point_light_color = 0.0f;
+    var attenuation = 0.0f;
+    if distance < 10.0 {
+        attenuation = 1.0 / (pointLight.constant + pointLight.linear * distance + pointLight.quadratic * (distance * distance));
+        let light_dir = normalize(pointLight.position.xyz - in.worldPos);
+        point_light_color = max(dot(normal, light_dir), 0.0);
+    }
     if objectTranformation.isFlat == 0 {
         let fragment_color = textureSample(diffuse_map, textureSampler, in.uv).rgba;
         var base_diffuse = fragment_color.rgb;
         let color2 = shading * base_diffuse;
         let linear_color = pow(color2, vec3f(2.2));
         let ambient = linear_color;
-        let diffuse = pointLight.ambient.xyz * attenuation * color * diff;
+        let diffuse = pointLight.ambient.xyz * attenuation * color * point_light_color;
 
-    	if objectTranformation.useTexture != 0 {
-        	color = vec4f(ambient + diffuse, 1.0).rgb;
-	} else{
-        	color = pow(in.color.rgb, vec3f(2.2));
-	}
-    	if fragment_color.a < 0.1 {
+        if objectTranformation.useTexture != 0 {
+            color = vec4f(ambient + diffuse, 1.0).rgb;
+        } else {
+            color = pow(in.color.rgb, vec3f(2.2));
+        }
+        if fragment_color.a < 0.1 {
     		discard;
-    	}
+        }
 
     	//if objectTranformation.isFoliage == 1 {
 	//		color = in.viewDirection;
@@ -227,10 +228,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let shadow = calculateShadow(in.shadowPos);
 
     let ambient = color * shading;
-    let diffuse_final = pointLight.ambient.xyz * attenuation * diff;
+    let diffuse_final = pointLight.ambient.xyz * attenuation * point_light_color;
 
     return vec4f((diffuse_final + ambient) * (1 - shadow * (0.75)), 1.0);
-    //return vec4f(diffuse_final + ambient, 1.0);
-    //return vec4f(in.color.rgb * (1 - shadow / 2), 1.0);
 }
 

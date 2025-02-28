@@ -36,6 +36,8 @@ class ShadowPass {
 
         glm::vec3 lightPos = glm::vec3{0.0f};
 
+        WGPURenderPassColorAttachment mRenderPassColorAttachment = {};
+
     private:
         Application* mApp;
 
@@ -53,7 +55,7 @@ class ShadowPass {
         WGPUTextureView mShadowDepthTextureView;
         WGPUTexture mDepthTexture;
         WGPUTexture mShadowDepthTexture;
-
+	Texture* render_target;
         // buffers
         Buffer mSceneUniformBuffer;
 

@@ -19,7 +19,7 @@ WGPUTextureView Texture::createView() {
     return nullptr;
 }
 
-Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension) {
+Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension, WGPUTextureUsageFlags flags) {
     mDescriptor = {};
     mDescriptor.nextInChain = nullptr;
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(dimension);
@@ -27,7 +27,7 @@ Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, Texture
     mDescriptor.mipLevelCount = 1;
     mDescriptor.sampleCount = 1;
     mDescriptor.size = {width, height, 1};
-    mDescriptor.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+    mDescriptor.usage = flags;
     mDescriptor.viewFormatCount = 0;
     mDescriptor.viewFormats = nullptr;
     mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
