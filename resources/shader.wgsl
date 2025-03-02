@@ -36,6 +36,10 @@ struct ObjectInfo {
     useTexture: i32,
     isFoliage: i32,
     offsetId: u32,
+    isHovered: u32,
+    offset1: u32,
+    offset2: u32,
+    offset3: u32
 }
 
 
@@ -75,7 +79,7 @@ struct OffsetData {
 @group(0) @binding(11) var<uniform> lightSpaceTrans: Scene;
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
-
+@group(0) @binding(14) var<uniform> ElapsedTime: f32;
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 
@@ -230,6 +234,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let ambient = color * shading;
     let diffuse_final = pointLight.ambient.xyz * attenuation * point_light_color;
 
-    return vec4f((diffuse_final + ambient) * (1 - shadow * (0.75)), 1.0);
+    var col = (diffuse_final + ambient);
+
+    if objectTranformation.isHovered == 1 {
+	let variation = abs(sin(ElapsedTime * 2.0));
+        col = col * (vec3f(1.0 + variation * 2.0, 0.0, 0.0));
+    }
+    return vec4f(col * (1 - shadow * (0.75)), 1.0);
 }
 

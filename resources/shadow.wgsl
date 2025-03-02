@@ -28,6 +28,10 @@ struct ObjectInfo {
     useTexture: i32,
     isFoliage: i32,
     offsetId: u32,
+    isHovered: u32,
+    offset1: u32,
+    offset2: u32,
+    offset3: u32
 }
 
 @group(0) @binding(0) var<uniform> scene: Scene;

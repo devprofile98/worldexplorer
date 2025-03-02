@@ -145,6 +145,7 @@ class Application {
         WGPUBuffer mUniformBufferTransform;
         WGPUBuffer mDirectionalLightBuffer;
         Buffer mLightSpaceTransformation;
+	Buffer mTimeBuffer;
 
         // WGPUBuffer mPointlightBuffer = {};
         MyUniform mUniforms;

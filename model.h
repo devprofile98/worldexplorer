@@ -11,9 +11,10 @@
 #include <filesystem>
 #include <numeric>
 #include <vector>
-#include "instance.h"
+
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
+#include "instance.h"
 #include "mesh.h"
 #include "texture.h"
 #include "webgpu/webgpu.h"
@@ -31,6 +32,8 @@ struct ObjectInfo {
         uint32_t useTexture;
         uint32_t isFoliage;
         uint32_t instanceOffsetId;
+        uint32_t isSelected;
+        std::array<uint32_t, 3> offset;
 };
 
 // Hold the properties and needed object to represents the object transformation
@@ -39,7 +42,7 @@ class Transform {
         Transform& moveBy(const glm::vec3& m);
         Transform& moveTo(const glm::vec3& m);
         Transform& scale(const glm::vec3& s);
-	Transform& rotate(const glm::vec3& around, float degree);
+        Transform& rotate(const glm::vec3& around, float degree);
 
         glm::vec3& getPosition();
         glm::vec3& getScale();
@@ -103,8 +106,10 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
         Texture* getDiffuseTexture();
         std::map<int, Mesh> mMeshes;
         size_t instances = 1;
-	Instance *instance = nullptr;
+        Instance* instance = nullptr;
         void setInstanced(Instance* instance);
+        void selected(bool selected = false);
+        glm::vec3 getWorldMin();
 
     private:
         bool mIsTransparent = false;

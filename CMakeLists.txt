@@ -37,6 +37,7 @@ add_executable(
     composition_pass.cpp
     mesh.cpp
     instance.cpp
+    frustum_culling.cpp
 )
 
 target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")

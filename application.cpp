@@ -7,7 +7,9 @@
 #include <random>
 #include <vector>
 
+#include "GLFW/glfw3.h"
 #include "composition_pass.h"
+#include "frustum_culling.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -121,6 +123,9 @@ void Application::initializePipeline() {
                             BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                             mInstanceManager->mBufferSize);
 
+    mBindingGroup.addBuffer(14,  //
+                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float));
+
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
 
     WGPUBindGroupLayoutEntry object_transformation = {};
@@ -211,7 +216,6 @@ void Application::initializePipeline() {
     mCompositionPass = new CompositionPass{this};
     mCompositionPass->initializePass();
 
-
     mShadowPass = new ShadowPass{this};
     mShadowPass->createRenderPass();
     // mShadowPass->setupScene(glm::vec3{0.5, -0.9, 0.1});
@@ -296,6 +300,19 @@ void Application::initializePipeline() {
     mBindingData[13].binding = 13;
     mBindingData[13].offset = 0;
     mBindingData[13].size = mInstanceManager->mBufferSize;
+
+    mTimeBuffer.setLabel("time buffer")
+        .setSize(sizeof(float))
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .setMappedAtCraetion(false)
+        .create(this);
+
+    mBindingData[14] = {};
+    mBindingData[14].nextInChain = nullptr;
+    mBindingData[14].buffer = mTimeBuffer.getBuffer();
+    mBindingData[14].binding = 14;
+    mBindingData[14].offset = 0;
+    mBindingData[14].size = sizeof(float);
 
     mBindingGroup.create(this, mBindingData);
 
@@ -694,12 +711,29 @@ void Application::mainLoop() {
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, cameraWorldPosition),
                          &mCamera.getPos(), sizeof(MyUniform::cameraWorldPosition));
 
+    float time = glfwGetTime();
+    wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &time, sizeof(float));
+
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
     encoder_descriptor.nextInChain = nullptr;
     encoder_descriptor.label = "command encoder descriptor";
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, &encoder_descriptor);
     updateDragInertia();
+
+    // preprocessing
+    // doing frustum culling
+
+    Frustum frustum{};
+    frustum.extractPlanes(mShadowPass->getScene().projection);
+
+    for (const auto& model : mLoadedModel) {
+        if (model->getWorldMin().x > 0.0) {
+            model->selected(true);
+        } else {
+            model->selected(false);
+        }
+    }
 
     // ---------------- 1 - Preparing for shadow pass ---------------
     // The first pass is the shadow pass, only based on the opaque objects
@@ -880,8 +914,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
 
     // Binding groups
     required_limits.limits.maxBindGroups = 3;
-    required_limits.limits.maxUniformBuffersPerShaderStage = 4;
-    /*required_limits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float);*/
+    required_limits.limits.maxUniformBuffersPerShaderStage = 5;
     required_limits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float);
 
     required_limits.limits.maxTextureDimension1D = 2048;
@@ -1036,7 +1069,11 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
                 auto obj_in_world_max = obj->getTranformMatrix() * glm::vec4(obj->max, 1.0);
                 bool does_intersect = intersection(ray_origin, normalized, obj_in_world_min, obj_in_world_max);
                 if (does_intersect) {
+                    if (mSelectedModel) {
+                        mSelectedModel->selected(false);
+                    }
                     mSelectedModel = obj;
+                    mSelectedModel->selected(true);
                     std::cout << std::format("the ray {}intersect with {}\n", "", obj->getName());
                     break;
                 }

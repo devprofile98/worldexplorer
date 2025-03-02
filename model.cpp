@@ -237,6 +237,7 @@ void BaseModel::setTransparent(bool value) {
 
 bool BaseModel::isTransparent() { return mIsTransparent; }
 
+void BaseModel::selected(bool selected) { mObjectInfo.isSelected = selected; }
 void Model::createSomeBinding(Application* app) {
     WGPUBindGroupEntry mBindGroupEntry = {};
     mBindGroupEntry.nextInChain = nullptr;
@@ -299,7 +300,8 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
         createSomeBinding(app);
         wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
 
-        wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(), this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0);
+        wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
+                                  this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0);
         wgpuBindGroupRelease(ggg);
         // if we created a binding group and didn't use the default appliaction binding-group
         if (mBindGroup != nullptr) {
@@ -307,7 +309,6 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
             mBindGroup = nullptr;
         }
     }
-
 }
 
 size_t Model::getInstaceCount() { return this->instances; }
@@ -362,6 +363,8 @@ glm::vec3 AABB::getAABBSize() {
 
     return glm::vec3{dx, dy, dz};
 }
+
+glm::vec3 BaseModel::getWorldMin() { return this->getTranformMatrix() * glm::vec4(this->min, 1.0); }
 
 const std::string& BaseModel::getName() { return mName; }
 
