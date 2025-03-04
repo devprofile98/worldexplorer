@@ -17,6 +17,7 @@ class Frustum {
         std::array<frustum::Plane, 6> mFrustumPlanes;
 
         void extractPlanes(glm::mat4x4 projectionMatrix);
+        bool AABBTest(const glm::vec3& min, const glm::vec3& max);
 };
 
 #endif  // WEBGPUTEST_FRUSTUM_CULLING_H

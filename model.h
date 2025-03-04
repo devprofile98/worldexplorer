@@ -109,7 +109,7 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
         Instance* instance = nullptr;
         void setInstanced(Instance* instance);
         void selected(bool selected = false);
-        glm::vec3 getWorldMin();
+	std::pair<glm::vec3, glm::vec3> getWorldMin();
 
     private:
         bool mIsTransparent = false;

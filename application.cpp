@@ -725,15 +725,7 @@ void Application::mainLoop() {
     // doing frustum culling
 
     Frustum frustum{};
-    frustum.extractPlanes(mShadowPass->getScene().projection);
-
-    for (const auto& model : mLoadedModel) {
-        if (model->getWorldMin().x > 0.0) {
-            model->selected(true);
-        } else {
-            model->selected(false);
-        }
-    }
+    frustum.extractPlanes(mCamera.getProjection());
 
     // ---------------- 1 - Preparing for shadow pass ---------------
     // The first pass is the shadow pass, only based on the opaque objects
@@ -795,9 +787,21 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
 
+    /*for (const auto& model : mLoadedModel) {*/
+    /*    if (model->getName() != "tower"){*/
+    /*   	continue;*/
+    /*    }*/
+    /*    auto [in_world_min, in_world_max] = model->getWorldMin();*/
+    /*    if (frustum.AABBTest(in_world_min, in_world_max)) {*/
+    /*        model->selected(true);*/
+    /*    } else {*/
+    /*        model->selected(false);*/
+    /*    }*/
+    /*}*/
     // Drawing opaque objects in the world
     for (const auto& model : mLoadedModel) {
-        if (!model->isTransparent()) {
+        auto [in_world_min, in_world_max] = model->getWorldMin();
+        if (!model->isTransparent() && frustum.AABBTest(in_world_min, in_world_max)) {
             model->draw(this, render_pass_encoder, mBindingData);
         }
     }

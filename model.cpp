@@ -364,7 +364,11 @@ glm::vec3 AABB::getAABBSize() {
     return glm::vec3{dx, dy, dz};
 }
 
-glm::vec3 BaseModel::getWorldMin() { return this->getTranformMatrix() * glm::vec4(this->min, 1.0); }
+std::pair<glm::vec3, glm::vec3> BaseModel::getWorldMin() {
+    auto min = this->getTranformMatrix() * glm::vec4(this->min, 1.0);
+    auto max = this->getTranformMatrix() * glm::vec4(this->max, 1.0); 
+    return {min, max};
+}
 
 const std::string& BaseModel::getName() { return mName; }
 
