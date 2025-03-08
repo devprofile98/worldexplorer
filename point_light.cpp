@@ -2,9 +2,28 @@
 
 #include "application.h"
 
-PointLight::PointLight() {}
+LightManager::LightManager() {}
 
-PointLight::PointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float cons, float lin, float quad)
-    : mPosition(pos), mAmbient(amb), mDiffuse(diff), mSpecular(spec), mConstant(cons), mLinear(lin), mQuadratic(quad) {}
+LightManager* LightManager::init() {
+    static LightManager mLightInstance{};
+    mLightInstance.mLights.reserve(10);
+    return &mLightInstance;
+}
 
-void PointLight::uploadToGpu(Application* app) { (void)app; }
+void LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float cons, float lin,
+                                    float quad) {
+    Light light;
+    light.mPosition = pos;
+    light.mAmbient = amb;
+    light.mDiffuse = diff;
+    light.mSpecular = spec;
+    light.mConstant = cons;
+    light.mLinear = lin;
+    light.mQuadratic = quad;
+
+    mLights.push_back(light);
+}
+
+Light* LightManager::get() { return &mLights[0]; }
+
+void LightManager::uploadToGpu(Application* app) { (void)app; }

@@ -69,7 +69,7 @@ struct OffsetData {
 @group(0) @binding(1) var diffuse_map: texture_2d<f32>;
 @group(0) @binding(2) var textureSampler: sampler;
 @group(0) @binding(3) var<uniform> lightingInfos: LightingUniforms;
-@group(0) @binding(4) var<uniform> pointLight: PointLight;
+@group(0) @binding(4) var<uniform> pointLight: array<PointLight,10>;
 @group(0) @binding(5) var metalic_roughness_texture: texture_2d<f32>;
 @group(0) @binding(6) var grass_ground_texture: texture_2d<f32>;
 @group(0) @binding(7) var rock_mountain_texture: texture_2d<f32>;
@@ -173,14 +173,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
         shading += specular;
     }
-    let distance_dir = pointLight.position.xyz - in.worldPos;
-    let distance = length(pointLight.position.xyz - in.worldPos);
+    //let distance_dir = pointLight[0].position.xyz - in.worldPos;
     var point_light_color = 0.0f;
     var attenuation = 0.0f;
+    for (var i:i32 =0; i < 1; i++) {
+    let curr_light = pointLight[i];
+    let distance = length(pointLight[i].position.xyz - in.worldPos);
     if distance < 10.0 {
-        attenuation = 1.0 / (pointLight.constant + pointLight.linear * distance + pointLight.quadratic * (distance * distance));
-        let light_dir = normalize(pointLight.position.xyz - in.worldPos);
+        attenuation = 1.0 / (curr_light.constant + curr_light.linear * distance + curr_light.quadratic * (distance * distance));
+        let light_dir = normalize(curr_light.position.xyz - in.worldPos);
         point_light_color = max(dot(normal, light_dir), 0.0);
+    }
     }
     if objectTranformation.isFlat == 0 {
         let fragment_color = textureSample(diffuse_map, textureSampler, in.uv).rgba;
@@ -188,7 +191,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let color2 = shading * base_diffuse;
         let linear_color = pow(color2, vec3f(2.2));
         let ambient = linear_color;
-        let diffuse = pointLight.ambient.xyz * attenuation * color * point_light_color;
+        //let diffuse = pointLight.ambient.xyz * attenuation * color * point_light_color;
+        let diffuse = pointLight[0].ambient.xyz * attenuation * color * point_light_color;
 
         if objectTranformation.useTexture != 0 {
             color = vec4f(ambient + diffuse, 1.0).rgb;
@@ -232,7 +236,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let shadow = calculateShadow(in.shadowPos);
 
     let ambient = color * shading;
-    let diffuse_final = pointLight.ambient.xyz * attenuation * point_light_color;
+    let diffuse_final = pointLight[0].ambient.xyz * attenuation * point_light_color;
 
     var col = (diffuse_final + ambient);
 

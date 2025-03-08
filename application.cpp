@@ -18,6 +18,7 @@
 #include "imgui/backends/imgui_impl_wgpu.h"
 #include "imgui/imgui.h"
 #include "instance.h"
+#include "point_light.h"
 #include "shapes.h"
 #include "texture.h"
 #include "transparency_pass.h"
@@ -29,6 +30,9 @@
 // #define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
 
 static bool look_as_light = false;
+static float fov = 60.0f;
+static float znear = 0.01f;
+static float zfar = 1000.0f;
 
 void MyUniform::setCamera(Camera& camera) {
     projectMatrix = camera.getProjection();
@@ -94,7 +98,7 @@ void Application::initializePipeline() {
                             BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(LightingUniforms));
 
     mBindingGroup.addBuffer(4,  //
-                            BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(PointLight));
+                            BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(Light));
 
     mBindingGroup.addTexture(5,  //
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
@@ -183,7 +187,7 @@ void Application::initializePipeline() {
     mBindingData[4].binding = 4;
     mBindingData[4].buffer = mBuffer1;
     mBindingData[4].offset = 0;
-    mBindingData[4].size = sizeof(PointLight);
+    mBindingData[4].size = sizeof(Light);
 
     mBindingData[5] = {};
     mBindingData[5].nextInChain = nullptr;
@@ -347,6 +351,7 @@ void Application::initializePipeline() {
 // Initializing Vertex Buffers
 void Application::initializeBuffers() {
     // initialize The instancing buffer
+    mLightManager = LightManager::init();
     mInstanceManager = new InstanceManager{this, sizeof(glm::mat4) * 100000 * 15, 100000};
 
     boat_model.load("boat", this, RESOURCE_DIR "/fourareen.obj", mBindGroupLayouts[1])
@@ -453,13 +458,16 @@ void Application::initializeBuffers() {
     WGPUBufferDescriptor pointligth_buffer_descriptor = {};
     pointligth_buffer_descriptor.nextInChain = nullptr;
     pointligth_buffer_descriptor.label = ":::::";
-    pointligth_buffer_descriptor.size = sizeof(PointLight);
+    pointligth_buffer_descriptor.size = sizeof(Light);
     pointligth_buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     pointligth_buffer_descriptor.mappedAtCreation = false;
     mBuffer1 = wgpuDeviceCreateBuffer(mRendererResource.device, &pointligth_buffer_descriptor);
 
     glm::vec4 red = {1.0, 0.0, 0.0, 1.0};
-    mPointlight = PointLight{{0.0, 0.0, 1.0, 1.0}, red, red, red, 1.0, 0.7, 1.8};
+
+    /*mPointlight = Light{}; */
+    auto mPointlight = mLightManager->get();
+    mLightManager->createPointLight({0.0, 0.0, 1.0, 1.0}, red, red, red, 1.0, 0.7, 1.8);
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, 0, &mPointlight, pointligth_buffer_descriptor.size);
 }
@@ -481,18 +489,19 @@ void Application::onResize() {
     updateProjectionMatrix();
 }
 
-void onWindowResize(GLFWwindow* window, int /* width */, int /* height */) {
+void onWindowResize(GLFWwindow* window, int width, int height) {
     // We know that even though from GLFW's point of view this is
     // "just a pointer", in our case it is always a pointer to an
     // instance of the class `Application`
     auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+    that->setWindowSize(width, height);
 
     // Call the actual class-member callback
     if (that != nullptr) that->onResize();
 }
 
-static int WINDOW_WIDTH = 1920;
-static int WINDOW_HEIGHT = 1080;
+/*static int WINDOW_WIDTH = 1920;*/
+/*static int WINDOW_HEIGHT = 1080;*/
 
 BaseModel* Application::getModelCounter() {
     static size_t counter = 0;
@@ -522,7 +531,8 @@ bool Application::initialize() {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);  // <-- extra info for glfwCreateWindow
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    GLFWwindow* provided_window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "World Explorer", nullptr, nullptr);
+    auto [window_width, window_height] = getWindowSize();
+    GLFWwindow* provided_window = glfwCreateWindow(window_width, window_height, "World Explorer", nullptr, nullptr);
     if (!provided_window) {
         std::cerr << "Could not open window!" << std::endl;
         glfwTerminate();
@@ -541,18 +551,19 @@ bool Application::initialize() {
             if (drag_state.active) that->getCamera().processMouse(xpos, ypos);
         }
 
+        auto [window_width, window_height] = that->getWindowSize();
         if (ypos <= 0) {
-            glfwSetCursorPos(window, xpos, WINDOW_HEIGHT - 1);
-            if (that != nullptr) that->getCamera().updateCursor(xpos, WINDOW_HEIGHT - 1);
-        } else if (ypos > WINDOW_HEIGHT - 20) {
+            glfwSetCursorPos(window, xpos, window_height - 1);
+            if (that != nullptr) that->getCamera().updateCursor(xpos, window_height - 1);
+        } else if (ypos > window_height - 20) {
             glfwSetCursorPos(window, xpos, 1);
             if (that != nullptr) that->getCamera().updateCursor(xpos, 1);
         }
 
         if (xpos <= 0) {
-            glfwSetCursorPos(window, WINDOW_WIDTH - 1, ypos);
-            if (that != nullptr) that->getCamera().updateCursor(WINDOW_WIDTH - 1, ypos);
-        } else if (xpos >= WINDOW_WIDTH - 1) {
+            glfwSetCursorPos(window, window_width - 1, ypos);
+            if (that != nullptr) that->getCamera().updateCursor(window_width - 1, ypos);
+        } else if (xpos >= window_width - 1) {
             glfwSetCursorPos(window, 1, ypos);
             if (that != nullptr) that->getCamera().updateCursor(1, ypos);
         }
@@ -633,9 +644,9 @@ bool Application::initialize() {
     WGPUSurfaceConfiguration surface_configuration = {};
     surface_configuration.nextInChain = nullptr;
     // Configure the texture created for swap chain
-
-    surface_configuration.width = 1920;
-    surface_configuration.height = 1080;
+    auto [w_width, w_height] = getWindowSize();
+    surface_configuration.width = w_width;
+    surface_configuration.height = w_height;
     surface_configuration.usage = WGPUTextureUsage_RenderAttachment;
 
     WGPUSurfaceCapabilities capabilities = {};
@@ -724,8 +735,8 @@ void Application::mainLoop() {
     // preprocessing
     // doing frustum culling
 
-    Frustum frustum{};
-    frustum.extractPlanes(mCamera.getProjection());
+    /*Frustum frustum{};*/
+    /*frustum.extractPlanes(mCamera.getProjection() * mCamera.getView());*/
 
     // ---------------- 1 - Preparing for shadow pass ---------------
     // The first pass is the shadow pass, only based on the opaque objects
@@ -798,10 +809,11 @@ void Application::mainLoop() {
     /*        model->selected(false);*/
     /*    }*/
     /*}*/
-    // Drawing opaque objects in the world
+    // Drawing opaque objects in the world60 * Camera::PI / 180, ratio, 0.01f, 1000.0f
+    /*frustum.createFrustumFromCamera(mCamera, 1920.0 / 1080.0, fov, znear, zfar);*/
     for (const auto& model : mLoadedModel) {
-        auto [in_world_min, in_world_max] = model->getWorldMin();
-        if (!model->isTransparent() && frustum.AABBTest(in_world_min, in_world_max)) {
+        /*auto [in_world_min, in_world_max] = model->getWorldMin();*/
+        if (!model->isTransparent() /*&& frustum.AABBTest(in_world_min, in_world_max)*/) {
             model->draw(this, render_pass_encoder, mBindingData);
         }
     }
@@ -1000,7 +1012,7 @@ void Application::updateProjectionMatrix() {
     int width, height;
     glfwGetFramebufferSize(mRendererResource.window, &width, &height);
     float ratio = width / (float)height;
-    mUniforms.projectMatrix = glm::perspective(60 * Camera::PI / 180, ratio, 0.01f, 1000.0f);
+    mUniforms.projectMatrix = glm::perspective(fov * Camera::PI / 180, ratio, znear, zfar);
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),
                          &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));
@@ -1052,12 +1064,13 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         // calculating the NDC for x and y
         if (action == GLFW_PRESS) {
+            auto [w_width, w_height] = getWindowSize();
             double xpos, ypos;
             glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
-            double xndc = 2.0 * xpos / 1920.0 - 1.0;
-            double yndc = 1.0 - (2.0 * ypos) / 1024.0;
+            double xndc = 2.0 * xpos / (float)w_width - 1.0;
+            double yndc = 1.0 - (2.0 * ypos) / (float)w_height;
             glm::vec4 clip_coords = glm::vec4{xndc, yndc, 0.0, 1.0};
-            // arrow_model.moveTo(mCamera.getPos());
+            std::cout << clip_coords.x << ":" << clip_coords.y << std::endl;
             glm::vec4 eyecoord = glm::inverse(mCamera.getProjection()) * clip_coords;
             eyecoord = glm::vec4{eyecoord.x, eyecoord.y, -1.0f, 0.0f};
 
@@ -1069,8 +1082,9 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
             for (auto* obj : mLoadedModel) {
                 /*auto obj = dynamic_cast<BaseModel*>(obj1);*/
                 /*if (obj) {*/
-                auto obj_in_world_min = obj->getTranformMatrix() * glm::vec4(obj->min, 1.0);
-                auto obj_in_world_max = obj->getTranformMatrix() * glm::vec4(obj->max, 1.0);
+                /*auto obj_in_world_min = obj->getTranformMatrix() * glm::vec4(obj->min, 1.0);*/
+                /*auto obj_in_world_max = obj->getTranformMatrix() * glm::vec4(obj->max, 1.0);*/
+                auto [obj_in_world_min, obj_in_world_max] = obj->getWorldMin();
                 bool does_intersect = intersection(ray_origin, normalized, obj_in_world_min, obj_in_world_max);
                 if (does_intersect) {
                     if (mSelectedModel) {
@@ -1185,23 +1199,37 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
     ImGui::Begin("Point Light");
 
-    glm::vec4 tmp_ambient = mPointlight.mAmbient;
+    auto mPointlight = mLightManager->get();
+    glm::vec4 tmp_ambient = mPointlight->mAmbient;
     glm::vec3 tmp_pos = arrow_model.getPosition();
-    float tmp_linear = mPointlight.mLinear;
-    float tmp_quadratic = mPointlight.mQuadratic;
-    ImGui::ColorEdit3("Point Light Color #0", glm::value_ptr(mPointlight.mAmbient));
-    ImGui::DragFloat3("Point Ligth Position #0", glm::value_ptr(mPointlight.mPosition), 0.1, -10.0, 10.0);
+    float tmp_linear = mPointlight->mLinear;
+    float tmp_quadratic = mPointlight->mQuadratic;
+    ImGui::ColorEdit3("Point Light Color #0", glm::value_ptr(mPointlight->mAmbient));
+    ImGui::DragFloat3("Point Ligth Position #0", glm::value_ptr(mPointlight->mPosition), 0.1, -10.0, 10.0);
     ImGui::SliderFloat("Linear", &tmp_linear, -10.0f, 10.0f);
     ImGui::SliderFloat("Quadratic", &tmp_quadratic, -10.0f, 10.0f);
+    float tmp_znear = znear;
+    ImGui::SliderFloat("z-near", &tmp_znear, 0.0, 180.0f);
+    if (tmp_znear != znear) {
+        znear = tmp_znear;
+        updateProjectionMatrix();
+    }
 
-    if (tmp_ambient != mPointlight.mAmbient ||
-        (tmp_pos.x != mPointlight.mPosition.x || tmp_pos.y != mPointlight.mPosition.y ||
-         tmp_pos.z != mPointlight.mPosition.z || tmp_linear != mPointlight.mLinear ||
-         tmp_quadratic != mPointlight.mQuadratic)) {
-        mPointlight.mPosition = glm::vec4{tmp_pos, 1.0};
-        mPointlight.mLinear = tmp_linear;
-        mPointlight.mQuadratic = tmp_quadratic;
-        wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, 0, &mPointlight, sizeof(mPointlight));
+    float tmp_zfar = zfar;
+    ImGui::SliderFloat("z-far", &tmp_zfar, 0.0, 1000.0f);
+    if (tmp_zfar != zfar) {
+        zfar = tmp_zfar;
+        updateProjectionMatrix();
+    }
+
+    if (tmp_ambient != mPointlight->mAmbient ||
+        (tmp_pos.x != mPointlight->mPosition.x || tmp_pos.y != mPointlight->mPosition.y ||
+         tmp_pos.z != mPointlight->mPosition.z || tmp_linear != mPointlight->mLinear ||
+         tmp_quadratic != mPointlight->mQuadratic)) {
+        mPointlight->mPosition = glm::vec4{tmp_pos, 1.0};
+        mPointlight->mLinear = tmp_linear;
+        mPointlight->mQuadratic = tmp_quadratic;
+        wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, 0, mPointlight, sizeof(Light));
     }
     ImGui::End();
 
@@ -1224,3 +1252,10 @@ WGPUBuffer& Application::getUniformBuffer() { return mUniformBuffer; }
 MyUniform& Application::getUniformData() { return mUniforms; }
 
 const WGPUBindGroupLayout& Application::getObjectBindGroupLayout() const { return mBindGroupLayouts[1]; }
+
+std::pair<size_t, size_t> Application::getWindowSize() { return {mWindowWidth, mWindowHeight}; }
+
+void Application::setWindowSize(size_t width, size_t height) {
+    mWindowWidth = width;
+    mWindowHeight = height;
+}

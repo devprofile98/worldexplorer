@@ -113,12 +113,17 @@ class Application {
         // textures
         Texture* mDefaultDiffuse = nullptr;
         Texture* mDefaultMetallicRoughness = nullptr;
+	std::pair<size_t, size_t> getWindowSize();
+	void setWindowSize(size_t width, size_t height);
+
 
     private:
+	size_t mWindowWidth = 1800;
+	size_t mWindowHeight = 1000;
         Camera mCamera;
         Terrain terrain;
         LightingUniforms mLightingUniforms;
-        PointLight mPointlight;
+        LightManager *mLightManager;
         Pipeline* mPipeline;
         Cube* shapes;
         Plane* plane;

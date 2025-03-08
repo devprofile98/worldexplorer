@@ -62,7 +62,6 @@ class Camera {
         void processScroll(double value);
         void updateCursor(int x, int y);
 
-    private:
         CameraState mCameraState;
         DragState mDragState;
         glm::mat4 mRotationMatrix;

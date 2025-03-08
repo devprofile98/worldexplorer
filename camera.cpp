@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "glm/geometric.hpp"
+
 Camera::Camera() : mRotationMatrix({}), mScaleMatrix({}), mTranslationMatrix({}) {
     // mModelMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
 }
@@ -11,7 +13,7 @@ Camera::Camera(glm::vec3 translate, glm::vec3 scale, glm::vec3 rotationAxis, flo
     mScaleMatrix = glm::scale(glm::mat4{1.0}, scale);
     mTranslationMatrix = glm::translate(glm::mat4{1.0}, translate);
 
-    mCameraFront = glm::vec3{0.0f, 0.0f, 0.0f};
+    mCameraFront = glm::vec3{1.0f, 0.0f, 0.0f};
     mCameraPos = glm::vec3{0.0f, -1.0f, 1.0f};
     mCameraUp = glm::vec3{0.0f, 0.0f, 1.0f};
     mWorldUp = mCameraUp;
@@ -19,7 +21,7 @@ Camera::Camera(glm::vec3 translate, glm::vec3 scale, glm::vec3 rotationAxis, flo
     mViewMatrix = glm::lookAt(mCameraPos, mCameraPos + mCameraFront, mCameraUp);
 
     // Projection Matrix ------------------
-    float ratio = 640.0f / 480.0f;
+    float ratio = 1800.0f / 1000.0f;
     float focal_length = 2.0;
     float near = 0.01f;
     float far = 1000.0f;
@@ -95,12 +97,13 @@ void Camera::processMouse(int x, int y) {
     mCameraFront.y = -sin(glm::radians(mYaw));
     mCameraFront.z = sin(glm::radians(mPitch));
 
+    mCameraFront = glm::normalize(mCameraFront);
     // mCameraFront.z += yoffset;
     // std::cout << mCameraFront.x << " " << mCameraFront.y << " " << mCameraFront.z << std::endl;
     // mRight = glm::vec3{std::cos(mPitch), 0.f, std::sin(mPitch)};
-    // mRight = glm::normalize(
-    //     glm::cross(mCameraFront, mWorldUp));  // normalize the vectors, because their length gets closer to 0 the
-    // mCameraUp = glm::normalize(glm::cross(mRight, mCameraFront));
+    mRight = glm::normalize(
+        glm::cross(mCameraFront, mWorldUp));  // normalize the vectors, because their length gets closer to 0 the
+    mCameraUp = glm::normalize(glm::cross(mRight, mCameraFront));
 }
 
 void Camera::processScroll(double value) { mCameraPos += (float)value * glm::normalize(mCameraFront); }
