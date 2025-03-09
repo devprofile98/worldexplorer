@@ -176,7 +176,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //let distance_dir = pointLight[0].position.xyz - in.worldPos;
     var point_light_color = 0.0f;
     var attenuation = 0.0f;
-    for (var i:i32 =0; i < 1; i++) {
+    for (var i:i32 =1; i < 2; i++) {
     let curr_light = pointLight[i];
     let distance = length(pointLight[i].position.xyz - in.worldPos);
     if distance < 10.0 {

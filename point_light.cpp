@@ -26,4 +26,6 @@ void LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff
 
 Light* LightManager::get() { return &mLights[0]; }
 
-void LightManager::uploadToGpu(Application* app) { (void)app; }
+void LightManager::uploadToGpu(Application* app, WGPUBuffer buffer) {
+    wgpuQueueWriteBuffer(app->getRendererResource().queue, buffer, 0, mLights.data(), sizeof(Light) * mLights.size());
+}

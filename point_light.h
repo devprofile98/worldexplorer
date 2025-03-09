@@ -5,6 +5,8 @@
 
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
+#include "gpu_buffer.h"
+#include "webgpu.h"
 
 class Application;
 
@@ -30,7 +32,7 @@ class LightManager {
                               float quad);
 
 	Light* get();
-        void uploadToGpu(Application* app);
+        void uploadToGpu(Application* app, WGPUBuffer buffer);
 
     private:
         LightManager();

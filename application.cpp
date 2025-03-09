@@ -98,7 +98,7 @@ void Application::initializePipeline() {
                             BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(LightingUniforms));
 
     mBindingGroup.addBuffer(4,  //
-                            BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(Light));
+                            BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(Light) * 10);
 
     mBindingGroup.addTexture(5,  //
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
@@ -187,7 +187,7 @@ void Application::initializePipeline() {
     mBindingData[4].binding = 4;
     mBindingData[4].buffer = mBuffer1;
     mBindingData[4].offset = 0;
-    mBindingData[4].size = sizeof(Light);
+    mBindingData[4].size = sizeof(Light) * 10;
 
     mBindingData[5] = {};
     mBindingData[5].nextInChain = nullptr;
@@ -458,18 +458,19 @@ void Application::initializeBuffers() {
     WGPUBufferDescriptor pointligth_buffer_descriptor = {};
     pointligth_buffer_descriptor.nextInChain = nullptr;
     pointligth_buffer_descriptor.label = ":::::";
-    pointligth_buffer_descriptor.size = sizeof(Light);
+    pointligth_buffer_descriptor.size = sizeof(Light) * 10;
     pointligth_buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     pointligth_buffer_descriptor.mappedAtCreation = false;
     mBuffer1 = wgpuDeviceCreateBuffer(mRendererResource.device, &pointligth_buffer_descriptor);
 
     glm::vec4 red = {1.0, 0.0, 0.0, 1.0};
+    glm::vec4 blue = {0.0, 0.0, 1.0, 1.0};
 
-    /*mPointlight = Light{}; */
-    auto mPointlight = mLightManager->get();
+    mLightManager->createPointLight({2.0, 0.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
     mLightManager->createPointLight({0.0, 0.0, 1.0, 1.0}, red, red, red, 1.0, 0.7, 1.8);
 
-    wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, 0, &mPointlight, pointligth_buffer_descriptor.size);
+    mLightManager->uploadToGpu(this, mBuffer1);
+    
 }
 
 // We define a function that hides implementation-specific variants of device polling:
@@ -931,7 +932,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     // Binding groups
     required_limits.limits.maxBindGroups = 3;
     required_limits.limits.maxUniformBuffersPerShaderStage = 5;
-    required_limits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float);
+    required_limits.limits.maxUniformBufferBindingSize = 1024;  // 16 * 4 * sizeof(float);
 
     required_limits.limits.maxTextureDimension1D = 2048;
     required_limits.limits.maxTextureDimension2D = 2048;
