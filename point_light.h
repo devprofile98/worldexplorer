@@ -21,23 +21,27 @@ struct Light {
         float mConstant;
         float mLinear;
         float mQuadratic;
-        float padding;
         LightType type;
 };
 
 class LightManager {
     public:
-        static LightManager* init();
+        static LightManager* init(Application* app);
         void createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float cons, float lin,
                               float quad);
 
-	Light* get();
+	Light* get(size_t index);
         void uploadToGpu(Application* app, WGPUBuffer buffer);
 
+	void renderGUI();
+	void nextLight();
+
     private:
-        LightManager();
+	Application* mApp;
+        LightManager(Application* app);
         /*static inline Light* mLightInstance;*/
         std::vector<Light> mLights;
+	size_t mSelectedLightInGui;
 };
 
 #endif  // TEST_WGPU_POINT_LIGHT

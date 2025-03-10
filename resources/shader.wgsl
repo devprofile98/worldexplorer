@@ -52,6 +52,7 @@ struct PointLight {
     constant: f32,
     linear: f32,
     quadratic: f32,
+    ftype: f32,
 }
 
 struct Scene {
@@ -144,6 +145,95 @@ fn calculateShadow(fragPosLightSpace: vec4f) -> f32 {
     return shadow;
 }
 
+fn calculateTerrainColor(level: f32, uv: vec2f) -> vec3f {
+	
+	var color = vec3f(0.0f);
+        if level == 1 {
+            color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
+        } else if level > 1 && level < 2 {
+            let distance = level - 1.0;
+            let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
+            color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
+            color = mix(color, grass_color, distance);
+        } else if level == 2 {
+            color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
+        } else if level > 2 && level < 3 {
+            let distance = level - 2.0;
+            let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
+            color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
+            color = mix(grass_color, color, distance);
+        } else if level == 3 {
+            color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
+        } else if level > 3 && level < 4 {
+            let distance = level - 3.0;
+            let snow_color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
+            color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
+            color = mix(color, snow_color, distance);
+        } else if level == 4 {
+            color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
+        }
+	return color;
+}
+
+//@fragment
+//fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+//    let normal = normalize(in.normal);
+//    let view_direction = normalize(in.viewDirection);
+//    
+//    // Sample texture
+//    let metallic_roughness = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
+//    let base_color = textureSample(diffuse_map, textureSampler, in.uv).rgb;
+//    
+//    // Directional Light
+//    let dir_light_color = lightingInfos.colors[0].rgb;
+//    let direction = normalize(lightingInfos.directions[0].xyz);
+//    let reflection = reflect(-direction, normal);
+//    let specular = pow(max(dot(reflection, view_direction), 0.0), 16.0);
+//    let intensity = max(0.0, dot(direction, normal));
+//    let diffuse = intensity * dir_light_color;
+//    // Base shading
+//    var shading = diffuse + vec3f(0.1, 0.1, 0.15);
+//
+//    // Point Lights
+//    var point_light_color = vec3f(0.0);
+//    for (var i: i32 = 0; i < 2; i++) {
+//        let curr_light = pointLight[i];
+//        let distance = length(curr_light.position.xyz - in.worldPos);
+//        if distance < 10.0 {
+//            let attenuation = 1.0 / (curr_light.constant + curr_light.linear * distance + curr_light.quadratic * (distance * distance));
+//            let light_dir = normalize(curr_light.position.xyz - in.worldPos);
+//            
+//            // Lambertian diffuse
+//            let diff = max(dot(normal, light_dir), 0.0) * curr_light.ambient.xyz * attenuation;
+//            
+//            // Blinn-Phong specular
+//            let halfwayDir = normalize(view_direction + light_dir);
+//            let spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0) * attenuation;
+//            
+//            point_light_color += diff + spec;
+//        }
+//    }
+//    
+//    // Ambient Light
+//    let ambient = vec3f(0.1, 0.1, 0.15) * base_color;
+//	    // Final lighting
+//    let diffuse_final = shading + point_light_color;
+//    let specular_final = specular * vec3f(1.0);
+//    
+//    var col = ambient + diffuse_final + specular_final;
+//    let shadow = calculateShadow(in.shadowPos);
+//    col *= (1.0 - shadow * 0.75);
+//    
+//    // Object-specific adjustments
+//    if objectTranformation.isHovered == 1 {
+//        let variation = abs(sin(ElapsedTime * 2.0));
+//        col = col * (vec3f(1.0 + variation * 2.0, 0.0, 0.0));
+//    }
+//    
+//    return vec4f(col, 1.0);
+//
+//    //return vec4f(shading + ambient, 1.0f);
+//}
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let normal = normalize(in.normal);
@@ -152,38 +242,32 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let metallic_roughness = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
 
     var shading = vec3f(0.0);
-    // for (var i = 0; i < 1; i++) {
+    // first, put directional light here
     var color = lightingInfos.colors[0].rgb;
-
     let direction = normalize(lightingInfos.directions[0].xyz);
     let reflection = reflect(-direction, normal);
         // The closer the cosine is to 1.0, the closer V is to R
     let RoV = max(0.0, dot(reflection, view_direction));
     let hardness = 16.0;
     let specular = pow(RoV, hardness) ;
-
     let intensity = dot(direction, normal);
     var min_intensity = 0.3;
     if objectTranformation.isFoliage == 1 {
         min_intensity = 0.6;
     }
     let diffuse = max(min_intensity, intensity) * color;
-    // let diffuse = abs(intensity) * color;
     shading += diffuse + vec3f(0.1, 0.1, 0.15) ;
-    if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
-        shading += specular;
-    }
-    //let distance_dir = pointLight[0].position.xyz - in.worldPos;
-    var point_light_color = 0.0f;
-    var attenuation = 0.0f;
-    for (var i:i32 =1; i < 2; i++) {
-    let curr_light = pointLight[i];
-    let distance = length(pointLight[i].position.xyz - in.worldPos);
-    if distance < 10.0 {
-        attenuation = 1.0 / (curr_light.constant + curr_light.linear * distance + curr_light.quadratic * (distance * distance));
-        let light_dir = normalize(curr_light.position.xyz - in.worldPos);
-        point_light_color = max(dot(normal, light_dir), 0.0);
-    }
+    //if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
+    //    shading += specular;
+    //}
+
+    var point_light_color = vec3f(0.0f);
+    for (var i:i32 =0; i < 5; i++) {
+	    let curr_light = pointLight[i];
+	    let distance = length(pointLight[i].position.xyz - in.worldPos);
+            let attenuation = 1.0 / (curr_light.constant + curr_light.linear * distance + curr_light.quadratic * (distance * distance));
+	    let light_dir = normalize(curr_light.position.xyz - in.worldPos);
+	    point_light_color +=  curr_light.ambient.xyz * attenuation * max(dot(normal, light_dir), 0.0);
     }
     if objectTranformation.isFlat == 0 {
         let fragment_color = textureSample(diffuse_map, textureSampler, in.uv).rgba;
@@ -191,8 +275,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let color2 = shading * base_diffuse;
         let linear_color = pow(color2, vec3f(2.2));
         let ambient = linear_color;
-        //let diffuse = pointLight.ambient.xyz * attenuation * color * point_light_color;
-        let diffuse = pointLight[0].ambient.xyz * attenuation * color * point_light_color;
+        let diffuse = point_light_color * color * point_light_color;
 
         if objectTranformation.useTexture != 0 {
             color = vec4f(ambient + diffuse, 1.0).rgb;
@@ -207,36 +290,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	//		color = in.viewDirection;
 	//}
     } else {
-        if in.color.r == 1 {
-            color = textureSample(sand_lake_texture, textureSampler, in.uv).rgb;
-        } else if in.color.r > 1 && in.color.r < 2 {
-            let distance = in.color.r - 1.0;
-            let grass_color = textureSample(grass_ground_texture, textureSampler, in.uv).rgb;
-            color = textureSample(sand_lake_texture, textureSampler, in.uv).rgb;
-            color = mix(color, grass_color, distance);
-        } else if in.color.r == 2 {
-            color = textureSample(grass_ground_texture, textureSampler, in.uv).rgb;
-        } else if in.color.r > 2 && in.color.r < 3 {
-            let distance = in.color.r - 2.0;
-            let grass_color = textureSample(grass_ground_texture, textureSampler, in.uv).rgb;
-            color = textureSample(rock_mountain_texture, textureSampler, in.uv * 0.2).rgb;
-            color = mix(grass_color, color, distance);
-        } else if in.color.r == 3 {
-            color = textureSample(rock_mountain_texture, textureSampler, in.uv * 0.2).rgb;
-        } else if in.color.r > 3 && in.color.r < 4 {
-            let distance = in.color.r - 3.0;
-            let snow_color = textureSample(snow_mountain_texture, textureSampler, in.uv).rgb;
-            color = textureSample(rock_mountain_texture, textureSampler, in.uv * 0.2).rgb;
-            color = mix(color, snow_color, distance);
-        } else if in.color.r == 4 {
-            color = textureSample(snow_mountain_texture, textureSampler, in.uv).rgb;
-        }
-        color = pow(color, vec3f(1.2));
+        color = pow(calculateTerrainColor(in.color.r, in.uv), vec3f(1.2));
     }
     let shadow = calculateShadow(in.shadowPos);
 
     let ambient = color * shading;
-    let diffuse_final = pointLight[0].ambient.xyz * attenuation * point_light_color;
+    let diffuse_final = point_light_color;
 
     var col = (diffuse_final + ambient);
 

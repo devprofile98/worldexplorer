@@ -116,6 +116,7 @@ class Application {
 	std::pair<size_t, size_t> getWindowSize();
 	void setWindowSize(size_t width, size_t height);
 
+        WGPUBuffer mBuffer1;
 
     private:
 	size_t mWindowWidth = 1800;
@@ -145,7 +146,6 @@ class Application {
         std::vector<WGPUBindGroupEntry> mBindingData{10};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
         // WGPUBindGroup mBindGroup;
-        WGPUBuffer mBuffer1;
         WGPUBuffer mUniformBuffer;
         WGPUBuffer mUniformBufferTransform;
         WGPUBuffer mDirectionalLightBuffer;

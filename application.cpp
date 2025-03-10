@@ -351,7 +351,7 @@ void Application::initializePipeline() {
 // Initializing Vertex Buffers
 void Application::initializeBuffers() {
     // initialize The instancing buffer
-    mLightManager = LightManager::init();
+    mLightManager = LightManager::init(this);
     mInstanceManager = new InstanceManager{this, sizeof(glm::mat4) * 100000 * 15, 100000};
 
     boat_model.load("boat", this, RESOURCE_DIR "/fourareen.obj", mBindGroupLayouts[1])
@@ -466,11 +466,13 @@ void Application::initializeBuffers() {
     glm::vec4 red = {1.0, 0.0, 0.0, 1.0};
     glm::vec4 blue = {0.0, 0.0, 1.0, 1.0};
 
-    mLightManager->createPointLight({2.0, 0.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
     mLightManager->createPointLight({0.0, 0.0, 1.0, 1.0}, red, red, red, 1.0, 0.7, 1.8);
+    mLightManager->createPointLight({-1.0, -2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
+    mLightManager->createPointLight({-5.0, -3.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
+    mLightManager->createPointLight({2.0, 2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
+    mLightManager->createPointLight({1.0, 2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
 
     mLightManager->uploadToGpu(this, mBuffer1);
-    
 }
 
 // We define a function that hides implementation-specific variants of device polling:
@@ -599,6 +601,9 @@ bool Application::initialize() {
             }
         } else if (GLFW_KEY_KP_1 == key && action == GLFW_PRESS) {
             look_as_light = !look_as_light;
+
+        } else if (GLFW_KEY_KP_2 == key && action == GLFW_PRESS) {
+            that->mLightManager->nextLight();
         }
     });
 
@@ -1200,15 +1205,30 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
     ImGui::Begin("Point Light");
 
-    auto mPointlight = mLightManager->get();
-    glm::vec4 tmp_ambient = mPointlight->mAmbient;
-    glm::vec3 tmp_pos = arrow_model.getPosition();
-    float tmp_linear = mPointlight->mLinear;
-    float tmp_quadratic = mPointlight->mQuadratic;
-    ImGui::ColorEdit3("Point Light Color #0", glm::value_ptr(mPointlight->mAmbient));
-    ImGui::DragFloat3("Point Ligth Position #0", glm::value_ptr(mPointlight->mPosition), 0.1, -10.0, 10.0);
-    ImGui::SliderFloat("Linear", &tmp_linear, -10.0f, 10.0f);
-    ImGui::SliderFloat("Quadratic", &tmp_quadratic, -10.0f, 10.0f);
+    /*auto* mPointlight = mLightManager->get(light_index);*/
+    mLightManager->renderGUI();
+    /*glm::vec4 tmp_ambient = mPointlight->mAmbient;*/
+    /*static glm::vec3 tmp_pos = glm::vec3{0.0f};  // arrow_model.getPosition();*/
+    /*tmp_pos = mPointlight->mPosition;*/
+    /*float tmp_linear = mPointlight->mLinear;*/
+    /*float tmp_quadratic = mPointlight->mQuadratic;*/
+    /*ImGui::ColorEdit3("Point Light Color #0", glm::value_ptr(mPointlight->mAmbient));*/
+    /*ImGui::DragFloat3("Point Ligth Position #0", glm::value_ptr(mPointlight->mPosition), 0.1, -10.0, 10.0);*/
+    /*ImGui::SliderFloat("Linear", &tmp_linear, -10.0f, 10.0f);*/
+    /*ImGui::SliderFloat("Quadratic", &tmp_quadratic, -10.0f, 10.0f);*/
+    /**/
+    /*if (tmp_ambient != mPointlight->mAmbient ||*/
+    /*    (tmp_pos.x != mPointlight->mPosition.x || tmp_pos.y != mPointlight->mPosition.y ||*/
+    /*     tmp_pos.z != mPointlight->mPosition.z || tmp_linear != mPointlight->mLinear ||*/
+    /*     tmp_quadratic != mPointlight->mQuadratic)) {*/
+    /*    mPointlight->mPosition = glm::vec4{tmp_pos, 1.0};*/
+    /*    mPointlight->mPosition = glm::vec4{tmp_pos, 1.0};*/
+    /*    mPointlight->mLinear = tmp_linear;*/
+    /*    mPointlight->mQuadratic = tmp_quadratic;*/
+    /*    wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, sizeof(Light) * light_index, mPointlight,*/
+    /*                         sizeof(Light));*/
+    /*}*/
+
     float tmp_znear = znear;
     ImGui::SliderFloat("z-near", &tmp_znear, 0.0, 180.0f);
     if (tmp_znear != znear) {
@@ -1223,15 +1243,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         updateProjectionMatrix();
     }
 
-    if (tmp_ambient != mPointlight->mAmbient ||
-        (tmp_pos.x != mPointlight->mPosition.x || tmp_pos.y != mPointlight->mPosition.y ||
-         tmp_pos.z != mPointlight->mPosition.z || tmp_linear != mPointlight->mLinear ||
-         tmp_quadratic != mPointlight->mQuadratic)) {
-        mPointlight->mPosition = glm::vec4{tmp_pos, 1.0};
-        mPointlight->mLinear = tmp_linear;
-        mPointlight->mQuadratic = tmp_quadratic;
-        wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, 0, mPointlight, sizeof(Light));
-    }
     ImGui::End();
 
     // Draw the UI
