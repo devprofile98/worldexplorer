@@ -130,6 +130,9 @@ void Application::initializePipeline() {
     mBindingGroup.addBuffer(14,  //
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float));
 
+    mBindingGroup.addBuffer(15,  //
+                            BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t));
+
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
 
     WGPUBindGroupLayoutEntry object_transformation = {};
@@ -318,6 +321,13 @@ void Application::initializePipeline() {
     mBindingData[14].offset = 0;
     mBindingData[14].size = sizeof(float);
 
+    mBindingData[15] = {};
+    mBindingData[15].nextInChain = nullptr;
+    mBindingData[15].buffer = mLightManager->getCountBuffer().getBuffer();
+    mBindingData[15].binding = 15;
+    mBindingData[15].offset = 0;
+    mBindingData[15].size = sizeof(uint32_t);
+
     mBindingGroup.create(this, mBindingData);
 
     WGPUBufferDescriptor buffer_descriptor = {};
@@ -470,7 +480,7 @@ void Application::initializeBuffers() {
     mLightManager->createPointLight({-1.0, -2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
     mLightManager->createPointLight({-5.0, -3.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
     mLightManager->createPointLight({2.0, 2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
-    mLightManager->createPointLight({1.0, 2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
+    mLightManager->createSpotLight({1.0, 2.0, 1.0, 1.0}, {0.0, 0.0, -1.0f, 1.0f}, glm::cos(glm::radians(12.5f)), glm::cos(glm::radians(17.5f)));
 
     mLightManager->uploadToGpu(this, mBuffer1);
 }
@@ -936,8 +946,8 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
 
     // Binding groups
     required_limits.limits.maxBindGroups = 3;
-    required_limits.limits.maxUniformBuffersPerShaderStage = 5;
-    required_limits.limits.maxUniformBufferBindingSize = 1024;  // 16 * 4 * sizeof(float);
+    required_limits.limits.maxUniformBuffersPerShaderStage = 6;
+    required_limits.limits.maxUniformBufferBindingSize = 2048;  // 16 * 4 * sizeof(float);
 
     required_limits.limits.maxTextureDimension1D = 2048;
     required_limits.limits.maxTextureDimension2D = 2048;
@@ -1197,7 +1207,18 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui::DragFloat3("Direction #0", glm::value_ptr(mLightingUniforms.directions[0]), 0.1, -1.0, 1.0);
     // ImGui::ColorEdit3("Color #1", glm::value_ptr(mLightingUniforms.colors[1]));
     ImGui::DragFloat3("sun pos direction", glm::value_ptr(pointlightshadow), 0.1, -10.0, 10.0);
+    static glm::vec3 new_ligth_position = {};
+    ImGui::InputFloat3("create new light at:", glm::value_ptr(new_ligth_position));
+    if (ImGui::Button("Create", ImVec2(100, 100))) {
+        // This code block is the callback
+        // It will be executed when the button is clicked
+        // Add your callback logic here
+        glm::vec4 purple = {1.0, 0.0, 1.0, 1.0};
+        mLightManager->createPointLight(glm::vec4{new_ligth_position, 1.0}, purple, purple, purple, 1.0, 0.7, 1.8);
+	mLightManager->uploadToGpu(this, mBuffer1);
+    }
     ImGui::End();
+
     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                          sizeof(LightingUniforms));
     mShadowPass->lightPos = pointlightshadow;

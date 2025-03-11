@@ -45,6 +45,7 @@ struct ObjectInfo {
 
 struct PointLight {
     position: vec4f,
+    direction: vec4f,
     ambient: vec4f,
     diffuse: vec4f,
     specular: vec4f,
@@ -52,7 +53,9 @@ struct PointLight {
     constant: f32,
     linear: f32,
     quadratic: f32,
-    ftype: f32,
+    ftype: i32,
+    cutOff:f32,
+    outerCutOff:f32
 }
 
 struct Scene {
@@ -81,6 +84,7 @@ struct OffsetData {
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(14) var<uniform> ElapsedTime: f32;
+@group(0) @binding(15) var<uniform> lightCount: i32;
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 
@@ -234,6 +238,31 @@ fn calculateTerrainColor(level: f32, uv: vec2f) -> vec3f {
 //
 //    //return vec4f(shading + ambient, 1.0f);
 //}
+
+
+fn calculatePointLight(curr_light: PointLight, normal: vec3f, dir: vec3f) -> vec3f {
+    let distance = length(dir);
+    let attenuation = 1.0 / (curr_light.constant + curr_light.linear * distance + curr_light.quadratic * (distance * distance));
+    let light_dir = normalize(dir);
+    return curr_light.ambient.xyz * attenuation * max(dot(normal, light_dir), 0.0);
+}
+
+fn calculateSpotLight(currLight: PointLight, normal: vec3f,dir: vec3f) -> vec3f{
+	    let lightDir = normalize(dir);
+	    let diff = max(dot(normal, lightDir), 0.0);
+	    let diffuse = currLight.diffuse.xyz * diff; 	
+	let theta = dot(lightDir, normalize(-currLight.direction).xyz);
+	let epsilon = (currLight.cutOff -  currLight.outerCutOff);
+	let intensity = clamp((theta - currLight.outerCutOff) / epsilon, 0.0, 1.0);
+    let distance = length(dir);
+    let attenuation = 1.0 / (1.0 + currLight.linear * distance + 
+                           currLight.quadratic * distance * distance);
+
+	return diffuse * intensity * attenuation;
+
+}
+
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let normal = normalize(in.normal);
@@ -261,14 +290,19 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //    shading += specular;
     //}
 
+
     var point_light_color = vec3f(0.0f);
-    for (var i:i32 =0; i < 5; i++) {
+    for (var i:i32 =0; i < lightCount ; i++) {
 	    let curr_light = pointLight[i];
-	    let distance = length(pointLight[i].position.xyz - in.worldPos);
-            let attenuation = 1.0 / (curr_light.constant + curr_light.linear * distance + curr_light.quadratic * (distance * distance));
-	    let light_dir = normalize(curr_light.position.xyz - in.worldPos);
-	    point_light_color +=  curr_light.ambient.xyz * attenuation * max(dot(normal, light_dir), 0.0);
+	    let dir = curr_light.position.xyz - in.worldPos;
+
+	    if (curr_light.ftype == 3){
+		    point_light_color +=  calculatePointLight(curr_light, normal, dir);
+	    } else if (curr_light.ftype == 2) {
+	    	point_light_color += calculateSpotLight(curr_light, normal, dir);
+	    }
     }
+
     if objectTranformation.isFlat == 0 {
         let fragment_color = textureSample(diffuse_map, textureSampler, in.uv).rgba;
         var base_diffuse = fragment_color.rgb;

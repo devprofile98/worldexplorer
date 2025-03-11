@@ -1,6 +1,7 @@
 #ifndef TEST_WGPU_POINT_LIGHT
 #define TEST_WGPU_POINT_LIGHT
 
+#include <cstdint>
 #include <vector>
 
 #include "glm/ext.hpp"
@@ -10,10 +11,11 @@
 
 class Application;
 
-enum LightType { DIRECTIONAL = 1, SPOT, POINT };
+enum LightType : uint32_t { DIRECTIONAL = 1, SPOT, POINT};
 
 struct Light {
         glm::vec4 mPosition;
+        glm::vec4 mDirection;
         glm::vec4 mAmbient;
         glm::vec4 mDiffuse;
         glm::vec4 mSpecular;
@@ -22,6 +24,9 @@ struct Light {
         float mLinear;
         float mQuadratic;
         LightType type;
+        float mInnerCutoff;
+        float mOuterCutoff;
+	float padding[2];
 };
 
 class LightManager {
@@ -30,18 +35,22 @@ class LightManager {
         void createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float cons, float lin,
                               float quad);
 
-	Light* get(size_t index);
+        void createSpotLight(glm::vec4 pos, glm::vec4 direction, float cutoff, float outerCutoff);
+
+        Light* get(size_t index);
         void uploadToGpu(Application* app, WGPUBuffer buffer);
 
-	void renderGUI();
-	void nextLight();
+        void renderGUI();
+        void nextLight();
+        Buffer& getCountBuffer();
 
     private:
-	Application* mApp;
+        Application* mApp;
         LightManager(Application* app);
         /*static inline Light* mLightInstance;*/
+        Buffer mLightCountBuffer;
         std::vector<Light> mLights;
-	size_t mSelectedLightInGui;
+        size_t mSelectedLightInGui;
 };
 
 #endif  // TEST_WGPU_POINT_LIGHT
