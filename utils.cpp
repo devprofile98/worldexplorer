@@ -215,8 +215,6 @@ double perlin(double x, double y, double z) {
     uint32_t cy = static_cast<uint32_t>(std::floor(y)) & 255;
     uint32_t cz = static_cast<uint32_t>(std::floor(z)) & 255;
 
-    // std::cout << std::format("{} {} {}", cx, cy, cz) << '\n';
-
     x -= std::floor(x);
     y -= std::floor(y);
     z -= std::floor(z);
@@ -224,8 +222,6 @@ double perlin(double x, double y, double z) {
     double u = fade(x);
     double v = fade(y);
     double w = fade(z);
-
-    // std::cout << std::format("{} {} {}: {} {} {}   ->   ", x, y, z, u, v, w);
 
     uint32_t A = p[cx] + cy;
     uint32_t B = p[cx + 1] + cy;
@@ -235,9 +231,6 @@ double perlin(double x, double y, double z) {
 
     uint32_t AB = p[A + 1] + cz;
     uint32_t BB = p[B + 1] + cz;
-    // std::cout << std::format("{} {} {}  :::   {}({}) {}({}) {} {} ", x, y, z, grad(p[AA], x, y, z), p[AA],
-    //                          grad(p[BA], x - 1.0, y, z), p[BA], AB, BA);
-    // "{} {} {}: {} {} {}   ->   ", x, y, z, u, v, w);
 
     return lerp(w,
                 lerp(v, lerp(u, grad(p[AA], x, y, z), grad(p[BA], x - 1.0, y, z)),
@@ -247,7 +240,22 @@ double perlin(double x, double y, double z) {
 }
 }  // namespace noise
 
-float Terrain::perlin(float x, float y) { return noise::perlin(x, y, 0.0); }
+double test_perlin(double x, double z, double persistence, size_t octaves, size_t gridSize) {
+    double pixel_result = 0.0;
+    double frequency = 2.0;
+    double amp = 1.0;
+    for (size_t o = 0; o < octaves; o++) {
+        double nx = (double)x / gridSize * frequency;
+        double nz = (double)z / gridSize * frequency;
+        double pixel = noise::perlin(nz, nx, 0);
+        pixel_result += ((pixel + 1.0) * 0.5 * 255.0) * amp;
+        frequency *= 2.0;
+        amp *= persistence;
+    }
+    return pixel_result;
+}
+
+float Terrain::perlin(float x, float y) { return test_perlin(x, y, 0.5, 8, 100) * 0.1 - 25.0f; }
 
 Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::vec3>& output) {
     mRotationMatrix = glm::mat4{1.0};
@@ -278,14 +286,14 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
     mPixels.reserve(mGridSize * mGridSize);
 
     double height_scale = 0.1;
-    double frequency = 1.023;
-    double amp = 1.0;
+    /*double frequency = 1.023;*/
+    double start_amp = 1.0;
     double clamp_scale = 0.0;
     double persistence = 0.5;
     // calculating the clamp scale
     for (size_t o = 0; o < octaves; o++) {
-        clamp_scale += amp;
-        amp *= persistence;
+        clamp_scale += start_amp;
+        start_amp *= persistence;
     }
 
     // std::cout << "The Clamp Scale Is : " << clamp_scale << '\n';
@@ -295,20 +303,17 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
 
     for (size_t x = 0; x < gridSize; x++) {
         for (size_t z = 0; z < gridSize; z++) {
-            double pixel_result = 0.0;
-            frequency = 2.0;
-            amp = 1.0;
-            for (size_t o = 0; o < octaves; o++) {
-                double nx = (double)x / gridSize * frequency;
-                double nz = (double)z / gridSize * frequency;
-                double pixel = noise::perlin(nz, nx, 0);
-                pixel_result += ((pixel + 1.0) * 0.5 * 255.0) * amp;
-                frequency *= 2.0;
-                amp *= persistence;
+            double pixel_result = test_perlin(x, z, persistence, octaves, gridSize);
+
+            if (x == 51 && z == 43) {
+                std::cout << "++++++++++++++++++" << (pixel_result * 0.1 - 25.0f) << "\n";
             }
 
             VertexAttributes attr;
             double vertex_height = pixel_result / clamp_scale;
+
+            /*std::cout << pixel_result << " " << test_perlin(x, z, persistence, octaves, gridSize) << " " <<
+             * pixel_result * height_scale <<  std::endl;*/
 
             min = vertex_height < min ? vertex_height : min;
             max = vertex_height > max ? vertex_height : max;
@@ -342,25 +347,24 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
                     double offsetZ = (rand() % 100) / 100.0;
                     double foliage_x = x + offsetX;
                     double foliage_z = z + offsetZ;
-                    double foliage_height = pixel_result * height_scale + 0.2;  // Slightly above terrain
+                    /*double foliage_height = pixel_result * height_scale + 0.2;  // Slightly above terrain*/
+                    /*auto foliage_height =*/
+                    /*    test_perlin(foliage_x + 50.0, foliage_z + 50.0, persistence, octaves, gridSize);*/
                     foliage_positions.push_back(
-                        {{foliage_x, foliage_z, foliage_height}, {0.0, 1.0, 0.0}, {0, 255, 0}, {foliage_x, foliage_z}});
+                        {{foliage_x, foliage_z, Terrain::perlin(foliage_x, foliage_z )}, {0.0, 1.0, 0.0}, {0, 255, 0}, {foliage_x, foliage_z}});
                 }
             }
         }
     }
 
-    // auto ddd = (max - min / 2.0) * clamp_scale;
-
     for (auto& e : vertices) {
         e.position.z -= 25;
         e.position.x -= 50;
         e.position.y -= 50;
-        /*output.push_back(e.position);*/
     }
 
     for (auto& f : foliage_positions) {
-        f.position.z -= 25;
+        /*f.position.z -= 25;*/
         f.position.x -= 50;
         f.position.y -= 50;
         output.push_back(f.position);

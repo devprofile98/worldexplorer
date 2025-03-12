@@ -41,8 +41,8 @@ void LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff
 }
 
 void LightManager::createSpotLight(glm::vec4 pos, glm::vec4 direction, float cutoff, float outerCutoff) {
-	(void)cutoff;
-	(void)outerCutoff;
+    (void)cutoff;
+    (void)outerCutoff;
     Light light;
     light.mPosition = pos;
     light.mDirection = direction;
@@ -67,31 +67,28 @@ void LightManager::uploadToGpu(Application* app, WGPUBuffer buffer) {
 
 void LightManager::renderGUI() {
     auto* mPointlight = get(mSelectedLightInGui);
-    /*if (mPointlight->type == SPOT) {*/
-    /*    return;*/
-    /*}*/
-    glm::vec4 tmp_ambient = mPointlight->mAmbient;
-    glm::vec4 tmp_pos = mPointlight->mPosition;
-    float tmp_linear = mPointlight->mLinear;
-    float tmp_quadratic = mPointlight->mQuadratic;
+    auto tmp_light = *mPointlight;
+
     ImGui::ColorEdit3(
         std::format("{} color # {}", mPointlight->type == SPOT ? "Spot" : "Point", mSelectedLightInGui).c_str(),
-        glm::value_ptr(mPointlight->mAmbient));
-    /*ImGui::DragFloat3("Point Ligth Position #0", glm::value_ptr(mPointlight->mPosition), 0.1, -10.0, 10.0);*/
-    ImGui::SliderFloat("Linear", &tmp_linear, -10.0f, 10.0f);
-    ImGui::SliderFloat("Quadratic", &tmp_quadratic, -10.0f, 10.0f);
+        glm::value_ptr(tmp_light.mAmbient));
 
-    ImGui::SliderFloat("pos x", &tmp_pos.x, -20.0f, 20.0f);
-    ImGui::SliderFloat("pos y", &tmp_pos.y, -20.0f, 20.0f);
-    ImGui::SliderFloat("pos z", &tmp_pos.z, -20.0f, 20.0f);
+    ImGui::SliderFloat3("Position", glm::value_ptr(tmp_light.mPosition), -20.0f, 20.0f);
 
-    if (tmp_ambient != mPointlight->mAmbient ||
-        (tmp_pos.x != mPointlight->mPosition.x || tmp_pos.y != mPointlight->mPosition.y ||
-         tmp_pos.z != mPointlight->mPosition.z || tmp_linear != mPointlight->mLinear ||
-         tmp_quadratic != mPointlight->mQuadratic)) {
-        mPointlight->mPosition = tmp_pos;
-        mPointlight->mLinear = tmp_linear;
-        mPointlight->mQuadratic = tmp_quadratic;
+    if (tmp_light.type == SPOT) {
+        ImGui::SliderFloat3("Direction", glm::value_ptr(tmp_light.mDirection), -1.0, 1.0f);
+        ImGui::SliderFloat("Inner Cutoff", &tmp_light.mInnerCutoff, 0, 360.0);
+        ImGui::SliderFloat("outer Cutoff", &tmp_light.mOuterCutoff, 0, 360.0);
+    }
+    ImGui::SliderFloat("Linear", &tmp_light.mLinear, -10.0f, 10.0f);
+    ImGui::SliderFloat("Quadratic", &tmp_light.mQuadratic, -10.0f, 10.0f);
+
+    if (!glm::all(glm::equal(tmp_light.mAmbient, mPointlight->mAmbient)) ||
+        !glm::all(glm::equal(tmp_light.mPosition, mPointlight->mPosition)) ||
+        !glm::all(glm::equal(tmp_light.mDirection, mPointlight->mDirection)) ||
+        tmp_light.mLinear != mPointlight->mLinear || tmp_light.mQuadratic != mPointlight->mQuadratic ||
+        tmp_light.mInnerCutoff != mPointlight->mInnerCutoff || tmp_light.mOuterCutoff != mPointlight->mOuterCutoff) {
+        *mPointlight = tmp_light;
         wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->mBuffer1, sizeof(Light) * mSelectedLightInGui,
                              mPointlight, sizeof(Light));
     }

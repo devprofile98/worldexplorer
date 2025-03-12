@@ -179,66 +179,6 @@ fn calculateTerrainColor(level: f32, uv: vec2f) -> vec3f {
 	return color;
 }
 
-//@fragment
-//fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-//    let normal = normalize(in.normal);
-//    let view_direction = normalize(in.viewDirection);
-//    
-//    // Sample texture
-//    let metallic_roughness = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
-//    let base_color = textureSample(diffuse_map, textureSampler, in.uv).rgb;
-//    
-//    // Directional Light
-//    let dir_light_color = lightingInfos.colors[0].rgb;
-//    let direction = normalize(lightingInfos.directions[0].xyz);
-//    let reflection = reflect(-direction, normal);
-//    let specular = pow(max(dot(reflection, view_direction), 0.0), 16.0);
-//    let intensity = max(0.0, dot(direction, normal));
-//    let diffuse = intensity * dir_light_color;
-//    // Base shading
-//    var shading = diffuse + vec3f(0.1, 0.1, 0.15);
-//
-//    // Point Lights
-//    var point_light_color = vec3f(0.0);
-//    for (var i: i32 = 0; i < 2; i++) {
-//        let curr_light = pointLight[i];
-//        let distance = length(curr_light.position.xyz - in.worldPos);
-//        if distance < 10.0 {
-//            let attenuation = 1.0 / (curr_light.constant + curr_light.linear * distance + curr_light.quadratic * (distance * distance));
-//            let light_dir = normalize(curr_light.position.xyz - in.worldPos);
-//            
-//            // Lambertian diffuse
-//            let diff = max(dot(normal, light_dir), 0.0) * curr_light.ambient.xyz * attenuation;
-//            
-//            // Blinn-Phong specular
-//            let halfwayDir = normalize(view_direction + light_dir);
-//            let spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0) * attenuation;
-//            
-//            point_light_color += diff + spec;
-//        }
-//    }
-//    
-//    // Ambient Light
-//    let ambient = vec3f(0.1, 0.1, 0.15) * base_color;
-//	    // Final lighting
-//    let diffuse_final = shading + point_light_color;
-//    let specular_final = specular * vec3f(1.0);
-//    
-//    var col = ambient + diffuse_final + specular_final;
-//    let shadow = calculateShadow(in.shadowPos);
-//    col *= (1.0 - shadow * 0.75);
-//    
-//    // Object-specific adjustments
-//    if objectTranformation.isHovered == 1 {
-//        let variation = abs(sin(ElapsedTime * 2.0));
-//        col = col * (vec3f(1.0 + variation * 2.0, 0.0, 0.0));
-//    }
-//    
-//    return vec4f(col, 1.0);
-//
-//    //return vec4f(shading + ambient, 1.0f);
-//}
-
 
 fn calculatePointLight(curr_light: PointLight, normal: vec3f, dir: vec3f) -> vec3f {
     let distance = length(dir);
@@ -292,16 +232,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
 
     var point_light_color = vec3f(0.0f);
-    for (var i:i32 =0; i < lightCount ; i++) {
-	    let curr_light = pointLight[i];
-	    let dir = curr_light.position.xyz - in.worldPos;
+    //for (var i:i32 =0; i < lightCount ; i++) {
+    //        let curr_light = pointLight[i];
+    //        let dir = curr_light.position.xyz - in.worldPos;
 
-	    if (curr_light.ftype == 3){
-		    point_light_color +=  calculatePointLight(curr_light, normal, dir);
-	    } else if (curr_light.ftype == 2) {
-	    	point_light_color += calculateSpotLight(curr_light, normal, dir);
-	    }
-    }
+    //        if (curr_light.ftype == 3){
+    //    	    point_light_color +=  calculatePointLight(curr_light, normal, dir);
+    //        } else if (curr_light.ftype == 2) {
+    //        	point_light_color += calculateSpotLight(curr_light, normal, dir);
+    //        }
+    //}
 
     if objectTranformation.isFlat == 0 {
         let fragment_color = textureSample(diffuse_map, textureSampler, in.uv).rgba;

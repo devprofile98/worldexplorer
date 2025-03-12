@@ -12,6 +12,7 @@
 #include "frustum_culling.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
+#include "glm/gtc/noise.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/trigonometric.hpp"
 #include "imgui/backends/imgui_impl_glfw.h"
@@ -376,7 +377,7 @@ void Application::initializeBuffers() {
 
     arrow_model.load("arrow", this, RESOURCE_DIR "/arrow.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{1.0f, 1.0f, 4.0f})
-        .scale(glm::vec3{0.3});
+        .scale(glm::vec3{0.2});
     arrow_model.uploadToGPU(this);
 
     desk_model.load("desk", this, RESOURCE_DIR "/desk.obj", mBindGroupLayouts[1])
@@ -480,7 +481,8 @@ void Application::initializeBuffers() {
     mLightManager->createPointLight({-1.0, -2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
     mLightManager->createPointLight({-5.0, -3.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
     mLightManager->createPointLight({2.0, 2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
-    mLightManager->createSpotLight({1.0, 2.0, 1.0, 1.0}, {0.0, 0.0, -1.0f, 1.0f}, glm::cos(glm::radians(12.5f)), glm::cos(glm::radians(17.5f)));
+    mLightManager->createSpotLight({1.0, 2.0, 1.0, 1.0}, {0.0, 0.0, -1.0f, 1.0f}, glm::cos(glm::radians(12.5f)),
+                                   glm::cos(glm::radians(17.5f)));
 
     mLightManager->uploadToGpu(this, mBuffer1);
 }
@@ -1209,13 +1211,24 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui::DragFloat3("sun pos direction", glm::value_ptr(pointlightshadow), 0.1, -10.0, 10.0);
     static glm::vec3 new_ligth_position = {};
     ImGui::InputFloat3("create new light at:", glm::value_ptr(new_ligth_position));
+
     if (ImGui::Button("Create", ImVec2(100, 100))) {
-        // This code block is the callback
-        // It will be executed when the button is clicked
-        // Add your callback logic here
-        glm::vec4 purple = {1.0, 0.0, 1.0, 1.0};
-        mLightManager->createPointLight(glm::vec4{new_ligth_position, 1.0}, purple, purple, purple, 1.0, 0.7, 1.8);
-	mLightManager->uploadToGpu(this, mBuffer1);
+        /*glm::vec4 purple = {1.0, 0.0, 1.0, 1.0};*/
+	/*size_t small_x = new_ligth_position.x;*/
+	/*size_t big_x = new_ligth_position.x + 1;*/
+	/*size_t small_y = new_ligth_position.y;*/
+	/*size_t big_y = new_ligth_position.y + 1;*/
+	/*       auto one = Terrain::perlin(small_x + 50, small_y + 50.0f);*/
+	/*       auto two = Terrain::perlin(small_x + 50, big_y + 50.0f);*/
+	/*       auto three = Terrain::perlin(big_x + 50, small_y + 50.0f);*/
+	/*       auto four = Terrain::perlin(big_x + 50, big_y + 50.0f);*/
+	/*float last_z = (one + two + three + four) / 4.0;*/
+	/*new_ligth_position.z = last_z;*/
+	new_ligth_position.z = Terrain::perlin(new_ligth_position.x + 50.0, new_ligth_position.y + 50.0f);
+	std::cout << "The coordinate is" << new_ligth_position.z << std::endl;
+        tree_model.moveTo(new_ligth_position);
+        /*mLightManager->createPointLight(glm::vec4{new_ligth_position, 1.0}, purple, purple, purple, 1.0, 0.7, 1.8);*/
+        /*mLightManager->uploadToGpu(this, mBuffer1);*/
     }
     ImGui::End();
 
@@ -1226,29 +1239,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
     ImGui::Begin("Point Light");
 
-    /*auto* mPointlight = mLightManager->get(light_index);*/
-    mLightManager->renderGUI();
-    /*glm::vec4 tmp_ambient = mPointlight->mAmbient;*/
-    /*static glm::vec3 tmp_pos = glm::vec3{0.0f};  // arrow_model.getPosition();*/
-    /*tmp_pos = mPointlight->mPosition;*/
-    /*float tmp_linear = mPointlight->mLinear;*/
-    /*float tmp_quadratic = mPointlight->mQuadratic;*/
-    /*ImGui::ColorEdit3("Point Light Color #0", glm::value_ptr(mPointlight->mAmbient));*/
-    /*ImGui::DragFloat3("Point Ligth Position #0", glm::value_ptr(mPointlight->mPosition), 0.1, -10.0, 10.0);*/
-    /*ImGui::SliderFloat("Linear", &tmp_linear, -10.0f, 10.0f);*/
-    /*ImGui::SliderFloat("Quadratic", &tmp_quadratic, -10.0f, 10.0f);*/
-    /**/
-    /*if (tmp_ambient != mPointlight->mAmbient ||*/
-    /*    (tmp_pos.x != mPointlight->mPosition.x || tmp_pos.y != mPointlight->mPosition.y ||*/
-    /*     tmp_pos.z != mPointlight->mPosition.z || tmp_linear != mPointlight->mLinear ||*/
-    /*     tmp_quadratic != mPointlight->mQuadratic)) {*/
-    /*    mPointlight->mPosition = glm::vec4{tmp_pos, 1.0};*/
-    /*    mPointlight->mPosition = glm::vec4{tmp_pos, 1.0};*/
-    /*    mPointlight->mLinear = tmp_linear;*/
-    /*    mPointlight->mQuadratic = tmp_quadratic;*/
-    /*    wgpuQueueWriteBuffer(mRendererResource.queue, mBuffer1, sizeof(Light) * light_index, mPointlight,*/
-    /*                         sizeof(Light));*/
-    /*}*/
+    /*mLightManager->renderGUI();*/
 
     float tmp_znear = znear;
     ImGui::SliderFloat("z-near", &tmp_znear, 0.0, 180.0f);
