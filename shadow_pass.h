@@ -35,6 +35,7 @@ class ShadowPass {
         Scene& getScene();
 
         glm::vec3 lightPos = glm::vec3{0.0f};
+	glm::vec3 center =  glm::vec3{0.0f, 0.0f, 2.25f};
 
         WGPURenderPassColorAttachment mRenderPassColorAttachment = {};
 

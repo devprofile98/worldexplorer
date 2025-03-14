@@ -44,6 +44,7 @@ class Camera {
 
         Camera& setViewMatrix(const glm::mat4 viewMatrix);
         Camera& setTarget(glm::vec3 target);
+        void setProjection(glm::mat4 mat);
         Camera& setPosition(glm::vec3 position);
 
         // Getter

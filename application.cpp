@@ -33,7 +33,26 @@
 static bool look_as_light = false;
 static float fov = 60.0f;
 static float znear = 0.01f;
-static float zfar = 1000.0f;
+static float zfar = 10.0f;
+static glm::mat4 frustum_projection;
+
+std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
+    const auto inv = glm::inverse(proj * view);
+
+    std::vector<glm::vec4> frustumCorners;
+    for (unsigned int x = 0; x < 2; ++x) {
+        for (unsigned int y = 0; y < 2; ++y) {
+            for (unsigned int z = 0; z < 2; ++z) {
+                const glm::vec4 pt = inv * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
+                frustumCorners.push_back(pt / pt.w);
+                /*auto v = frustumCorners[frustumCorners.size() - 1];*/
+                /*std::printf("%ld: %f %f %f %f\n", frustumCorners.size() - 1, v.x, v.y, v.z, v.w);*/
+            }
+        }
+    }
+
+    return frustumCorners;
+}
 
 void MyUniform::setCamera(Camera& camera) {
     projectMatrix = camera.getProjection();
@@ -398,6 +417,36 @@ void Application::initializeBuffers() {
     grass2_model.uploadToGPU(this);
     grass2_model.setTransparent(false);
 
+    sphere.load("sphere", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{0.0, 0.0, 0.0})
+        .scale(glm::vec3{1.0f});
+    sphere.uploadToGPU(this);
+    sphere.setTransparent(false);
+
+    sphere1.load("sphere1", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{0.0, 0.0, 0.0})
+        .scale(glm::vec3{1.0f});
+    sphere1.uploadToGPU(this);
+    sphere1.setTransparent(false);
+
+    sphere2.load("sphere2", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{0.0, 0.0, 0.0})
+        .scale(glm::vec3{1.0f});
+    sphere2.uploadToGPU(this);
+    sphere2.setTransparent(false);
+
+    sphere3.load("sphere3", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{0.0, 0.0, 0.0})
+        .scale(glm::vec3{1.0f});
+    sphere3.uploadToGPU(this);
+    sphere3.setTransparent(false);
+
+    sphere4.load("sphere4", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{0.0, 0.0, 0.0})
+        .scale(glm::vec3{1.0f});
+    sphere4.uploadToGPU(this);
+    sphere4.setTransparent(false);
+
     car.load("car", this, RESOURCE_DIR "/car.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
         .scale(glm::vec3{0.2})
@@ -597,6 +646,17 @@ bool Application::initialize() {
     glfwSetKeyCallback(provided_window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         that->getCamera().processInput(key, scancode, action, mods);
+
+        auto first_corner = getFrustumCornersWorldSpace(frustum_projection,that-> mUniforms.viewMatrix);
+        glm::vec3 center = glm::vec3(0, 0, 0);
+        for (const auto& v : first_corner) {
+            center += glm::vec3(v);
+        }
+        center /= first_corner.size();
+        /*sphere4.moveTo(center);*/
+
+        that->mShadowPass->center = center;
+
         if (GLFW_KEY_KP_0 == key && action == GLFW_PRESS) {
             BaseModel* model = that->getModelCounter();
             if (model) {
@@ -690,6 +750,7 @@ bool Application::initialize() {
 
     initializeBuffers();
     initializePipeline();
+    frustum_projection = mCamera.getProjection();
 
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, nullptr);
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, nullptr);
@@ -700,8 +761,8 @@ bool Application::initialize() {
     boat_model.moveTo({-10.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model, &grass_model, &grass2_model,
-                    &tree_model, &car,         &water,      shapes,       plane};
+    mLoadedModel = {&boat_model, &tower_model, &desk_model,   &arrow_model, &sphere, &sphere1, &sphere2, &sphere3,
+                    &sphere4,    &grass_model, &grass2_model, &tree_model,  &car,    &water,   shapes,   plane};
 
     return true;
 }
@@ -742,7 +803,7 @@ void Application::mainLoop() {
 
     float time = glfwGetTime();
     wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &time, sizeof(float));
-
+    auto first_corner = getFrustumCornersWorldSpace(frustum_projection, mUniforms.viewMatrix);
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
     encoder_descriptor.nextInChain = nullptr;
@@ -1031,6 +1092,8 @@ void Application::updateProjectionMatrix() {
     glfwGetFramebufferSize(mRendererResource.window, &width, &height);
     float ratio = width / (float)height;
     mUniforms.projectMatrix = glm::perspective(fov * Camera::PI / 180, ratio, znear, zfar);
+    mCamera.setProjection(mUniforms.projectMatrix);
+    frustum_projection = mUniforms.projectMatrix;
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),
                          &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));
@@ -1214,21 +1277,36 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
     if (ImGui::Button("Create", ImVec2(100, 100))) {
         /*glm::vec4 purple = {1.0, 0.0, 1.0, 1.0};*/
-	/*size_t small_x = new_ligth_position.x;*/
-	/*size_t big_x = new_ligth_position.x + 1;*/
-	/*size_t small_y = new_ligth_position.y;*/
-	/*size_t big_y = new_ligth_position.y + 1;*/
-	/*       auto one = Terrain::perlin(small_x + 50, small_y + 50.0f);*/
-	/*       auto two = Terrain::perlin(small_x + 50, big_y + 50.0f);*/
-	/*       auto three = Terrain::perlin(big_x + 50, small_y + 50.0f);*/
-	/*       auto four = Terrain::perlin(big_x + 50, big_y + 50.0f);*/
-	/*float last_z = (one + two + three + four) / 4.0;*/
-	/*new_ligth_position.z = last_z;*/
-	new_ligth_position.z = Terrain::perlin(new_ligth_position.x + 50.0, new_ligth_position.y + 50.0f);
-	std::cout << "The coordinate is" << new_ligth_position.z << std::endl;
-        tree_model.moveTo(new_ligth_position);
+        /*size_t small_x = new_ligth_position.x;*/
+        /*size_t big_x = new_ligth_position.x + 1;*/
+        /*size_t small_y = new_ligth_position.y;*/
+        /*size_t big_y = new_ligth_position.y + 1;*/
+        /*       auto one = Terrain::perlin(small_x + 50, small_y + 50.0f);*/
+        /*       auto two = Terrain::perlin(small_x + 50, big_y + 50.0f);*/
+        /*       auto three = Terrain::perlin(big_x + 50, small_y + 50.0f);*/
+        /*       auto four = Terrain::perlin(big_x + 50, big_y + 50.0f);*/
+        /*float last_z = (one + two + three + four) / 4.0;*/
+        /*new_ligth_position.z = last_z;*/
+        /*new_ligth_position.z = Terrain::perlin(new_ligth_position.x + 50.0, new_ligth_position.y + 50.0f);*/
+        /*std::cout << "The coordinate is" << new_ligth_position.z << std::endl;*/
+        /*tree_model.moveTo(new_ligth_position);*/
         /*mLightManager->createPointLight(glm::vec4{new_ligth_position, 1.0}, purple, purple, purple, 1.0, 0.7, 1.8);*/
         /*mLightManager->uploadToGpu(this, mBuffer1);*/
+
+        auto first_corner = getFrustumCornersWorldSpace(frustum_projection, mUniforms.viewMatrix);
+        int show_far = 1;
+        sphere.moveTo(first_corner[0 + show_far]);
+        sphere1.moveTo(first_corner[2 + show_far]);
+        sphere2.moveTo(first_corner[4 + show_far]);
+        sphere3.moveTo(first_corner[6 + show_far]);
+        glm::vec3 center = glm::vec3(0, 0, 0);
+        for (const auto& v : first_corner) {
+            center += glm::vec3(v);
+        }
+        center /= first_corner.size();
+        sphere4.moveTo(center);
+
+        mShadowPass->center = center;
     }
     ImGui::End();
 

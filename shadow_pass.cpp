@@ -156,9 +156,9 @@ void ShadowPass::createRenderPass() {
 void ShadowPass::setupScene(const glm::vec3 lightPos) {
     (void)lightPos;
     float near_plane = 0.1f, far_plane = 10.5f;
-    glm::mat4 projection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, near_plane, far_plane);
+    glm::mat4 projection = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, near_plane, far_plane);
 
-    auto view = glm::lookAt(this->lightPos, glm::vec3{0.0f, 0.0f, 2.25f}, glm::vec3{0.0f, 0.0f, 1.0f});
+    auto view = glm::lookAt(center + this->lightPos,center, glm::vec3{0.0f, 0.0f, 1.0f});
     mScene.projection = projection;
     mScene.view = view;
 }

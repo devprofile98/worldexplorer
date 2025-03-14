@@ -88,6 +88,11 @@ class Application {
         Model grass2_model{};
         Model car{};
         Model water{};
+        Model sphere{};
+        Model sphere1{};
+        Model sphere2{};
+        Model sphere3{};
+        Model sphere4{};
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();
 
@@ -119,8 +124,8 @@ class Application {
         WGPUBuffer mBuffer1;
 
     private:
-	size_t mWindowWidth = 1800;
-	size_t mWindowHeight = 1000;
+	size_t mWindowWidth = 1920;
+	size_t mWindowHeight = 1080;
         Camera mCamera;
         Terrain terrain;
         LightingUniforms mLightingUniforms;
