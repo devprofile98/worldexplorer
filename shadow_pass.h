@@ -28,14 +28,17 @@ class ShadowPass {
 
         // Getters
         WGPURenderPassDescriptor* getRenderPassDescriptor();
+
         void setupScene(const glm::vec3 lightPos);
+        void setupScene(const std::vector<glm::vec4>& corners);
+
         Pipeline* getPipeline();
         WGPUTextureView getShadowMapView();
         void render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder);
         Scene& getScene();
 
         glm::vec3 lightPos = glm::vec3{0.0f};
-	glm::vec3 center =  glm::vec3{0.0f, 0.0f, 2.25f};
+        glm::vec3 center = glm::vec3{0.0f, 0.0f, 2.25f};
 
         WGPURenderPassColorAttachment mRenderPassColorAttachment = {};
 
@@ -56,7 +59,7 @@ class ShadowPass {
         WGPUTextureView mShadowDepthTextureView;
         WGPUTexture mDepthTexture;
         WGPUTexture mShadowDepthTexture;
-	Texture* render_target;
+        Texture* render_target;
         // buffers
         Buffer mSceneUniformBuffer;
 

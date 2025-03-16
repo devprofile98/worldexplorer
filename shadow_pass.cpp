@@ -153,12 +153,64 @@ void ShadowPass::createRenderPass() {
         .create(mApp);
 }
 
+glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corners, const glm::mat4& lightView) {
+    float minX = std::numeric_limits<float>::max();
+    float maxX = std::numeric_limits<float>::lowest();
+    float minY = std::numeric_limits<float>::max();
+    float maxY = std::numeric_limits<float>::lowest();
+    float minZ = std::numeric_limits<float>::max();
+    float maxZ = std::numeric_limits<float>::lowest();
+    for (const auto& v : corners) {
+        const auto trf = lightView * v;
+        minX = std::min(minX, trf.x);
+        maxX = std::max(maxX, trf.x);
+        minY = std::min(minY, trf.y);
+        maxY = std::max(maxY, trf.y);
+        minZ = std::min(minZ, trf.z);
+        maxZ = std::max(maxZ, trf.z);
+    }
+    constexpr float zMult = 2.0f;
+    if (minZ < 0) {
+        minZ *= zMult;
+    } else {
+        minZ /= zMult;
+    }
+    if (maxZ < 0) {
+        maxZ /= zMult;
+    } else {
+        maxZ *= zMult;
+    }
+
+    const glm::mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
+
+    return lightProjection;
+}
+
+void ShadowPass::setupScene(const std::vector<glm::vec4>& corners) {
+    /*float near_plane = 0.1f, far_plane = 10.5f;*/
+    /*glm::mat4 projection = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, near_plane, far_plane);*/
+    glm::vec3 center = glm::vec3(0, 0, 0);
+    for (const auto& v : corners) {
+        center += glm::vec3(v);
+    }
+    center /= corners.size();
+    /*sphere4.moveTo(center);*/
+
+    this->center = center;
+
+    auto view = glm::lookAt(this->center + this->lightPos, this->center, glm::vec3{0.0f, 0.0f, 1.0f});
+    glm::mat4 projection = createProjectionFromFrustumCorner(corners, view);
+
+    mScene.projection = projection;
+    mScene.view = view;
+}
+
 void ShadowPass::setupScene(const glm::vec3 lightPos) {
     (void)lightPos;
     float near_plane = 0.1f, far_plane = 10.5f;
     glm::mat4 projection = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, near_plane, far_plane);
 
-    auto view = glm::lookAt(center + this->lightPos,center, glm::vec3{0.0f, 0.0f, 1.0f});
+    auto view = glm::lookAt(center + this->lightPos, center, glm::vec3{0.0f, 0.0f, 1.0f});
     mScene.projection = projection;
     mScene.view = view;
 }

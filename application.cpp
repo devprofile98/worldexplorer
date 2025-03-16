@@ -45,8 +45,6 @@ std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const 
             for (unsigned int z = 0; z < 2; ++z) {
                 const glm::vec4 pt = inv * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
                 frustumCorners.push_back(pt / pt.w);
-                /*auto v = frustumCorners[frustumCorners.size() - 1];*/
-                /*std::printf("%ld: %f %f %f %f\n", frustumCorners.size() - 1, v.x, v.y, v.z, v.w);*/
             }
         }
     }
@@ -632,6 +630,7 @@ bool Application::initialize() {
             if (that != nullptr) that->getCamera().updateCursor(1, ypos);
         }
     });
+
     glfwSetMouseButtonCallback(provided_window, [](GLFWwindow* window, int button, int action, int mods) {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         if (that != nullptr) that->onMouseButton(button, action, mods);
@@ -647,7 +646,7 @@ bool Application::initialize() {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         that->getCamera().processInput(key, scancode, action, mods);
 
-        auto first_corner = getFrustumCornersWorldSpace(frustum_projection,that-> mUniforms.viewMatrix);
+        auto first_corner = getFrustumCornersWorldSpace(frustum_projection, that->mUniforms.viewMatrix);
         glm::vec3 center = glm::vec3(0, 0, 0);
         for (const auto& v : first_corner) {
             center += glm::vec3(v);
@@ -824,7 +823,10 @@ void Application::mainLoop() {
     WGPURenderPassEncoder shadow_pass_encoder =
         wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor());
     wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder, mShadowPass->getPipeline()->getPipeline());
-    mShadowPass->setupScene({1.0f, 1.0f, 4.0f});
+
+    auto corners = getFrustumCornersWorldSpace(frustum_projection, mUniforms.viewMatrix);
+    mShadowPass->setupScene(corners);
+    /*mShadowPass->center = */
     mShadowPass->render(mLoadedModel, shadow_pass_encoder);
 
     wgpuRenderPassEncoderEnd(shadow_pass_encoder);
@@ -1294,17 +1296,17 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         /*mLightManager->uploadToGpu(this, mBuffer1);*/
 
         auto first_corner = getFrustumCornersWorldSpace(frustum_projection, mUniforms.viewMatrix);
-        int show_far = 1;
-        sphere.moveTo(first_corner[0 + show_far]);
-        sphere1.moveTo(first_corner[2 + show_far]);
-        sphere2.moveTo(first_corner[4 + show_far]);
-        sphere3.moveTo(first_corner[6 + show_far]);
+        sphere.moveTo(first_corner[0]);
+        /*sphere.scale({0.05f, 0.05f, 0.05f});*/
+        sphere1.moveTo(first_corner[7]);
+        /*sphere2.moveTo(first_corner[2]);*/
+        /*sphere3.moveTo(first_corner[3]);*/
         glm::vec3 center = glm::vec3(0, 0, 0);
         for (const auto& v : first_corner) {
             center += glm::vec3(v);
         }
         center /= first_corner.size();
-        sphere4.moveTo(center);
+        /*sphere4.moveTo(center);*/
 
         mShadowPass->center = center;
     }
@@ -1313,7 +1315,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                          sizeof(LightingUniforms));
     mShadowPass->lightPos = pointlightshadow;
-    mShadowPass->setupScene({1.0f, 1.0f, 4.0f});
+    /*mShadowPass->setupScene({1.0f, 1.0f, 4.0f});*/
 
     ImGui::Begin("Point Light");
 
