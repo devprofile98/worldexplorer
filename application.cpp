@@ -14,6 +14,7 @@
 #include "glm/fwd.hpp"
 #include "glm/gtc/noise.hpp"
 #include "glm/gtc/type_ptr.hpp"
+#include "glm/gtx/string_cast.hpp"
 #include "glm/trigonometric.hpp"
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_wgpu.h"
@@ -34,7 +35,7 @@ static bool look_as_light = false;
 static float fov = 60.0f;
 static float znear = 0.01f;
 static float zfar = 10.0f;
-static glm::mat4 frustum_projection;
+/*static glm::mat4 frustum_projection;*/
 
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
     const auto inv = glm::inverse(proj * view);
@@ -646,15 +647,15 @@ bool Application::initialize() {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         that->getCamera().processInput(key, scancode, action, mods);
 
-        auto first_corner = getFrustumCornersWorldSpace(frustum_projection, that->mUniforms.viewMatrix);
-        glm::vec3 center = glm::vec3(0, 0, 0);
-        for (const auto& v : first_corner) {
-            center += glm::vec3(v);
-        }
-        center /= first_corner.size();
+        /*auto first_corner = getFrustumCornersWorldSpace(frustum_projection, that->mUniforms.viewMatrix);*/
+        /*glm::vec3 center = glm::vec3(0, 0, 0);*/
+        /*for (const auto& v : first_corner) {*/
+        /*    center += glm::vec3(v);*/
+        /*}*/
+        /*center /= first_corner.size();*/
         /*sphere4.moveTo(center);*/
-
-        that->mShadowPass->center = center;
+        /**/
+        /*that->mShadowPass->center = center;*/
 
         if (GLFW_KEY_KP_0 == key && action == GLFW_PRESS) {
             BaseModel* model = that->getModelCounter();
@@ -749,7 +750,7 @@ bool Application::initialize() {
 
     initializeBuffers();
     initializePipeline();
-    frustum_projection = mCamera.getProjection();
+    /*frustum_projection = mCamera.getProjection();*/
 
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, nullptr);
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, nullptr);
@@ -802,7 +803,7 @@ void Application::mainLoop() {
 
     float time = glfwGetTime();
     wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &time, sizeof(float));
-    auto first_corner = getFrustumCornersWorldSpace(frustum_projection, mUniforms.viewMatrix);
+    /*auto first_corner = getFrustumCornersWorldSpace(frustum_projection, mUniforms.viewMatrix);*/
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
     encoder_descriptor.nextInChain = nullptr;
@@ -822,10 +823,17 @@ void Application::mainLoop() {
     /*mShadowPass->mRenderPassColorAttachment.view = target_view;*/
     WGPURenderPassEncoder shadow_pass_encoder =
         wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor());
+    std::cout << glm::to_string(mShadowPass->getScene().view) << std::endl;
     wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder, mShadowPass->getPipeline()->getPipeline());
 
-    auto corners = getFrustumCornersWorldSpace(frustum_projection, mUniforms.viewMatrix);
-    mShadowPass->setupScene(corners);
+    auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mUniforms.viewMatrix);
+    /*for (size_t i = 0; i < corners.size(); i++) {*/
+    /*    std::cout << i + 1 << " " << glm::to_string(corners[i]) << std::endl;*/
+    /*}*/
+    /*if (!look_as_light) {*/
+    /*    mShadowPass->setupScene(corners);*/
+    /*}*/
+    /*sphere.moveTo(mShadowPass->center);*/
     /*mShadowPass->center = */
     mShadowPass->render(mLoadedModel, shadow_pass_encoder);
 
@@ -1095,7 +1103,7 @@ void Application::updateProjectionMatrix() {
     float ratio = width / (float)height;
     mUniforms.projectMatrix = glm::perspective(fov * Camera::PI / 180, ratio, znear, zfar);
     mCamera.setProjection(mUniforms.projectMatrix);
-    frustum_projection = mUniforms.projectMatrix;
+    /*frustum_projection = mUniforms.projectMatrix;*/
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),
                          &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));
@@ -1276,6 +1284,8 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui::DragFloat3("sun pos direction", glm::value_ptr(pointlightshadow), 0.1, -10.0, 10.0);
     static glm::vec3 new_ligth_position = {};
     ImGui::InputFloat3("create new light at:", glm::value_ptr(new_ligth_position));
+    static float split_fcator = 1.0;
+    ImGui::SliderFloat("frustum split factor", &split_fcator, 1.0, 100);
 
     if (ImGui::Button("Create", ImVec2(100, 100))) {
         /*glm::vec4 purple = {1.0, 0.0, 1.0, 1.0};*/
@@ -1295,20 +1305,28 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         /*mLightManager->createPointLight(glm::vec4{new_ligth_position, 1.0}, purple, purple, purple, 1.0, 0.7, 1.8);*/
         /*mLightManager->uploadToGpu(this, mBuffer1);*/
 
-        auto first_corner = getFrustumCornersWorldSpace(frustum_projection, mUniforms.viewMatrix);
-        sphere.moveTo(first_corner[0]);
-        /*sphere.scale({0.05f, 0.05f, 0.05f});*/
-        sphere1.moveTo(first_corner[7]);
-        /*sphere2.moveTo(first_corner[2]);*/
-        /*sphere3.moveTo(first_corner[3]);*/
-        glm::vec3 center = glm::vec3(0, 0, 0);
-        for (const auto& v : first_corner) {
-            center += glm::vec3(v);
-        }
-        center /= first_corner.size();
+        auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mUniforms.viewMatrix);
+
+        auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * split_fcator);
+        auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * split_fcator);
+        auto middle2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * split_fcator);
+        auto middle3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * split_fcator);
+        sphere2.moveTo(middle0);
+        sphere3.moveTo(middle1);
+        sphere.moveTo(middle2);
+        sphere1.moveTo(middle3);
+        /*glm::vec3 center = glm::vec3(0, 0, 0);*/
+        /*for (const auto& v : first_corner) {*/
+        /*    center += glm::vec3(v);*/
+        /*}*/
+        /*center /= first_corner.size();*/
         /*sphere4.moveTo(center);*/
 
-        mShadowPass->center = center;
+        /*mShadowPass->center = center;*/
+
+        if (!look_as_light) {
+            mShadowPass->setupScene(corners);
+        }
     }
     ImGui::End();
 

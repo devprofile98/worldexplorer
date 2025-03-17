@@ -1,7 +1,10 @@
 #include "shadow_pass.h"
 
 #include "application.h"
+#include "glm/ext.hpp"
 #include "glm/fwd.hpp"
+#include "glm/geometric.hpp"
+#include "glm/gtx/string_cast.hpp"
 #include "gpu_buffer.h"
 #include "model.h"
 #include "webgpu.h"
@@ -181,36 +184,36 @@ glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corner
         maxZ *= zMult;
     }
 
-    const glm::mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
-
-    return lightProjection;
+    return glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 }
 
-void ShadowPass::setupScene(const std::vector<glm::vec4>& corners) {
+void ShadowPass::setupScene(std::vector<glm::vec4>& corners) {
     /*float near_plane = 0.1f, far_plane = 10.5f;*/
     /*glm::mat4 projection = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, near_plane, far_plane);*/
-    glm::vec3 center = glm::vec3(0, 0, 0);
+    auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * 100.0f);
+    auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * 100.0f);
+    auto middle2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * 100.0f);
+    auto middle3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * 100.0f);
+
+    corners[1] = middle0;
+    corners[3] = middle1;
+    corners[5] = middle2;
+    corners[7] = middle3;
+
+
+    glm::vec3 cent = glm::vec3(0, 0, 0);
     for (const auto& v : corners) {
-        center += glm::vec3(v);
+        cent += glm::vec3(v);
     }
-    center /= corners.size();
+    cent /= corners.size();
     /*sphere4.moveTo(center);*/
 
-    this->center = center;
+    this->center = cent;
+    /*std::cout << glm::to_string(this->center) << "  " << glm::to_string() << std::endl;*/
 
     auto view = glm::lookAt(this->center + this->lightPos, this->center, glm::vec3{0.0f, 0.0f, 1.0f});
     glm::mat4 projection = createProjectionFromFrustumCorner(corners, view);
 
-    mScene.projection = projection;
-    mScene.view = view;
-}
-
-void ShadowPass::setupScene(const glm::vec3 lightPos) {
-    (void)lightPos;
-    float near_plane = 0.1f, far_plane = 10.5f;
-    glm::mat4 projection = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, near_plane, far_plane);
-
-    auto view = glm::lookAt(center + this->lightPos, center, glm::vec3{0.0f, 0.0f, 1.0f});
     mScene.projection = projection;
     mScene.view = view;
 }

@@ -29,8 +29,7 @@ class ShadowPass {
         // Getters
         WGPURenderPassDescriptor* getRenderPassDescriptor();
 
-        void setupScene(const glm::vec3 lightPos);
-        void setupScene(const std::vector<glm::vec4>& corners);
+        void setupScene(std::vector<glm::vec4>& corners);
 
         Pipeline* getPipeline();
         WGPUTextureView getShadowMapView();
@@ -44,7 +43,6 @@ class ShadowPass {
 
     private:
         Application* mApp;
-
         // pipeline
         Pipeline* mRenderPipeline;
         // render pass

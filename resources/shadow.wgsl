@@ -46,7 +46,7 @@ fn vs_main(vertex: Vertex) -> VSOutput {
     var world_position: vec4f;
     let off_id: u32 = objectTranformation.offsetId * 100000;
     if vertex.instance_index == 0 {
-        world_position = scene.projection * scene.view * vec4f(vertex.position, 1.0);
+        world_position = objectTranformation.transformations * vec4f(vertex.position, 1.0);
     } else {
         world_position = offsetInstance[vertex.instance_index + off_id].transformation * vec4f(vertex.position, 1.0);
     }
