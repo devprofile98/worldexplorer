@@ -35,6 +35,8 @@ static bool look_as_light = false;
 static float fov = 60.0f;
 static float znear = 0.01f;
 static float zfar = 10.0f;
+static bool which_frustum = false;
+static float middle_plane_length = 10.0f;
 /*static glm::mat4 frustum_projection;*/
 
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
@@ -1284,8 +1286,15 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui::DragFloat3("sun pos direction", glm::value_ptr(pointlightshadow), 0.1, -10.0, 10.0);
     static glm::vec3 new_ligth_position = {};
     ImGui::InputFloat3("create new light at:", glm::value_ptr(new_ligth_position));
-    static float split_fcator = 1.0;
-    ImGui::SliderFloat("frustum split factor", &split_fcator, 1.0, 100);
+    /*static float split_fcator = 1.0;*/
+    ImGui::SliderFloat("frustum split factor", &middle_plane_length, 1.0, 100);
+    /*ImGui::SliderFloat("frustum split factor", &split_fcator, 1.0, 100);*/
+    if (ImGui::Checkbox("near far frstum", &which_frustum)) {
+        auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mUniforms.viewMatrix);
+        if (!look_as_light) {
+            mShadowPass->changeActiveFrustum(which_frustum == true ? 1 : 0, middle_plane_length);
+        }
+    }
 
     if (ImGui::Button("Create", ImVec2(100, 100))) {
         /*glm::vec4 purple = {1.0, 0.0, 1.0, 1.0};*/
@@ -1307,10 +1316,10 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
         auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mUniforms.viewMatrix);
 
-        auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * split_fcator);
-        auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * split_fcator);
-        auto middle2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * split_fcator);
-        auto middle3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * split_fcator);
+        auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * middle_plane_length);
+        auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * middle_plane_length);
+        auto middle2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * middle_plane_length);
+        auto middle3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * middle_plane_length);
         sphere2.moveTo(middle0);
         sphere3.moveTo(middle1);
         sphere.moveTo(middle2);
@@ -1325,7 +1334,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         /*mShadowPass->center = center;*/
 
         if (!look_as_light) {
-            mShadowPass->setupScene(corners);
+            mShadowPass->setupScene(corners, which_frustum == true ? 1 : 0);
         }
     }
     ImGui::End();

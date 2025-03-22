@@ -187,32 +187,64 @@ glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corner
     return glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 }
 
-void ShadowPass::setupScene(std::vector<glm::vec4>& corners) {
+void ShadowPass::changeActiveFrustum(size_t which, float length) {
     /*float near_plane = 0.1f, far_plane = 10.5f;*/
     /*glm::mat4 projection = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, near_plane, far_plane);*/
-    auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * 100.0f);
-    auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * 100.0f);
-    auto middle2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * 100.0f);
-    auto middle3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * 100.0f);
+    auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * length);
+    auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * length);
+    auto middle2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * length);
+    auto middle3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * length);
 
-    corners[1] = middle0;
-    corners[3] = middle1;
-    corners[5] = middle2;
-    corners[7] = middle3;
-
+    auto tmp_corners = corners;
+    tmp_corners[0 + which] = middle0;
+    tmp_corners[2 + which] = middle1;
+    tmp_corners[4 + which] = middle2;
+    tmp_corners[6 + which] = middle3;
 
     glm::vec3 cent = glm::vec3(0, 0, 0);
-    for (const auto& v : corners) {
+    for (const auto& v : tmp_corners) {
         cent += glm::vec3(v);
     }
-    cent /= corners.size();
+    cent /= tmp_corners.size();
     /*sphere4.moveTo(center);*/
 
     this->center = cent;
     /*std::cout << glm::to_string(this->center) << "  " << glm::to_string() << std::endl;*/
 
     auto view = glm::lookAt(this->center + this->lightPos, this->center, glm::vec3{0.0f, 0.0f, 1.0f});
-    glm::mat4 projection = createProjectionFromFrustumCorner(corners, view);
+    glm::mat4 projection = createProjectionFromFrustumCorner(tmp_corners, view);
+
+    mScene.projection = projection;
+    mScene.view = view;
+}
+
+void ShadowPass::setupScene(std::vector<glm::vec4>& corner, size_t which) {
+    corners = corner;
+    /*float near_plane = 0.1f, far_plane = 10.5f;*/
+    /*glm::mat4 projection = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, near_plane, far_plane);*/
+    auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * 10.0f);
+    auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * 10.0f);
+    auto middle2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * 10.0f);
+    auto middle3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * 10.0f);
+
+    auto tmp_corners = corners;
+    tmp_corners[0 + which] = middle0;
+    tmp_corners[2 + which] = middle1;
+    tmp_corners[4 + which] = middle2;
+    tmp_corners[6 + which] = middle3;
+
+    glm::vec3 cent = glm::vec3(0, 0, 0);
+    for (const auto& v : tmp_corners) {
+        cent += glm::vec3(v);
+    }
+    cent /= tmp_corners.size();
+    /*sphere4.moveTo(center);*/
+
+    this->center = cent;
+    /*std::cout << glm::to_string(this->center) << "  " << glm::to_string() << std::endl;*/
+
+    auto view = glm::lookAt(this->center + this->lightPos, this->center, glm::vec3{0.0f, 0.0f, 1.0f});
+    glm::mat4 projection = createProjectionFromFrustumCorner(tmp_corners, view);
 
     mScene.projection = projection;
     mScene.view = view;

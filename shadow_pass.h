@@ -29,7 +29,8 @@ class ShadowPass {
         // Getters
         WGPURenderPassDescriptor* getRenderPassDescriptor();
 
-        void setupScene(std::vector<glm::vec4>& corners);
+        void changeActiveFrustum(size_t which, float length = 10.0f);
+        void setupScene(std::vector<glm::vec4>& corners, size_t which);
 
         Pipeline* getPipeline();
         WGPUTextureView getShadowMapView();
@@ -38,7 +39,7 @@ class ShadowPass {
 
         glm::vec3 lightPos = glm::vec3{0.0f};
         glm::vec3 center = glm::vec3{0.0f, 0.0f, 2.25f};
-
+        std::vector<glm::vec4> corners;
         WGPURenderPassColorAttachment mRenderPassColorAttachment = {};
 
     private:
