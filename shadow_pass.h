@@ -28,19 +28,29 @@ class ShadowPass {
 
         // Getters
         WGPURenderPassDescriptor* getRenderPassDescriptor();
-
-        void changeActiveFrustum(size_t which, float length = 10.0f);
-        void setupScene(std::vector<glm::vec4>& corners, size_t which);
+        WGPURenderPassDescriptor* getRenderPassDescriptor2();
 
         Pipeline* getPipeline();
         WGPUTextureView getShadowMapView();
-        void render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder);
-        Scene& getScene();
+        WGPUTextureView getShadowMapView2();
+        void render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder, size_t which);
+        std::vector<Scene>& getScene();
+
 
         glm::vec3 lightPos = glm::vec3{0.0f};
         glm::vec3 center = glm::vec3{0.0f, 0.0f, 2.25f};
+
         std::vector<glm::vec4> corners;
+        std::vector<glm::vec4> mNear;
+        std::vector<glm::vec4> mFar;
+        std::vector<glm::vec4> mMiddle;
+
+        std::vector<Scene> createFrustumSplits(std::vector<glm::vec4>& corners, float length);
         WGPURenderPassColorAttachment mRenderPassColorAttachment = {};
+        WGPURenderPassColorAttachment mRenderPassColorAttachment2 = {};
+        void createRenderPassDescriptor();
+        void createRenderPassDescriptor2();
+        float MinZ = 0.0f;
 
     private:
         Application* mApp;
@@ -48,6 +58,7 @@ class ShadowPass {
         Pipeline* mRenderPipeline;
         // render pass
         WGPURenderPassDescriptor mRenderPassDesc;
+        WGPURenderPassDescriptor mRenderPassDesc2;
 
         // bindings
         BindingGroup mBindingGroup;
@@ -56,14 +67,16 @@ class ShadowPass {
         // textures and views
         WGPUTextureView mDepthTextureView;
         WGPUTextureView mShadowDepthTextureView;
+        WGPUTextureView mShadowDepthTextureView2;
         WGPUTexture mDepthTexture;
         WGPUTexture mShadowDepthTexture;
+        WGPUTexture mShadowDepthTexture2;
         Texture* render_target;
         // buffers
         Buffer mSceneUniformBuffer;
 
         // scene
-        Scene mScene;
+        std::vector<Scene> mScenes;
 };
 
 #endif  // WEBGPUTEST_SHADOW_PASS_H

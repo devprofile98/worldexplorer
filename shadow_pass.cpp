@@ -1,5 +1,7 @@
 #include "shadow_pass.h"
 
+#include <format>
+
 #include "application.h"
 #include "glm/ext.hpp"
 #include "glm/fwd.hpp"
@@ -11,7 +13,65 @@
 
 ShadowPass::ShadowPass(Application* app) { mApp = app; }
 
-void ShadowPass::createRenderPass() {
+void ShadowPass::createRenderPassDescriptor2() {
+    WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
+    WGPUTextureDescriptor shadow_depth_texture_descriptor = {};
+    shadow_depth_texture_descriptor.label = "Shadow Mapping Target Texture 22:)";
+    shadow_depth_texture_descriptor.nextInChain = nullptr;
+    shadow_depth_texture_descriptor.dimension = WGPUTextureDimension_2D;
+    shadow_depth_texture_descriptor.format = depth_texture_format;
+    shadow_depth_texture_descriptor.mipLevelCount = 1;
+    shadow_depth_texture_descriptor.sampleCount = 1;
+    shadow_depth_texture_descriptor.size = {static_cast<uint32_t>(2048), static_cast<uint32_t>(2048), 1};
+    shadow_depth_texture_descriptor.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
+    shadow_depth_texture_descriptor.viewFormatCount = 1;
+    shadow_depth_texture_descriptor.viewFormats = &depth_texture_format;
+    mShadowDepthTexture2 =
+        wgpuDeviceCreateTexture(mApp->getRendererResource().device, &shadow_depth_texture_descriptor);
+
+    WGPUTextureViewDescriptor sdtv_desc = {};  // shadow depth texture view
+    sdtv_desc.label = "SDTV desc 2";
+    sdtv_desc.aspect = WGPUTextureAspect_DepthOnly;
+    sdtv_desc.baseArrayLayer = 0;
+    sdtv_desc.arrayLayerCount = 1;
+    sdtv_desc.baseMipLevel = 0;
+    sdtv_desc.mipLevelCount = 1;
+    sdtv_desc.dimension = WGPUTextureViewDimension_2D;
+    sdtv_desc.format = depth_texture_format;
+    mShadowDepthTextureView2 = wgpuTextureCreateView(mShadowDepthTexture2, &sdtv_desc);
+
+    /*render_target = new Texture{mApp->getRendererResource().device, 2048, 2048, TextureDimension::TEX_2D,*/
+    /*                            WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};*/
+    /*render_target->createView();*/
+
+    mRenderPassColorAttachment2.view = render_target->getTextureView();
+    mRenderPassColorAttachment2.resolveTarget = nullptr;
+    mRenderPassColorAttachment2.loadOp = WGPULoadOp_Load;
+    mRenderPassColorAttachment2.storeOp = WGPUStoreOp_Discard;
+    mRenderPassColorAttachment2.clearValue = WGPUColor{0.02, 0.80, 0.92, 1.0};
+
+    mRenderPassDesc2 = {};
+    mRenderPassDesc2.nextInChain = nullptr;
+    mRenderPassDesc2.colorAttachmentCount = 1;
+    mRenderPassDesc2.colorAttachments = &mRenderPassColorAttachment2;
+
+    static WGPURenderPassDepthStencilAttachment shadow_pass_depth_stencil_attachment;
+    shadow_pass_depth_stencil_attachment.view = mShadowDepthTextureView2;
+    shadow_pass_depth_stencil_attachment.depthClearValue = 1.0f;
+    shadow_pass_depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
+    shadow_pass_depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
+    shadow_pass_depth_stencil_attachment.depthReadOnly = false;
+
+    shadow_pass_depth_stencil_attachment.stencilClearValue = 0.0f;
+    shadow_pass_depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Clear;
+    shadow_pass_depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
+    shadow_pass_depth_stencil_attachment.stencilReadOnly = true;
+
+    mRenderPassDesc2.depthStencilAttachment = &shadow_pass_depth_stencil_attachment;
+    mRenderPassDesc2.timestampWrites = nullptr;
+}
+
+void ShadowPass::createRenderPassDescriptor() {
     WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
     WGPUTextureDescriptor shadow_depth_texture_descriptor = {};
     shadow_depth_texture_descriptor.label = "Shadow Mapping Target Texture :)";
@@ -66,8 +126,12 @@ void ShadowPass::createRenderPass() {
 
     mRenderPassDesc.depthStencilAttachment = &shadow_pass_depth_stencil_attachment;
     mRenderPassDesc.timestampWrites = nullptr;
+}
 
+void ShadowPass::createRenderPass() {
     // creating pipeline
+    createRenderPassDescriptor();
+    createRenderPassDescriptor2();
     // for projection
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(Scene));
     mBindingGroup.addBuffer(1,  //
@@ -156,7 +220,8 @@ void ShadowPass::createRenderPass() {
         .create(mApp);
 }
 
-glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corners, const glm::mat4& lightView) {
+glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corners, const glm::mat4& lightView,
+                                            float* mm) {
     float minX = std::numeric_limits<float>::max();
     float maxX = std::numeric_limits<float>::lowest();
     float minY = std::numeric_limits<float>::max();
@@ -172,102 +237,102 @@ glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corner
         minZ = std::min(minZ, trf.z);
         maxZ = std::max(maxZ, trf.z);
     }
-    constexpr float zMult = 2.0f;
-    if (minZ < 0) {
-        minZ *= zMult;
-    } else {
-        minZ /= zMult;
-    }
-    if (maxZ < 0) {
-        maxZ /= zMult;
-    } else {
-        maxZ *= zMult;
-    }
+    std::cout << "minZ: " << minZ << "  maxZ: " << maxZ << std::endl;
 
+    /*constexpr float zMult = 1.0f;*/
+    /*if (minZ < 0) {*/
+    /*    minZ *= zMult;*/
+    /*} else {*/
+    /*    minZ /= zMult;*/
+    /*}*/
+    /*if (maxZ < 0) {*/
+    /*    maxZ /= zMult;*/
+    /*} else {*/
+    /*    maxZ *= zMult;*/
+    /*}*/
+
+    *mm = minZ;
     return glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 }
 
-void ShadowPass::changeActiveFrustum(size_t which, float length) {
-    /*float near_plane = 0.1f, far_plane = 10.5f;*/
-    /*glm::mat4 projection = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, near_plane, far_plane);*/
+std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corners, float length) {
+    /*length = 10.0f;*/
     auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * length);
     auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * length);
     auto middle2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * length);
     auto middle3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * length);
 
-    auto tmp_corners = corners;
-    tmp_corners[0 + which] = middle0;
-    tmp_corners[2 + which] = middle1;
-    tmp_corners[4 + which] = middle2;
-    tmp_corners[6 + which] = middle3;
+    this->corners = corners;
+    mNear = corners;
+    mFar = corners;
 
-    glm::vec3 cent = glm::vec3(0, 0, 0);
-    for (const auto& v : tmp_corners) {
-        cent += glm::vec3(v);
+    mMiddle = {middle0, middle1, middle2, middle3};
+    // near
+    mNear[1] = middle0;
+    mNear[3] = middle1;
+    mNear[5] = middle2;
+    mNear[7] = middle3;
+
+    /*std::cout << "Near: ";*/
+    /*for (const auto& e : mNear) {*/
+    /*    std::cout << glm::to_string(e) << " - ";*/
+    /*}*/
+    /*std::cout << std::endl;*/
+    // far
+    mFar[0] = middle0;
+    mFar[2] = middle1;
+    mFar[4] = middle2;
+    mFar[6] = middle3;
+
+    /*std::cout << "Far: ";*/
+    /*for (const auto& e : mFar) {*/
+    /*    std::cout << glm::to_string(e) << " - ";*/
+    /*}*/
+    /*std::cout << std::endl;*/
+
+    mScenes.clear();
+
+    size_t counter = 0;
+    auto all_corners = {mNear, mFar};
+    for (const auto& c : all_corners) {
+        glm::vec3 cent = glm::vec3(0, 0, 0);
+        for (const auto& v : c) {
+            cent += glm::vec3(v);
+        }
+        cent /= c.size();
+
+        this->center = cent;
+
+        std::cout << "for " << (counter++ == 0 ? "Near " : "Far ") << std::endl;
+        counter++;
+        glm::vec3 lightDirection = glm::normalize(this->lightPos);
+        glm::vec3 lightPosition = this->center + lightDirection * 10.0f;  // Push light back
+
+        auto view = glm::lookAt(lightPosition, this->center, glm::vec3{0.0f, 0.0f, 1.0f});
+        /*auto view = glm::lookAt(this->lightPos, this->center, glm::vec3{0.0f, 0.0f, 1.0f});*/
+        glm::mat4 projection = createProjectionFromFrustumCorner(c, view, &MinZ);
+        mScenes.emplace_back(Scene{projection, glm::mat4{1.0}, view});
     }
-    cent /= tmp_corners.size();
-    /*sphere4.moveTo(center);*/
-
-    this->center = cent;
-    /*std::cout << glm::to_string(this->center) << "  " << glm::to_string() << std::endl;*/
-
-    auto view = glm::lookAt(this->center + this->lightPos, this->center, glm::vec3{0.0f, 0.0f, 1.0f});
-    glm::mat4 projection = createProjectionFromFrustumCorner(tmp_corners, view);
-
-    mScene.projection = projection;
-    mScene.view = view;
+    return mScenes;
 }
-
-void ShadowPass::setupScene(std::vector<glm::vec4>& corner, size_t which) {
-    corners = corner;
-    /*float near_plane = 0.1f, far_plane = 10.5f;*/
-    /*glm::mat4 projection = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, near_plane, far_plane);*/
-    auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * 10.0f);
-    auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * 10.0f);
-    auto middle2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * 10.0f);
-    auto middle3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * 10.0f);
-
-    auto tmp_corners = corners;
-    tmp_corners[0 + which] = middle0;
-    tmp_corners[2 + which] = middle1;
-    tmp_corners[4 + which] = middle2;
-    tmp_corners[6 + which] = middle3;
-
-    glm::vec3 cent = glm::vec3(0, 0, 0);
-    for (const auto& v : tmp_corners) {
-        cent += glm::vec3(v);
-    }
-    cent /= tmp_corners.size();
-    /*sphere4.moveTo(center);*/
-
-    this->center = cent;
-    /*std::cout << glm::to_string(this->center) << "  " << glm::to_string() << std::endl;*/
-
-    auto view = glm::lookAt(this->center + this->lightPos, this->center, glm::vec3{0.0f, 0.0f, 1.0f});
-    glm::mat4 projection = createProjectionFromFrustumCorner(tmp_corners, view);
-
-    mScene.projection = projection;
-    mScene.view = view;
-}
-
-Scene& ShadowPass::getScene() { return mScene; }
 
 Pipeline* ShadowPass::getPipeline() { return mRenderPipeline; }
 
 WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor() { return &mRenderPassDesc; }
+WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor2() { return &mRenderPassDesc2; }
 
-void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder) {
+void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder, size_t which) {
     /*auto& render_resource = mApp->getRendererResource();*/
     for (auto* model : models) {
         for (auto& [mat_id, mesh] : model->mMeshes) {
             Buffer modelUniformBuffer = {};
             modelUniformBuffer.setLabel("Model Uniform Buffer")
                 .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
-                .setSize(sizeof(mScene))
+                .setSize(sizeof(Scene))
                 .setMappedAtCraetion()
                 .create(mApp);
 
-            mScene.model = model->getTranformMatrix();
+            mScenes[which].model = model->getTranformMatrix();
             mBindingData[0].buffer = modelUniformBuffer.getBuffer();
             mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
             mBindingData[2].buffer = model->getUniformBuffer().getBuffer();
@@ -279,8 +344,8 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
             mBindingData[4].sampler = mApp->getDefaultSampler();
 
             auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
-            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer.getBuffer(), 0, &mScene,
-                                 sizeof(mScene));
+            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer.getBuffer(), 0,
+                                 &mScenes.at(which), sizeof(Scene));
 
             wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                                  wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
@@ -296,7 +361,10 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
     }
 }
 
+std::vector<Scene>& ShadowPass::getScene() { return mScenes; }
+
 WGPUTextureView ShadowPass::getShadowMapView() { return mShadowDepthTextureView; }
+WGPUTextureView ShadowPass::getShadowMapView2() { return mShadowDepthTextureView2; }
 
 void printMatrix(const glm::mat4& matrix) {
     for (int row = 0; row < 4; ++row) {

@@ -37,7 +37,6 @@ static float znear = 0.01f;
 static float zfar = 10.0f;
 static bool which_frustum = false;
 static float middle_plane_length = 10.0f;
-/*static glm::mat4 frustum_projection;*/
 
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
     const auto inv = glm::inverse(proj * view);
@@ -140,7 +139,7 @@ void Application::initializePipeline() {
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
                              TextureViewDimension::VIEW_2D);
     mBindingGroup.addBuffer(11,  //
-                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene));
+                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 2);
     mBindingGroup.addSampler(12,  //
                              BindGroupEntryVisibility::FRAGMENT, SampleType::Compare);
 
@@ -153,6 +152,10 @@ void Application::initializePipeline() {
 
     mBindingGroup.addBuffer(15,  //
                             BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t));
+
+    mBindingGroup.addTexture(16,  //
+                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
+                             TextureViewDimension::VIEW_2D);
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
 
@@ -251,13 +254,13 @@ void Application::initializePipeline() {
     mBindingData[10] = {};
     mBindingData[10].nextInChain = nullptr;
     mBindingData[10].binding = 10;
-    mBindingData[10].textureView = mShadowPass->getShadowMapView();
+    mBindingData[10].textureView = mShadowPass->getShadowMapView2();
 
     mBindingData[11].nextInChain = nullptr;
     mBindingData[11].binding = 11;
     mBindingData[11].buffer = mLightSpaceTransformation.getBuffer();
     mBindingData[11].offset = 0;
-    mBindingData[11].size = sizeof(Scene);
+    mBindingData[11].size = sizeof(Scene) * 2;
 
     WGPUSamplerDescriptor shadow_sampler_desc = {};
     shadow_sampler_desc.addressModeU = WGPUAddressMode_ClampToEdge;
@@ -348,6 +351,11 @@ void Application::initializePipeline() {
     mBindingData[15].binding = 15;
     mBindingData[15].offset = 0;
     mBindingData[15].size = sizeof(uint32_t);
+
+    mBindingData[16] = {};
+    mBindingData[16].nextInChain = nullptr;
+    mBindingData[16].binding = 16;
+    mBindingData[16].textureView = mShadowPass->getShadowMapView();
 
     mBindingGroup.create(this, mBindingData);
 
@@ -507,7 +515,7 @@ void Application::initializeBuffers() {
 
     mLightSpaceTransformation.setLabel("Light space transform buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-        .setSize(sizeof(Scene))
+        .setSize(sizeof(Scene) * 2)
         .setMappedAtCraetion()
         .create(this);
 
@@ -752,8 +760,12 @@ bool Application::initialize() {
 
     initializeBuffers();
     initializePipeline();
-    /*frustum_projection = mCamera.getProjection();*/
 
+    if (!look_as_light) {
+        auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
+        /*mShadowPass->setupScene(corners, which_frustum == true ? 1 : 0);*/
+        mShadowPass->createFrustumSplits(corners, 10.0f);
+    }
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, nullptr);
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, nullptr);
     wgpuCommandEncoderRelease(encoder);
@@ -790,21 +802,9 @@ void Application::mainLoop() {
         return;
     }
 
-    mUniforms.time = static_cast<float>(glfwGetTime());
-    mUniforms.setCamera(mCamera);
-    if (look_as_light) {
-        mUniforms.projectMatrix = mShadowPass->getScene().projection;
-        mUniforms.viewMatrix = mShadowPass->getScene().view;
-        mUniforms.modelMatrix = mShadowPass->getScene().model;
-    }
-
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, viewMatrix),
-                         &mUniforms.viewMatrix, sizeof(MyUniform::viewMatrix));
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, cameraWorldPosition),
-                         &mCamera.getPos(), sizeof(MyUniform::cameraWorldPosition));
-
     float time = glfwGetTime();
     wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &time, sizeof(float));
+
     /*auto first_corner = getFrustumCornersWorldSpace(frustum_projection, mUniforms.viewMatrix);*/
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
@@ -823,24 +823,54 @@ void Application::mainLoop() {
     // The first pass is the shadow pass, only based on the opaque objects
 
     /*mShadowPass->mRenderPassColorAttachment.view = target_view;*/
+
+    if (!look_as_light) {
+        auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
+        auto all_scenes = mShadowPass->createFrustumSplits(corners, middle_plane_length);
+
+        wgpuQueueWriteBuffer(mRendererResource.queue, mLightSpaceTransformation.getBuffer(), 0, all_scenes.data(),
+                             sizeof(Scene) * all_scenes.size());
+    }
+    // draw far
+    WGPURenderPassEncoder shadow_pass_encoder2 =
+        wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor2());
+    wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder2, mShadowPass->getPipeline()->getPipeline());
+    mShadowPass->render(mLoadedModel, shadow_pass_encoder2, 1);
+
+    wgpuRenderPassEncoderEnd(shadow_pass_encoder2);
+    wgpuRenderPassEncoderRelease(shadow_pass_encoder2);
+
+    // draw near
     WGPURenderPassEncoder shadow_pass_encoder =
         wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor());
-    std::cout << glm::to_string(mShadowPass->getScene().view) << std::endl;
     wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder, mShadowPass->getPipeline()->getPipeline());
-
-    auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mUniforms.viewMatrix);
-    /*for (size_t i = 0; i < corners.size(); i++) {*/
-    /*    std::cout << i + 1 << " " << glm::to_string(corners[i]) << std::endl;*/
-    /*}*/
-    /*if (!look_as_light) {*/
-    /*    mShadowPass->setupScene(corners);*/
-    /*}*/
-    /*sphere.moveTo(mShadowPass->center);*/
-    /*mShadowPass->center = */
-    mShadowPass->render(mLoadedModel, shadow_pass_encoder);
+    mShadowPass->render(mLoadedModel, shadow_pass_encoder, 0);
 
     wgpuRenderPassEncoderEnd(shadow_pass_encoder);
     wgpuRenderPassEncoderRelease(shadow_pass_encoder);
+
+    /*mUniforms.time = static_cast<float>(glfwGetTime());*/
+    mUniforms.setCamera(mCamera);
+    auto all_scenes = mShadowPass->getScene();
+    if (look_as_light) {
+        auto all_scene = all_scenes[which_frustum == true ? 0 : 1];
+        mUniforms.projectMatrix = all_scene.projection;
+        mUniforms.viewMatrix = all_scene.view;
+        mUniforms.modelMatrix = all_scene.model;
+    }
+    sphere.moveTo(mShadowPass->mMiddle[0]);
+    sphere1.moveTo(mShadowPass->mMiddle[1]);
+    sphere2.moveTo(mShadowPass->mMiddle[2]);
+    sphere3.moveTo(mShadowPass->mMiddle[3]);
+
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),
+                         &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, viewMatrix),
+                         &mUniforms.viewMatrix, sizeof(MyUniform::viewMatrix));
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, time), &mUniforms.time,
+                         sizeof(MyUniform::time));
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, cameraWorldPosition),
+                         &mCamera.getPos(), sizeof(MyUniform::cameraWorldPosition));
 
     //-------------- End of shadow pass
 
@@ -883,9 +913,6 @@ void Application::mainLoop() {
     glm::mat4 mvp = mUniforms.projectMatrix * viewNoTranslation;
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mSkybox->getPipeline()->getPipeline());
     mSkybox->draw(this, render_pass_encoder, mvp);
-
-    wgpuQueueWriteBuffer(mRendererResource.queue, mLightSpaceTransformation.getBuffer(), 0, &mShadowPass->getScene(),
-                         sizeof(Scene));
 
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
 
@@ -1016,7 +1043,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     required_limits.limits.maxVertexBuffers = 1;
     required_limits.limits.maxBufferSize = 134217728;  // 1000000 * sizeof(VertexAttributes);
     required_limits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
-    required_limits.limits.maxSampledTexturesPerShaderStage = 7;
+    required_limits.limits.maxSampledTexturesPerShaderStage = 8;
     required_limits.limits.maxInterStageShaderComponents = 116;
 
     // Binding groups
@@ -1288,12 +1315,13 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui::InputFloat3("create new light at:", glm::value_ptr(new_ligth_position));
     /*static float split_fcator = 1.0;*/
     ImGui::SliderFloat("frustum split factor", &middle_plane_length, 1.0, 100);
+    ImGui::SliderFloat("visualizer", &mUniforms.time, -1.0, 1.0);
     /*ImGui::SliderFloat("frustum split factor", &split_fcator, 1.0, 100);*/
     if (ImGui::Checkbox("near far frstum", &which_frustum)) {
-        auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mUniforms.viewMatrix);
-        if (!look_as_light) {
-            mShadowPass->changeActiveFrustum(which_frustum == true ? 1 : 0, middle_plane_length);
-        }
+        auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
+        /*if (!look_as_light) {*/
+        /*    mShadowPass->changeActiveFrustum(which_frustum == true ? 1 : 0);*/
+        /*}*/
     }
 
     if (ImGui::Button("Create", ImVec2(100, 100))) {
@@ -1314,28 +1342,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         /*mLightManager->createPointLight(glm::vec4{new_ligth_position, 1.0}, purple, purple, purple, 1.0, 0.7, 1.8);*/
         /*mLightManager->uploadToGpu(this, mBuffer1);*/
 
-        auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mUniforms.viewMatrix);
-
-        auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * middle_plane_length);
-        auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * middle_plane_length);
-        auto middle2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * middle_plane_length);
-        auto middle3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * middle_plane_length);
-        sphere2.moveTo(middle0);
-        sphere3.moveTo(middle1);
-        sphere.moveTo(middle2);
-        sphere1.moveTo(middle3);
-        /*glm::vec3 center = glm::vec3(0, 0, 0);*/
-        /*for (const auto& v : first_corner) {*/
-        /*    center += glm::vec3(v);*/
-        /*}*/
-        /*center /= first_corner.size();*/
-        /*sphere4.moveTo(center);*/
-
-        /*mShadowPass->center = center;*/
-
-        if (!look_as_light) {
-            mShadowPass->setupScene(corners, which_frustum == true ? 1 : 0);
-        }
+        auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
     }
     ImGui::End();
 

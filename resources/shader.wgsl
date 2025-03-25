@@ -6,6 +6,7 @@ struct VertexOutput {
     @location(2) uv: vec2f,
     @location(3) viewDirection: vec3f,
     @location(4) worldPos: vec3f,
+    @location(6) viewSpacePos: vec4f,
 };
 
 struct VertexInput {
@@ -80,11 +81,12 @@ struct OffsetData {
 @group(0) @binding(8) var sand_lake_texture: texture_2d<f32>;
 @group(0) @binding(9) var snow_mountain_texture: texture_2d<f32>;
 @group(0) @binding(10) var depth_texture: texture_depth_2d;
-@group(0) @binding(11) var<uniform> lightSpaceTrans: Scene;
+@group(0) @binding(11) var<uniform> lightSpaceTrans: array<Scene, 2>;
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(14) var<uniform> ElapsedTime: f32;
 @group(0) @binding(15) var<uniform> lightCount: i32;
+@group(0) @binding(16) var near_depth_texture: texture_depth_2d;
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 
@@ -118,18 +120,25 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
         out.normal = (offsetInstance[instance_index + off_id].transformation * vec4(in.normal, 0.0)).xyz;
     }
     //let world_position = offsetInstance[instance_index].transformation * vec4f(in.position, 1.0);
-    out.position = uMyUniform.projectionMatrix * uMyUniform.viewMatrix * world_position;
+    out.viewSpacePos = uMyUniform.viewMatrix * world_position;
+    out.position = uMyUniform.projectionMatrix * out.viewSpacePos;
     out.worldPos = world_position.xyz;
     out.viewDirection = uMyUniform.cameraWorldPosition - world_position.xyz;
     out.color = in.color;
     out.uv = in.uv;
-    out.shadowPos = lightSpaceTrans.projection * lightSpaceTrans.view * world_position;
+    var index = 0;
+	if world_position.x <= 0 { index= 1;}
+    out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
     //out.shadowPos = shadow_position;
     return out;
 }
 
 
-fn calculateShadow(fragPosLightSpace: vec4f) -> f32 {
+fn calculateShadow(fragPosLightSpace: vec4f, world_position: vec3f) -> f32 {
+
+    var index = 0;
+    if world_position.x <= 0 { index= 1;}
+
     var projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     // projCoords = projCoords * 0.5 + 0.5;
 
@@ -141,7 +150,13 @@ fn calculateShadow(fragPosLightSpace: vec4f) -> f32 {
     var shadow = 0.0;
     for (var i: i32 = -1; i <= 1; i++) {
         for (var j: i32 = -1; j <= 1; j++) {
-            let closestDepth = textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), projCoords.z);
+	    var closestDepth = 0.0f;
+	    // if fragPosLightSpace.z < uMyUniform.time {
+	    if index == 0 {
+		    closestDepth = textureSampleCompare(near_depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), projCoords.z);
+	    }else {
+	   closestDepth = textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), projCoords.z);
+	    }
             shadow += closestDepth;
         }
     }
@@ -266,7 +281,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     } else {
         color = pow(calculateTerrainColor(in.color.r, in.uv), vec3f(1.2));
     }
-    let shadow = calculateShadow(in.shadowPos);
+    let shadow = calculateShadow(in.shadowPos, in.worldPos);
 
     let ambient = color * shading;
     let diffuse_final = point_light_color;
@@ -277,6 +292,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let variation = abs(sin(ElapsedTime * 2.0));
         col = col * (vec3f(1.0 + variation * 2.0, 0.0, 0.0));
     }
+    //if in.shadowPos.z < uMyUniform.time {
+    //if in.viewSpacePos.z < 10.0 {
+//	    return vec4f(vec3(uMyUniform.time, 0.0, 1.0) * (1 - shadow * (0.75)), 1.0);
+  //  }
     return vec4f(col * (1 - shadow * (0.75)), 1.0);
 }
 
