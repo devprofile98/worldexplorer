@@ -55,8 +55,8 @@ struct PointLight {
     linear: f32,
     quadratic: f32,
     ftype: i32,
-    cutOff:f32,
-    outerCutOff:f32
+    cutOff: f32,
+    outerCutOff: f32
 }
 
 struct Scene {
@@ -127,20 +127,17 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     out.color = in.color;
     out.uv = in.uv;
     var index = 0;
-	if world_position.x <= 0 { index= 1;}
+    if length(out.viewSpacePos) > ElapsedTime { index = 1;}
+;
     out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
     //out.shadowPos = shadow_position;
     return out;
 }
 
 
-fn calculateShadow(fragPosLightSpace: vec4f, world_position: vec3f) -> f32 {
-
-    var index = 0;
-    if world_position.x <= 0 { index= 1;}
+fn calculateShadow(fragPosLightSpace: vec4f, distance: f32) -> f32 {
 
     var projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    // projCoords = projCoords * 0.5 + 0.5;
 
     projCoords = vec3(
         projCoords.xy * vec2(0.5, -0.5) + vec2(0.5),
@@ -150,13 +147,12 @@ fn calculateShadow(fragPosLightSpace: vec4f, world_position: vec3f) -> f32 {
     var shadow = 0.0;
     for (var i: i32 = -1; i <= 1; i++) {
         for (var j: i32 = -1; j <= 1; j++) {
-	    var closestDepth = 0.0f;
-	    // if fragPosLightSpace.z < uMyUniform.time {
-	    if index == 0 {
-		    closestDepth = textureSampleCompare(near_depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), projCoords.z);
-	    }else {
-	   closestDepth = textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), projCoords.z);
-	    }
+            var closestDepth = 0.0f;
+            if distance < ElapsedTime {
+                closestDepth = textureSampleCompare(near_depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), projCoords.z);
+            } else {
+                closestDepth = textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), projCoords.z);
+            }
             shadow += closestDepth;
         }
     }
@@ -165,33 +161,33 @@ fn calculateShadow(fragPosLightSpace: vec4f, world_position: vec3f) -> f32 {
 }
 
 fn calculateTerrainColor(level: f32, uv: vec2f) -> vec3f {
-	
-	var color = vec3f(0.0f);
-        if level == 1 {
-            color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
-        } else if level > 1 && level < 2 {
-            let distance = level - 1.0;
-            let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
-            color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
-            color = mix(color, grass_color, distance);
-        } else if level == 2 {
-            color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
-        } else if level > 2 && level < 3 {
-            let distance = level - 2.0;
-            let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
-            color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
-            color = mix(grass_color, color, distance);
-        } else if level == 3 {
-            color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
-        } else if level > 3 && level < 4 {
-            let distance = level - 3.0;
-            let snow_color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
-            color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
-            color = mix(color, snow_color, distance);
-        } else if level == 4 {
-            color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
-        }
-	return color;
+
+    var color = vec3f(0.0f);
+    if level == 1 {
+        color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
+    } else if level > 1 && level < 2 {
+        let distance = level - 1.0;
+        let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
+        color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
+        color = mix(color, grass_color, distance);
+    } else if level == 2 {
+        color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
+    } else if level > 2 && level < 3 {
+        let distance = level - 2.0;
+        let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
+        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
+        color = mix(grass_color, color, distance);
+    } else if level == 3 {
+        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
+    } else if level > 3 && level < 4 {
+        let distance = level - 3.0;
+        let snow_color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
+        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
+        color = mix(color, snow_color, distance);
+    } else if level == 4 {
+        color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
+    }
+    return color;
 }
 
 
@@ -202,19 +198,17 @@ fn calculatePointLight(curr_light: PointLight, normal: vec3f, dir: vec3f) -> vec
     return curr_light.ambient.xyz * attenuation * max(dot(normal, light_dir), 0.0);
 }
 
-fn calculateSpotLight(currLight: PointLight, normal: vec3f,dir: vec3f) -> vec3f{
-	    let lightDir = normalize(dir);
-	    let diff = max(dot(normal, lightDir), 0.0);
-	    let diffuse = currLight.diffuse.xyz * diff; 	
-	let theta = dot(lightDir, normalize(-currLight.direction).xyz);
-	let epsilon = (currLight.cutOff -  currLight.outerCutOff);
-	let intensity = clamp((theta - currLight.outerCutOff) / epsilon, 0.0, 1.0);
+fn calculateSpotLight(currLight: PointLight, normal: vec3f, dir: vec3f) -> vec3f {
+    let lightDir = normalize(dir);
+    let diff = max(dot(normal, lightDir), 0.0);
+    let diffuse = currLight.diffuse.xyz * diff;
+    let theta = dot(lightDir, normalize(-currLight.direction).xyz);
+    let epsilon = (currLight.cutOff - currLight.outerCutOff);
+    let intensity = clamp((theta - currLight.outerCutOff) / epsilon, 0.0, 1.0);
     let distance = length(dir);
-    let attenuation = 1.0 / (1.0 + currLight.linear * distance + 
-                           currLight.quadratic * distance * distance);
+    let attenuation = 1.0 / (1.0 + currLight.linear * distance + currLight.quadratic * distance * distance);
 
-	return diffuse * intensity * attenuation;
-
+    return diffuse * intensity * attenuation;
 }
 
 
@@ -281,7 +275,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     } else {
         color = pow(calculateTerrainColor(in.color.r, in.uv), vec3f(1.2));
     }
-    let shadow = calculateShadow(in.shadowPos, in.worldPos);
+    let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos));
 
     let ambient = color * shading;
     let diffuse_final = point_light_color;
@@ -289,13 +283,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     var col = (diffuse_final + ambient);
 
     if objectTranformation.isHovered == 1 {
-	let variation = abs(sin(ElapsedTime * 2.0));
+        let variation = abs(sin(ElapsedTime * 2.0));
         col = col * (vec3f(1.0 + variation * 2.0, 0.0, 0.0));
     }
-    //if in.shadowPos.z < uMyUniform.time {
-    //if in.viewSpacePos.z < 10.0 {
-//	    return vec4f(vec3(uMyUniform.time, 0.0, 1.0) * (1 - shadow * (0.75)), 1.0);
-  //  }
+    //if length(in.viewSpacePos) > ElapsedTime {
+    //    return vec4f(vec3(1.0, 0.0, 0.5) * (1 - shadow * (0.75)), 1.0);
+    //}else{
+    //    return vec4f(vec3(0.0, 1.0, 0.5) * (1 - shadow * (0.75)), 1.0);
+    //}
     return vec4f(col * (1 - shadow * (0.75)), 1.0);
 }
 

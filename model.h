@@ -58,6 +58,7 @@ class Transform {
         glm::mat4 mRotationMatrix;
 
         glm::mat4 mTransformMatrix;
+	glm::quat mOrientation;
 };
 
 class Drawable {
@@ -92,7 +93,7 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
     public:
         BaseModel()
             : Transform({}, {glm::vec3{0.0}}, glm::vec3{1.0}, glm::mat4{1.0}, glm::mat4{1.0}, glm::mat4{1.0},
-                        glm::mat4{1.0}) {};
+                        glm::mat4{1.0}, glm::vec3{0.0, 0.0, 1.0}) {};
 
         std::string mName;
         const std::string& getName();

@@ -1,6 +1,8 @@
 #ifndef WEBGPUTEST_FRUSTUM_CULLING_H
 #define WEBGPUTEST_FRUSTUM_CULLING_H
 
+#include <vector>
+
 #include "camera.h"
 #include "glm/fwd.hpp"
 
@@ -10,6 +12,7 @@ class Plane {
     public:
         Plane() {}
         Plane(const glm::vec3& p1, const glm::vec3& norm);
+        Plane(float d, const glm::vec3& norm);
         glm::vec3 normal;
         float distance;
 
@@ -27,9 +30,11 @@ class Frustum {
 
         frustum::Plane farFace;
         frustum::Plane nearFace;
+        frustum::Plane faces[6];
         void extractPlanes(glm::mat4x4 projectionMatrix);
         bool AABBTest(const glm::vec3& min, const glm::vec3& max);
         void createFrustumFromCamera(const Camera& cam, float aspect, float fovY, float zNear, float zFar);
+        void createFrustumPlanesFromCorner(const std::vector<glm::vec4>& corners);
 };
 
 #endif  // WEBGPUTEST_FRUSTUM_CULLING_H

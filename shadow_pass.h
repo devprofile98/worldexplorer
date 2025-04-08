@@ -45,7 +45,7 @@ class ShadowPass {
         std::vector<glm::vec4> mFar;
         std::vector<glm::vec4> mMiddle;
 
-        std::vector<Scene> createFrustumSplits(std::vector<glm::vec4>& corners, float length);
+        std::vector<Scene> createFrustumSplits(std::vector<glm::vec4>& corners, float length, float far_length);
         WGPURenderPassColorAttachment mRenderPassColorAttachment = {};
         WGPURenderPassColorAttachment mRenderPassColorAttachment2 = {};
         void createRenderPassDescriptor();

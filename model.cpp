@@ -1,10 +1,12 @@
 #include "model.h"
 
 #include <format>
+#include "glm/gtx/quaternion.hpp"
 #include <iostream>
 
 #include "application.h"
 #include "glm/ext/matrix_transform.hpp"
+#include "glm/ext/quaternion_trigonometric.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/trigonometric.hpp"
@@ -334,7 +336,10 @@ Transform& Transform::scale(const glm::vec3& s) {
 }
 
 Transform& Transform::rotate(const glm::vec3& around, float degree) {
-    this->mRotationMatrix = glm::rotate(glm::mat4{1.0f}, glm::radians(degree), around);
+
+    mOrientation = glm::angleAxis(glm::radians(degree), around);
+    /*this->mRotationMatrix = glm::rotate(glm::mat4{1.0f}, glm::radians(degree), around);*/
+    this->mRotationMatrix = glm::toMat4(mOrientation);
     return *this;
 }
 
@@ -366,7 +371,7 @@ glm::vec3 AABB::getAABBSize() {
 
 std::pair<glm::vec3, glm::vec3> BaseModel::getWorldMin() {
     auto min = this->getTranformMatrix() * glm::vec4(this->min, 1.0);
-    auto max = this->getTranformMatrix() * glm::vec4(this->max, 1.0); 
+    auto max = this->getTranformMatrix() * glm::vec4(this->max, 1.0);
     return {min, max};
 }
 

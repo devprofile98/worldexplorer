@@ -12,6 +12,7 @@
 #include "frustum_culling.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
+#include "glm/geometric.hpp"
 #include "glm/gtc/noise.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/gtx/string_cast.hpp"
@@ -37,6 +38,7 @@ static float znear = 0.01f;
 static float zfar = 10.0f;
 static bool which_frustum = false;
 static float middle_plane_length = 10.0f;
+static float far_plane_length = 100.0f;
 
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
     const auto inv = glm::inverse(proj * view);
@@ -489,6 +491,7 @@ void Application::initializeBuffers() {
     plane->mName = "Plane";
     plane->moveTo(glm::vec3{3.0f, 1.0f, 4.0f}).scale(glm::vec3{0.01, 1.0, 1.0});
     /*plane->setTransparent();*/
+    plane->setTransparent(false);
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -764,7 +767,7 @@ bool Application::initialize() {
     if (!look_as_light) {
         auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
         /*mShadowPass->setupScene(corners, which_frustum == true ? 1 : 0);*/
-        mShadowPass->createFrustumSplits(corners, 10.0f);
+        /*mShadowPass->createFrustumSplits(corners, 10.0f, 100.0f);*/
     }
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, nullptr);
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, nullptr);
@@ -802,8 +805,8 @@ void Application::mainLoop() {
         return;
     }
 
-    float time = glfwGetTime();
-    wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &time, sizeof(float));
+    /*float time = glfwGetTime();*/
+    wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &middle_plane_length, sizeof(float));
 
     /*auto first_corner = getFrustumCornersWorldSpace(frustum_projection, mUniforms.viewMatrix);*/
     // create a commnad encoder
@@ -816,7 +819,7 @@ void Application::mainLoop() {
     // preprocessing
     // doing frustum culling
 
-    /*Frustum frustum{};*/
+    Frustum frustum{};
     /*frustum.extractPlanes(mCamera.getProjection() * mCamera.getView());*/
 
     // ---------------- 1 - Preparing for shadow pass ---------------
@@ -826,8 +829,9 @@ void Application::mainLoop() {
 
     if (!look_as_light) {
         auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
-        auto all_scenes = mShadowPass->createFrustumSplits(corners, middle_plane_length);
+        auto all_scenes = mShadowPass->createFrustumSplits(corners, middle_plane_length, far_plane_length);
 
+        frustum.createFrustumPlanesFromCorner(corners);
         wgpuQueueWriteBuffer(mRendererResource.queue, mLightSpaceTransformation.getBuffer(), 0, all_scenes.data(),
                              sizeof(Scene) * all_scenes.size());
     }
@@ -858,10 +862,17 @@ void Application::mainLoop() {
         mUniforms.viewMatrix = all_scene.view;
         mUniforms.modelMatrix = all_scene.model;
     }
-    sphere.moveTo(mShadowPass->mMiddle[0]);
-    sphere1.moveTo(mShadowPass->mMiddle[1]);
-    sphere2.moveTo(mShadowPass->mMiddle[2]);
-    sphere3.moveTo(mShadowPass->mMiddle[3]);
+
+    /*glm::vec3 far_left = mShadowPass->mFar[1];*/
+    /*glm::vec3 far_right = mShadowPass->mFar[5];*/
+    /*float right_z = Terrain::perlin(far_right.x + 50, far_right.y + 50.0f);*/
+    /*float left_z = Terrain::perlin(far_left.x + 50, far_left.y + 50.0f);*/
+    /*far_left.z = left_z;*/
+    /*far_right.z = right_z;*/
+    /*sphere.moveTo(far_left);*/
+    /*sphere1.moveTo(mShadowPass->mFar[3]);*/
+    /*sphere2.moveTo(far_right);*/
+    /*sphere3.moveTo(mShadowPass->mFar[7]);*/
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),
                          &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));
@@ -920,12 +931,14 @@ void Application::mainLoop() {
     /*    if (model->getName() != "tower"){*/
     /*   	continue;*/
     /*    }*/
-    /*    auto [in_world_min, in_world_max] = model->getWorldMin();*/
-    /*    if (frustum.AABBTest(in_world_min, in_world_max)) {*/
-    /*        model->selected(true);*/
-    /*    } else {*/
-    /*        model->selected(false);*/
-    /*    }*/
+    /*auto [in_world_min, in_world_max] = tower_model.getWorldMin();*/
+    /*if (frustum.AABBTest(in_world_min, in_world_max)) {*/
+    /*model->selected(true);*/
+    /*std::cout << "Tower model is culled\n";*/
+    /*      } else {*/
+    /*model->selected(false);*/
+    /*std::cout << "Tower model is not culled";*/
+    /*      }*/
     /*}*/
     // Drawing opaque objects in the world60 * Camera::PI / 180, ratio, 0.01f, 1000.0f
     /*frustum.createFrustumFromCamera(mCamera, 1920.0 / 1080.0, fov, znear, zfar);*/
@@ -1315,12 +1328,32 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui::InputFloat3("create new light at:", glm::value_ptr(new_ligth_position));
     /*static float split_fcator = 1.0;*/
     ImGui::SliderFloat("frustum split factor", &middle_plane_length, 1.0, 100);
+    ImGui::SliderFloat("far split factor", &far_plane_length, 1.0, 200);
     ImGui::SliderFloat("visualizer", &mUniforms.time, -1.0, 1.0);
     /*ImGui::SliderFloat("frustum split factor", &split_fcator, 1.0, 100);*/
     if (ImGui::Checkbox("near far frstum", &which_frustum)) {
         auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
         /*if (!look_as_light) {*/
         /*    mShadowPass->changeActiveFrustum(which_frustum == true ? 1 : 0);*/
+        /*}*/
+    }
+
+    static glm::vec3 water_orientation = glm::vec3{0.0f};
+    ImGui::InputFloat3("Water plane orientation:", glm::value_ptr(water_orientation));
+    if (ImGui::Button("Rotate", ImVec2(80, 30))) {
+        /*std::cout << "Last orientation is " << water.mOrientation.x << " - " << water.mOrientation.y << " - "*/
+        /*          << water.mOrientation.z << std::endl;*/
+        std::cout << "Water orientation is: " << glm::to_string(water.mOrientation) << "\n";
+        std::cout << "new Water oriensn is: " << glm::to_string(water_orientation) << "\n";
+
+        water_orientation = glm::normalize(water_orientation);
+
+        auto r = glm::normalize(glm::vec3{water.mOrientation.x, water.mOrientation.y, water.mOrientation.z});
+        glm::vec3 r_axis = glm::normalize(glm::cross(water_orientation, r));
+        float degree = glm::degrees(glm::acos(glm::dot(water_orientation, r)));
+
+        std::cout << "rotation axis is: " << glm::to_string(r_axis) << " and the degree is" << degree << std::endl;
+        water.rotate(r_axis, degree);
         /*}*/
     }
 
