@@ -35,7 +35,7 @@
 static bool look_as_light = false;
 static float fov = 60.0f;
 static float znear = 0.01f;
-static float zfar = 10.0f;
+static float zfar = 100.0f;
 static bool which_frustum = false;
 static float middle_plane_length = 10.0f;
 static float far_plane_length = 100.0f;
@@ -1343,6 +1343,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     if (ImGui::Button("Rotate", ImVec2(80, 30))) {
         /*std::cout << "Last orientation is " << water.mOrientation.x << " - " << water.mOrientation.y << " - "*/
         /*          << water.mOrientation.z << std::endl;*/
+        std::cout << "++++++++++++++++++++++++++++\n";
         std::cout << "Water orientation is: " << glm::to_string(water.mOrientation) << "\n";
         std::cout << "new Water oriensn is: " << glm::to_string(water_orientation) << "\n";
 
@@ -1350,13 +1351,26 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
         auto r = glm::normalize(glm::vec3{water.mOrientation.x, water.mOrientation.y, water.mOrientation.z});
         glm::vec3 r_axis = glm::normalize(glm::cross(water_orientation, r));
+        /*if (glm::length(r_axis) > 0.001) {*/
         float degree = glm::degrees(glm::acos(glm::dot(water_orientation, r)));
 
         std::cout << "rotation axis is: " << glm::to_string(r_axis) << " and the degree is" << degree << std::endl;
         water.rotate(r_axis, degree);
+        /*} else {*/
+        /*    std::cout << "axis are colliner\n";*/
+        /*}*/
         /*}*/
     }
 
+    ImGui::End();
+
+    ImGui::Begin("Add Line");
+
+    static glm::vec3 start = glm::vec3{0.0f};
+    static glm::vec3 end = glm::vec3{0.0f};
+
+    ImGui::InputFloat3("Start", glm::value_ptr(start));
+    ImGui::InputFloat3("End", glm::value_ptr(end));
     if (ImGui::Button("Create", ImVec2(100, 100))) {
         /*glm::vec4 purple = {1.0, 0.0, 1.0, 1.0};*/
         /*size_t small_x = new_ligth_position.x;*/
@@ -1375,10 +1389,18 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         /*mLightManager->createPointLight(glm::vec4{new_ligth_position, 1.0}, purple, purple, purple, 1.0, 0.7, 1.8);*/
         /*mLightManager->uploadToGpu(this, mBuffer1);*/
 
-        auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
+        /*auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());*/
+
+        Line* line = new Line{this, start, end};
+        line->mName = "Line";
+        line->moveTo(glm::vec3{1.0f, 1.0f, 4.0f})
+            .scale(glm::vec3{1.0, 1.0, 1.0})
+            .rotate(glm::vec3{1.0, 0.0, 0.0}, 0.0f);
+        /*line->setTransparent();*/
+        line->setTransparent(false);
+        mLoadedModel.push_back(line);
     }
     ImGui::End();
-
     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                          sizeof(LightingUniforms));
     mShadowPass->lightPos = pointlightshadow;

@@ -262,11 +262,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
         if objectTranformation.useTexture != 0 {
             color = vec4f(ambient + diffuse, 1.0).rgb;
+
+            if fragment_color.a < 0.1 {
+			discard;
+            }
         } else {
             color = pow(in.color.rgb, vec3f(2.2));
-        }
-        if fragment_color.a < 0.1 {
-    		discard;
         }
 
     	//if objectTranformation.isFoliage == 1 {

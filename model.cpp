@@ -1,7 +1,6 @@
 #include "model.h"
 
 #include <format>
-#include "glm/gtx/quaternion.hpp"
 #include <iostream>
 
 #include "application.h"
@@ -9,6 +8,7 @@
 #include "glm/ext/quaternion_trigonometric.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
+#include "glm/gtx/quaternion.hpp"
 #include "glm/trigonometric.hpp"
 #include "imgui.h"
 #include "tinyobjloader/tiny_obj_loader.h"
@@ -336,10 +336,12 @@ Transform& Transform::scale(const glm::vec3& s) {
 }
 
 Transform& Transform::rotate(const glm::vec3& around, float degree) {
-
-    mOrientation = glm::angleAxis(glm::radians(degree), around);
+    glm::quat delta = glm::angleAxis(glm::radians(degree), around);
+    /*mOrientation = mOrientation * delta;*/
+    /*mOrientation = delta;*/
+    /*mOrientation = glm::normalize(mOrientation);*/
     /*this->mRotationMatrix = glm::rotate(glm::mat4{1.0f}, glm::radians(degree), around);*/
-    this->mRotationMatrix = glm::toMat4(mOrientation);
+    this->mRotationMatrix = glm::toMat4(delta);
     return *this;
 }
 

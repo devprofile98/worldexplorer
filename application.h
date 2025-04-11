@@ -10,6 +10,7 @@
 #include "camera.h"
 #include "composition_pass.h"
 #include "gpu_buffer.h"
+#include "instance.h"
 #include "model.h"
 #include "pipeline.h"
 #include "point_light.h"
@@ -19,7 +20,6 @@
 #include "transparency_pass.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
-#include "instance.h"
 
 struct MyUniform {
         glm::mat4 projectMatrix;
@@ -96,7 +96,7 @@ class Application {
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();
 
-	InstanceManager * mInstanceManager;
+        InstanceManager* mInstanceManager;
         std::vector<glm::vec3> output = {};
         bool initGui();                                    // called in onInit
         void terminateGui();                               // called in onFinish
@@ -118,21 +118,22 @@ class Application {
         // textures
         Texture* mDefaultDiffuse = nullptr;
         Texture* mDefaultMetallicRoughness = nullptr;
-	std::pair<size_t, size_t> getWindowSize();
-	void setWindowSize(size_t width, size_t height);
+        std::pair<size_t, size_t> getWindowSize();
+        void setWindowSize(size_t width, size_t height);
 
         WGPUBuffer mBuffer1;
 
     private:
-	size_t mWindowWidth = 1920;
-	size_t mWindowHeight = 1080;
+        size_t mWindowWidth = 1920;
+        size_t mWindowHeight = 1080;
         Camera mCamera;
         Terrain terrain;
         LightingUniforms mLightingUniforms;
-        LightManager *mLightManager;
+        LightManager* mLightManager;
         Pipeline* mPipeline;
         Cube* shapes;
         Plane* plane;
+        /*Line* line;*/
         ShadowPass* mShadowPass;
         TransparencyPass* mTransparencyPass;
         CompositionPass* mCompositionPass;
@@ -155,7 +156,7 @@ class Application {
         WGPUBuffer mUniformBufferTransform;
         WGPUBuffer mDirectionalLightBuffer;
         Buffer mLightSpaceTransformation;
-	Buffer mTimeBuffer;
+        Buffer mTimeBuffer;
 
         // WGPUBuffer mPointlightBuffer = {};
         MyUniform mUniforms;

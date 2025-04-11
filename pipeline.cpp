@@ -49,6 +49,7 @@ Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat sur
     // 3 - Primitive state
     WGPUPrimitiveState primitive_state = {};
     primitive_state.topology = WGPUPrimitiveTopology_TriangleList;
+    /*primitive_state.topology = WGPUPrimitiveTopology_LineStrip;*/
     primitive_state.stripIndexFormat = WGPUIndexFormat_Undefined;
     primitive_state.frontFace = WGPUFrontFace_CCW;
     primitive_state.cullMode = WGPUCullMode_None;
