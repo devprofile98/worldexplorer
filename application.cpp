@@ -925,6 +925,7 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mSkybox->getPipeline()->getPipeline());
     mSkybox->draw(this, render_pass_encoder, mvp);
 
+    /*std::cout << "Checkpoint 6\n";*/
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
 
     /*for (const auto& model : mLoadedModel) {*/
@@ -1368,37 +1369,32 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
     static glm::vec3 start = glm::vec3{0.0f};
     static glm::vec3 end = glm::vec3{0.0f};
+    static glm::vec3 color = glm::vec3{0.0f};
+    static glm::vec3 color2 = glm::vec3{0.0f};
 
     ImGui::InputFloat3("Start", glm::value_ptr(start));
     ImGui::InputFloat3("End", glm::value_ptr(end));
-    if (ImGui::Button("Create", ImVec2(100, 100))) {
-        /*glm::vec4 purple = {1.0, 0.0, 1.0, 1.0};*/
-        /*size_t small_x = new_ligth_position.x;*/
-        /*size_t big_x = new_ligth_position.x + 1;*/
-        /*size_t small_y = new_ligth_position.y;*/
-        /*size_t big_y = new_ligth_position.y + 1;*/
-        /*       auto one = Terrain::perlin(small_x + 50, small_y + 50.0f);*/
-        /*       auto two = Terrain::perlin(small_x + 50, big_y + 50.0f);*/
-        /*       auto three = Terrain::perlin(big_x + 50, small_y + 50.0f);*/
-        /*       auto four = Terrain::perlin(big_x + 50, big_y + 50.0f);*/
-        /*float last_z = (one + two + three + four) / 4.0;*/
-        /*new_ligth_position.z = last_z;*/
-        /*new_ligth_position.z = Terrain::perlin(new_ligth_position.x + 50.0, new_ligth_position.y + 50.0f);*/
-        /*std::cout << "The coordinate is" << new_ligth_position.z << std::endl;*/
-        /*tree_model.moveTo(new_ligth_position);*/
-        /*mLightManager->createPointLight(glm::vec4{new_ligth_position, 1.0}, purple, purple, purple, 1.0, 0.7, 1.8);*/
-        /*mLightManager->uploadToGpu(this, mBuffer1);*/
 
-        /*auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());*/
-
-        Line* line = new Line{this, start, end};
-        line->mName = "Line";
-        line->moveTo(glm::vec3{1.0f, 1.0f, 4.0f})
-            .scale(glm::vec3{1.0, 1.0, 1.0})
-            .rotate(glm::vec3{1.0, 0.0, 0.0}, 0.0f);
-        /*line->setTransparent();*/
-        line->setTransparent(false);
-        mLoadedModel.push_back(line);
+    ImGui::ColorPicker3("lines color", glm::value_ptr(color));
+    if (ImGui::Button("Create", ImVec2(100, 30))) {
+        color2 = color;
+        color2.x += color.z;
+        color2.z += color.x;
+        std::vector<glm::vec2> lines = {{0, 1}, {2, 3}, {6, 7}, {4, 5}, {0, 4}, {2, 6},
+                                        {0, 2}, {4, 6}, {1, 5}, {1, 3}, {5, 7}, {3, 7}};
+        for (const auto& l : lines) {
+            Line* line = new Line{this, mShadowPass->mFar[l.x], mShadowPass->mFar[l.y], 0.5, color};
+            line->setTransparent(false);
+            mLoadedModel.push_back(line);
+            Line* line2 = new Line{this, mShadowPass->mNear[l.x], mShadowPass->mNear[l.y], 0.5, color2};
+            line2->setTransparent(false);
+            mLoadedModel.push_back(line2);
+        }
+    }
+    if (ImGui::Button("remove frustum", ImVec2(100, 30))) {
+        for (int i = 0; i < 24; i++) {
+            mLoadedModel.pop_back();
+        };
     }
     ImGui::End();
     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,

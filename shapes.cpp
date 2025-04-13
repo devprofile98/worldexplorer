@@ -175,6 +175,43 @@ void Cube::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGP
     wgpuBindGroupRelease(bindgroup0);
 }
 
+void generateThickLine(glm::vec3 start, glm::vec3 end, float width, float* vertexData) {
+    glm::vec3 direction = glm::normalize(end - start);
+
+    // You need a reference vector to create a perpendicular in 3D
+    // This can be the view direction (like the camera forward vector)
+    glm::vec3 up = glm::vec3(0.0f, 0.0f, 1.0f);  // fallback
+    if (glm::abs(glm::dot(direction, up)) > 0.99f) {
+        up = glm::vec3(0.0f, 1.0f, 0.0f);  // Avoid colinearity
+    }
+
+    // Get perpendicular vector in plane using cross product
+    glm::vec3 perp = glm::normalize(glm::cross(direction, up)) * (width * 0.5f);
+
+    glm::vec3 v0 = start + perp;
+    glm::vec3 v1 = start - perp;
+    glm::vec3 v2 = end + perp;
+    glm::vec3 v3 = end - perp;
+
+    vertexData[0] = v0.x;
+    vertexData[1] = v0.y;
+    vertexData[2] = v0.z;
+
+    vertexData[0 + 11] = v1.x;
+    vertexData[1 + 11] = v1.y;
+    vertexData[2 + 11] = v1.z;
+
+    /*glm::vec3 other_end = glm::vec3{start.x + 0.1, start_y, start.z};*/
+    /*glm::vec3 other_start = glm::vec3{end.x + 0.1, y, end.z};*/
+    vertexData[0 + 22] = v2.x;
+    vertexData[1 + 22] = v2.y;
+    vertexData[2 + 22] = v2.z;
+
+    vertexData[0 + 33] = v3.x;
+    vertexData[1 + 33] = v3.y;
+    vertexData[2 + 33] = v3.z;
+}
+
 glm::vec3 generateLine(glm::vec3 start, glm::vec3 end, float* vertexData) {
     float slope = (end.y - start.y) / (end.x - start.x);
     if (slope == 0) {
@@ -207,8 +244,15 @@ glm::vec3 generateLine(glm::vec3 start, glm::vec3 end, float* vertexData) {
 
     return other_end;
 }
+void setColor(const glm::vec3 color, float* vertexData) {
+    for (int i = 0; i < 4; i++) {
+        vertexData[6 + (11 * i)] = color.x;
+        vertexData[7 + (11 * i)] = color.y;
+        vertexData[8 + (11 * i)] = color.z;
+    }
+}
 
-Line::Line(Application* app, glm::vec3 start, glm::vec3 end) : BaseModel() {
+Line::Line(Application* app, glm::vec3 start, glm::vec3 end, float width, glm::vec3 color) : BaseModel() {
     (void)start;
     (void)end;
     mApp = app;
@@ -216,8 +260,10 @@ Line::Line(Application* app, glm::vec3 start, glm::vec3 end) : BaseModel() {
 
     std::cout << "start: " << glm::to_string(start) << "\n";
     std::cout << "end: " << glm::to_string(end) << "\n";
-    glm::vec3 middle = generateLine(start, end, triangleVertexData);
-    std::cout << "middle: " << glm::to_string(middle) << "\n";
+
+    generateThickLine(start, end, width, triangleVertexData);
+    setColor(color, triangleVertexData);
+    /*std::cout << "middle: " << glm::to_string(middle) << "\n";*/
 
     mMeshes[0]
         .mVertexBuffer.setLabel("Line vertex buffer")

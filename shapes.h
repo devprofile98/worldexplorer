@@ -36,7 +36,7 @@ class Plane : public Cube {
 
 class Line : public BaseModel {
     public:
-        Line(Application* app, glm::vec3 start, glm::vec3 end);
+        Line(Application* app, glm::vec3 start, glm::vec3 end, float width,  glm::vec3 color);
 
         virtual void draw(Application* app, WGPURenderPassEncoder encoder,
                           std::vector<WGPUBindGroupEntry>& bindingData) override;
@@ -47,9 +47,9 @@ class Line : public BaseModel {
         /*float triangleVertexData[33];*/
         uint16_t mIndexData[6] = {0, 1, 2, 1, 2, 3};
         float triangleVertexData[44] = {
-            1.0, 0.5, 4.0, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,  //
-            6.0, 3.0, 4.0, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,  //
-            6.1, 2.8, 4.0, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,  //
+            1.0, 0.5, 4.0, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,  //
+            6.0, 3.0, 4.0, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,  //
+            6.1, 2.8, 4.0, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,  //
         };
         /*    std::map<int, Mesh> mMeshes;*/
 };

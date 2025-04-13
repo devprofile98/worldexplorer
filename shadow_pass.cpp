@@ -239,17 +239,17 @@ glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corner
     }
     /*std::cout << "minZ: " << minZ << "  maxZ: " << maxZ << std::endl;*/
 
-    constexpr float zMult = 2.0f;
-    if (minZ < 0) {
-        minZ *= zMult;
-    } else {
-        minZ /= zMult;
-    }
-    if (maxZ < 0) {
-        maxZ /= zMult;
-    } else {
-        maxZ *= zMult;
-    }
+    /*constexpr float zMult = 2.0f;*/
+    /*if (minZ < 0) {*/
+    /*    minZ *= zMult;*/
+    /*} else {*/
+    /*    minZ /= zMult;*/
+    /*}*/
+    /*if (maxZ < 0) {*/
+    /*    maxZ /= zMult;*/
+    /*} else {*/
+    /*    maxZ *= zMult;*/
+    /*}*/
 
     *mm = minZ;
     return glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
@@ -266,7 +266,7 @@ std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corne
     auto Far1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * (length + far_length));
     auto Far2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * (length + far_length));
     auto Far3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * (length + far_length));
-    
+
     this->corners = corners;
     mNear = corners;
     mFar = corners;
@@ -293,6 +293,7 @@ std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corne
     mFar[3] = Far1;
     mFar[5] = Far2;
     mFar[7] = Far3;
+
     /*std::cout << "Far: ";*/
     /*for (const auto& e : mFar) {*/
     /*    std::cout << glm::to_string(e) << " - ";*/
@@ -311,14 +312,10 @@ std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corne
         cent /= c.size();
 
         this->center = cent;
-
-        /*std::cout << "for " << (counter++ == 0 ? "Near " : "Far ") << std::endl;*/
-        /*counter++;*/
-        glm::vec3 lightDirection = glm::normalize(this->lightPos);
-        glm::vec3 lightPosition = this->center + lightDirection * 2.0f;  // Push light back
+        glm::vec3 lightDirection = glm::normalize(-this->lightPos);
+        glm::vec3 lightPosition = this->center - lightDirection * 2.0f;  // Push light back
 
         auto view = glm::lookAt(lightPosition, this->center, glm::vec3{0.0f, 0.0f, 1.0f});
-        /*auto view = glm::lookAt(this->lightPos, this->center, glm::vec3{0.0f, 0.0f, 1.0f});*/
         glm::mat4 projection = createProjectionFromFrustumCorner(c, view, &MinZ);
         mScenes.emplace_back(Scene{projection, glm::mat4{1.0}, view});
     }
@@ -340,7 +337,9 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
                 .setSize(sizeof(Scene))
                 .setMappedAtCraetion()
                 .create(mApp);
-
+            if (which >= mScenes.size()) {
+                continue;
+            };
             mScenes[which].model = model->getTranformMatrix();
             mBindingData[0].buffer = modelUniformBuffer.getBuffer();
             mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
