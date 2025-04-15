@@ -21,6 +21,7 @@
 #include "imgui/backends/imgui_impl_wgpu.h"
 #include "imgui/imgui.h"
 #include "instance.h"
+#include "pipeline.h"
 #include "point_light.h"
 #include "shapes.h"
 #include "texture.h"
@@ -39,6 +40,7 @@ static float zfar = 100.0f;
 static bool which_frustum = false;
 static float middle_plane_length = 10.0f;
 static float far_plane_length = 100.0f;
+extern bool should;
 
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
     const auto inv = glm::inverse(proj * view);
@@ -75,6 +77,15 @@ void Application::initializePipeline() {
 #endif
 
     initDepthBuffer();
+
+    mLightViewSceneTexture = new Texture{
+        mRendererResource.device,
+        1920,
+        1022,
+        TextureDimension::TEX_2D,
+        WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
+    };
+    mLightViewSceneTexture->createView();
 
     Texture grass_texture = Texture{mRendererResource.device, RESOURCE_DIR "/forrest_ground_diff.jpg"};
     grass_texture.createView();
@@ -179,6 +190,9 @@ void Application::initializePipeline() {
 
     mPipeline = new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1]}};
     mPipeline->defaultConfiguration(this, mSurfaceFormat).createPipeline(this);
+
+    /*mPipeline2 = new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1]}};*/
+    /*mPipeline2->defaultConfiguration(this, WGPUTextureFormat_RGBA8Unorm).createPipeline(this);*/
 
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
@@ -863,61 +877,35 @@ void Application::mainLoop() {
         mUniforms.modelMatrix = all_scene.model;
     }
 
-    /*glm::vec3 far_left = mShadowPass->mFar[1];*/
-    /*glm::vec3 far_right = mShadowPass->mFar[5];*/
-    /*float right_z = Terrain::perlin(far_right.x + 50, far_right.y + 50.0f);*/
-    /*float left_z = Terrain::perlin(far_left.x + 50, far_left.y + 50.0f);*/
-    /*far_left.z = left_z;*/
-    /*far_right.z = right_z;*/
-    /*sphere.moveTo(far_left);*/
-    /*sphere1.moveTo(mShadowPass->mFar[3]);*/
-    /*sphere2.moveTo(far_right);*/
-    /*sphere3.moveTo(mShadowPass->mFar[7]);*/
-
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),
-                         &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, viewMatrix),
-                         &mUniforms.viewMatrix, sizeof(MyUniform::viewMatrix));
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, time), &mUniforms.time,
-                         sizeof(MyUniform::time));
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, cameraWorldPosition),
-                         &mCamera.getPos(), sizeof(MyUniform::cameraWorldPosition));
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, sizeof(MyUniform));
+    /*wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, viewMatrix),*/
+    /*                     &mUniforms.viewMatrix, sizeof(MyUniform::viewMatrix));*/
+    /*wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, time), &mUniforms.time,*/
+    /*                     sizeof(MyUniform::time));*/
+    /*wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, cameraWorldPosition),*/
+    /*                     &mCamera.getPos(), sizeof(MyUniform::cameraWorldPosition));*/
 
     //-------------- End of shadow pass
 
     // ---------------- 2 - begining of the opaque object color pass ---------------
-    WGPURenderPassDescriptor render_pass_descriptor = {};
-    render_pass_descriptor.nextInChain = nullptr;
 
-    WGPURenderPassColorAttachment render_pass_color_attachment = {};
-    render_pass_color_attachment.view = target_view;
-    render_pass_color_attachment.resolveTarget = nullptr;
-    render_pass_color_attachment.loadOp = WGPULoadOp_Clear;
-    render_pass_color_attachment.storeOp = WGPUStoreOp_Store;
-    render_pass_color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
-#ifndef WEBGPU_BACKEND_WGPU
-    render_pass_color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-#endif  // NOT WEBGPU_BACKEND_WGPU
+    /*auto light_pass_descriptor =*/
+    /*    createRenderPassDescriptor(mLightViewSceneTexture->getTextureView(), mDepthTextureView);*/
+    /*WGPURenderPassEncoder light_space_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &light_pass_descriptor);*/
+    /**/
+    /*wgpuRenderPassEncoderSetPipeline(light_space_encoder, mPipeline2->getPipeline());*/
+    /*for (const auto& model : mLoadedModel) {*/
+    /*    if (!model->isTransparent()) {*/
+    /*        model->draw(this, light_space_encoder, mBindingData);*/
+    /*    }*/
+    /*}*/
+    /**/
+    /*terrain.draw(this, light_space_encoder, mBindingData);*/
+    /*wgpuRenderPassEncoderEnd(light_space_encoder);*/
+    /*wgpuRenderPassEncoderRelease(light_space_encoder);*/
 
-    render_pass_descriptor.colorAttachmentCount = 1;
-    render_pass_descriptor.colorAttachments = &render_pass_color_attachment;
-
-    WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
-    depth_stencil_attachment.view = mDepthTextureView;
-    depth_stencil_attachment.depthClearValue = 1.0f;
-    depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
-    depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
-    depth_stencil_attachment.depthReadOnly = false;
-
-    depth_stencil_attachment.stencilClearValue = 0;
-    depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Clear;
-    depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
-    depth_stencil_attachment.stencilReadOnly = true;
-
-    render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
-    render_pass_descriptor.timestampWrites = nullptr;
-    (void)render_pass_descriptor;
-
+    // ------------------------------------
+    auto render_pass_descriptor = createRenderPassDescriptor(target_view, mDepthTextureView);
     WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
 
     glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mUniforms.viewMatrix));
@@ -925,24 +913,7 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mSkybox->getPipeline()->getPipeline());
     mSkybox->draw(this, render_pass_encoder, mvp);
 
-    /*std::cout << "Checkpoint 6\n";*/
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
-
-    /*for (const auto& model : mLoadedModel) {*/
-    /*    if (model->getName() != "tower"){*/
-    /*   	continue;*/
-    /*    }*/
-    /*auto [in_world_min, in_world_max] = tower_model.getWorldMin();*/
-    /*if (frustum.AABBTest(in_world_min, in_world_max)) {*/
-    /*model->selected(true);*/
-    /*std::cout << "Tower model is culled\n";*/
-    /*      } else {*/
-    /*model->selected(false);*/
-    /*std::cout << "Tower model is not culled";*/
-    /*      }*/
-    /*}*/
-    // Drawing opaque objects in the world60 * Camera::PI / 180, ratio, 0.01f, 1000.0f
-    /*frustum.createFrustumFromCamera(mCamera, 1920.0 / 1080.0, fov, znear, zfar);*/
     for (const auto& model : mLoadedModel) {
         /*auto [in_world_min, in_world_max] = model->getWorldMin();*/
         if (!model->isTransparent() /*&& frustum.AABBTest(in_world_min, in_world_max)*/) {
@@ -960,32 +931,32 @@ void Application::mainLoop() {
     // ------------ 3- Transparent pass
     // Calculate the Accumulation Buffer from the transparent object, this pass does not draw
     // on the render Target
-    auto transparency_pass_desc = mTransparencyPass->getRenderPassDescriptor();
-    mTransparencyPass->mRenderPassDepthStencilAttachment.view = mDepthTextureView;
-    WGPURenderPassEncoder transparency_pass_encoder =
-        wgpuCommandEncoderBeginRenderPass(encoder, transparency_pass_desc);
-    wgpuRenderPassEncoderSetPipeline(transparency_pass_encoder, mTransparencyPass->getPipeline()->getPipeline());
+    /*auto transparency_pass_desc = mTransparencyPass->getRenderPassDescriptor();*/
+    /*mTransparencyPass->mRenderPassDepthStencilAttachment.view = mDepthTextureView;*/
+    /*WGPURenderPassEncoder transparency_pass_encoder =*/
+    /*    wgpuCommandEncoderBeginRenderPass(encoder, transparency_pass_desc);*/
+    /*wgpuRenderPassEncoderSetPipeline(transparency_pass_encoder, mTransparencyPass->getPipeline()->getPipeline());*/
 
     /*mShadowPass->setupScene({1.0f, 1.0f, 4.0f});*/
     /*mTransparencyPass->render(mLoadedModel, transparency_pass_encoder, mDepthTextureView);*/
 
-    wgpuRenderPassEncoderEnd(transparency_pass_encoder);
-    wgpuRenderPassEncoderRelease(transparency_pass_encoder);
+    /*wgpuRenderPassEncoderEnd(transparency_pass_encoder);*/
+    /*wgpuRenderPassEncoderRelease(transparency_pass_encoder);*/
 
     // ------------ 4- Composition pass
     // In this pass we will compose the result from opaque pass and the transparent pass
-    auto ssbo_buffers = mTransparencyPass->getSSBOBuffers();
-    mCompositionPass->setSSBOBuffers(ssbo_buffers.first, ssbo_buffers.second);
-    mCompositionPass->mRenderPassDepthStencilAttachment.view = mDepthTextureView;
-    mCompositionPass->mRenderPassColorAttachment.view = target_view;
-    auto composition_pass_desc = mCompositionPass->getRenderPassDescriptor();
-    WGPURenderPassEncoder composition_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, composition_pass_desc);
-    wgpuRenderPassEncoderSetPipeline(composition_pass_encoder, mCompositionPass->getPipeline()->getPipeline());
+    /*auto ssbo_buffers = mTransparencyPass->getSSBOBuffers();*/
+    /*mCompositionPass->setSSBOBuffers(ssbo_buffers.first, ssbo_buffers.second);*/
+    /*mCompositionPass->mRenderPassDepthStencilAttachment.view = mDepthTextureView;*/
+    /*mCompositionPass->mRenderPassColorAttachment.view = target_view;*/
+    /*auto composition_pass_desc = mCompositionPass->getRenderPassDescriptor();*/
+    /*WGPURenderPassEncoder composition_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, composition_pass_desc);*/
+    /*wgpuRenderPassEncoderSetPipeline(composition_pass_encoder, mCompositionPass->getPipeline()->getPipeline());*/
 
     /*mCompositionPass->render(mLoadedModel, composition_pass_encoder, &render_pass_color_attachment);*/
 
-    wgpuRenderPassEncoderEnd(composition_pass_encoder);
-    wgpuRenderPassEncoderRelease(composition_pass_encoder);
+    /*wgpuRenderPassEncoderEnd(composition_pass_encoder);*/
+    /*wgpuRenderPassEncoderRelease(composition_pass_encoder);*/
 
     WGPUCommandBufferDescriptor command_buffer_descriptor = {};
     command_buffer_descriptor.nextInChain = nullptr;
@@ -1015,6 +986,7 @@ void Application::terminate() {
     terminateGui();
 
     wgpuRenderPipelineRelease(mPipeline->getPipeline());
+    wgpuRenderPipelineRelease(mPipeline2->getPipeline());
     wgpuSurfaceUnconfigure(mRendererResource.surface);
     wgpuQueueRelease(mRendererResource.queue);
     wgpuSurfaceRelease(mRendererResource.surface);
@@ -1148,8 +1120,8 @@ void Application::updateProjectionMatrix() {
     mCamera.setProjection(mUniforms.projectMatrix);
     /*frustum_projection = mUniforms.projectMatrix;*/
 
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),
-                         &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));
+    /*wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),*/
+    /*                     &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));*/
 }
 
 void Application::onMouseMove(double xpos, double ypos) {
@@ -1321,8 +1293,11 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
     static glm::vec3 pointlightshadow = glm::vec3{5.6f, -2.1f, 6.0f};
     ImGui::Begin("Lighting");
-    ImGui::ColorEdit3("Color #0", glm::value_ptr(mLightingUniforms.colors[0]));
-    ImGui::DragFloat3("Direction #0", glm::value_ptr(mLightingUniforms.directions[0]), 0.1, -1.0, 1.0);
+    if (ImGui::ColorEdit3("Color #0", glm::value_ptr(mLightingUniforms.colors[0])) ||
+        ImGui::DragFloat3("Direction #0", glm::value_ptr(mLightingUniforms.directions[0]), 0.1, -1.0, 1.0)) {
+        wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
+                             sizeof(LightingUniforms));
+    }
     // ImGui::ColorEdit3("Color #1", glm::value_ptr(mLightingUniforms.colors[1]));
     ImGui::DragFloat3("sun pos direction", glm::value_ptr(pointlightshadow), 0.1, -10.0, 10.0);
     static glm::vec3 new_ligth_position = {};
@@ -1382,14 +1357,15 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         color2.z += color.x;
         std::vector<glm::vec2> lines = {{0, 1}, {2, 3}, {6, 7}, {4, 5}, {0, 4}, {2, 6},
                                         {0, 2}, {4, 6}, {1, 5}, {1, 3}, {5, 7}, {3, 7}};
-        for (const auto& l : lines) {
-            Line* line = new Line{this, mShadowPass->mFar[l.x], mShadowPass->mFar[l.y], 0.5, color};
-            line->setTransparent(false);
-            mLoadedModel.push_back(line);
-            Line* line2 = new Line{this, mShadowPass->mNear[l.x], mShadowPass->mNear[l.y], 0.5, color2};
-            line2->setTransparent(false);
-            mLoadedModel.push_back(line2);
-        }
+        /*for (const auto& l : lines) {*/
+        /*    Line* line = new Line{this, mShadowPass->mFar[l.x], mShadowPass->mFar[l.y], 0.5, color};*/
+        /*    line->setTransparent(false);*/
+        /*    mLoadedModel.push_back(line);*/
+        /*    Line* line2 = new Line{this, mShadowPass->mNear[l.x], mShadowPass->mNear[l.y], 0.5, color2};*/
+        /*    line2->setTransparent(false);*/
+        /*    mLoadedModel.push_back(line2);*/
+        /*}*/
+	should = !should;
     }
     if (ImGui::Button("remove frustum", ImVec2(100, 30))) {
         for (int i = 0; i < 24; i++) {
@@ -1397,8 +1373,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         };
     }
     ImGui::End();
-    wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
-                         sizeof(LightingUniforms));
     mShadowPass->lightPos = pointlightshadow;
     /*mShadowPass->setupScene({1.0f, 1.0f, 4.0f});*/
 

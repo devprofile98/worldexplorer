@@ -21,6 +21,7 @@ WGPUTextureView Texture::createView() {
 
 Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension, WGPUTextureUsageFlags flags) {
     mDescriptor = {};
+    mDescriptor.label = "fuck you!";
     mDescriptor.nextInChain = nullptr;
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(dimension);
     mDescriptor.format = WGPUTextureFormat_RGBA8Unorm;

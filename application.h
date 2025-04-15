@@ -116,6 +116,7 @@ class Application {
         WGPUTextureFormat getTextureFormat();
         WGPUSampler getDefaultSampler();
         // textures
+	Texture* mLightViewSceneTexture = nullptr;
         Texture* mDefaultDiffuse = nullptr;
         Texture* mDefaultMetallicRoughness = nullptr;
         std::pair<size_t, size_t> getWindowSize();
@@ -131,6 +132,7 @@ class Application {
         LightingUniforms mLightingUniforms;
         LightManager* mLightManager;
         Pipeline* mPipeline;
+        Pipeline* mPipeline2;
         Cube* shapes;
         Plane* plane;
         /*Line* line;*/

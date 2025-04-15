@@ -11,6 +11,8 @@
 #include "model.h"
 #include "webgpu.h"
 
+bool should = false;
+
 ShadowPass::ShadowPass(Application* app) { mApp = app; }
 
 void ShadowPass::createRenderPassDescriptor2() {
@@ -221,7 +223,7 @@ void ShadowPass::createRenderPass() {
 }
 
 glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corners, const glm::mat4& lightView,
-                                            float* mm) {
+                                            float* mm, const char* name) {
     float minX = std::numeric_limits<float>::max();
     float maxX = std::numeric_limits<float>::lowest();
     float minY = std::numeric_limits<float>::max();
@@ -239,17 +241,22 @@ glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corner
     }
     /*std::cout << "minZ: " << minZ << "  maxZ: " << maxZ << std::endl;*/
 
-    /*constexpr float zMult = 2.0f;*/
-    /*if (minZ < 0) {*/
-    /*    minZ *= zMult;*/
-    /*} else {*/
-    /*    minZ /= zMult;*/
-    /*}*/
-    /*if (maxZ < 0) {*/
-    /*    maxZ /= zMult;*/
-    /*} else {*/
-    /*    maxZ *= zMult;*/
-    /*}*/
+    constexpr float zMult = 2.0f;
+    if (minZ < 0) {
+        minZ *= zMult;
+    } else {
+        minZ /= zMult;
+    }
+    if (maxZ < 0) {
+        maxZ /= zMult;
+    } else {
+        maxZ *= zMult;
+    }
+    if (should) {
+        maxZ += 10;
+        minZ -= 10;
+    }
+    std::cout << name << "  " << maxZ << "  " << minZ << '\n';
 
     *mm = minZ;
     return glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
@@ -304,6 +311,7 @@ std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corne
 
     /*size_t counter = 0;*/
     auto all_corners = {mNear, mFar};
+    bool fff = false;
     for (const auto& c : all_corners) {
         glm::vec3 cent = glm::vec3(0, 0, 0);
         for (const auto& v : c) {
@@ -316,7 +324,8 @@ std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corne
         glm::vec3 lightPosition = this->center - lightDirection * 2.0f;  // Push light back
 
         auto view = glm::lookAt(lightPosition, this->center, glm::vec3{0.0f, 0.0f, 1.0f});
-        glm::mat4 projection = createProjectionFromFrustumCorner(c, view, &MinZ);
+        glm::mat4 projection = createProjectionFromFrustumCorner(c, view, &MinZ, !fff ? "Near" : "Far");
+        fff = !fff;
         mScenes.emplace_back(Scene{projection, glm::mat4{1.0}, view});
     }
     return mScenes;

@@ -292,9 +292,6 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
                                              wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
 
         wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
-        /*if (getName() == "car") {*/
-        /*    mObjectInfo.useTexture = 1;*/
-        /*}*/
 
         wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
                              sizeof(ObjectInfo));

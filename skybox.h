@@ -19,6 +19,7 @@ class SkyBox {
 
     private:
         Pipeline* mRenderPipeline;
+
         BindingGroup mBindingGroup;
         std::vector<WGPUBindGroupEntry> mBindingData{5};
         WGPUBuffer mMatrixBuffer;

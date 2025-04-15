@@ -9,6 +9,7 @@
 
 class Application;
 
+WGPURenderPassDescriptor createRenderPassDescriptor(WGPUTextureView colorAttachment, WGPUTextureView depthTextureView);
 class Pipeline {
     public:
         Pipeline(Application* app, std::vector<WGPUBindGroupLayout> bindGroupLayout);
@@ -21,7 +22,7 @@ class Pipeline {
         WGPURenderPipeline getPipeline();
         WGPURenderPipelineDescriptor getDescriptor();
         WGPURenderPipelineDescriptor* getDescriptorPtr();
-	WGPUVertexBufferLayout getDefaultVertexBufferLayout();
+        WGPUVertexBufferLayout getDefaultVertexBufferLayout();
         // Setter
         Pipeline& setShader(const std::filesystem::path& path);
         Pipeline& setVertexBufferLayout(WGPUVertexBufferLayout layout);
