@@ -110,16 +110,19 @@ fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
-    var world_position: vec4f;
+    //var world_position: vec4f;
     let off_id: u32 = objectTranformation.offsetId * 100000;
-    if instance_index == 0 {
-        world_position = objectTranformation.transformations * vec4f(in.position, 1.0);
-        out.normal = (objectTranformation.transformations * vec4(in.normal, 0.0)).xyz;
+    //let is_primary = f32(instance_index == 0);
+    var transform: mat4x4f;
+    if instance_index != 0 {
+        transform = offsetInstance[instance_index + off_id].transformation;
     } else {
-        world_position = offsetInstance[instance_index + off_id].transformation * vec4f(in.position, 1.0);
-        out.normal = (offsetInstance[instance_index + off_id].transformation * vec4(in.normal, 0.0)).xyz;
+        transform = objectTranformation.transformations;
     }
-    //let world_position = offsetInstance[instance_index].transformation * vec4f(in.position, 1.0);
+
+    let world_position = transform * vec4f(in.position, 1.0);
+    out.normal = (transform * vec4f(in.normal, 1.0)).xyz;
+
     out.viewSpacePos = uMyUniform.viewMatrix * world_position;
     out.position = uMyUniform.projectionMatrix * out.viewSpacePos;
     out.worldPos = world_position.xyz;
@@ -133,7 +136,6 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     //out.shadowPos = shadow_position;
     return out;
 }
-
 
 fn calculateShadow(fragPosLightSpace: vec4f, distance: f32) -> f32 {
 
@@ -161,7 +163,6 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32) -> f32 {
 }
 
 fn calculateTerrainColor(level: f32, uv: vec2f) -> vec3f {
-
     var color = vec3f(0.0f);
     if level == 1 {
         color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
@@ -189,7 +190,6 @@ fn calculateTerrainColor(level: f32, uv: vec2f) -> vec3f {
     }
     return color;
 }
-
 
 fn calculatePointLight(curr_light: PointLight, normal: vec3f, dir: vec3f) -> vec3f {
     let distance = length(dir);
