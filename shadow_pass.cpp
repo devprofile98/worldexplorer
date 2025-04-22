@@ -224,6 +224,7 @@ void ShadowPass::createRenderPass() {
 
 glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corners, const glm::mat4& lightView,
                                             float* mm, const char* name) {
+    (void)name;
     float minX = std::numeric_limits<float>::max();
     float maxX = std::numeric_limits<float>::lowest();
     float minY = std::numeric_limits<float>::max();
@@ -241,7 +242,7 @@ glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corner
     }
     /*std::cout << "minZ: " << minZ << "  maxZ: " << maxZ << std::endl;*/
 
-    constexpr float zMult = 2.0f;
+    constexpr float zMult = 10.0f;
     if (minZ < 0) {
         minZ *= zMult;
     } else {
@@ -252,18 +253,19 @@ glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corner
     } else {
         maxZ *= zMult;
     }
-    if (should) {
-        maxZ += 10;
-        minZ -= 10;
-    }
+    /*if (should) {*/
+        /*maxZ += 10;*/
+        /*minZ -= 10;*/
+    /*}*/
     std::cout << name << "  " << maxZ << "  " << minZ << '\n';
 
     *mm = minZ;
     return glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 }
 
-std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corners, float length, float far_length) {
-    /*length = 10.0f;*/
+std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corners, float length, float far_length,
+                                                   float distance) {
+    (void)distance;
     auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * length);
     auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * length);
     auto middle2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * length);
@@ -285,11 +287,6 @@ std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corne
     mNear[5] = middle2;
     mNear[7] = middle3;
 
-    /*std::cout << "Near: ";*/
-    /*for (const auto& e : mNear) {*/
-    /*    std::cout << glm::to_string(e) << " - ";*/
-    /*}*/
-    /*std::cout << std::endl;*/
     // far
     mFar[0] = middle0;
     mFar[2] = middle1;
@@ -301,16 +298,10 @@ std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corne
     mFar[5] = Far2;
     mFar[7] = Far3;
 
-    /*std::cout << "Far: ";*/
-    /*for (const auto& e : mFar) {*/
-    /*    std::cout << glm::to_string(e) << " - ";*/
-    /*}*/
-    /*std::cout << std::endl;*/
-
     mScenes.clear();
 
-    /*size_t counter = 0;*/
     auto all_corners = {mNear, mFar};
+
     bool fff = false;
     for (const auto& c : all_corners) {
         glm::vec3 cent = glm::vec3(0, 0, 0);
@@ -321,9 +312,11 @@ std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corne
 
         this->center = cent;
         glm::vec3 lightDirection = glm::normalize(-this->lightPos);
-        glm::vec3 lightPosition = this->center - lightDirection * 2.0f;  // Push light back
+        glm::vec3 lightPosition = this->center - lightDirection * (!fff ? 4.0f : 25.0f);  // Push light back
 
         auto view = glm::lookAt(lightPosition, this->center, glm::vec3{0.0f, 0.0f, 1.0f});
+        /*std::cout << (!fff ? "Near" : "Far") << " is "*/
+        /*          << (!fff ? glm::length(mNear[0] - mNear[7]) : glm::length(mFar[0] - mFar[7])) << '\n';*/
         glm::mat4 projection = createProjectionFromFrustumCorner(c, view, &MinZ, !fff ? "Near" : "Far");
         fff = !fff;
         mScenes.emplace_back(Scene{projection, glm::mat4{1.0}, view});

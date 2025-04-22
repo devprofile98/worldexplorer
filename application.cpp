@@ -40,6 +40,7 @@ static float zfar = 100.0f;
 static bool which_frustum = false;
 static float middle_plane_length = 10.0f;
 static float far_plane_length = 100.0f;
+static float ddistance = 2.0f;
 extern bool should;
 
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
@@ -792,8 +793,10 @@ bool Application::initialize() {
     boat_model.moveTo({-10.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel = {&boat_model, &tower_model, &desk_model,   &arrow_model, &sphere, &sphere1, &sphere2, &sphere3,
-                    &sphere4,    &grass_model, &grass2_model, &tree_model,  &car,    &water,   shapes,   plane};
+    mLoadedModel = {
+        &boat_model, &tower_model, &desk_model,  &arrow_model,  &sphere,     &sphere1, &sphere2,
+        &sphere3,    &sphere4,     &grass_model, &grass2_model, &tree_model, &car,     /* &water,, */ shapes,
+        plane};
 
     return true;
 }
@@ -843,7 +846,7 @@ void Application::mainLoop() {
 
     if (!look_as_light) {
         auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
-        auto all_scenes = mShadowPass->createFrustumSplits(corners, middle_plane_length, far_plane_length);
+        auto all_scenes = mShadowPass->createFrustumSplits(corners, middle_plane_length, far_plane_length, ddistance);
 
         frustum.createFrustumPlanesFromCorner(corners);
         wgpuQueueWriteBuffer(mRendererResource.queue, mLightSpaceTransformation.getBuffer(), 0, all_scenes.data(),
@@ -950,7 +953,8 @@ void Application::mainLoop() {
     /*mCompositionPass->mRenderPassDepthStencilAttachment.view = mDepthTextureView;*/
     /*mCompositionPass->mRenderPassColorAttachment.view = target_view;*/
     /*auto composition_pass_desc = mCompositionPass->getRenderPassDescriptor();*/
-    /*WGPURenderPassEncoder composition_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, composition_pass_desc);*/
+    /*WGPURenderPassEncoder composition_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder,
+     * composition_pass_desc);*/
     /*wgpuRenderPassEncoderSetPipeline(composition_pass_encoder, mCompositionPass->getPipeline()->getPipeline());*/
 
     /*mCompositionPass->render(mLoadedModel, composition_pass_encoder, &render_pass_color_attachment);*/
@@ -1365,13 +1369,14 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         /*    line2->setTransparent(false);*/
         /*    mLoadedModel.push_back(line2);*/
         /*}*/
-	should = !should;
+        should = !should;
     }
     if (ImGui::Button("remove frustum", ImVec2(100, 30))) {
         for (int i = 0; i < 24; i++) {
             mLoadedModel.pop_back();
         };
     }
+    ImGui::SliderFloat("distance", &ddistance, 0.0, 10.0);
     ImGui::End();
     mShadowPass->lightPos = pointlightshadow;
     /*mShadowPass->setupScene({1.0f, 1.0f, 4.0f});*/
