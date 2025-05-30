@@ -93,6 +93,7 @@ class Application {
         Model sphere2{};
         Model sphere3{};
         Model sphere4{};
+        Model jet{};
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();
 

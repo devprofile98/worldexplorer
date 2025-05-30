@@ -1,5 +1,6 @@
 #include "shadow_pass.h"
 
+#include <cstring>
 #include <format>
 
 #include "application.h"
@@ -223,8 +224,9 @@ void ShadowPass::createRenderPass() {
 }
 
 glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corners, const glm::mat4& lightView,
-                                            float* mm, const char* name) {
+                                            float* mm, const char* name, float dis) {
     (void)name;
+    (void)dis;
     float minX = std::numeric_limits<float>::max();
     float maxX = std::numeric_limits<float>::lowest();
     float minY = std::numeric_limits<float>::max();
@@ -240,31 +242,31 @@ glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corner
         minZ = std::min(minZ, trf.z);
         maxZ = std::max(maxZ, trf.z);
     }
-    /*std::cout << "minZ: " << minZ << "  maxZ: " << maxZ << std::endl;*/
 
-    constexpr float zMult = 10.0f;
-    if (minZ < 0) {
-        minZ *= zMult;
-    } else {
-        minZ /= zMult;
-    }
-    if (maxZ < 0) {
-        maxZ /= zMult;
-    } else {
-        maxZ *= zMult;
-    }
-    /*if (should) {*/
-        /*maxZ += 10;*/
-        /*minZ -= 10;*/
+    /*constexpr float zMult = 10.0f;*/
+    /*if (minZ < 0) {*/
+    /*    minZ *= zMult;*/
+    /*} else {*/
+    /*    minZ /= zMult;*/
     /*}*/
-    std::cout << name << "  " << maxZ << "  " << minZ << '\n';
+    /*if (maxZ < 0) {*/
+    /*    maxZ /= zMult;*/
+    /*} else {*/
+    /*    maxZ *= zMult;*/
+    /*}*/
+    /*if (should) {*/
+    maxZ += 20.0f;
+    minZ -= 20.0f;
+    /*if (std::strcmp(name, "Near") == 0) {*/
+    /*    std::cout << name << " minZ: " << minZ << "  maxZ: " << maxZ << std::endl;*/
+    /*}*/
 
     *mm = minZ;
     return glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 }
 
 std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corners, float length, float far_length,
-                                                   float distance) {
+                                                   float distance, float dd) {
     (void)distance;
     auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * length);
     auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * length);
@@ -302,6 +304,7 @@ std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corne
 
     auto all_corners = {mNear, mFar};
 
+    (void)dd;
     bool fff = false;
     for (const auto& c : all_corners) {
         glm::vec3 cent = glm::vec3(0, 0, 0);
@@ -312,12 +315,14 @@ std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corne
 
         this->center = cent;
         glm::vec3 lightDirection = glm::normalize(-this->lightPos);
-        glm::vec3 lightPosition = this->center - lightDirection * (!fff ? 4.0f : 25.0f);  // Push light back
+        glm::vec3 lightPosition =
+            this->center - lightDirection * (!fff ? glm::length(mNear[0] - mNear[7]) / 5.0f
+                                                  : glm::length(mFar[0] - mFar[7]) / 5.0f);  // Push light back
 
         auto view = glm::lookAt(lightPosition, this->center, glm::vec3{0.0f, 0.0f, 1.0f});
         /*std::cout << (!fff ? "Near" : "Far") << " is "*/
         /*          << (!fff ? glm::length(mNear[0] - mNear[7]) : glm::length(mFar[0] - mFar[7])) << '\n';*/
-        glm::mat4 projection = createProjectionFromFrustumCorner(c, view, &MinZ, !fff ? "Near" : "Far");
+        glm::mat4 projection = createProjectionFromFrustumCorner(c, view, &MinZ, !fff ? "Near" : "Far", distance);
         fff = !fff;
         mScenes.emplace_back(Scene{projection, glm::mat4{1.0}, view});
     }
@@ -347,7 +352,7 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
             mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
             mBindingData[2].buffer = model->getUniformBuffer().getBuffer();
             if (mesh.mTexture != nullptr && mesh.mTexture->getTextureView() != nullptr) {
-                mBindingData[3].textureView = model->getDiffuseTexture()->getTextureView();
+                mBindingData[3].textureView = mesh.mTexture->getTextureView();
             } else {
                 mBindingData[3].textureView = mApp->mDefaultDiffuse->getTextureView();
             }

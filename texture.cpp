@@ -1,9 +1,13 @@
 #include "texture.h"
 
+#include <filesystem>
+#include <format>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 WGPUTextureView Texture::createView() {
+    std::cout << "failed here " << mIsTextureAlive << std::endl;
     if (mIsTextureAlive) {
         WGPUTextureViewDescriptor texture_view_desc = {};
         texture_view_desc.aspect = WGPUTextureAspect_All;
@@ -19,9 +23,10 @@ WGPUTextureView Texture::createView() {
     return nullptr;
 }
 
-Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension, WGPUTextureUsageFlags flags) {
+Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
+                 WGPUTextureUsageFlags flags) {
     mDescriptor = {};
-    mDescriptor.label = "fuck you!";
+    mDescriptor.label = "texture label";
     mDescriptor.nextInChain = nullptr;
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(dimension);
     mDescriptor.format = WGPUTextureFormat_RGBA8Unorm;
@@ -37,15 +42,18 @@ Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, Texture
 }
 
 Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path) {
-    std::cout << "Loading texture " << path.c_str() << std::endl;
     int width, height, channels;
+    width = height = channels = 0;
     unsigned char* pixel_data = stbi_load(path.string().c_str(), &width, &height, &channels, 0);
 
     // If data is null, loading failed.
+    std::cout << std::format("Loading texture at {}({}*{}) at address {} because {}", std::filesystem::absolute(path).c_str(),
+                             width, height, static_cast<void*>(pixel_data), stbi_failure_reason());
     if (nullptr == pixel_data) return;
 
     mDescriptor = {};
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
+    mDescriptor.label = path.c_str();
     // by convention for bmp, png and jpg file. Be careful with other formats.
     mDescriptor.format = WGPUTextureFormat_RGBA8Unorm;
     mDescriptor.mipLevelCount = 11;
@@ -63,9 +71,9 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path) {
     mHasAlphaChannel = (channels == 4);
     // Copy pixel data into mBufferData
     for (size_t i = 0, j = 0; i < (size_t)width * height * channels; i += channels, j += 4) {
-        mBufferData[j] = pixel_data[i];                                  // Red
-        mBufferData[j + 1] = pixel_data[i + 1];                          // Green
-        mBufferData[j + 2] = pixel_data[i + 2];                          // Blue
+        mBufferData[j] = pixel_data[i];                                    // Red
+        mBufferData[j + 1] = pixel_data[i + 1];                            // Green
+        mBufferData[j + 2] = pixel_data[i + 2];                            // Blue
         mBufferData[j + 3] = (channels == 4) ? pixel_data[i + 3] : 255.0;  // Alpha (default to 255 if no alpha channel)
     }
 

@@ -41,6 +41,7 @@ static bool which_frustum = false;
 static float middle_plane_length = 10.0f;
 static float far_plane_length = 100.0f;
 static float ddistance = 2.0f;
+static float dd = 5.0f;
 extern bool should;
 
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
@@ -495,7 +496,13 @@ void Application::initializeBuffers() {
     water.setTransparent(false);
     water.useTexture(false);
 
-    terrain.generate(100, 8, output).uploadToGpu(this);
+    jet.load("jet", this, RESOURCE_DIR "/old_jet.obj", mBindGroupLayouts[1]).moveTo(glm::vec3{1.725, 2.640, 3.425});
+    /*.scale(glm::vec3{30.0, 30.0, 1.0});*/
+    jet.uploadToGPU(this);
+    jet.setTransparent(false);
+    jet.useTexture(false);
+
+    terrain.generate(200, 8, output).uploadToGpu(this);
     std::cout << "Generate is " << output.size() << '\n';
 
     shapes = new Cube{this};
@@ -793,10 +800,9 @@ bool Application::initialize() {
     boat_model.moveTo({-10.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel = {
-        &boat_model, &tower_model, &desk_model,  &arrow_model,  &sphere,     &sphere1, &sphere2,
-        &sphere3,    &sphere4,     &grass_model, &grass2_model, &tree_model, &car,     /* &water,, */ shapes,
-        plane};
+    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model,          &sphere,       &sphere1,
+                    &sphere2,    &sphere3,     &sphere4,    &grass_model,          &grass2_model,
+                    &jet,        &tree_model,  &car,        /* &water,, */ shapes, plane};
 
     return true;
 }
@@ -823,7 +829,9 @@ void Application::mainLoop() {
     }
 
     /*float time = glfwGetTime();*/
-    wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &middle_plane_length, sizeof(float));
+    float new_value = middle_plane_length;
+    /*std::cout << "value is " << new_value << std::endl;*/
+    wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &new_value, sizeof(float));
 
     /*auto first_corner = getFrustumCornersWorldSpace(frustum_projection, mUniforms.viewMatrix);*/
     // create a commnad encoder
@@ -846,7 +854,8 @@ void Application::mainLoop() {
 
     if (!look_as_light) {
         auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
-        auto all_scenes = mShadowPass->createFrustumSplits(corners, middle_plane_length, far_plane_length, ddistance);
+        auto all_scenes =
+            mShadowPass->createFrustumSplits(corners, middle_plane_length, far_plane_length, ddistance, dd);
 
         frustum.createFrustumPlanesFromCorner(corners);
         wgpuQueueWriteBuffer(mRendererResource.queue, mLightSpaceTransformation.getBuffer(), 0, all_scenes.data(),
@@ -1041,8 +1050,8 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     required_limits.limits.maxUniformBuffersPerShaderStage = 6;
     required_limits.limits.maxUniformBufferBindingSize = 2048;  // 16 * 4 * sizeof(float);
 
-    required_limits.limits.maxTextureDimension1D = 2048;
-    required_limits.limits.maxTextureDimension2D = 2048;
+    required_limits.limits.maxTextureDimension1D = 4096;
+    required_limits.limits.maxTextureDimension2D = 4096;
     required_limits.limits.maxTextureArrayLayers = 6;
     required_limits.limits.maxSamplersPerShaderStage = 2;
 
@@ -1376,7 +1385,8 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
             mLoadedModel.pop_back();
         };
     }
-    ImGui::SliderFloat("distance", &ddistance, 0.0, 10.0);
+    ImGui::SliderFloat("distance", &ddistance, 0.0, 30.0);
+    ImGui::SliderFloat("dd", &dd, 0.0, 120.0);
     ImGui::End();
     mShadowPass->lightPos = pointlightshadow;
     /*mShadowPass->setupScene({1.0f, 1.0f, 4.0f});*/

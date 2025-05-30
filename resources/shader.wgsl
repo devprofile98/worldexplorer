@@ -229,9 +229,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let hardness = 16.0;
     let specular = pow(RoV, hardness) ;
     let intensity = dot(direction, normal);
-    var min_intensity = 0.3;
-    if objectTranformation.isFoliage == 1 {
-        min_intensity = 0.6;
+    var min_intensity = 0.6;
+    if objectTranformation.isFoliage != 1 {
+        min_intensity = 0.3;
     }
     let diffuse = max(min_intensity, intensity) * color;
     shading += diffuse + vec3f(0.1, 0.1, 0.15) ;
@@ -288,9 +288,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         col = col * (vec3f(1.0 + variation * 2.0, 0.0, 0.0));
     }
     //if length(in.viewSpacePos) > ElapsedTime {
-    //    return vec4f(vec3(1.0, 0.0, 0.5) * (1 - shadow * (0.75)), 1.0);
+    //    return vec4f((col + vec3(1.0, 0.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
     //}else{
-    //    return vec4f(vec3(0.0, 1.0, 0.5) * (1 - shadow * (0.75)), 1.0);
+    //    return vec4f((col + vec3(0.0, 1.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
     //}
     return vec4f(col * (1 - shadow * (0.75)), 1.0);
 }

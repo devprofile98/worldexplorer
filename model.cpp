@@ -142,7 +142,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
             texture_path += material.diffuse_texname;
             mesh.mTexture = new Texture{render_resource.device, texture_path};
             if (mesh.mTexture->createView() == nullptr) {
-                std::cout << std::format("Failed to create Diffuse Texture view for {}\n", mName);
+                std::cout << std::format("Failed to create Diffuse Texture view for {} at \n", mName, texture_path);
             }
             mesh.mTexture->uploadToGPU(render_resource.queue);
             mesh.isTransparent = mesh.mTexture->isTransparent();
