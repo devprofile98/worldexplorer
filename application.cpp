@@ -122,9 +122,8 @@ void Application::initializePipeline() {
     mBindingGroup.addBuffer(0,  //
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(MyUniform));
 
-    mBindingGroup.addTexture(1,  //
-                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-                             TextureViewDimension::VIEW_2D);
+    mBindingGroup.addBuffer(1,  //
+                            BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t));
 
     mBindingGroup.addSampler(2,  //
                              BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
@@ -136,8 +135,9 @@ void Application::initializePipeline() {
                             BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(Light) * 10);
 
     mBindingGroup.addTexture(5,  //
-                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
                              TextureViewDimension::VIEW_2D);
+
     mBindingGroup.addTexture(6,  //
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                              TextureViewDimension::VIEW_2D);
@@ -165,14 +165,18 @@ void Application::initializePipeline() {
     mBindingGroup.addBuffer(14,  //
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float));
 
-    mBindingGroup.addBuffer(15,  //
-                            BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t));
 
-    mBindingGroup.addTexture(16,  //
-                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
-                             TextureViewDimension::VIEW_2D);
+    mDefaultTextureBindingGroup.addTexture(0,  //
+                                           BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                                           TextureViewDimension::VIEW_2D);
+
+    mDefaultTextureBindingGroup.addTexture(1,  //
+                                           BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                                           TextureViewDimension::VIEW_2D);
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
+    WGPUBindGroupLayout texture_bind_group_layout =
+        mDefaultTextureBindingGroup.createLayout(this, "default texture bindgroup layout");
 
     WGPUBindGroupLayoutEntry object_transformation = {};
     setDefault(object_transformation);
@@ -189,12 +193,27 @@ void Application::initializePipeline() {
 
     mBindGroupLayouts[0] = bind_group_layout;
     mBindGroupLayouts[1] = wgpuDeviceCreateBindGroupLayout(mRendererResource.device, &bind_group_layout_descriptor1);
+    mBindGroupLayouts[2] = texture_bind_group_layout;
 
-    mPipeline = new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1]}};
+    mPipeline = new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2]}};
     mPipeline->defaultConfiguration(this, mSurfaceFormat).createPipeline(this);
 
     /*mPipeline2 = new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1]}};*/
     /*mPipeline2->defaultConfiguration(this, WGPUTextureFormat_RGBA8Unorm).createPipeline(this);*/
+
+    mDefaultTextureBindingData[0] = {};
+    mDefaultTextureBindingData[0].nextInChain = nullptr;
+    mDefaultTextureBindingData[0].binding = 0;
+    mDefaultTextureBindingData[0].textureView = default_diffuse_texture_view;
+
+    mDefaultTextureBindingData[1] = {};
+    mDefaultTextureBindingData[1].nextInChain = nullptr;
+    mDefaultTextureBindingData[1].binding = 1;
+    mDefaultTextureBindingData[1].textureView = default_metallic_roughness_texture_view;
+
+    mShadowPass = new ShadowPass{this};
+    mShadowPass->createRenderPass();
+    // mShadowPass->setupScene(glm::vec3{0.5, -0.9, 0.1});
 
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
@@ -202,9 +221,12 @@ void Application::initializePipeline() {
     mBindingData[0].offset = 0;
     mBindingData[0].size = sizeof(MyUniform);
 
+    mBindingData[1] = {};
     mBindingData[1].nextInChain = nullptr;
+    mBindingData[1].buffer = mLightManager->getCountBuffer().getBuffer();
     mBindingData[1].binding = 1;
-    mBindingData[1].textureView = default_diffuse_texture_view;
+    mBindingData[1].offset = 0;
+    mBindingData[1].size = sizeof(uint32_t);
 
     WGPUSamplerDescriptor samplerDesc = {};
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
@@ -237,7 +259,7 @@ void Application::initializePipeline() {
     mBindingData[5] = {};
     mBindingData[5].nextInChain = nullptr;
     mBindingData[5].binding = 5;
-    mBindingData[5].textureView = default_metallic_roughness_texture_view;
+    mBindingData[5].textureView = mShadowPass->getShadowMapView();
 
     mBindingData[6] = {};
     mBindingData[6].nextInChain = nullptr;
@@ -264,10 +286,6 @@ void Application::initializePipeline() {
 
     mCompositionPass = new CompositionPass{this};
     mCompositionPass->initializePass();
-
-    mShadowPass = new ShadowPass{this};
-    mShadowPass->createRenderPass();
-    // mShadowPass->setupScene(glm::vec3{0.5, -0.9, 0.1});
 
     mBindingData[10] = {};
     mBindingData[10].nextInChain = nullptr;
@@ -363,19 +381,8 @@ void Application::initializePipeline() {
     mBindingData[14].offset = 0;
     mBindingData[14].size = sizeof(float);
 
-    mBindingData[15] = {};
-    mBindingData[15].nextInChain = nullptr;
-    mBindingData[15].buffer = mLightManager->getCountBuffer().getBuffer();
-    mBindingData[15].binding = 15;
-    mBindingData[15].offset = 0;
-    mBindingData[15].size = sizeof(uint32_t);
-
-    mBindingData[16] = {};
-    mBindingData[16].nextInChain = nullptr;
-    mBindingData[16].binding = 16;
-    mBindingData[16].textureView = mShadowPass->getShadowMapView();
-
     mBindingGroup.create(this, mBindingData);
+    mDefaultTextureBindingGroup.create(this, mDefaultTextureBindingData);
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -491,7 +498,7 @@ void Application::initializeBuffers() {
 
     water.load("water", this, RESOURCE_DIR "/bluecube.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{-3.725, -7.640, -3.425})
-        .scale(glm::vec3{30.0, 30.0, 1.0});
+        .scale(glm::vec3{100.0, 100.0, 1.0});
     water.uploadToGPU(this);
     water.setTransparent(false);
     water.useTexture(false);
@@ -800,9 +807,15 @@ bool Application::initialize() {
     boat_model.moveTo({-10.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel = {&boat_model, &tower_model, &desk_model, &arrow_model,          &sphere,       &sphere1,
-                    &sphere2,    &sphere3,     &sphere4,    &grass_model,          &grass2_model,
-                    &jet,        &tree_model,  &car,        /* &water,, */ shapes, plane};
+    mLoadedModel =
+        {&boat_model, &tower_model, &desk_model,  &arrow_model,  &sphere, &sphere1,    &sphere2,
+         &sphere3,    &sphere4,     &grass_model, &grass2_model, &jet,    &tree_model, &car,
+         &water,/* ,  shapes,
+plane*/};
+
+    for (auto& model : mLoadedModel) {
+        static_cast<Model*>(model)->createSomeBinding(this, mDefaultTextureBindingData);
+    }
 
     return true;
 }
@@ -890,12 +903,6 @@ void Application::mainLoop() {
     }
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, sizeof(MyUniform));
-    /*wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, viewMatrix),*/
-    /*                     &mUniforms.viewMatrix, sizeof(MyUniform::viewMatrix));*/
-    /*wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, time), &mUniforms.time,*/
-    /*                     sizeof(MyUniform::time));*/
-    /*wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, cameraWorldPosition),*/
-    /*                     &mCamera.getPos(), sizeof(MyUniform::cameraWorldPosition));*/
 
     //-------------- End of shadow pass
 
@@ -926,6 +933,9 @@ void Application::mainLoop() {
     mSkybox->draw(this, render_pass_encoder, mvp);
 
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
+
+    terrain.draw(this, render_pass_encoder, mBindingData);
+
     for (const auto& model : mLoadedModel) {
         /*auto [in_world_min, in_world_max] = model->getWorldMin();*/
         if (!model->isTransparent() /*&& frustum.AABBTest(in_world_min, in_world_max)*/) {
@@ -933,8 +943,8 @@ void Application::mainLoop() {
         }
     }
 
-    terrain.draw(this, render_pass_encoder, mBindingData);
     updateGui(render_pass_encoder);
+    /*std::cout << "----------------------------------------------" << std::endl;*/
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);

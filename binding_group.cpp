@@ -166,12 +166,12 @@ WGPUBindGroupLayoutEntry* BindingGroup::getEntryData() { return mEntries.data();
 WGPUBindGroup& BindingGroup::getBindGroup() { return mBindGroup; }
 
 void BindingGroup::create(Application* app, std::vector<WGPUBindGroupEntry>& bindingData) {
+    std::cout << "Passed here " << mBindGroupLayoutDesc.entryCount << " " << bindingData.size() << "\n ";
     mBindGroupDesc = {};
     mBindGroupDesc.nextInChain = nullptr;
     mBindGroupDesc.layout = mBindGroupLayout;
     mBindGroupDesc.entryCount = mBindGroupLayoutDesc.entryCount;
     mBindGroupDesc.entries = bindingData.data();
-
 
     mBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mBindGroupDesc);
 

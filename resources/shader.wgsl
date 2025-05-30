@@ -71,11 +71,11 @@ struct OffsetData {
 
 
 @group(0) @binding(0) var<uniform> uMyUniform: MyUniform;
-@group(0) @binding(1) var diffuse_map: texture_2d<f32>;
+@group(0) @binding(1) var<uniform> lightCount: i32;
 @group(0) @binding(2) var textureSampler: sampler;
 @group(0) @binding(3) var<uniform> lightingInfos: LightingUniforms;
 @group(0) @binding(4) var<uniform> pointLight: array<PointLight,10>;
-@group(0) @binding(5) var metalic_roughness_texture: texture_2d<f32>;
+@group(0) @binding(5) var near_depth_texture: texture_depth_2d;
 @group(0) @binding(6) var grass_ground_texture: texture_2d<f32>;
 @group(0) @binding(7) var rock_mountain_texture: texture_2d<f32>;
 @group(0) @binding(8) var sand_lake_texture: texture_2d<f32>;
@@ -85,10 +85,11 @@ struct OffsetData {
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(14) var<uniform> ElapsedTime: f32;
-@group(0) @binding(15) var<uniform> lightCount: i32;
-@group(0) @binding(16) var near_depth_texture: texture_depth_2d;
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
+
+@group(2) @binding(0) var diffuse_map: texture_2d<f32>;
+@group(2) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
 
 const PI: f32 = 3.141592653589793;
 

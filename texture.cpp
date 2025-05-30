@@ -7,7 +7,6 @@
 #include "stb_image.h"
 
 WGPUTextureView Texture::createView() {
-    std::cout << "failed here " << mIsTextureAlive << std::endl;
     if (mIsTextureAlive) {
         WGPUTextureViewDescriptor texture_view_desc = {};
         texture_view_desc.aspect = WGPUTextureAspect_All;
@@ -20,6 +19,7 @@ WGPUTextureView Texture::createView() {
         mTextureView = wgpuTextureCreateView(mTexture, &texture_view_desc);
         return mTextureView;
     }
+    std::cout << "failed here " << mIsTextureAlive << std::endl;
     return nullptr;
 }
 
@@ -47,8 +47,9 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path) {
     unsigned char* pixel_data = stbi_load(path.string().c_str(), &width, &height, &channels, 0);
 
     // If data is null, loading failed.
-    std::cout << std::format("Loading texture at {}({}*{}) at address {} because {}", std::filesystem::absolute(path).c_str(),
-                             width, height, static_cast<void*>(pixel_data), stbi_failure_reason());
+    std::cout << std::format("Loading texture at {}({}*{}) at address {} because {}",
+                             std::filesystem::absolute(path).c_str(), width, height, static_cast<void*>(pixel_data),
+                             stbi_failure_reason());
     if (nullptr == pixel_data) return;
 
     mDescriptor = {};

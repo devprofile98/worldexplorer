@@ -37,8 +37,10 @@ struct ObjectInfo {
 @group(0) @binding(0) var<uniform> scene: Scene;
 @group(0) @binding(1) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(2) var<uniform> objectTranformation: ObjectInfo;
-@group(0) @binding(3) var diffuseMap: texture_2d<f32>;
-@group(0) @binding(4) var textureSampler: sampler;
+@group(0) @binding(3) var textureSampler: sampler;
+
+@group(1) @binding(0) var diffuseMap: texture_2d<f32>;
+@group(1) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
 
 @vertex
 fn vs_main(vertex: Vertex) -> VSOutput {

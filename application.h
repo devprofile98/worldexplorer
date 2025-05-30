@@ -112,12 +112,12 @@ class Application {
         WGPUBindGroup bindGrouptrans = {};
         glm::mat4 mtransmodel{1.0};
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
-        std::array<WGPUBindGroupLayout, 2> mBindGroupLayouts;
+        std::array<WGPUBindGroupLayout, 3> mBindGroupLayouts;
         Camera& getCamera();
         WGPUTextureFormat getTextureFormat();
         WGPUSampler getDefaultSampler();
         // textures
-	Texture* mLightViewSceneTexture = nullptr;
+        Texture* mLightViewSceneTexture = nullptr;
         Texture* mDefaultDiffuse = nullptr;
         Texture* mDefaultMetallicRoughness = nullptr;
         std::pair<size_t, size_t> getWindowSize();
@@ -125,6 +125,7 @@ class Application {
 
         WGPUBuffer mBuffer1;
 
+        BindingGroup mDefaultTextureBindingGroup = {};
     private:
         size_t mWindowWidth = 1920;
         size_t mWindowHeight = 1080;
@@ -136,6 +137,7 @@ class Application {
         Pipeline* mPipeline2;
         Cube* shapes;
         Plane* plane;
+
         /*Line* line;*/
         ShadowPass* mShadowPass;
         TransparencyPass* mTransparencyPass;
@@ -152,7 +154,8 @@ class Application {
 
         // WGPURenderPipeline mPipeline;
         BindingGroup mBindingGroup;
-        std::vector<WGPUBindGroupEntry> mBindingData{10};
+        std::vector<WGPUBindGroupEntry> mBindingData{20};
+        std::vector<WGPUBindGroupEntry> mDefaultTextureBindingData{2};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
         // WGPUBindGroup mBindGroup;
         WGPUBuffer mUniformBuffer;

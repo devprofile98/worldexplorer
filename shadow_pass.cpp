@@ -144,16 +144,21 @@ void ShadowPass::createRenderPass() {
     mBindingGroup.addBuffer(2, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
                             sizeof(ObjectInfo));
 
-    mBindingGroup.addTexture(3,  //
-                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-                             TextureViewDimension::VIEW_2D);
-
-    mBindingGroup.addSampler(4,  //
+    mBindingGroup.addSampler(3,  //
                              BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
 
-    auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
+    mTextureBindingGroup.addTexture(0,  //
+                                    BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                                    TextureViewDimension::VIEW_2D);
 
-    mRenderPipeline = new Pipeline{mApp, {bind_group_layout}};
+    mTextureBindingGroup.addTexture(1,  //
+                                    BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                                    TextureViewDimension::VIEW_2D);
+
+    auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
+    auto texture_bind_group_layout = mTextureBindingGroup.createLayout(mApp, "shadow pass pipeline");
+
+    mRenderPipeline = new Pipeline{mApp, {bind_group_layout, texture_bind_group_layout}};
     WGPUVertexBufferLayout d = mRenderPipeline->mVertexBufferLayout
                                    .addAttribute(0, 0, WGPUVertexFormat_Float32x3)  // for position
                                    .addAttribute(3 * sizeof(float), 1, WGPUVertexFormat_Float32x3)
@@ -194,13 +199,18 @@ void ShadowPass::createRenderPass() {
     mBindingData[2].size = sizeof(ObjectInfo);
 
     mBindingData[3] = {};
-    mBindingData[3].nextInChain = nullptr;
     mBindingData[3].binding = 3;
-    mBindingData[3].textureView = nullptr;
+    mBindingData[3].sampler = mApp->getDefaultSampler();
 
-    mBindingData[4] = {};
-    mBindingData[4].binding = 4;
-    mBindingData[4].sampler = mApp->getDefaultSampler();
+    mTextureBindingData[0] = {};
+    mTextureBindingData[0].nextInChain = nullptr;
+    mTextureBindingData[0].binding = 0;
+    mTextureBindingData[0].textureView = nullptr;
+
+    mTextureBindingData[1] = {};
+    mTextureBindingData[1].nextInChain = nullptr;
+    mTextureBindingData[1].binding = 1;
+    mTextureBindingData[1].textureView = nullptr;
 
     mRenderPipeline->setShader(RESOURCE_DIR "/shadow.wgsl")
         .setVertexBufferLayout(d)
@@ -344,19 +354,25 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
                 .setSize(sizeof(Scene))
                 .setMappedAtCraetion()
                 .create(mApp);
+
             if (which >= mScenes.size()) {
                 continue;
             };
+
+            /*if (mBindgroups[which] == nullptr) {*/
+            /*    mBindingData[0].buffer = modelUniformBuffer.getBuffer();*/
+            /*    mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();*/
+            /*    mBindingData[2].buffer = model->getUniformBuffer().getBuffer();*/
+            /*    mBindingData[3].sampler = mApp->getDefaultSampler();*/
+            /**/
+            /*    mBindgroups[which] = mBindingGroup.createNew(mApp, mBindingData);*/
+            /*}*/
+
             mScenes[which].model = model->getTranformMatrix();
             mBindingData[0].buffer = modelUniformBuffer.getBuffer();
             mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
             mBindingData[2].buffer = model->getUniformBuffer().getBuffer();
-            if (mesh.mTexture != nullptr && mesh.mTexture->getTextureView() != nullptr) {
-                mBindingData[3].textureView = mesh.mTexture->getTextureView();
-            } else {
-                mBindingData[3].textureView = mApp->mDefaultDiffuse->getTextureView();
-            }
-            mBindingData[4].sampler = mApp->getDefaultSampler();
+            mBindingData[3].sampler = mApp->getDefaultSampler();
 
             auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
             wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer.getBuffer(), 0,
@@ -366,6 +382,11 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
                                                  wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
 
             wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(encoder, 1,
+                                              mesh.mTextureBindGroup == nullptr
+                                                  ? mApp->mDefaultTextureBindingGroup.getBindGroup()
+                                                  : mesh.mTextureBindGroup,
+                                              0, nullptr);
 
             wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
                                       model->instance == nullptr ? 1 : model->instance->getInstanceCount(), 0, 0);

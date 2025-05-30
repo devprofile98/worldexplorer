@@ -338,8 +338,10 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
                     double foliage_x = x + offsetX;
                     double foliage_z = z + offsetZ;
 
-                    foliage_positions.push_back(
-                        {{foliage_x, foliage_z, Terrain::perlin(foliage_x, foliage_z )}, {0.0, 1.0, 0.0}, {0, 255, 0}, {foliage_x, foliage_z}});
+                    foliage_positions.push_back({{foliage_x, foliage_z, Terrain::perlin(foliage_x, foliage_z)},
+                                                 {0.0, 1.0, 0.0},
+                                                 {0, 255, 0},
+                                                 {foliage_x, foliage_z}});
                 }
             }
         }
@@ -504,6 +506,7 @@ void Terrain::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<
 
     createSomeBinding(app);
     wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(encoder, 2, app->mDefaultTextureBindingGroup.getBindGroup(), 0, nullptr);
 
     // // Draw 1 instance of a 3-vertices shape
     wgpuRenderPassEncoderDrawIndexed(encoder, indices.size(), 1, 0, 0, 0);

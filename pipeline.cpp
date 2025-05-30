@@ -67,6 +67,7 @@ Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat sur
     // 1 - vertex state
     mlVertexBufferLayout = getDefaultVertexBufferLayout();
     mDescriptor.nextInChain = nullptr;
+    mDescriptor.label ="default pipeline layout";
 
     WGPUVertexState vertex_state = {};
     vertex_state.bufferCount = 1;

@@ -6,10 +6,10 @@
 
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
+#include "gpu_buffer.h"
 #include "imgui.h"
 #include "texture.h"
 #include "tinyobjloader/tiny_obj_loader.h"
-#include "gpu_buffer.h"
 
 // Shader-equivalant struct for vertex data
 struct VertexAttributes {
@@ -24,7 +24,9 @@ class Mesh {
         std::vector<VertexAttributes> mVertexData;
         Texture* mTexture = nullptr;
         Buffer mVertexBuffer = {};
-	bool isTransparent = false;
+        bool isTransparent = false;
+        WGPUBindGroup mTextureBindGroup = {};
+        std::vector<WGPUBindGroupEntry> binding_data{2};
 };
 
 #endif  //! WEBGPUTEST_MESH_H

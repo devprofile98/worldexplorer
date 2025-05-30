@@ -221,6 +221,7 @@ Model& Model::uploadToGPU(Application* app) {
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mVertexBuffer.getBuffer(), 0,
                              mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
     }
+    /*createSomeBinding(app);*/
     return *this;
 };
 
@@ -240,7 +241,8 @@ void BaseModel::setTransparent(bool value) {
 bool BaseModel::isTransparent() { return mIsTransparent; }
 
 void BaseModel::selected(bool selected) { mObjectInfo.isSelected = selected; }
-void Model::createSomeBinding(Application* app) {
+
+void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData) {
     WGPUBindGroupEntry mBindGroupEntry = {};
     mBindGroupEntry.nextInChain = nullptr;
     mBindGroupEntry.binding = 0;
@@ -256,9 +258,37 @@ void Model::createSomeBinding(Application* app) {
     mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
 
     ggg = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);
+
+    for (auto& [mat_id, mesh] : mMeshes) {
+        mesh.binding_data = bindingData;
+        if (mesh.isTransparent) {
+            continue;
+        }
+
+        if (mesh.mTexture != nullptr) {
+            if (mesh.mTexture->getTextureView() != nullptr) {
+                mesh.binding_data[0].nextInChain = nullptr;
+                mesh.binding_data[0].binding = 0;
+                mesh.binding_data[0].textureView = mesh.mTexture->getTextureView();
+            }
+            if (mSpecularTexture != nullptr && mSpecularTexture->getTextureView() != nullptr) {
+                mesh.binding_data[1].nextInChain = nullptr;
+                mesh.binding_data[1].binding = 1;
+                mesh.binding_data[1].textureView = mSpecularTexture->getTextureView();
+            }
+            auto& desc = app->mDefaultTextureBindingGroup.getDescriptor();
+            desc.entries = mesh.binding_data.data();
+            desc.entryCount = 2;
+            mesh.mTextureBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &desc);
+
+            /*mesh.mTextureBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device,
+             * &mTrasBindGroupDesc);*/
+        }
+    }
 }
 
 void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
+    (void)bindingData;
     auto& render_resource = app->getRendererResource();
     /*auto& uniform_data = app->getUniformData();*/
     WGPUBindGroup active_bind_group = nullptr;
@@ -269,24 +299,28 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
             continue;
         }
 
-        if (mesh.mTexture != nullptr) {
-            if (mesh.mTexture->getTextureView() != nullptr) {
-                bindingData[1].nextInChain = nullptr;
-                bindingData[1].binding = 1;
-                bindingData[1].textureView = mesh.mTexture->getTextureView();
-            }
-            if (mSpecularTexture != nullptr && mSpecularTexture->getTextureView() != nullptr) {
-                bindingData[5].nextInChain = nullptr;
-                bindingData[5].binding = 5;
-                bindingData[5].textureView = mSpecularTexture->getTextureView();
-            }
-            auto& desc = app->getBindingGroup().getDescriptor();
-            desc.entries = bindingData.data();
-            mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
-            active_bind_group = mBindGroup;
-        } else {
-            active_bind_group = app->getBindingGroup().getBindGroup();
-        }
+        /*if (mesh.mTexture != nullptr) {*/
+        /*    if (mesh.mTexture->getTextureView() != nullptr) {*/
+        /*        bindingData[1].nextInChain = nullptr;*/
+        /*        bindingData[1].binding = 1;*/
+        /*        bindingData[1].textureView = mesh.mTexture->getTextureView();*/
+        /*    }*/
+        /*    if (mSpecularTexture != nullptr && mSpecularTexture->getTextureView() != nullptr) {*/
+        /*        bindingData[5].nextInChain = nullptr;*/
+        /*        bindingData[5].binding = 5;*/
+        /*        bindingData[5].textureView = mSpecularTexture->getTextureView();*/
+        /*    }*/
+        /*    auto& desc = app->getBindingGroup().getDescriptor();*/
+        /*    desc.entries = bindingData.data();*/
+        /*    mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);*/
+        /*    active_bind_group = mBindGroup;*/
+        /*} else {*/
+        /*if (mesh.mTextureBindGroup == nullptr) {*/
+        active_bind_group = app->getBindingGroup().getBindGroup();
+        /*} else {*/
+        /*    active_bind_group = mesh.mTextureBindGroup;*/
+        /*}*/
+        /*}*/
 
         wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                              wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
@@ -296,17 +330,23 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
         wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
                              sizeof(ObjectInfo));
 
-        createSomeBinding(app);
+        /*createSomeBinding(app);*/
+        /*std::cout << "failed here -------------------------" << getName() << mat_id << std::endl;*/
         wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(encoder, 2,
+                                          mesh.mTextureBindGroup == nullptr
+                                              ? app->mDefaultTextureBindingGroup.getBindGroup()
+                                              : mesh.mTextureBindGroup,
+                                          0, nullptr);
 
         wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
                                   this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0);
-        wgpuBindGroupRelease(ggg);
+        /*wgpuBindGroupRelease(ggg);*/
         // if we created a binding group and didn't use the default appliaction binding-group
-        if (mBindGroup != nullptr) {
-            wgpuBindGroupRelease(mBindGroup);
-            mBindGroup = nullptr;
-        }
+        /*if (mBindGroup != nullptr) {*/
+        /*    wgpuBindGroupRelease(mBindGroup);*/
+        /*    mBindGroup = nullptr;*/
+        /*}*/
     }
 }
 
