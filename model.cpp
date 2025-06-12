@@ -7,6 +7,7 @@
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/quaternion_trigonometric.hpp"
 #include "glm/fwd.hpp"
+#include "glm/geometric.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/gtx/quaternion.hpp"
 #include "glm/trigonometric.hpp"
@@ -80,7 +81,8 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         std::cerr << err << std::endl;
     }
 
-    std::cout << getName() << " has " << materials.size() << " Tiny Object " << materials[0].specular_texname << " \n";
+    std::cout << getName() << " has " << materials.size() << " Tiny Object " << materials[0].normal_texname << " \n";
+
     // Fill in vertexData here
 
     for (const auto& shape : shapes) {
@@ -97,6 +99,9 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
                 vertex.position[0] = attrib.vertices[3 * idx.vertex_index + 0];
                 vertex.position[2] = attrib.vertices[3 * idx.vertex_index + 1];
                 vertex.position[1] = attrib.vertices[3 * idx.vertex_index + 2];
+                /**/
+                // calculating Tangent and biTangent
+
                 /**/
                 min.x = std::min(min.x, vertex.position.x);
                 min.y = std::min(min.y, vertex.position.y);
@@ -127,8 +132,62 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
             }
         }
     }
-    std::cout << "Model " << getName() << " Has " << materials.size() << " materials and " << mMeshes.size()
-              << " shapes \n";
+
+    for (auto& pair : mMeshes) {  // Iterate through each mesh (by materialId)
+        int materialId = pair.first;
+        /*Mesh& currentMesh = pair.second;  // Get a reference to the actual Mesh object*/
+
+        for (size_t i = 0; i < mMeshes[materialId].mVertexData.size(); i += 3) {
+            const auto& pos1 = mMeshes[materialId].mVertexData[i].position;
+            const auto& pos2 = mMeshes[materialId].mVertexData[i + 1].position;
+            const auto& pos3 = mMeshes[materialId].mVertexData[i + 2].position;
+
+            const auto& uv1 = mMeshes[materialId].mVertexData[i].uv;
+            const auto& uv2 = mMeshes[materialId].mVertexData[i + 1].uv;
+            const auto& uv3 = mMeshes[materialId].mVertexData[i + 2].uv;
+
+            glm::vec3 edge1 = pos2 - pos1;
+            glm::vec3 edge2 = pos3 - pos1;
+            glm::vec2 deltaUV1 = uv2 - uv1;
+            glm::vec2 deltaUV2 = uv3 - uv1;
+
+            float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+
+            glm::vec3 tangent{};
+            tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+            tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+            tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+            glm::vec3 bitangent{};
+            bitangent.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+            bitangent.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+            bitangent.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+
+            glm::vec3 cnormal = glm::cross(tangent, bitangent);
+	    /*const auto& expectedN = mMeshes[materialId].mVertexData[i].normal;*/
+
+            if (glm::dot(mMeshes[materialId].mVertexData[i].normal, cnormal) < 0.0) {
+                tangent = -tangent;
+                bitangent = -bitangent;
+                /*cnormal = -cnormal;*/
+            }
+
+            /*cnormal = expectedN;*/
+            /*tangent = normalize(tangent - dot(tangent, cnormal) * cnormal);*/
+            /*bitangent = cross(cnormal, tangent);*/
+
+            mMeshes[materialId].mVertexData[i].tangent = tangent;
+            mMeshes[materialId].mVertexData[i].biTangent = bitangent;
+            mMeshes[materialId].mVertexData[i].normal = cnormal;
+            mMeshes[materialId].mVertexData[i + 1].tangent = tangent;
+            mMeshes[materialId].mVertexData[i + 1].biTangent = bitangent;
+            mMeshes[materialId].mVertexData[i + 1].normal = cnormal;
+            mMeshes[materialId].mVertexData[i + 2].tangent = tangent;
+            mMeshes[materialId].mVertexData[i + 2].biTangent = bitangent;
+            mMeshes[materialId].mVertexData[i + 2].normal = cnormal;
+            /*std::cout << "------------------" << i << std::endl;*/
+        }
+    }
 
     for (const auto& material : materials) {
         size_t material_id = &material - &materials[0];
@@ -158,6 +217,21 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
             std::cout << std::format("Failed to create Specular Texture view for {}\n", mName);
         }
         mSpecularTexture->uploadToGPU(render_resource.queue);
+    }
+
+    // Load and upload normal texture
+    if (name == "tower" || name == "cylinder") {
+        std::cout << "tower\n";
+        /*if (!materials[0].normal_texname.empty()) {*/
+        std::string texture_path = RESOURCE_DIR;
+        texture_path += "/";
+        texture_path += name == "tower" ? "Wood_Tower_Nor.jpg" : "cobblestone_normal.png";
+        mNormalMapTexture = new Texture{render_resource.device, texture_path};
+        if (mNormalMapTexture->createView() == nullptr) {
+            std::cout << std::format("Failed to create normal Texture view for {}\n", mName);
+        }
+        mNormalMapTexture->uploadToGPU(render_resource.queue);
+        /*}*/
     }
 
     offset_buffer.setSize(sizeof(glm::vec4) * 10)
@@ -209,9 +283,7 @@ Transform& Transform::moveTo(const glm::vec3& moveVec) {
 Model& Model::uploadToGPU(Application* app) {
     // upload vertex attribute data to GPU
     for (auto& [_mat_id, mesh] : mMeshes) {
-        if (getName() == "car") {
-            std::cout << "mesh has " << mesh.mVertexData.size() << '\n';
-        }
+        std::cout << getName() << " mesh has " << mesh.mVertexData.size() << '\n';
         mesh.mVertexBuffer.setLabel("Uniform buffer for object info")
             .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
             .setSize(mesh.mVertexData.size() * sizeof(VertexAttributes))
@@ -276,13 +348,16 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
                 mesh.binding_data[1].binding = 1;
                 mesh.binding_data[1].textureView = mSpecularTexture->getTextureView();
             }
+            if (mNormalMapTexture != nullptr && mNormalMapTexture->getTextureView() != nullptr) {
+                std::cout << ":::::::::::::::::::::::::::::::::::::\n\n::::::::::::::::;\n";
+                mesh.binding_data[2].nextInChain = nullptr;
+                mesh.binding_data[2].binding = 2;
+                mesh.binding_data[2].textureView = mNormalMapTexture->getTextureView();
+            }
             auto& desc = app->mDefaultTextureBindingGroup.getDescriptor();
             desc.entries = mesh.binding_data.data();
-            desc.entryCount = 2;
+            desc.entryCount = mesh.binding_data.size();
             mesh.mTextureBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &desc);
-
-            /*mesh.mTextureBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device,
-             * &mTrasBindGroupDesc);*/
         }
     }
 }
@@ -290,7 +365,6 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
 void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
     (void)bindingData;
     auto& render_resource = app->getRendererResource();
-    /*auto& uniform_data = app->getUniformData();*/
     WGPUBindGroup active_bind_group = nullptr;
 
     // Bind Diffuse texture for the model if existed
@@ -299,28 +373,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
             continue;
         }
 
-        /*if (mesh.mTexture != nullptr) {*/
-        /*    if (mesh.mTexture->getTextureView() != nullptr) {*/
-        /*        bindingData[1].nextInChain = nullptr;*/
-        /*        bindingData[1].binding = 1;*/
-        /*        bindingData[1].textureView = mesh.mTexture->getTextureView();*/
-        /*    }*/
-        /*    if (mSpecularTexture != nullptr && mSpecularTexture->getTextureView() != nullptr) {*/
-        /*        bindingData[5].nextInChain = nullptr;*/
-        /*        bindingData[5].binding = 5;*/
-        /*        bindingData[5].textureView = mSpecularTexture->getTextureView();*/
-        /*    }*/
-        /*    auto& desc = app->getBindingGroup().getDescriptor();*/
-        /*    desc.entries = bindingData.data();*/
-        /*    mBindGroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);*/
-        /*    active_bind_group = mBindGroup;*/
-        /*} else {*/
-        /*if (mesh.mTextureBindGroup == nullptr) {*/
         active_bind_group = app->getBindingGroup().getBindGroup();
-        /*} else {*/
-        /*    active_bind_group = mesh.mTextureBindGroup;*/
-        /*}*/
-        /*}*/
 
         wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                              wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
@@ -330,8 +383,6 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
         wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
                              sizeof(ObjectInfo));
 
-        /*createSomeBinding(app);*/
-        /*std::cout << "failed here -------------------------" << getName() << mat_id << std::endl;*/
         wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(encoder, 2,
                                           mesh.mTextureBindGroup == nullptr
@@ -339,14 +390,8 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
                                               : mesh.mTextureBindGroup,
                                           0, nullptr);
 
-        wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
+        wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size() - 1,
                                   this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0);
-        /*wgpuBindGroupRelease(ggg);*/
-        // if we created a binding group and didn't use the default appliaction binding-group
-        /*if (mBindGroup != nullptr) {*/
-        /*    wgpuBindGroupRelease(mBindGroup);*/
-        /*    mBindGroup = nullptr;*/
-        /*}*/
     }
 }
 

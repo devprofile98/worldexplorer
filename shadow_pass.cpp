@@ -154,6 +154,9 @@ void ShadowPass::createRenderPass() {
     mTextureBindingGroup.addTexture(1,  //
                                     BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                                     TextureViewDimension::VIEW_2D);
+    mTextureBindingGroup.addTexture(2,  //
+                                    BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
+                                    TextureViewDimension::VIEW_2D);
 
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
     auto texture_bind_group_layout = mTextureBindingGroup.createLayout(mApp, "shadow pass pipeline");
@@ -163,7 +166,9 @@ void ShadowPass::createRenderPass() {
                                    .addAttribute(0, 0, WGPUVertexFormat_Float32x3)  // for position
                                    .addAttribute(3 * sizeof(float), 1, WGPUVertexFormat_Float32x3)
                                    .addAttribute(6 * sizeof(float), 2, WGPUVertexFormat_Float32x3)
-                                   .addAttribute(offsetof(VertexAttributes, uv), 3, WGPUVertexFormat_Float32x2)
+                                   .addAttribute(9 * sizeof(float), 3, WGPUVertexFormat_Float32x3)
+                                   .addAttribute(12 * sizeof(float), 4, WGPUVertexFormat_Float32x3)
+                                   .addAttribute(offsetof(VertexAttributes, uv), 5, WGPUVertexFormat_Float32x2)
                                    .configure(sizeof(VertexAttributes), VertexStepMode::VERTEX);
 
     static WGPUFragmentState mFragmentState = {};

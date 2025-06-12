@@ -101,6 +101,10 @@ void Application::initializePipeline() {
     sand_texture.createView();
     sand_texture.uploadToGPU(mRendererResource.queue);
 
+    Texture grass_normal_texture = Texture{mRendererResource.device, RESOURCE_DIR "/grass_normal.png"};
+    grass_normal_texture.createView();
+    grass_normal_texture.uploadToGPU(mRendererResource.queue);
+
     Texture snow_texture = Texture{mRendererResource.device, RESOURCE_DIR "/snow_diff.jpg"};
     snow_texture.createView();
     snow_texture.uploadToGPU(mRendererResource.queue);
@@ -115,9 +119,15 @@ void Application::initializePipeline() {
     // Creating default meatlic-roughness texture
     mDefaultMetallicRoughness = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_metallic_roughness_texture_view = mDefaultMetallicRoughness->createView();
-    texture_data = {255, 255, 255, 255};  // White color for Default specular texture
+    texture_data = {0, 255, 255, 255};  // White color for Default specular texture
     mDefaultMetallicRoughness->setBufferData(texture_data);
     mDefaultMetallicRoughness->uploadToGPU(mRendererResource.queue);
+
+    mDefaultNormalMap = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
+    WGPUTextureView default_normal_map_view = mDefaultNormalMap->createView();
+    texture_data = {0, 0, 255, 255};  // White color for Default specular texture
+    mDefaultNormalMap->setBufferData(texture_data);
+    mDefaultNormalMap->uploadToGPU(mRendererResource.queue);
 
     mBindingGroup.addBuffer(0,  //
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(MyUniform));
@@ -165,6 +175,9 @@ void Application::initializePipeline() {
     mBindingGroup.addBuffer(14,  //
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float));
 
+    mBindingGroup.addTexture(15,  //
+                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                             TextureViewDimension::VIEW_2D);
 
     mDefaultTextureBindingGroup.addTexture(0,  //
                                            BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
@@ -172,6 +185,9 @@ void Application::initializePipeline() {
 
     mDefaultTextureBindingGroup.addTexture(1,  //
                                            BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                                           TextureViewDimension::VIEW_2D);
+    mDefaultTextureBindingGroup.addTexture(2,  //
+                                           BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
                                            TextureViewDimension::VIEW_2D);
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
@@ -210,6 +226,11 @@ void Application::initializePipeline() {
     mDefaultTextureBindingData[1].nextInChain = nullptr;
     mDefaultTextureBindingData[1].binding = 1;
     mDefaultTextureBindingData[1].textureView = default_metallic_roughness_texture_view;
+
+    mDefaultTextureBindingData[2] = {};
+    mDefaultTextureBindingData[2].nextInChain = nullptr;
+    mDefaultTextureBindingData[2].binding = 2;
+    mDefaultTextureBindingData[2].textureView = default_normal_map_view;
 
     mShadowPass = new ShadowPass{this};
     mShadowPass->createRenderPass();
@@ -381,6 +402,11 @@ void Application::initializePipeline() {
     mBindingData[14].offset = 0;
     mBindingData[14].size = sizeof(float);
 
+    mBindingData[15] = {};
+    mBindingData[15].nextInChain = nullptr;
+    mBindingData[15].binding = 15;
+    mBindingData[15].textureView = grass_normal_texture.getTextureView();
+
     mBindingGroup.create(this, mBindingData);
     mDefaultTextureBindingGroup.create(this, mDefaultTextureBindingData);
 
@@ -457,29 +483,29 @@ void Application::initializeBuffers() {
     sphere.uploadToGPU(this);
     sphere.setTransparent(false);
 
-    sphere1.load("sphere1", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.0, 0.0, 0.0})
-        .scale(glm::vec3{1.0f});
-    sphere1.uploadToGPU(this);
-    sphere1.setTransparent(false);
-
-    sphere2.load("sphere2", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.0, 0.0, 0.0})
-        .scale(glm::vec3{1.0f});
-    sphere2.uploadToGPU(this);
-    sphere2.setTransparent(false);
-
-    sphere3.load("sphere3", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.0, 0.0, 0.0})
-        .scale(glm::vec3{1.0f});
-    sphere3.uploadToGPU(this);
-    sphere3.setTransparent(false);
-
-    sphere4.load("sphere4", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.0, 0.0, 0.0})
-        .scale(glm::vec3{1.0f});
-    sphere4.uploadToGPU(this);
-    sphere4.setTransparent(false);
+    /*sphere1.load("sphere1", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])*/
+    /*    .moveTo(glm::vec3{0.0, 0.0, 0.0})*/
+    /*    .scale(glm::vec3{1.0f});*/
+    /*sphere1.uploadToGPU(this);*/
+    /*sphere1.setTransparent(false);*/
+    /**/
+    /*sphere2.load("sphere2", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])*/
+    /*    .moveTo(glm::vec3{0.0, 0.0, 0.0})*/
+    /*    .scale(glm::vec3{1.0f});*/
+    /*sphere2.uploadToGPU(this);*/
+    /*sphere2.setTransparent(false);*/
+    /**/
+    /*sphere3.load("sphere3", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])*/
+    /*    .moveTo(glm::vec3{0.0, 0.0, 0.0})*/
+    /*    .scale(glm::vec3{1.0f});*/
+    /*sphere3.uploadToGPU(this);*/
+    /*sphere3.setTransparent(false);*/
+    /**/
+    /*sphere4.load("sphere4", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])*/
+    /*    .moveTo(glm::vec3{0.0, 0.0, 0.0})*/
+    /*    .scale(glm::vec3{1.0f});*/
+    /*sphere4.uploadToGPU(this);*/
+    /*sphere4.setTransparent(false);*/
 
     car.load("car", this, RESOURCE_DIR "/car.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.725, -1.0, 0.72})
@@ -488,6 +514,13 @@ void Application::initializeBuffers() {
     car.uploadToGPU(this);
     car.setTransparent(false);
     car.useTexture(false);
+
+    cylinder.load("cylinder", this, RESOURCE_DIR "/cyliner.obj", mBindGroupLayouts[1])
+        .moveTo(glm::vec3{0.725, -1.0, 0.72})
+        .scale(glm::vec3{0.2})
+        .rotate(glm::vec3{0.0, 0.0, 1.0}, 90.0f);
+    cylinder.uploadToGPU(this);
+    cylinder.setTransparent(false);
 
     tree_model.load("tree", this, RESOURCE_DIR "/tree1.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.725, -7.640, 1.125})
@@ -504,10 +537,8 @@ void Application::initializeBuffers() {
     water.useTexture(false);
 
     jet.load("jet", this, RESOURCE_DIR "/old_jet.obj", mBindGroupLayouts[1]).moveTo(glm::vec3{1.725, 2.640, 3.425});
-    /*.scale(glm::vec3{30.0, 30.0, 1.0});*/
     jet.uploadToGPU(this);
     jet.setTransparent(false);
-    jet.useTexture(false);
 
     terrain.generate(200, 8, output).uploadToGpu(this);
     std::cout << "Generate is " << output.size() << '\n';
@@ -808,9 +839,10 @@ bool Application::initialize() {
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
     mLoadedModel =
-        {&boat_model, &tower_model, &desk_model,  &arrow_model,  &sphere, &sphere1,    &sphere2,
-         &sphere3,    &sphere4,     &grass_model, &grass2_model, &jet,    &tree_model, &car,
-         &water,/* ,  shapes,
+        {&boat_model,   &tower_model, &desk_model, &arrow_model, &sphere,   /* &sphere1,    &sphere2,
+            &sphere3,    &sphere4,*/ &grass_model,
+         &grass2_model, &jet,         &tree_model, &car,         &cylinder, &water,
+         /* ,  shapes,
 plane*/};
 
     for (auto& model : mLoadedModel) {
@@ -1048,7 +1080,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     WGPURequiredLimits required_limits = {};
     setDefault(required_limits.limits);
 
-    required_limits.limits.maxVertexAttributes = 4;
+    required_limits.limits.maxVertexAttributes = 6;
     required_limits.limits.maxVertexBuffers = 1;
     required_limits.limits.maxBufferSize = 134217728;  // 1000000 * sizeof(VertexAttributes);
     required_limits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);

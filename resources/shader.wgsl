@@ -7,13 +7,18 @@ struct VertexOutput {
     @location(3) viewDirection: vec3f,
     @location(4) worldPos: vec3f,
     @location(6) viewSpacePos: vec4f,
+    @location(7) tangent: vec3f,
+    @location(8) biTangent: vec3f,
+    @location(9) aNormal: vec3f,
 };
 
 struct VertexInput {
     @location(0) position: vec3f,
     @location(1) normal: vec3f,
     @location(2) color: vec3f,
-    @location(3) uv: vec2f,
+    @location(3) tangent: vec3f,
+    @location(4) biTangent: vec3f,
+    @location(5) uv: vec2f,
 };
 
 
@@ -79,6 +84,7 @@ struct OffsetData {
 @group(0) @binding(6) var grass_ground_texture: texture_2d<f32>;
 @group(0) @binding(7) var rock_mountain_texture: texture_2d<f32>;
 @group(0) @binding(8) var sand_lake_texture: texture_2d<f32>;
+@group(0) @binding(15) var grass_normal_texture: texture_2d<f32>;
 @group(0) @binding(9) var snow_mountain_texture: texture_2d<f32>;
 @group(0) @binding(10) var depth_texture: texture_depth_2d;
 @group(0) @binding(11) var<uniform> lightSpaceTrans: array<Scene, 2>;
@@ -90,6 +96,7 @@ struct OffsetData {
 
 @group(2) @binding(0) var diffuse_map: texture_2d<f32>;
 @group(2) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
+@group(2) @binding(2) var normal_map: texture_2d<f32>;
 
 const PI: f32 = 3.141592653589793;
 
@@ -122,7 +129,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     }
 
     let world_position = transform * vec4f(in.position, 1.0);
-    out.normal = (transform * vec4f(in.normal, 1.0)).xyz;
+    out.normal = (transform * vec4f(in.normal, 0.0)).xyz;
 
     out.viewSpacePos = uMyUniform.viewMatrix * world_position;
     out.position = uMyUniform.projectionMatrix * out.viewSpacePos;
@@ -130,6 +137,17 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     out.viewDirection = uMyUniform.cameraWorldPosition - world_position.xyz;
     out.color = in.color;
     out.uv = in.uv;
+
+	   let T = normalize(vec3f((transform * vec4(in.tangent,   0.0)).xyz));
+	   let B = normalize(vec3f((transform * vec4(in.biTangent, 0.0)).xyz));
+	   let N = normalize(vec3f((transform * vec4(in.normal,    0.0)).xyz));
+
+
+
+	out.tangent = T;
+	out.biTangent = B;
+	out.aNormal = out.normal;
+
     var index = 0;
     if length(out.viewSpacePos) > ElapsedTime { index = 1;}
 ;
@@ -215,7 +233,14 @@ fn calculateSpotLight(currLight: PointLight, normal: vec3f, dir: vec3f) -> vec3f
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    let normal = normalize(in.normal);
+    //let face_normal = normalize(in.normal);
+    var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
+    normal = normal * 2.0 - 1.0;
+    let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
+    normal = normalize(TBN * normal);
+    //normal = normalize(mix(in.normal, normal, 0.1));
+
+    //let normal = normalize(in.normal);
 
     let view_direction = normalize(in.viewDirection);
     let metallic_roughness = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
@@ -236,9 +261,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     }
     let diffuse = max(min_intensity, intensity) * color;
     shading += diffuse + vec3f(0.1, 0.1, 0.15) ;
-    //if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
-    //    shading += specular;
-    //}
+    if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
+        shading += specular;
+    }
 
 
     var point_light_color = vec3f(0.0f);
@@ -293,6 +318,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //}else{
     //    return vec4f((col + vec3(0.0, 1.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
     //}
-    return vec4f(col * (1 - shadow * (0.75)), 1.0);
+    return vec4f(color * (1 - shadow * (0.75)), 1.0);
 }
 

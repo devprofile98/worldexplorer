@@ -64,7 +64,7 @@ class ShadowPass {
         BindingGroup mBindingGroup;
         std::vector<WGPUBindGroupEntry> mBindingData;
         BindingGroup mTextureBindingGroup;
-        std::vector<WGPUBindGroupEntry> mTextureBindingData{2};
+        std::vector<WGPUBindGroupEntry> mTextureBindingData{3};
 
 	std::vector<WGPUBindGroup> mBindgroups = {nullptr, nullptr};
 

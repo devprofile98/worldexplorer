@@ -16,6 +16,8 @@ struct VertexAttributes {
         glm::vec3 position;
         glm::vec3 normal;
         glm::vec3 color;
+        glm::vec3 tangent;
+        glm::vec3 biTangent;
         glm::vec2 uv;
 };
 

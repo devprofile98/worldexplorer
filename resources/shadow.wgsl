@@ -8,7 +8,9 @@ struct Vertex {
     @location(0) position: vec3f,
     @location(1) normal: vec3f,
     @location(2) color: vec3f,
-    @location(3) uv: vec2f,
+    @location(3) tangent: vec3f,
+    @location(4) biTangent: vec3f,
+    @location(5) uv: vec2f,
     @builtin(instance_index) instance_index: u32
 };
 
@@ -41,6 +43,7 @@ struct ObjectInfo {
 
 @group(1) @binding(0) var diffuseMap: texture_2d<f32>;
 @group(1) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
+@group(1) @binding(2) var normal_map: texture_2d<f32>;
 
 @vertex
 fn vs_main(vertex: Vertex) -> VSOutput {

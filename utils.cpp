@@ -341,6 +341,8 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
                     foliage_positions.push_back({{foliage_x, foliage_z, Terrain::perlin(foliage_x, foliage_z)},
                                                  {0.0, 1.0, 0.0},
                                                  {0, 255, 0},
+                                                 {1, 0, 0},
+                                                 {0, 1, 0},
                                                  {foliage_x, foliage_z}});
                 }
             }

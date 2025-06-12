@@ -79,6 +79,7 @@ class Application {
         void terminateDepthBuffer();
         void updateViewMatrix();
         void updateDragInertia();
+
         Model boat_model{};
         Model tower_model{};
         Model arrow_model{};
@@ -87,12 +88,13 @@ class Application {
         Model grass_model{};
         Model grass2_model{};
         Model car{};
+        Model cylinder{};
         Model water{};
         Model sphere{};
-        Model sphere1{};
-        Model sphere2{};
-        Model sphere3{};
-        Model sphere4{};
+        /*Model sphere1{};*/
+        /*Model sphere2{};*/
+        /*Model sphere3{};*/
+        /*Model sphere4{};*/
         Model jet{};
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();
@@ -120,6 +122,7 @@ class Application {
         Texture* mLightViewSceneTexture = nullptr;
         Texture* mDefaultDiffuse = nullptr;
         Texture* mDefaultMetallicRoughness = nullptr;
+        Texture* mDefaultNormalMap = nullptr;
         std::pair<size_t, size_t> getWindowSize();
         void setWindowSize(size_t width, size_t height);
 
@@ -155,7 +158,7 @@ class Application {
         // WGPURenderPipeline mPipeline;
         BindingGroup mBindingGroup;
         std::vector<WGPUBindGroupEntry> mBindingData{20};
-        std::vector<WGPUBindGroupEntry> mDefaultTextureBindingData{2};
+        std::vector<WGPUBindGroupEntry> mDefaultTextureBindingData{3};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
         // WGPUBindGroup mBindGroup;
         WGPUBuffer mUniformBuffer;
