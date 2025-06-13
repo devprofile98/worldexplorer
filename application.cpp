@@ -344,7 +344,8 @@ void Application::initializePipeline() {
     std::mt19937 gen(rd());  // Mersenne Twister PRNG
     std::uniform_real_distribution<float> dist(1.5, 2.5);
     std::uniform_real_distribution<float> dist_for_rotation(0.0, 180.0);
-    std::uniform_real_distribution<float> dist_for_tree(1.0, 1.4);
+    std::uniform_real_distribution<float> dist_for_tree(2.5, 3.3);
+    std::uniform_real_distribution<float> dist_for_grass(1.0, 1.8);
     if (output.size() > 63690) {
         std::cout << "EEEEEEEEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRRRRRRROOOOOOOOOOOOOOOOORRRRRRRRRRRRRRRR\n";
     }
@@ -360,11 +361,12 @@ void Application::initializePipeline() {
             dddata_tree.push_back(trans * rotate * scale);
         }
     }
+
     glm::vec3 position = glm::vec3(-30.0, -30.0f, 0.0f);
     glm::mat4 transform = glm::mat4{1.0f};
     transform = glm::translate(transform, position);
     transform = glm::rotate(transform, glm::radians(0.0f), glm::vec3{1.0, 0.0, 0.0});
-    transform = glm::scale(transform, glm::vec3{1.0, 1.0, 1.0});
+    transform = glm::scale(transform, glm::vec3{1.f * dist_for_grass(gen)});
     dddata[0] = transform;
     dddata_tree[0] = transform;
 

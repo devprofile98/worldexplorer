@@ -42,6 +42,58 @@ Model::Model() : BaseModel() {
     mObjectInfo.isFoliage = 0;
 }
 
+glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
+    const auto& pos1 = vertex[0].position;
+    const auto& pos2 = vertex[1].position;
+    const auto& pos3 = vertex[2].position;
+
+    const auto& uv1 = vertex[0].uv;
+    const auto& uv2 = vertex[1].uv;
+    const auto& uv3 = vertex[2].uv;
+
+    glm::vec3 edge1 = pos2 - pos1;
+    glm::vec3 edge2 = pos3 - pos1;
+    glm::vec2 deltaUV1 = uv2 - uv1;
+    glm::vec2 deltaUV2 = uv3 - uv1;
+
+    float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+
+    glm::vec3 tangent{};
+    tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+    tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+    tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+    glm::vec3 bitangent{};
+    bitangent.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+    bitangent.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+    bitangent.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+
+    glm::vec3 cnormal = glm::cross(tangent, bitangent);
+    /*const auto& expectedN = mMeshes[materialId].mVertexData[i].normal;*/
+
+    if (glm::dot(expectedN, cnormal) < 0.0) {
+        tangent = -tangent;
+        bitangent = -bitangent;
+        cnormal = -cnormal;
+    }
+
+    /*cnormal = expectedN;*/
+    /*tangent = normalize(tangent - dot(tangent, cnormal) * cnormal);*/
+    /*bitangent = cross(cnormal, tangent);*/
+
+    /*vertex[0].tangent = tangent;*/
+    /*vertex[0].biTangent = bitangent;*/
+    /*vertex[0].normal = cnormal;*/
+    /*vertex[0 + 1].tangent = tangent;*/
+    /*vertex[0 + 1].biTangent = bitangent;*/
+    /*vertex[0 + 1].normal = cnormal;*/
+    /*vertex[0 + 2].tangent = tangent;*/
+    /*vertex[0 + 2].biTangent = bitangent;*/
+    /*vertex[0 + 2].normal = cnormal;*/
+    /*std::cout << "------------------" << i << std::endl;*/
+    return glm::mat3x3(tangent, bitangent, cnormal);
+}
+
 Model& Model::load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout) {
     // load model from disk
     mName = name;
@@ -138,54 +190,13 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         /*Mesh& currentMesh = pair.second;  // Get a reference to the actual Mesh object*/
 
         for (size_t i = 0; i < mMeshes[materialId].mVertexData.size(); i += 3) {
-            const auto& pos1 = mMeshes[materialId].mVertexData[i].position;
-            const auto& pos2 = mMeshes[materialId].mVertexData[i + 1].position;
-            const auto& pos3 = mMeshes[materialId].mVertexData[i + 2].position;
-
-            const auto& uv1 = mMeshes[materialId].mVertexData[i].uv;
-            const auto& uv2 = mMeshes[materialId].mVertexData[i + 1].uv;
-            const auto& uv3 = mMeshes[materialId].mVertexData[i + 2].uv;
-
-            glm::vec3 edge1 = pos2 - pos1;
-            glm::vec3 edge2 = pos3 - pos1;
-            glm::vec2 deltaUV1 = uv2 - uv1;
-            glm::vec2 deltaUV2 = uv3 - uv1;
-
-            float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-
-            glm::vec3 tangent{};
-            tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-            tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-            tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-
-            glm::vec3 bitangent{};
-            bitangent.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-            bitangent.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-            bitangent.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-
-            glm::vec3 cnormal = glm::cross(tangent, bitangent);
-	    /*const auto& expectedN = mMeshes[materialId].mVertexData[i].normal;*/
-
-            if (glm::dot(mMeshes[materialId].mVertexData[i].normal, cnormal) < 0.0) {
-                tangent = -tangent;
-                bitangent = -bitangent;
-                /*cnormal = -cnormal;*/
+            for (size_t k = 0; k < 3; k++) {
+                VertexAttributes* v = &mMeshes[materialId].mVertexData[i];
+                auto tbn = computeTBN(v, v[k].normal);
+		v[k].tangent = tbn[0]; 
+		v[k].biTangent = tbn[1]; 
+		v[k].normal = tbn[2]; 
             }
-
-            /*cnormal = expectedN;*/
-            /*tangent = normalize(tangent - dot(tangent, cnormal) * cnormal);*/
-            /*bitangent = cross(cnormal, tangent);*/
-
-            mMeshes[materialId].mVertexData[i].tangent = tangent;
-            mMeshes[materialId].mVertexData[i].biTangent = bitangent;
-            mMeshes[materialId].mVertexData[i].normal = cnormal;
-            mMeshes[materialId].mVertexData[i + 1].tangent = tangent;
-            mMeshes[materialId].mVertexData[i + 1].biTangent = bitangent;
-            mMeshes[materialId].mVertexData[i + 1].normal = cnormal;
-            mMeshes[materialId].mVertexData[i + 2].tangent = tangent;
-            mMeshes[materialId].mVertexData[i + 2].biTangent = bitangent;
-            mMeshes[materialId].mVertexData[i + 2].normal = cnormal;
-            /*std::cout << "------------------" << i << std::endl;*/
         }
     }
 
@@ -286,7 +297,7 @@ Model& Model::uploadToGPU(Application* app) {
         std::cout << getName() << " mesh has " << mesh.mVertexData.size() << '\n';
         mesh.mVertexBuffer.setLabel("Uniform buffer for object info")
             .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
-            .setSize(mesh.mVertexData.size() * sizeof(VertexAttributes))
+            .setSize((mesh.mVertexData.size() + 1) * sizeof(VertexAttributes))
             .setMappedAtCraetion()
             .create(app);
 
@@ -390,7 +401,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
                                               : mesh.mTextureBindGroup,
                                           0, nullptr);
 
-        wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size() - 1,
+        wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
                                   this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0);
     }
 }

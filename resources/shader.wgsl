@@ -293,14 +293,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 			discard;
             }
         } else {
-            color = pow(in.color.rgb, vec3f(2.2));
+            color = pow(in.color.rgb , vec3f(2.2));
         }
 
     	//if objectTranformation.isFoliage == 1 {
 	//		color = in.viewDirection;
 	//}
     } else {
-        color = pow(calculateTerrainColor(in.color.r, in.uv), vec3f(1.2));
+        color = pow(calculateTerrainColor(in.color.r, in.uv) * color, vec3f(1.9));
     }
     let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos));
 
