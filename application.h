@@ -17,6 +17,7 @@
 #include "shadow_pass.h"
 #include "shapes.h"
 #include "skybox.h"
+#include "terrain_pass.h"
 #include "transparency_pass.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
@@ -111,6 +112,7 @@ class Application {
         WGPUBuffer& getUniformBuffer();
         MyUniform& getUniformData();
         const WGPUBindGroupLayout& getObjectBindGroupLayout() const;
+        const WGPUBindGroupLayout* getBindGroupLayouts() const;
         WGPUBindGroup bindGrouptrans = {};
         glm::mat4 mtransmodel{1.0};
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
@@ -145,6 +147,7 @@ class Application {
         ShadowPass* mShadowPass;
         TransparencyPass* mTransparencyPass;
         CompositionPass* mCompositionPass;
+	TerrainPass* mTerrainPass;
         WGPUSampler mDefaultSampler;
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();

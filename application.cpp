@@ -24,6 +24,7 @@
 #include "pipeline.h"
 #include "point_light.h"
 #include "shapes.h"
+#include "terrain_pass.h"
 #include "texture.h"
 #include "transparency_pass.h"
 #include "utils.h"
@@ -236,6 +237,10 @@ void Application::initializePipeline() {
     mShadowPass->createRenderPass();
     // mShadowPass->setupScene(glm::vec3{0.5, -0.9, 0.1});
 
+    mTerrainPass = new TerrainPass{this};
+    mTerrainPass->create(mSurfaceFormat);
+    // mTerrainPass->setupScene(glm::vec3{0.5, -0.9, 0.1});
+
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
     mBindingData[0].buffer = mUniformBuffer;
@@ -343,8 +348,8 @@ void Application::initializePipeline() {
     std::random_device rd;   // Seed the random number generator
     std::mt19937 gen(rd());  // Mersenne Twister PRNG
     std::uniform_real_distribution<float> dist(1.5, 2.5);
-    std::uniform_real_distribution<float> dist_for_rotation(0.0, 180.0);
-    std::uniform_real_distribution<float> dist_for_tree(2.5, 3.3);
+    std::uniform_real_distribution<float> dist_for_rotation(0.0, 90.0);
+    std::uniform_real_distribution<float> dist_for_tree(1.9, 2.5);
     std::uniform_real_distribution<float> dist_for_grass(1.0, 1.8);
     if (output.size() > 63690) {
         std::cout << "EEEEEEEEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRRRRRRROOOOOOOOOOOOOOOOORRRRRRRRRRRRRRRR\n";
@@ -585,7 +590,7 @@ void Application::initializeBuffers() {
         .create(this);
 
     mLightingUniforms.directions = {glm::vec4{0.5, 0.5, 0.4, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
-    mLightingUniforms.colors = {glm::vec4{1.0, 0.9, 0.6, 1.0}, glm::vec4{0.6, 0.9, 1.0, 1.0}};
+    mLightingUniforms.colors = {glm::vec4{0.99, 1.0, 0.88, 1.0}, glm::vec4{0.6, 0.9, 1.0, 1.0}};
     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                          lighting_buffer_descriptor.size);
 
@@ -939,7 +944,6 @@ void Application::mainLoop() {
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, sizeof(MyUniform));
 
     //-------------- End of shadow pass
-
     // ---------------- 2 - begining of the opaque object color pass ---------------
 
     /*auto light_pass_descriptor =*/
@@ -958,9 +962,40 @@ void Application::mainLoop() {
     /*wgpuRenderPassEncoderRelease(light_space_encoder);*/
 
     // ------------------------------------
-    auto render_pass_descriptor = createRenderPassDescriptor(target_view, mDepthTextureView);
-    WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
+    /*auto render_pass_descriptor = createRenderPassDescriptor(target_view, mDepthTextureView);*/
+    WGPURenderPassDescriptor render_pass_descriptor = {};
 
+    {
+        render_pass_descriptor.nextInChain = nullptr;
+
+        static WGPURenderPassColorAttachment color_attachment = {};
+        color_attachment.view = target_view;
+        color_attachment.resolveTarget = nullptr;
+        color_attachment.loadOp = WGPULoadOp_Clear;
+        color_attachment.storeOp = WGPUStoreOp_Store;
+        color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
+#ifndef WEBGPU_BACKEND_WGPU
+        color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif  // NOT WEBGPU_BACKEND_WGPU
+
+        render_pass_descriptor.colorAttachmentCount = 1;
+        render_pass_descriptor.colorAttachments = &color_attachment;
+
+        static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
+        depth_stencil_attachment.view = mDepthTextureView;
+        depth_stencil_attachment.depthClearValue = 1.0f;
+        depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
+        depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
+        depth_stencil_attachment.depthReadOnly = false;
+        depth_stencil_attachment.stencilClearValue = 0;
+        depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Clear;
+        depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
+        depth_stencil_attachment.stencilReadOnly = true;
+        render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
+        render_pass_descriptor.timestampWrites = nullptr;
+    }
+
+    WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
     glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mUniforms.viewMatrix));
     glm::mat4 mvp = mUniforms.projectMatrix * viewNoTranslation;
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mSkybox->getPipeline()->getPipeline());
@@ -968,7 +1003,7 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
 
-    terrain.draw(this, render_pass_encoder, mBindingData);
+    /*terrain.draw(this, render_pass_encoder, mBindingData);*/
 
     for (const auto& model : mLoadedModel) {
         /*auto [in_world_min, in_world_max] = model->getWorldMin();*/
@@ -977,13 +1012,55 @@ void Application::mainLoop() {
         }
     }
 
-    updateGui(render_pass_encoder);
     /*std::cout << "----------------------------------------------" << std::endl;*/
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
     // end of color render pass
 
+    // terrain pass
+
+    {
+        WGPURenderPassDescriptor render_pass_descriptor = {};
+        render_pass_descriptor.nextInChain = nullptr;
+
+        static WGPURenderPassColorAttachment color_attachment = {};
+        color_attachment.view = target_view;
+        color_attachment.resolveTarget = nullptr;
+        color_attachment.loadOp = WGPULoadOp_Load;
+        color_attachment.storeOp = WGPUStoreOp_Store;
+        color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
+#ifndef WEBGPU_BACKEND_WGPU
+        color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif  // NOT WEBGPU_BACKEND_WGPU
+
+        render_pass_descriptor.colorAttachmentCount = 1;
+        render_pass_descriptor.colorAttachments = &color_attachment;
+
+        static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
+        depth_stencil_attachment.view = mDepthTextureView;
+        depth_stencil_attachment.depthClearValue = 1.0f;
+        depth_stencil_attachment.depthLoadOp = WGPULoadOp_Load;
+        depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
+        depth_stencil_attachment.depthReadOnly = false;
+        depth_stencil_attachment.stencilClearValue = 0;
+        depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Load;
+        depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
+        depth_stencil_attachment.stencilReadOnly = true;
+        render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
+        render_pass_descriptor.timestampWrites = nullptr;
+        mTerrainPass->setRenderPassDescriptor(render_pass_descriptor);
+    }
+    WGPURenderPassEncoder terrain_pass_encoder =
+        wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());
+    wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());
+    /*mShadowPass->render(mLoadedModel, terrain_pass_encoder, 0);*/
+    terrain.draw(this, terrain_pass_encoder, mBindingData);
+
+    updateGui(terrain_pass_encoder);
+
+    wgpuRenderPassEncoderEnd(terrain_pass_encoder);
+    wgpuRenderPassEncoderRelease(terrain_pass_encoder);
     // ------------ 3- Transparent pass
     // Calculate the Accumulation Buffer from the transparent object, this pass does not draw
     // on the render Target
@@ -1474,6 +1551,7 @@ WGPUBuffer& Application::getUniformBuffer() { return mUniformBuffer; }
 MyUniform& Application::getUniformData() { return mUniforms; }
 
 const WGPUBindGroupLayout& Application::getObjectBindGroupLayout() const { return mBindGroupLayouts[1]; }
+const WGPUBindGroupLayout* Application::getBindGroupLayouts() const { return mBindGroupLayouts.data(); }
 
 std::pair<size_t, size_t> Application::getWindowSize() { return {mWindowWidth, mWindowHeight}; }
 

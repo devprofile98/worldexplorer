@@ -10,7 +10,7 @@ WGPURenderPassDescriptor createRenderPassDescriptor(WGPUTextureView colorAttachm
     WGPURenderPassColorAttachment color_attachment = {};
     color_attachment.view = colorAttachment;
     color_attachment.resolveTarget = nullptr;
-    color_attachment.loadOp = WGPULoadOp_Clear;
+    color_attachment.loadOp = WGPULoadOp_Load;
     color_attachment.storeOp = WGPUStoreOp_Store;
     color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
 #ifndef WEBGPU_BACKEND_WGPU
@@ -23,7 +23,7 @@ WGPURenderPassDescriptor createRenderPassDescriptor(WGPUTextureView colorAttachm
     WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
     depth_stencil_attachment.view = depthTextureView;
     depth_stencil_attachment.depthClearValue = 1.0f;
-    depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
+    depth_stencil_attachment.depthLoadOp = WGPULoadOp_Load;
     depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
     depth_stencil_attachment.depthReadOnly = false;
     depth_stencil_attachment.stencilClearValue = 0;
@@ -69,7 +69,7 @@ Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat sur
     // 1 - vertex state
     mlVertexBufferLayout = getDefaultVertexBufferLayout();
     mDescriptor.nextInChain = nullptr;
-    mDescriptor.label ="default pipeline layout";
+    mDescriptor.label = "default pipeline layout";
 
     WGPUVertexState vertex_state = {};
     vertex_state.bufferCount = 1;
@@ -145,6 +145,8 @@ WGPURenderPipelineDescriptor* Pipeline::getDescriptorPtr() { return &mDescriptor
 
 Pipeline& Pipeline::setShader(const std::filesystem::path& path) {
     mShaderModule = loadShader(path, mApp->getRendererResource().device);
+    mDescriptor.vertex.module = mShaderModule;
+    mFragmentState.module = mShaderModule;
     return *this;
 }
 

@@ -181,34 +181,34 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32) -> f32 {
     return shadow;
 }
 
-fn calculateTerrainColor(level: f32, uv: vec2f) -> vec3f {
-    var color = vec3f(0.0f);
-    if level == 1 {
-        color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
-    } else if level > 1 && level < 2 {
-        let distance = level - 1.0;
-        let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
-        color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
-        color = mix(color, grass_color, distance);
-    } else if level == 2 {
-        color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
-    } else if level > 2 && level < 3 {
-        let distance = level - 2.0;
-        let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
-        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
-        color = mix(grass_color, color, distance);
-    } else if level == 3 {
-        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
-    } else if level > 3 && level < 4 {
-        let distance = level - 3.0;
-        let snow_color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
-        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
-        color = mix(color, snow_color, distance);
-    } else if level == 4 {
-        color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
-    }
-    return color;
-}
+//fn calculateTerrainColor(level: f32, uv: vec2f) -> vec3f {
+//    var color = vec3f(0.0f);
+//    if level == 1 {
+//        color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
+//    } else if level > 1 && level < 2 {
+//        let distance = level - 1.0;
+//        let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
+//        color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
+//        color = mix(color, grass_color, distance);
+//    } else if level == 2 {
+//        color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
+//    } else if level > 2 && level < 3 {
+//        let distance = level - 2.0;
+//        let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
+//        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
+//        color = mix(grass_color, color, distance);
+//    } else if level == 3 {
+//        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
+//    } else if level > 3 && level < 4 {
+//        let distance = level - 3.0;
+//        let snow_color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
+//        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
+//        color = mix(color, snow_color, distance);
+//    } else if level == 4 {
+//        color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
+//    }
+//    return color;
+//}
 
 fn calculatePointLight(curr_light: PointLight, normal: vec3f, dir: vec3f) -> vec3f {
     let distance = length(dir);
@@ -278,7 +278,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //        }
     //}
 
-    if objectTranformation.isFlat == 0 {
+    {
         let fragment_color = textureSample(diffuse_map, textureSampler, in.uv).rgba;
         var base_diffuse = fragment_color.rgb;
         let color2 = shading * base_diffuse;
@@ -299,9 +299,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     	//if objectTranformation.isFoliage == 1 {
 	//		color = in.viewDirection;
 	//}
-    } else {
-        color = pow(calculateTerrainColor(in.color.r, in.uv) * color, vec3f(1.9));
-    }
+    } 
+    //else {
+    //    color = pow(calculateTerrainColor(in.color.r, in.uv) * color, vec3f(1.9));
+    //}
     let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos));
 
     let ambient = color * shading;
@@ -318,6 +319,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //}else{
     //    return vec4f((col + vec3(0.0, 1.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
     //}
-    return vec4f(color * (1 - shadow * (0.75)), 1.0);
+    return vec4f(col * (1 - shadow * (0.75)), 1.0);
 }
 

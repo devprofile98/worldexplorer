@@ -38,6 +38,7 @@ add_executable(
     mesh.cpp
     instance.cpp
     frustum_culling.cpp
+    terrain_pass.cpp
 )
 
 target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")
