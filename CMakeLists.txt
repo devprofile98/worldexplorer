@@ -39,6 +39,8 @@ add_executable(
     instance.cpp
     frustum_culling.cpp
     terrain_pass.cpp
+    model_registery.cpp
+    tree.cpp
 )
 
 target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")

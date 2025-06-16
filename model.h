@@ -140,8 +140,6 @@ class Model : public BaseModel {
 
     private:
         Buffer offset_buffer = {};
-        Texture* mSpecularTexture = nullptr;
-        Texture* mNormalMapTexture = nullptr;
         WGPUBindGroup mBindGroup = nullptr;
         WGPUBindGroup ggg = {};
         bool mIsLoaded = false;

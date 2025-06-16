@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <format>
+#include <future>
 #include <iostream>
 #include <random>
 #include <vector>
@@ -21,6 +22,7 @@
 #include "imgui/backends/imgui_impl_wgpu.h"
 #include "imgui/imgui.h"
 #include "instance.h"
+#include "model_registery.h"
 #include "pipeline.h"
 #include "point_light.h"
 #include "shapes.h"
@@ -44,6 +46,31 @@ static float far_plane_length = 100.0f;
 static float ddistance = 2.0f;
 static float dd = 5.0f;
 extern bool should;
+
+std::vector<std::future<Model*>> futures;
+
+Model* loadd(Application* app) {
+    Model* tree_model = new Model{};
+    /*tree_model->load("boat", app, RESOURCE_DIR "/fourareen.obj", app->getObjectBindGroupLayout());*/
+    /*tree_model->moveTo({-10.0, -4.0, 0.0});*/
+
+    tree_model->load("tree", app, RESOURCE_DIR "/tree1.obj", app->getObjectBindGroupLayout())
+        .moveTo(glm::vec3{0.725, -7.640, 1.125})
+        .scale(glm::vec3{0.9});
+    tree_model->uploadToGPU(app);
+    tree_model->setTransparent(false);
+    tree_model->setFoliage();
+    tree_model->createSomeBinding(app, app->getDefaultTextureBindingData());
+    app->mLoadedModel.push_back(tree_model);
+    return tree_model;
+}
+
+void loadTree(Application* app) {
+    futures.push_back(std::async(std::launch::async, loadd, app));
+    /*Model* tree = handle.get();*/
+}
+
+struct TreeModel {};
 
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
     const auto inv = glm::inverse(proj * view);
@@ -120,7 +147,7 @@ void Application::initializePipeline() {
     // Creating default meatlic-roughness texture
     mDefaultMetallicRoughness = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_metallic_roughness_texture_view = mDefaultMetallicRoughness->createView();
-    texture_data = {0, 255, 255, 255};  // White color for Default specular texture
+    texture_data = {255, 255, 255, 255};  // White color for Default specular texture
     mDefaultMetallicRoughness->setBufferData(texture_data);
     mDefaultMetallicRoughness->uploadToGPU(mRendererResource.queue);
 
@@ -351,12 +378,12 @@ void Application::initializePipeline() {
     std::uniform_real_distribution<float> dist_for_rotation(0.0, 90.0);
     std::uniform_real_distribution<float> dist_for_tree(1.9, 2.5);
     std::uniform_real_distribution<float> dist_for_grass(1.0, 1.8);
-    if (output.size() > 63690) {
+    if (terrainData.size() > 63690) {
         std::cout << "EEEEEEEEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRRRRRRROOOOOOOOOOOOOOOOORRRRRRRRRRRRRRRR\n";
     }
 
-    for (size_t i = 0; i < output.size(); i++) {
-        glm::vec3 position = glm::vec3(output[i].x, output[i].y, output[i].z);
+    for (size_t i = 0; i < terrainData.size(); i++) {
+        glm::vec3 position = glm::vec3(terrainData[i].x, terrainData[i].y, terrainData[i].z);
         auto trans = glm::translate(glm::mat4{1.0f}, position);
         auto rotate = glm::rotate(glm::mat4{1.0f}, glm::radians(dist_for_rotation(gen)), glm::vec3{0.0, 0.0, 1.0});
         auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f * dist(gen)});
@@ -382,12 +409,12 @@ void Application::initializePipeline() {
                          100000 * sizeof(glm::mat4), dddata_tree.data(), sizeof(glm::mat4) * (dddata_tree.size() - 1));
 
     auto* ins = new Instance{dddata};
-    auto* ins_tree = new Instance{dddata_tree};
+    /*auto* ins_tree = new Instance{dddata_tree};*/
     grass_model.setInstanced(ins);
     grass_model.mObjectInfo.instanceOffsetId = 0;
 
-    tree_model.setInstanced(ins_tree);
-    tree_model.mObjectInfo.instanceOffsetId = 1;
+    /*tree_model.setInstanced(ins_tree);*/
+    /*tree_model.mObjectInfo.instanceOffsetId = 1;*/
 
     mBindingData[13] = {};
     mBindingData[13].nextInChain = nullptr;
@@ -451,10 +478,10 @@ void Application::initializeBuffers() {
     mLightManager = LightManager::init(this);
     mInstanceManager = new InstanceManager{this, sizeof(glm::mat4) * 100000 * 15, 100000};
 
-    boat_model.load("boat", this, RESOURCE_DIR "/fourareen.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{-10.0, 0.0, 0.0})
-        .scale(glm::vec3{0.3});
-    boat_model.uploadToGPU(this);
+    /*boat_model.load("boat", this, RESOURCE_DIR "/fourareen.obj", mBindGroupLayouts[1])*/
+    /*    .moveTo(glm::vec3{-10.0, 0.0, 0.0})*/
+    /*    .scale(glm::vec3{0.3});*/
+    /*boat_model.uploadToGPU(this);*/
 
     tower_model.load("tower", this, RESOURCE_DIR "/tower.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{0.0})
@@ -529,13 +556,6 @@ void Application::initializeBuffers() {
     cylinder.uploadToGPU(this);
     cylinder.setTransparent(false);
 
-    tree_model.load("tree", this, RESOURCE_DIR "/tree1.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.725, -7.640, 1.125})
-        .scale(glm::vec3{0.9});
-    tree_model.uploadToGPU(this);
-    tree_model.setTransparent(false);
-    tree_model.setFoliage();
-
     water.load("water", this, RESOURCE_DIR "/bluecube.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{-3.725, -7.640, -3.425})
         .scale(glm::vec3{100.0, 100.0, 1.0});
@@ -543,21 +563,15 @@ void Application::initializeBuffers() {
     water.setTransparent(false);
     water.useTexture(false);
 
-    jet.load("jet", this, RESOURCE_DIR "/old_jet.obj", mBindGroupLayouts[1]).moveTo(glm::vec3{1.725, 2.640, 3.425});
-    jet.uploadToGPU(this);
-    jet.setTransparent(false);
-
-    terrain.generate(200, 8, output).uploadToGpu(this);
-    std::cout << "Generate is " << output.size() << '\n';
+    terrain.generate(200, 8, terrainData).uploadToGpu(this);
+    std::cout << "Generate is " << terrainData.size() << '\n';
 
     shapes = new Cube{this};
     shapes->moveTo(glm::vec3{10.0f, 1.0f, 4.0f});
-    /*shapes->setTransparent();*/
 
     plane = new Plane{this};
     plane->mName = "Plane";
     plane->moveTo(glm::vec3{3.0f, 1.0f, 4.0f}).scale(glm::vec3{0.01, 1.0, 1.0});
-    /*plane->setTransparent();*/
     plane->setTransparent(false);
 
     WGPUBufferDescriptor buffer_descriptor = {};
@@ -842,15 +856,11 @@ bool Application::initialize() {
     wgpuQueueSubmit(mRendererResource.queue, 1, &command);
     wgpuCommandBufferRelease(command);
 
-    boat_model.moveTo({-10.0, -4.0, 0.0});
     tower_model.moveTo({-2.0, -1.0, 0.0});
 
-    mLoadedModel =
-        {&boat_model,   &tower_model, &desk_model, &arrow_model, &sphere,   /* &sphere1,    &sphere2,
-            &sphere3,    &sphere4,*/ &grass_model,
-         &grass2_model, &jet,         &tree_model, &car,         &cylinder, &water,
-         /* ,  shapes,
-plane*/};
+    mLoadedModel = {
+        &tower_model, &desk_model, &arrow_model, &sphere, &grass_model, &grass2_model, &car, &cylinder, &water,
+    };
 
     for (auto& model : mLoadedModel) {
         static_cast<Model*>(model)->createSomeBinding(this, mDefaultTextureBindingData);
@@ -933,6 +943,8 @@ void Application::mainLoop() {
 
     /*mUniforms.time = static_cast<float>(glfwGetTime());*/
     mUniforms.setCamera(mCamera);
+    /*std::cout << "camera position is " << glm::to_string(getCamera().getPos()) << std::endl;*/
+    mUniforms.cameraWorldPosition = getCamera().getPos();
     auto all_scenes = mShadowPass->getScene();
     if (look_as_light) {
         auto all_scene = all_scenes[which_frustum == true ? 0 : 1];
@@ -1061,6 +1073,8 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderEnd(terrain_pass_encoder);
     wgpuRenderPassEncoderRelease(terrain_pass_encoder);
+
+    ModelRegistry::instance().tick(this);
     // ------------ 3- Transparent pass
     // Calculate the Accumulation Buffer from the transparent object, this pass does not draw
     // on the render Target
@@ -1479,18 +1493,18 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     static glm::vec3 start = glm::vec3{0.0f};
     static glm::vec3 end = glm::vec3{0.0f};
     static glm::vec3 color = glm::vec3{0.0f};
-    static glm::vec3 color2 = glm::vec3{0.0f};
+    /*static glm::vec3 color2 = glm::vec3{0.0f};*/
 
     ImGui::InputFloat3("Start", glm::value_ptr(start));
     ImGui::InputFloat3("End", glm::value_ptr(end));
 
     ImGui::ColorPicker3("lines color", glm::value_ptr(color));
     if (ImGui::Button("Create", ImVec2(100, 30))) {
-        color2 = color;
-        color2.x += color.z;
-        color2.z += color.x;
-        std::vector<glm::vec2> lines = {{0, 1}, {2, 3}, {6, 7}, {4, 5}, {0, 4}, {2, 6},
-                                        {0, 2}, {4, 6}, {1, 5}, {1, 3}, {5, 7}, {3, 7}};
+        /*color2 = color;*/
+        /*color2.x += color.z;*/
+        /*color2.z += color.x;*/
+        /*std::vector<glm::vec2> lines = {{0, 1}, {2, 3}, {6, 7}, {4, 5}, {0, 4}, {2, 6},*/
+        /*                                {0, 2}, {4, 6}, {1, 5}, {1, 3}, {5, 7}, {3, 7}};*/
         /*for (const auto& l : lines) {*/
         /*    Line* line = new Line{this, mShadowPass->mFar[l.x], mShadowPass->mFar[l.y], 0.5, color};*/
         /*    line->setTransparent(false);*/
@@ -1499,7 +1513,11 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         /*    line2->setTransparent(false);*/
         /*    mLoadedModel.push_back(line2);*/
         /*}*/
-        should = !should;
+        /*should = !should;*/
+        /*loadTree(this);*/
+        /*for (auto [key, func] : ModelRegistry::instance().factories) {*/
+        /*    futures.push_back(std::async(std::launch::async, func, this));*/
+        /*}*/
     }
     if (ImGui::Button("remove frustum", ImVec2(100, 30))) {
         for (int i = 0; i < 24; i++) {
@@ -1559,3 +1577,7 @@ void Application::setWindowSize(size_t width, size_t height) {
     mWindowWidth = width;
     mWindowHeight = height;
 }
+
+const std::vector<WGPUBindGroupEntry> Application::getDefaultTextureBindingData() const {
+    return mDefaultTextureBindingData;
+};

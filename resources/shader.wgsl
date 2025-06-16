@@ -244,6 +244,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     let view_direction = normalize(in.viewDirection);
     let metallic_roughness = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
+    let metallic_factor = metallic_roughness.b;
 
     var shading = vec3f(0.0);
     // first, put directional light here
@@ -252,9 +253,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let reflection = reflect(-direction, normal);
         // The closer the cosine is to 1.0, the closer V is to R
     let RoV = max(0.0, dot(reflection, view_direction));
-    let hardness = 16.0;
-    let specular = pow(RoV, hardness) ;
+    let hardness = 32.0;
     let intensity = dot(direction, normal);
+    var specular = pow(RoV, hardness) * intensity * color * metallic_factor ;
     var min_intensity = 0.6;
     if objectTranformation.isFoliage != 1 {
         min_intensity = 0.3;
@@ -262,7 +263,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let diffuse = max(min_intensity, intensity) * color;
     shading += diffuse + vec3f(0.1, 0.1, 0.15) ;
     if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
-        shading += specular;
+        //shading += specular;
     }
 
 
@@ -278,8 +279,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //        }
     //}
 
-    {
         let fragment_color = textureSample(diffuse_map, textureSampler, in.uv).rgba;
+	// specular = mix(vec3f(0.04), fragment_color.rgb, metallic_factor);	
+    {
         var base_diffuse = fragment_color.rgb;
         let color2 = shading * base_diffuse;
         let linear_color = pow(color2, vec3f(2.2));
@@ -305,7 +307,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //}
     let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos));
 
-    let ambient = color * shading;
+    let ambient = (color * (1 - shadow * (0.75))) + specular;
     let diffuse_final = point_light_color;
 
     var col = (diffuse_final + ambient);
@@ -319,6 +321,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //}else{
     //    return vec4f((col + vec3(0.0, 1.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
     //}
-    return vec4f(col * (1 - shadow * (0.75)), 1.0);
+    //if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
+    //	return vec4f(metallic_roughness, 1.0);
+    //}
+    return vec4f(col, 1.0);
 }
 

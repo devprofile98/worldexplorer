@@ -81,27 +81,21 @@ class Application {
         void updateViewMatrix();
         void updateDragInertia();
 
-        Model boat_model{};
         Model tower_model{};
         Model arrow_model{};
         Model desk_model{};
-        Model tree_model{};
         Model grass_model{};
         Model grass2_model{};
         Model car{};
         Model cylinder{};
         Model water{};
         Model sphere{};
-        /*Model sphere1{};*/
-        /*Model sphere2{};*/
-        /*Model sphere3{};*/
-        /*Model sphere4{};*/
-        Model jet{};
+
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();
 
         InstanceManager* mInstanceManager;
-        std::vector<glm::vec3> output = {};
+        std::vector<glm::vec3> terrainData = {};
         bool initGui();                                    // called in onInit
         void terminateGui();                               // called in onFinish
         void updateGui(WGPURenderPassEncoder renderPass);  // called in onFrame
@@ -113,6 +107,7 @@ class Application {
         MyUniform& getUniformData();
         const WGPUBindGroupLayout& getObjectBindGroupLayout() const;
         const WGPUBindGroupLayout* getBindGroupLayouts() const;
+	const std::vector<WGPUBindGroupEntry> getDefaultTextureBindingData() const;
         WGPUBindGroup bindGrouptrans = {};
         glm::mat4 mtransmodel{1.0};
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
@@ -129,8 +124,8 @@ class Application {
         void setWindowSize(size_t width, size_t height);
 
         WGPUBuffer mBuffer1;
-
         BindingGroup mDefaultTextureBindingGroup = {};
+
     private:
         size_t mWindowWidth = 1920;
         size_t mWindowHeight = 1080;

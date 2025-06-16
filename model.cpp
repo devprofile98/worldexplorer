@@ -133,7 +133,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         std::cerr << err << std::endl;
     }
 
-    std::cout << getName() << " has " << materials.size() << " Tiny Object " << materials[0].normal_texname << " \n";
+    std::cout << getName() << " has " << materials.size() << " Tiny Object " << materials[0].bump_texname << " -- \n";
 
     // Fill in vertexData here
 
@@ -193,11 +193,14 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
             for (size_t k = 0; k < 3; k++) {
                 VertexAttributes* v = &mMeshes[materialId].mVertexData[i];
                 auto tbn = computeTBN(v, v[k].normal);
-		v[k].tangent = tbn[0]; 
-		v[k].biTangent = tbn[1]; 
-		v[k].normal = tbn[2]; 
+                v[k].tangent = tbn[0];
+                v[k].biTangent = tbn[1];
+                v[k].normal = tbn[2];
             }
         }
+    }
+    if (getName() == "jet") {
+        mObjectInfo.isFlat = false;
     }
 
     for (const auto& material : materials) {
@@ -212,37 +215,37 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
             texture_path += material.diffuse_texname;
             mesh.mTexture = new Texture{render_resource.device, texture_path};
             if (mesh.mTexture->createView() == nullptr) {
-                std::cout << std::format("Failed to create Diffuse Texture view for {} at \n", mName, texture_path);
+                std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName, texture_path);
             }
             mesh.mTexture->uploadToGPU(render_resource.queue);
             mesh.isTransparent = mesh.mTexture->isTransparent();
         }
-    }
-    // Load and upload specular texture
-    if (!materials[0].specular_texname.empty()) {
-        std::string texture_path = RESOURCE_DIR;
-        texture_path += "/";
-        texture_path += materials[0].specular_texname;
-        mSpecularTexture = new Texture{render_resource.device, texture_path};
-        if (mSpecularTexture->createView() == nullptr) {
-            std::cout << std::format("Failed to create Specular Texture view for {}\n", mName);
-        }
-        mSpecularTexture->uploadToGPU(render_resource.queue);
-    }
 
-    // Load and upload normal texture
-    if (name == "tower" || name == "cylinder") {
-        std::cout << "tower\n";
-        /*if (!materials[0].normal_texname.empty()) {*/
-        std::string texture_path = RESOURCE_DIR;
-        texture_path += "/";
-        texture_path += name == "tower" ? "Wood_Tower_Nor.jpg" : "cobblestone_normal.png";
-        mNormalMapTexture = new Texture{render_resource.device, texture_path};
-        if (mNormalMapTexture->createView() == nullptr) {
-            std::cout << std::format("Failed to create normal Texture view for {}\n", mName);
+        // Load and upload specular texture
+        if (!materials[material_id].specular_texname.empty()) {
+            std::string texture_path = RESOURCE_DIR;
+            texture_path += "/";
+            texture_path += materials[material_id].specular_texname;
+            mesh.mSpecularTexture = new Texture{render_resource.device, texture_path};
+            if (mesh.mSpecularTexture->createView() == nullptr) {
+                std::cout << std::format("Failed to create Specular Texture view for {}\n", mName);
+            }
+            mesh.mSpecularTexture->uploadToGPU(render_resource.queue);
         }
-        mNormalMapTexture->uploadToGPU(render_resource.queue);
-        /*}*/
+
+        // Load and upload normal texture
+        if (!materials[material_id].bump_texname.empty()) {
+            /*if (!materials[0].normal_texname.empty()) {*/
+            std::string texture_path = RESOURCE_DIR;
+            texture_path += "/";
+            texture_path += materials[material_id].bump_texname;
+            mesh.mNormalMapTexture = new Texture{render_resource.device, texture_path};
+            if (mesh.mNormalMapTexture->createView() == nullptr) {
+                std::cout << std::format("Failed to create normal Texture view for {} at {}\n", mName, texture_path);
+            }
+            mesh.mNormalMapTexture->uploadToGPU(render_resource.queue);
+            /*}*/
+        }
     }
 
     offset_buffer.setSize(sizeof(glm::vec4) * 10)
@@ -354,16 +357,16 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
                 mesh.binding_data[0].binding = 0;
                 mesh.binding_data[0].textureView = mesh.mTexture->getTextureView();
             }
-            if (mSpecularTexture != nullptr && mSpecularTexture->getTextureView() != nullptr) {
+            if (mesh.mSpecularTexture != nullptr && mesh.mSpecularTexture->getTextureView() != nullptr) {
                 mesh.binding_data[1].nextInChain = nullptr;
                 mesh.binding_data[1].binding = 1;
-                mesh.binding_data[1].textureView = mSpecularTexture->getTextureView();
+                mesh.binding_data[1].textureView = mesh.mSpecularTexture->getTextureView();
             }
-            if (mNormalMapTexture != nullptr && mNormalMapTexture->getTextureView() != nullptr) {
+            if (mesh.mNormalMapTexture != nullptr && mesh.mNormalMapTexture->getTextureView() != nullptr) {
                 std::cout << ":::::::::::::::::::::::::::::::::::::\n\n::::::::::::::::;\n";
                 mesh.binding_data[2].nextInChain = nullptr;
                 mesh.binding_data[2].binding = 2;
-                mesh.binding_data[2].textureView = mNormalMapTexture->getTextureView();
+                mesh.binding_data[2].textureView = mesh.mNormalMapTexture->getTextureView();
             }
             auto& desc = app->mDefaultTextureBindingGroup.getDescriptor();
             desc.entries = mesh.binding_data.data();

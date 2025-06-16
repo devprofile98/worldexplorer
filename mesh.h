@@ -25,6 +25,8 @@ class Mesh {
     public:
         std::vector<VertexAttributes> mVertexData;
         Texture* mTexture = nullptr;
+        Texture* mSpecularTexture = nullptr;
+        Texture* mNormalMapTexture = nullptr;
         Buffer mVertexBuffer = {};
         bool isTransparent = false;
         WGPUBindGroup mTextureBindGroup = {};

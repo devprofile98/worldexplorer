@@ -157,7 +157,12 @@ void TransparencyPass::initializePass() {
     mBindingData[7].size = sizeof(glm::vec4) * 10000;
 
     // Prepare CPU-side data to reset the buffers
-    headsData = std::vector<uint32_t>(1920 * 1080, 0xFFFFFFFF);  // Set all to 0xFFFFFFFF
+    try {
+        headsData = std::vector<uint32_t>(1920 * 1080, 0xFFFFFFFF);  // Set all to 0xFFFFFFFF
+        /*std::vector<unsigned int> v(2073600, 4294967295);*/
+    } catch (const std::bad_alloc& e) {
+        std::cerr << "Allocation failed: " << e.what() << std::endl;
+    }
 
     linkedListData = std::vector<LinkedListElement>(1920 * 1080 * 4);  // Default-initialize
 }
