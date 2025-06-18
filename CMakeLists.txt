@@ -40,6 +40,10 @@ add_executable(
     frustum_culling.cpp
     terrain_pass.cpp
     model_registery.cpp
+    renderpass.cpp
+
+
+
     tree.cpp
 )
 

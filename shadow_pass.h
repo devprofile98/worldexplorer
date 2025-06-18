@@ -8,23 +8,20 @@
 #include "glm/glm.hpp"
 #include "model.h"
 #include "pipeline.h"
+#include "renderpass.h"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
 
 class Application;
 
-struct Scene {
-        glm::mat4 projection;
-        glm::mat4 model;
-        glm::mat4 view;
-};
-
 void printMatrix(const glm::mat4& matrix);
 
-class ShadowPass {
+class ShadowPass : public RenderPass {
     public:
-        ShadowPass(Application* app);
-        void createRenderPass();
+        explicit ShadowPass(Application* app);
+        Pipeline* create(WGPUTextureFormat textureFormat);
+
+        void createRenderPass(WGPUTextureFormat textureFormat) override;
 
         // Getters
         WGPURenderPassDescriptor* getRenderPassDescriptor();
@@ -46,8 +43,10 @@ class ShadowPass {
 
         std::vector<Scene> createFrustumSplits(std::vector<glm::vec4>& corners, float length, float far_length,
                                                float distance, float dd);
-        WGPURenderPassColorAttachment mRenderPassColorAttachment = {};
-        WGPURenderPassColorAttachment mRenderPassColorAttachment2 = {};
+        ColorAttachment mRenderPassColorAttachment = {};
+        ColorAttachment mRenderPassColorAttachment2;
+        DepthStencilAttachment mRenderPassDepthStencil2;
+        DepthStencilAttachment mRenderPassDepthStencil;
         void createRenderPassDescriptor();
         void createRenderPassDescriptor2();
         float MinZ = 0.0f;
@@ -66,16 +65,14 @@ class ShadowPass {
         BindingGroup mTextureBindingGroup;
         std::vector<WGPUBindGroupEntry> mTextureBindingData{3};
 
-	std::vector<WGPUBindGroup> mBindgroups = {nullptr, nullptr};
+        std::vector<WGPUBindGroup> mBindgroups = {nullptr, nullptr};
 
         // textures and views
         WGPUTextureView mDepthTextureView;
-        WGPUTextureView mShadowDepthTextureView;
-        WGPUTextureView mShadowDepthTextureView2;
         WGPUTexture mDepthTexture;
-        WGPUTexture mShadowDepthTexture;
-        WGPUTexture mShadowDepthTexture2;
         Texture* render_target;
+        Texture* mShadowDepthTexture;
+        Texture* mShadowDepthTexture2;
         // buffers
         Buffer mSceneUniformBuffer;
 

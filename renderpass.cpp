@@ -1,0 +1,66 @@
+
+#include "renderpass.h"
+
+WGPULoadOp from(LoadOp op) { return static_cast<WGPULoadOp>(op); }
+WGPUStoreOp from(StoreOp op) { return static_cast<WGPUStoreOp>(op); }
+
+ColorAttachment::ColorAttachment(WGPUTextureView target, WGPUTextureView resolve, WGPUColor clearColor, StoreOp storeOp,
+                                 LoadOp loadOp) {
+    mAttachment = {};
+    mAttachment.view = target;
+    mAttachment.resolveTarget = resolve;
+    mAttachment.loadOp = from(loadOp);
+    mAttachment.storeOp = from(storeOp);
+    mAttachment.clearValue = clearColor;
+#ifndef WEBGPU_BACKEND_WGPU
+    mAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif  // NOT WEBGPU_BACKEND_WGPU
+}
+
+WGPURenderPassColorAttachment* ColorAttachment::get() { return &mAttachment; }
+
+DepthStencilAttachment::DepthStencilAttachment(WGPUTextureView target, StoreOp depthStoreOp, LoadOp depthLoadOp,
+                                               bool depthReadOnly, StoreOp stencilStoreOp, LoadOp stencilLoadOp,
+                                               bool stencilReadOnly) {
+    mAttachment = {};
+    mAttachment.view = target;
+    mAttachment.depthClearValue = 1.0f;
+    mAttachment.depthLoadOp = from(depthLoadOp);
+    mAttachment.depthStoreOp = from(depthStoreOp);
+    mAttachment.depthReadOnly = depthReadOnly;
+    mAttachment.stencilClearValue = 0;
+    mAttachment.stencilLoadOp = from(stencilLoadOp);
+    mAttachment.stencilStoreOp = from(stencilStoreOp);
+    mAttachment.stencilReadOnly = stencilReadOnly;
+}
+
+WGPURenderPassDepthStencilAttachment* DepthStencilAttachment::get() { return &mAttachment; }
+
+RenderPass::RenderPass() {}
+
+WGPURenderPassDescriptor* RenderPass::getRenderPassDescriptor() { return &mRenderPassDesc; }
+
+void RenderPass::setRenderPassDescriptor(WGPURenderPassDescriptor desc) { mRenderPassDesc = desc; }
+
+Pipeline* RenderPass::getPipeline() { return mRenderPipeline; }
+
+RenderPass& RenderPass::setColorAttachment(const ColorAttachment& attachment) {
+    mColorAttachment = attachment;
+    return *this;
+}
+
+RenderPass& RenderPass::setDepthStencilAttachment(const DepthStencilAttachment& attachment) {
+    mDepthStencilAttachment = attachment;
+    return *this;
+}
+
+WGPURenderPassDescriptor* RenderPass::init() {
+    mRenderPassDesc.nextInChain = nullptr;
+    mRenderPassDesc.colorAttachmentCount = 1;
+    mRenderPassDesc.colorAttachments = mColorAttachment.get();
+
+    mRenderPassDesc.depthStencilAttachment = mDepthStencilAttachment.get();
+    mRenderPassDesc.timestampWrites = nullptr;
+    mRenderPassDesc.occlusionQuerySet = nullptr;
+    return &mRenderPassDesc;
+}

@@ -10,6 +10,7 @@
 #include "glm/gtx/string_cast.hpp"
 #include "gpu_buffer.h"
 #include "model.h"
+#include "renderpass.h"
 #include "webgpu.h"
 
 bool should = false;
@@ -17,121 +18,72 @@ bool should = false;
 ShadowPass::ShadowPass(Application* app) { mApp = app; }
 
 void ShadowPass::createRenderPassDescriptor2() {
-    WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
-    WGPUTextureDescriptor shadow_depth_texture_descriptor = {};
-    shadow_depth_texture_descriptor.label = "Shadow Mapping Target Texture 22:)";
-    shadow_depth_texture_descriptor.nextInChain = nullptr;
-    shadow_depth_texture_descriptor.dimension = WGPUTextureDimension_2D;
-    shadow_depth_texture_descriptor.format = depth_texture_format;
-    shadow_depth_texture_descriptor.mipLevelCount = 1;
-    shadow_depth_texture_descriptor.sampleCount = 1;
-    shadow_depth_texture_descriptor.size = {static_cast<uint32_t>(2048), static_cast<uint32_t>(2048), 1};
-    shadow_depth_texture_descriptor.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
-    shadow_depth_texture_descriptor.viewFormatCount = 1;
-    shadow_depth_texture_descriptor.viewFormats = &depth_texture_format;
-    mShadowDepthTexture2 =
-        wgpuDeviceCreateTexture(mApp->getRendererResource().device, &shadow_depth_texture_descriptor);
+    mShadowDepthTexture2 = new Texture{mApp->getRendererResource().device,
+                                       1024,
+                                       1024,
+                                       TextureDimension::TEX_2D,
+                                       WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
+                                       WGPUTextureFormat_Depth24Plus};
 
-    WGPUTextureViewDescriptor sdtv_desc = {};  // shadow depth texture view
-    sdtv_desc.label = "SDTV desc 2";
-    sdtv_desc.aspect = WGPUTextureAspect_DepthOnly;
-    sdtv_desc.baseArrayLayer = 0;
-    sdtv_desc.arrayLayerCount = 1;
-    sdtv_desc.baseMipLevel = 0;
-    sdtv_desc.mipLevelCount = 1;
-    sdtv_desc.dimension = WGPUTextureViewDimension_2D;
-    sdtv_desc.format = depth_texture_format;
-    mShadowDepthTextureView2 = wgpuTextureCreateView(mShadowDepthTexture2, &sdtv_desc);
+    mShadowDepthTexture2->createViewDepthOnly();
+    static Texture* render_target =
+        new Texture{mApp->getRendererResource().device, 1024, 1024, TextureDimension::TEX_2D,
+                    WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};
+    render_target->createView();
 
-    /*render_target = new Texture{mApp->getRendererResource().device, 2048, 2048, TextureDimension::TEX_2D,*/
-    /*                            WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};*/
-    /*render_target->createView();*/
-
-    mRenderPassColorAttachment2.view = render_target->getTextureView();
-    mRenderPassColorAttachment2.resolveTarget = nullptr;
-    mRenderPassColorAttachment2.loadOp = WGPULoadOp_Load;
-    mRenderPassColorAttachment2.storeOp = WGPUStoreOp_Discard;
-    mRenderPassColorAttachment2.clearValue = WGPUColor{0.02, 0.80, 0.92, 1.0};
-
+    mRenderPassColorAttachment2 = ColorAttachment{render_target->getTextureView(), nullptr,
+                                                  WGPUColor{0.02, 0.80, 0.92, 1.0}, StoreOp::Discard, LoadOp::Load};
     mRenderPassDesc2 = {};
     mRenderPassDesc2.nextInChain = nullptr;
     mRenderPassDesc2.colorAttachmentCount = 1;
-    mRenderPassDesc2.colorAttachments = &mRenderPassColorAttachment2;
+    mRenderPassDesc2.colorAttachments = mRenderPassColorAttachment2.get();
 
-    static WGPURenderPassDepthStencilAttachment shadow_pass_depth_stencil_attachment;
-    shadow_pass_depth_stencil_attachment.view = mShadowDepthTextureView2;
-    shadow_pass_depth_stencil_attachment.depthClearValue = 1.0f;
-    shadow_pass_depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
-    shadow_pass_depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
-    shadow_pass_depth_stencil_attachment.depthReadOnly = false;
+    mRenderPassDepthStencil2 = DepthStencilAttachment{mShadowDepthTexture2->getTextureView(),
+                                                      StoreOp::Store,
+                                                      LoadOp::Clear,
+                                                      false,
+                                                      StoreOp::Discard,
+                                                      LoadOp::Clear,
+                                                      true};
 
-    shadow_pass_depth_stencil_attachment.stencilClearValue = 0.0f;
-    shadow_pass_depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Clear;
-    shadow_pass_depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
-    shadow_pass_depth_stencil_attachment.stencilReadOnly = true;
-
-    mRenderPassDesc2.depthStencilAttachment = &shadow_pass_depth_stencil_attachment;
+    mRenderPassDesc2.depthStencilAttachment = mRenderPassDepthStencil2.get();
     mRenderPassDesc2.timestampWrites = nullptr;
 }
 
 void ShadowPass::createRenderPassDescriptor() {
-    WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
-    WGPUTextureDescriptor shadow_depth_texture_descriptor = {};
-    shadow_depth_texture_descriptor.label = "Shadow Mapping Target Texture :)";
-    shadow_depth_texture_descriptor.nextInChain = nullptr;
-    shadow_depth_texture_descriptor.dimension = WGPUTextureDimension_2D;
-    shadow_depth_texture_descriptor.format = depth_texture_format;
-    shadow_depth_texture_descriptor.mipLevelCount = 1;
-    shadow_depth_texture_descriptor.sampleCount = 1;
-    shadow_depth_texture_descriptor.size = {static_cast<uint32_t>(2048), static_cast<uint32_t>(2048), 1};
-    shadow_depth_texture_descriptor.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
-    shadow_depth_texture_descriptor.viewFormatCount = 1;
-    shadow_depth_texture_descriptor.viewFormats = &depth_texture_format;
-    mShadowDepthTexture = wgpuDeviceCreateTexture(mApp->getRendererResource().device, &shadow_depth_texture_descriptor);
-
-    WGPUTextureViewDescriptor sdtv_desc = {};  // shadow depth texture view
-    sdtv_desc.label = "SDTV desc";
-    sdtv_desc.aspect = WGPUTextureAspect_DepthOnly;
-    sdtv_desc.baseArrayLayer = 0;
-    sdtv_desc.arrayLayerCount = 1;
-    sdtv_desc.baseMipLevel = 0;
-    sdtv_desc.mipLevelCount = 1;
-    sdtv_desc.dimension = WGPUTextureViewDimension_2D;
-    sdtv_desc.format = depth_texture_format;
-    mShadowDepthTextureView = wgpuTextureCreateView(mShadowDepthTexture, &sdtv_desc);
+    mShadowDepthTexture = new Texture{mApp->getRendererResource().device,
+                                      2048,
+                                      2048,
+                                      TextureDimension::TEX_2D,
+                                      WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
+                                      WGPUTextureFormat_Depth24Plus};
+    mShadowDepthTexture->createViewDepthOnly();
 
     render_target = new Texture{mApp->getRendererResource().device, 2048, 2048, TextureDimension::TEX_2D,
                                 WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};
     render_target->createView();
 
-    mRenderPassColorAttachment.view = render_target->getTextureView();
-    mRenderPassColorAttachment.resolveTarget = nullptr;
-    mRenderPassColorAttachment.loadOp = WGPULoadOp_Load;
-    mRenderPassColorAttachment.storeOp = WGPUStoreOp_Discard;
-    mRenderPassColorAttachment.clearValue = WGPUColor{0.02, 0.80, 0.92, 1.0};
+    mRenderPassColorAttachment = ColorAttachment{render_target->getTextureView(), nullptr,
+                                                 WGPUColor{0.02, 0.80, 0.92, 1.0}, StoreOp::Discard, LoadOp::Load};
 
     mRenderPassDesc = {};
     mRenderPassDesc.nextInChain = nullptr;
     mRenderPassDesc.colorAttachmentCount = 1;
-    mRenderPassDesc.colorAttachments = &mRenderPassColorAttachment;
+    mRenderPassDesc.colorAttachments = mRenderPassColorAttachment.get();
 
-    static WGPURenderPassDepthStencilAttachment shadow_pass_depth_stencil_attachment;
-    shadow_pass_depth_stencil_attachment.view = mShadowDepthTextureView;
-    shadow_pass_depth_stencil_attachment.depthClearValue = 1.0f;
-    shadow_pass_depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
-    shadow_pass_depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
-    shadow_pass_depth_stencil_attachment.depthReadOnly = false;
+    mRenderPassDepthStencil = DepthStencilAttachment{mShadowDepthTexture->getTextureView(),
+                                                     StoreOp::Store,
+                                                     LoadOp::Clear,
+                                                     false,
+                                                     StoreOp::Discard,
+                                                     LoadOp::Clear,
+                                                     true};
 
-    shadow_pass_depth_stencil_attachment.stencilClearValue = 0.0f;
-    shadow_pass_depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Clear;
-    shadow_pass_depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
-    shadow_pass_depth_stencil_attachment.stencilReadOnly = true;
-
-    mRenderPassDesc.depthStencilAttachment = &shadow_pass_depth_stencil_attachment;
+    mRenderPassDesc.depthStencilAttachment = mRenderPassDepthStencil.get();
     mRenderPassDesc.timestampWrites = nullptr;
 }
 
-void ShadowPass::createRenderPass() {
+void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat) {
     // creating pipeline
     createRenderPassDescriptor();
     createRenderPassDescriptor2();
@@ -223,7 +175,7 @@ void ShadowPass::createRenderPass() {
         .setPrimitiveState()
         .setDepthStencilState(true, 0xFF, 0xFF)
         .setBlendState()
-        .setColorTargetState(WGPUTextureFormat_RGBA8Unorm)
+        .setColorTargetState(textureFormat)
         .setFragmentState();
 
     /*mRenderPipeline->getDescriptorPtr()->fragment = nullptr;*/
@@ -364,15 +316,6 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
                 continue;
             };
 
-            /*if (mBindgroups[which] == nullptr) {*/
-            /*    mBindingData[0].buffer = modelUniformBuffer.getBuffer();*/
-            /*    mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();*/
-            /*    mBindingData[2].buffer = model->getUniformBuffer().getBuffer();*/
-            /*    mBindingData[3].sampler = mApp->getDefaultSampler();*/
-            /**/
-            /*    mBindgroups[which] = mBindingGroup.createNew(mApp, mBindingData);*/
-            /*}*/
-
             mScenes[which].model = model->getTranformMatrix();
             mBindingData[0].buffer = modelUniformBuffer.getBuffer();
             mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
@@ -404,8 +347,8 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
 
 std::vector<Scene>& ShadowPass::getScene() { return mScenes; }
 
-WGPUTextureView ShadowPass::getShadowMapView() { return mShadowDepthTextureView; }
-WGPUTextureView ShadowPass::getShadowMapView2() { return mShadowDepthTextureView2; }
+WGPUTextureView ShadowPass::getShadowMapView() { return mShadowDepthTexture->getTextureView(); }
+WGPUTextureView ShadowPass::getShadowMapView2() { return mShadowDepthTexture2->getTextureView(); }
 
 void printMatrix(const glm::mat4& matrix) {
     for (int row = 0; row < 4; ++row) {

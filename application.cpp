@@ -39,38 +39,13 @@
 static bool look_as_light = false;
 static float fov = 60.0f;
 static float znear = 0.01f;
-static float zfar = 100.0f;
+static float zfar = 200.0f;
 static bool which_frustum = false;
 static float middle_plane_length = 10.0f;
 static float far_plane_length = 100.0f;
 static float ddistance = 2.0f;
 static float dd = 5.0f;
 extern bool should;
-
-std::vector<std::future<Model*>> futures;
-
-Model* loadd(Application* app) {
-    Model* tree_model = new Model{};
-    /*tree_model->load("boat", app, RESOURCE_DIR "/fourareen.obj", app->getObjectBindGroupLayout());*/
-    /*tree_model->moveTo({-10.0, -4.0, 0.0});*/
-
-    tree_model->load("tree", app, RESOURCE_DIR "/tree1.obj", app->getObjectBindGroupLayout())
-        .moveTo(glm::vec3{0.725, -7.640, 1.125})
-        .scale(glm::vec3{0.9});
-    tree_model->uploadToGPU(app);
-    tree_model->setTransparent(false);
-    tree_model->setFoliage();
-    tree_model->createSomeBinding(app, app->getDefaultTextureBindingData());
-    app->mLoadedModel.push_back(tree_model);
-    return tree_model;
-}
-
-void loadTree(Application* app) {
-    futures.push_back(std::async(std::launch::async, loadd, app));
-    /*Model* tree = handle.get();*/
-}
-
-struct TreeModel {};
 
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
     const auto inv = glm::inverse(proj * view);
@@ -261,7 +236,7 @@ void Application::initializePipeline() {
     mDefaultTextureBindingData[2].textureView = default_normal_map_view;
 
     mShadowPass = new ShadowPass{this};
-    mShadowPass->createRenderPass();
+    mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm);
 
     mTerrainPass = new TerrainPass{this};
     mTerrainPass->create(mSurfaceFormat);
@@ -784,8 +759,6 @@ void Application::mainLoop() {
     // ---------------- 1 - Preparing for shadow pass ---------------
     // The first pass is the shadow pass, only based on the opaque objects
 
-    /*mShadowPass->mRenderPassColorAttachment.view = target_view;*/
-
     if (!look_as_light) {
         auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
         auto all_scenes =
@@ -887,8 +860,6 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
 
-    /*terrain.draw(this, render_pass_encoder, mBindingData);*/
-
     for (const auto& model : mLoadedModel) {
         /*auto [in_world_min, in_world_max] = model->getWorldMin();*/
         if (!model->isTransparent() /*&& frustum.AABBTest(in_world_min, in_world_max)*/) {
@@ -896,49 +867,21 @@ void Application::mainLoop() {
         }
     }
 
-    /*std::cout << "----------------------------------------------" << std::endl;*/
-
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
     // end of color render pass
 
     // terrain pass
+    mTerrainPass->setColorAttachment(
+        {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    mTerrainPass->setDepthStencilAttachment(
+        {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, true});
+    mTerrainPass->init();
 
-    {
-        WGPURenderPassDescriptor render_pass_descriptor = {};
-        render_pass_descriptor.nextInChain = nullptr;
-
-        static WGPURenderPassColorAttachment color_attachment = {};
-        color_attachment.view = target_view;
-        color_attachment.resolveTarget = nullptr;
-        color_attachment.loadOp = WGPULoadOp_Load;
-        color_attachment.storeOp = WGPUStoreOp_Store;
-        color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
-#ifndef WEBGPU_BACKEND_WGPU
-        color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-#endif  // NOT WEBGPU_BACKEND_WGPU
-
-        render_pass_descriptor.colorAttachmentCount = 1;
-        render_pass_descriptor.colorAttachments = &color_attachment;
-
-        static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
-        depth_stencil_attachment.view = mDepthTextureView;
-        depth_stencil_attachment.depthClearValue = 1.0f;
-        depth_stencil_attachment.depthLoadOp = WGPULoadOp_Load;
-        depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
-        depth_stencil_attachment.depthReadOnly = false;
-        depth_stencil_attachment.stencilClearValue = 0;
-        depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Load;
-        depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
-        depth_stencil_attachment.stencilReadOnly = true;
-        render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
-        render_pass_descriptor.timestampWrites = nullptr;
-        mTerrainPass->setRenderPassDescriptor(render_pass_descriptor);
-    }
     WGPURenderPassEncoder terrain_pass_encoder =
         wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());
     wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());
-    /*mShadowPass->render(mLoadedModel, terrain_pass_encoder, 0);*/
+
     terrain.draw(this, terrain_pass_encoder, mBindingData);
 
     updateGui(terrain_pass_encoder);

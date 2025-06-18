@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <format>
 
+#include "webgpu.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -23,13 +25,30 @@ WGPUTextureView Texture::createView() {
     return nullptr;
 }
 
+WGPUTextureView Texture::createViewDepthOnly() {
+    if (mIsTextureAlive) {
+        WGPUTextureViewDescriptor texture_view_desc = {};
+        texture_view_desc.aspect = WGPUTextureAspect_DepthOnly;
+        texture_view_desc.baseArrayLayer = 0;
+        texture_view_desc.arrayLayerCount = 1;
+        texture_view_desc.baseMipLevel = 0;
+        texture_view_desc.mipLevelCount = mDescriptor.mipLevelCount;
+        texture_view_desc.dimension = WGPUTextureViewDimension_2D;
+        texture_view_desc.format = mDescriptor.format;
+        mTextureView = wgpuTextureCreateView(mTexture, &texture_view_desc);
+        return mTextureView;
+    }
+    std::cout << "failed here " << mIsTextureAlive << std::endl;
+    return nullptr;
+}
+
 Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
-                 WGPUTextureUsageFlags flags) {
+                 WGPUTextureUsageFlags flags, WGPUTextureFormat textureFormat) {
     mDescriptor = {};
     mDescriptor.label = "texture label";
     mDescriptor.nextInChain = nullptr;
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(dimension);
-    mDescriptor.format = WGPUTextureFormat_RGBA8Unorm;
+    mDescriptor.format = textureFormat;
     mDescriptor.mipLevelCount = 1;
     mDescriptor.sampleCount = 1;
     mDescriptor.size = {width, height, 1};
@@ -41,7 +60,7 @@ Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, Texture
     mIsTextureAlive = true;
 }
 
-Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path) {
+Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureFormat textureFormat) {
     int width, height, channels;
     width = height = channels = 0;
     unsigned char* pixel_data = stbi_load(path.string().c_str(), &width, &height, &channels, 0);
@@ -56,7 +75,7 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path) {
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
     mDescriptor.label = path.c_str();
     // by convention for bmp, png and jpg file. Be careful with other formats.
-    mDescriptor.format = WGPUTextureFormat_RGBA8Unorm;
+    mDescriptor.format = textureFormat;
     mDescriptor.mipLevelCount = 11;
     mDescriptor.sampleCount = 1;
     mDescriptor.size = {(unsigned int)width, (unsigned int)height, 1};

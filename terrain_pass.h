@@ -12,34 +12,11 @@
 #include "shadow_pass.h"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
+#include "renderpass.h"
 
 class Application;
 
-class RenderPass {
-    public:
-        WGPURenderPassDescriptor* getRenderPassDescriptor();
-        void setRenderPassDescriptor(WGPURenderPassDescriptor desc);
-        Pipeline* getPipeline();
 
-    private:
-        // render pass
-        WGPURenderPassDescriptor mRenderPassDesc;
-
-        // bindings
-        BindingGroup mBindingGroup;
-        std::vector<WGPUBindGroupEntry> mBindingData;
-
-        Texture* mRenderTarget;
-        // buffers
-        Buffer mSceneUniformBuffer;
-
-        // scene
-        std::vector<Scene> mScenes;
-
-    protected:
-        Pipeline* mRenderPipeline;
-        virtual void createRenderPass(WGPUTextureFormat textureFormat) = 0;
-};
 
 class TerrainPass : public RenderPass {
         void createRenderPass(WGPUTextureFormat textureFormat) override;

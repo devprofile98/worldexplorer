@@ -15,8 +15,9 @@ enum class TextureDimension { TEX_1D, TEX_2D, TEX_3D };
 class Texture {
     public:
         Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
-                WGPUTextureUsageFlags flags = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst);
-        Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path);
+                WGPUTextureUsageFlags flags = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst,
+                WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm);
+        Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm);
         ~Texture();
 
         // access function
@@ -25,6 +26,7 @@ class Texture {
 
         Texture& setBufferData(std::vector<uint8_t>& data);
         WGPUTextureView createView();
+        WGPUTextureView createViewDepthOnly();
         void uploadToGPU(WGPUQueue deviceQueue);
         bool isTransparent();
 
