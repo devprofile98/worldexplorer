@@ -81,12 +81,7 @@ class Application {
         void updateViewMatrix();
         void updateDragInertia();
 
-        Model tower_model{};
-        Model arrow_model{};
-        Model desk_model{};
         Model grass_model{};
-        Model grass2_model{};
-        Model car{};
         Model cylinder{};
         Model water{};
         Model sphere{};
@@ -107,7 +102,7 @@ class Application {
         MyUniform& getUniformData();
         const WGPUBindGroupLayout& getObjectBindGroupLayout() const;
         const WGPUBindGroupLayout* getBindGroupLayouts() const;
-	const std::vector<WGPUBindGroupEntry> getDefaultTextureBindingData() const;
+        const std::vector<WGPUBindGroupEntry> getDefaultTextureBindingData() const;
         WGPUBindGroup bindGrouptrans = {};
         glm::mat4 mtransmodel{1.0};
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
@@ -142,7 +137,7 @@ class Application {
         ShadowPass* mShadowPass;
         TransparencyPass* mTransparencyPass;
         CompositionPass* mCompositionPass;
-	TerrainPass* mTerrainPass;
+        TerrainPass* mTerrainPass;
         WGPUSampler mDefaultSampler;
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();

@@ -81,16 +81,6 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
     /*tangent = normalize(tangent - dot(tangent, cnormal) * cnormal);*/
     /*bitangent = cross(cnormal, tangent);*/
 
-    /*vertex[0].tangent = tangent;*/
-    /*vertex[0].biTangent = bitangent;*/
-    /*vertex[0].normal = cnormal;*/
-    /*vertex[0 + 1].tangent = tangent;*/
-    /*vertex[0 + 1].biTangent = bitangent;*/
-    /*vertex[0 + 1].normal = cnormal;*/
-    /*vertex[0 + 2].tangent = tangent;*/
-    /*vertex[0 + 2].biTangent = bitangent;*/
-    /*vertex[0 + 2].normal = cnormal;*/
-    /*std::cout << "------------------" << i << std::endl;*/
     return glm::mat3x3(tangent, bitangent, cnormal);
 }
 

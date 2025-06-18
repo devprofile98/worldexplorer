@@ -262,11 +262,9 @@ void Application::initializePipeline() {
 
     mShadowPass = new ShadowPass{this};
     mShadowPass->createRenderPass();
-    // mShadowPass->setupScene(glm::vec3{0.5, -0.9, 0.1});
 
     mTerrainPass = new TerrainPass{this};
     mTerrainPass->create(mSurfaceFormat);
-    // mTerrainPass->setupScene(glm::vec3{0.5, -0.9, 0.1});
 
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
@@ -369,53 +367,6 @@ void Application::initializePipeline() {
     mBindingData[12].binding = 12;
     mBindingData[12].sampler = shadow_sampler;
 
-    std::vector<glm::mat4> dddata = {};
-    std::vector<glm::mat4> dddata_tree = {};
-    /*dddata.reserve(100000);*/
-    std::random_device rd;   // Seed the random number generator
-    std::mt19937 gen(rd());  // Mersenne Twister PRNG
-    std::uniform_real_distribution<float> dist(1.5, 2.5);
-    std::uniform_real_distribution<float> dist_for_rotation(0.0, 90.0);
-    std::uniform_real_distribution<float> dist_for_tree(1.9, 2.5);
-    std::uniform_real_distribution<float> dist_for_grass(1.0, 1.8);
-    if (terrainData.size() > 63690) {
-        std::cout << "EEEEEEEEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRRRRRRROOOOOOOOOOOOOOOOORRRRRRRRRRRRRRRR\n";
-    }
-
-    for (size_t i = 0; i < terrainData.size(); i++) {
-        glm::vec3 position = glm::vec3(terrainData[i].x, terrainData[i].y, terrainData[i].z);
-        auto trans = glm::translate(glm::mat4{1.0f}, position);
-        auto rotate = glm::rotate(glm::mat4{1.0f}, glm::radians(dist_for_rotation(gen)), glm::vec3{0.0, 0.0, 1.0});
-        auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f * dist(gen)});
-        dddata.push_back(trans * rotate * scale);
-        if (i % 40 == 0) {
-            scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.9f * dist_for_tree(gen)});
-            dddata_tree.push_back(trans * rotate * scale);
-        }
-    }
-
-    glm::vec3 position = glm::vec3(-30.0, -30.0f, 0.0f);
-    glm::mat4 transform = glm::mat4{1.0f};
-    transform = glm::translate(transform, position);
-    transform = glm::rotate(transform, glm::radians(0.0f), glm::vec3{1.0, 0.0, 0.0});
-    transform = glm::scale(transform, glm::vec3{1.f * dist_for_grass(gen)});
-    dddata[0] = transform;
-    dddata_tree[0] = transform;
-
-    wgpuQueueWriteBuffer(this->getRendererResource().queue, mInstanceManager->getInstancingBuffer().getBuffer(), 0,
-                         dddata.data(), sizeof(glm::mat4) * (dddata.size() - 1));
-
-    wgpuQueueWriteBuffer(this->getRendererResource().queue, mInstanceManager->getInstancingBuffer().getBuffer(),
-                         100000 * sizeof(glm::mat4), dddata_tree.data(), sizeof(glm::mat4) * (dddata_tree.size() - 1));
-
-    auto* ins = new Instance{dddata};
-    /*auto* ins_tree = new Instance{dddata_tree};*/
-    grass_model.setInstanced(ins);
-    grass_model.mObjectInfo.instanceOffsetId = 0;
-
-    /*tree_model.setInstanced(ins_tree);*/
-    /*tree_model.mObjectInfo.instanceOffsetId = 1;*/
-
     mBindingData[13] = {};
     mBindingData[13].nextInChain = nullptr;
     mBindingData[13].buffer = mInstanceManager->getInstancingBuffer().getBuffer();
@@ -477,84 +428,6 @@ void Application::initializeBuffers() {
     // initialize The instancing buffer
     mLightManager = LightManager::init(this);
     mInstanceManager = new InstanceManager{this, sizeof(glm::mat4) * 100000 * 15, 100000};
-
-    /*boat_model.load("boat", this, RESOURCE_DIR "/fourareen.obj", mBindGroupLayouts[1])*/
-    /*    .moveTo(glm::vec3{-10.0, 0.0, 0.0})*/
-    /*    .scale(glm::vec3{0.3});*/
-    /*boat_model.uploadToGPU(this);*/
-
-    tower_model.load("tower", this, RESOURCE_DIR "/tower.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.0})
-        .scale(glm::vec3{0.3});
-    tower_model.uploadToGPU(this);
-
-    arrow_model.load("arrow", this, RESOURCE_DIR "/arrow.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{1.0f, 1.0f, 4.0f})
-        .scale(glm::vec3{0.2});
-    arrow_model.uploadToGPU(this);
-
-    desk_model.load("desk", this, RESOURCE_DIR "/desk.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.725, 0.333, 0.72})
-        .scale(glm::vec3{0.3});
-    desk_model.uploadToGPU(this);
-
-    grass_model.load("grass", this, RESOURCE_DIR "/grass.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.725, -1.0, 0.72})
-        .scale(glm::vec3{0.3});
-    grass_model.uploadToGPU(this);
-    grass_model.setTransparent(false);
-    grass_model.setFoliage();
-
-    grass2_model.load("grass2", this, RESOURCE_DIR "/grass3.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.0, 0.0, 0.0})
-        .scale(glm::vec3{0.5f});
-    grass2_model.uploadToGPU(this);
-    grass2_model.setTransparent(false);
-
-    sphere.load("sphere", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.0, 0.0, 0.0})
-        .scale(glm::vec3{1.0f});
-    sphere.uploadToGPU(this);
-    sphere.setTransparent(false);
-
-    /*sphere1.load("sphere1", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])*/
-    /*    .moveTo(glm::vec3{0.0, 0.0, 0.0})*/
-    /*    .scale(glm::vec3{1.0f});*/
-    /*sphere1.uploadToGPU(this);*/
-    /*sphere1.setTransparent(false);*/
-    /**/
-    /*sphere2.load("sphere2", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])*/
-    /*    .moveTo(glm::vec3{0.0, 0.0, 0.0})*/
-    /*    .scale(glm::vec3{1.0f});*/
-    /*sphere2.uploadToGPU(this);*/
-    /*sphere2.setTransparent(false);*/
-    /**/
-    /*sphere3.load("sphere3", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])*/
-    /*    .moveTo(glm::vec3{0.0, 0.0, 0.0})*/
-    /*    .scale(glm::vec3{1.0f});*/
-    /*sphere3.uploadToGPU(this);*/
-    /*sphere3.setTransparent(false);*/
-    /**/
-    /*sphere4.load("sphere4", this, RESOURCE_DIR "/sphere.obj", mBindGroupLayouts[1])*/
-    /*    .moveTo(glm::vec3{0.0, 0.0, 0.0})*/
-    /*    .scale(glm::vec3{1.0f});*/
-    /*sphere4.uploadToGPU(this);*/
-    /*sphere4.setTransparent(false);*/
-
-    car.load("car", this, RESOURCE_DIR "/car.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.725, -1.0, 0.72})
-        .scale(glm::vec3{0.2})
-        .rotate(glm::vec3{0.0, 0.0, 1.0}, 90.0f);
-    car.uploadToGPU(this);
-    car.setTransparent(false);
-    car.useTexture(false);
-
-    cylinder.load("cylinder", this, RESOURCE_DIR "/cyliner.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{0.725, -1.0, 0.72})
-        .scale(glm::vec3{0.2})
-        .rotate(glm::vec3{0.0, 0.0, 1.0}, 90.0f);
-    cylinder.uploadToGPU(this);
-    cylinder.setTransparent(false);
 
     water.load("water", this, RESOURCE_DIR "/bluecube.obj", mBindGroupLayouts[1])
         .moveTo(glm::vec3{-3.725, -7.640, -3.425})
@@ -856,10 +729,9 @@ bool Application::initialize() {
     wgpuQueueSubmit(mRendererResource.queue, 1, &command);
     wgpuCommandBufferRelease(command);
 
-    tower_model.moveTo({-2.0, -1.0, 0.0});
-
     mLoadedModel = {
-        &tower_model, &desk_model, &arrow_model, &sphere, &grass_model, &grass2_model, &car, &cylinder, &water,
+
+        &water,
     };
 
     for (auto& model : mLoadedModel) {
