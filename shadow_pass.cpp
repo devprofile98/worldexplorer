@@ -1,5 +1,6 @@
 #include "shadow_pass.h"
 
+#include <cstdint>
 #include <cstring>
 #include <format>
 
@@ -17,61 +18,32 @@ bool should = false;
 
 ShadowPass::ShadowPass(Application* app) { mApp = app; }
 
-void ShadowPass::createRenderPassDescriptor2() {
-    mShadowDepthTexture2 = new Texture{mApp->getRendererResource().device,
-                                       1024,
-                                       1024,
-                                       TextureDimension::TEX_2D,
-                                       WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
-                                       WGPUTextureFormat_Depth24Plus};
+ShadowFrustum::ShadowFrustum(Application* app, size_t width, size_t height, Texture* renderTarget)
+    : mRenderTarget(renderTarget), mApp(app), mWidth(width), mHeight(height) {
+    if (mRenderTarget == nullptr) {
+        mRenderTarget = new Texture{mApp->getRendererResource().device, static_cast<uint32_t>(mWidth),
+                                    static_cast<uint32_t>(mHeight), TextureDimension::TEX_2D,
+                                    WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};
+        mRenderTarget->createView();
+    }
 
-    mShadowDepthTexture2->createViewDepthOnly();
-    static Texture* render_target =
-        new Texture{mApp->getRendererResource().device, 1024, 1024, TextureDimension::TEX_2D,
-                    WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};
-    render_target->createView();
-
-    mRenderPassColorAttachment2 = ColorAttachment{render_target->getTextureView(), nullptr,
-                                                  WGPUColor{0.02, 0.80, 0.92, 1.0}, StoreOp::Discard, LoadOp::Load};
-    mRenderPassDesc2 = {};
-    mRenderPassDesc2.nextInChain = nullptr;
-    mRenderPassDesc2.colorAttachmentCount = 1;
-    mRenderPassDesc2.colorAttachments = mRenderPassColorAttachment2.get();
-
-    mRenderPassDepthStencil2 = DepthStencilAttachment{mShadowDepthTexture2->getTextureView(),
-                                                      StoreOp::Store,
-                                                      LoadOp::Clear,
-                                                      false,
-                                                      StoreOp::Discard,
-                                                      LoadOp::Clear,
-                                                      true};
-
-    mRenderPassDesc2.depthStencilAttachment = mRenderPassDepthStencil2.get();
-    mRenderPassDesc2.timestampWrites = nullptr;
-}
-
-void ShadowPass::createRenderPassDescriptor() {
     mShadowDepthTexture = new Texture{mApp->getRendererResource().device,
-                                      2048,
-                                      2048,
+                                      static_cast<uint32_t>(mWidth),
+                                      static_cast<uint32_t>(mHeight),
                                       TextureDimension::TEX_2D,
                                       WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
                                       WGPUTextureFormat_Depth24Plus};
     mShadowDepthTexture->createViewDepthOnly();
 
-    render_target = new Texture{mApp->getRendererResource().device, 2048, 2048, TextureDimension::TEX_2D,
-                                WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};
-    render_target->createView();
-
-    mRenderPassColorAttachment = ColorAttachment{render_target->getTextureView(), nullptr,
-                                                 WGPUColor{0.02, 0.80, 0.92, 1.0}, StoreOp::Discard, LoadOp::Load};
+    mColorAttachment = ColorAttachment{mRenderTarget->getTextureView(), nullptr, WGPUColor{0.02, 0.80, 0.92, 1.0},
+                                       StoreOp::Discard, LoadOp::Load};
 
     mRenderPassDesc = {};
     mRenderPassDesc.nextInChain = nullptr;
     mRenderPassDesc.colorAttachmentCount = 1;
-    mRenderPassDesc.colorAttachments = mRenderPassColorAttachment.get();
+    mRenderPassDesc.colorAttachments = mColorAttachment.get();
 
-    mRenderPassDepthStencil = DepthStencilAttachment{mShadowDepthTexture->getTextureView(),
+    mDepthStencilAttachment = DepthStencilAttachment{mShadowDepthTexture->getTextureView(),
                                                      StoreOp::Store,
                                                      LoadOp::Clear,
                                                      false,
@@ -79,14 +51,16 @@ void ShadowPass::createRenderPassDescriptor() {
                                                      LoadOp::Clear,
                                                      true};
 
-    mRenderPassDesc.depthStencilAttachment = mRenderPassDepthStencil.get();
+    mRenderPassDesc.depthStencilAttachment = mDepthStencilAttachment.get();
     mRenderPassDesc.timestampWrites = nullptr;
 }
 
 void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat) {
     // creating pipeline
-    createRenderPassDescriptor();
-    createRenderPassDescriptor2();
+    /*createRenderPassDescriptor();*/
+    /*createRenderPassDescriptor2();*/
+    mNearFrustum = new ShadowFrustum{mApp, 2048, 2048};
+    mFarFrustum = new ShadowFrustum{mApp, 1024, 1024};
     // for projection
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(Scene));
     mBindingGroup.addBuffer(1,  //
@@ -232,74 +206,52 @@ glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corner
     return glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 }
 
-std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corners, float length, float far_length,
-                                                   float distance, float dd) {
-    (void)distance;
-    auto middle0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * length);
-    auto middle1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * length);
-    auto middle2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * length);
-    auto middle3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * length);
+std::vector<glm::vec4> calculateSplit(std::vector<glm::vec4>& corners, float begin, float end) {
+    auto near0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * begin);
+    auto near1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * begin);
+    auto near2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * begin);
+    auto near3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * begin);
 
-    auto Far0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * (length + far_length));
-    auto Far1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * (length + far_length));
-    auto Far2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * (length + far_length));
-    auto Far3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * (length + far_length));
+    auto far0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * end);
+    auto far1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * end);
+    auto far2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * end);
+    auto far3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * end);
 
-    this->corners = corners;
-    mNear = corners;
-    mFar = corners;
+    return {near0, far0, near1, far1, near2, far2, near3, far3};
+}
 
-    mMiddle = {middle0, middle1, middle2, middle3};
-    // near
-    mNear[1] = middle0;
-    mNear[3] = middle1;
-    mNear[5] = middle2;
-    mNear[7] = middle3;
-
-    // far
-    mFar[0] = middle0;
-    mFar[2] = middle1;
-    mFar[4] = middle2;
-    mFar[6] = middle3;
-
-    mFar[1] = Far0;
-    mFar[3] = Far1;
-    mFar[5] = Far2;
-    mFar[7] = Far3;
-
-    mScenes.clear();
-
-    auto all_corners = {mNear, mFar};
-
-    (void)dd;
-    bool fff = false;
-    for (const auto& c : all_corners) {
-        glm::vec3 cent = glm::vec3(0, 0, 0);
-        for (const auto& v : c) {
-            cent += glm::vec3(v);
-        }
-        cent /= c.size();
-
-        this->center = cent;
-        glm::vec3 lightDirection = glm::normalize(-this->lightPos);
-        glm::vec3 lightPosition =
-            this->center - lightDirection * (!fff ? glm::length(mNear[0] - mNear[7]) / 5.0f
-                                                  : glm::length(mFar[0] - mFar[7]) / 5.0f);  // Push light back
-
-        auto view = glm::lookAt(lightPosition, this->center, glm::vec3{0.0f, 0.0f, 1.0f});
-        /*std::cout << (!fff ? "Near" : "Far") << " is "*/
-        /*          << (!fff ? glm::length(mNear[0] - mNear[7]) : glm::length(mFar[0] - mFar[7])) << '\n';*/
-        glm::mat4 projection = createProjectionFromFrustumCorner(c, view, &MinZ, !fff ? "Near" : "Far", distance);
-        fff = !fff;
-        mScenes.emplace_back(Scene{projection, glm::mat4{1.0}, view});
+Scene ShadowPass::calculateFrustumScene(const std::vector<glm::vec4> frustum) {
+    glm::vec3 center = glm::vec3(0, 0, 0);
+    for (const auto& v : frustum) {
+        center += glm::vec3(v);
     }
+    center /= frustum.size();
+
+    glm::vec3 lightDirection = glm::normalize(-this->lightPos);
+    glm::vec3 lightPosition =
+        center - lightDirection * (glm::length(frustum[0] - frustum[7]) / 5.0f);  // Push light back
+
+    auto view = glm::lookAt(lightPosition, center, glm::vec3{0.0f, 0.0f, 1.0f});
+    glm::mat4 projection = createProjectionFromFrustumCorner(frustum, view, &MinZ, "frustum", 0.0);
+    return Scene{projection, glm::mat4{1.0}, view};
+}
+
+std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corners, std::vector<FrustumParams> params) {
+    mScenes.clear();
+    for (const auto& param : params) {
+        mScenes.emplace_back(calculateFrustumScene(calculateSplit(corners, param.begin, param.end)));
+        /*mScenes.emplace_back(calculateFrustumScene(calculateSplit(corners, length, length + far_length)));*/
+    }
+
     return mScenes;
 }
 
 Pipeline* ShadowPass::getPipeline() { return mRenderPipeline; }
 
-WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor() { return &mRenderPassDesc; }
-WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor2() { return &mRenderPassDesc2; }
+WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor() { return mNearFrustum->getRenderPassDescriptor(); }
+WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor2() { return mFarFrustum->getRenderPassDescriptor(); }
+
+WGPURenderPassDescriptor* ShadowFrustum::getRenderPassDescriptor() { return &mRenderPassDesc; }
 
 void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder, size_t which) {
     /*auto& render_resource = mApp->getRendererResource();*/
@@ -347,8 +299,9 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
 
 std::vector<Scene>& ShadowPass::getScene() { return mScenes; }
 
-WGPUTextureView ShadowPass::getShadowMapView() { return mShadowDepthTexture->getTextureView(); }
-WGPUTextureView ShadowPass::getShadowMapView2() { return mShadowDepthTexture2->getTextureView(); }
+WGPUTextureView ShadowFrustum::getShadowMapView() { return mShadowDepthTexture->getTextureView(); }
+WGPUTextureView ShadowPass::getShadowMapView() { return mNearFrustum->getShadowMapView(); }
+WGPUTextureView ShadowPass::getShadowMapView2() { return mFarFrustum->getShadowMapView(); }
 
 void printMatrix(const glm::mat4& matrix) {
     for (int row = 0; row < 4; ++row) {

@@ -25,6 +25,7 @@
 #include "model_registery.h"
 #include "pipeline.h"
 #include "point_light.h"
+#include "shadow_pass.h"
 #include "shapes.h"
 #include "terrain_pass.h"
 #include "texture.h"
@@ -41,8 +42,8 @@ static float fov = 60.0f;
 static float znear = 0.01f;
 static float zfar = 200.0f;
 static bool which_frustum = false;
-static float middle_plane_length = 10.0f;
-static float far_plane_length = 100.0f;
+static float middle_plane_length = 20.0f;
+static float far_plane_length = 40.0f;
 static float ddistance = 2.0f;
 static float dd = 5.0f;
 extern bool should;
@@ -322,7 +323,7 @@ void Application::initializePipeline() {
     mBindingData[11].binding = 11;
     mBindingData[11].buffer = mLightSpaceTransformation.getBuffer();
     mBindingData[11].offset = 0;
-    mBindingData[11].size = sizeof(Scene) * 2;
+    mBindingData[11].size = sizeof(Scene) * 5;
 
     WGPUSamplerDescriptor shadow_sampler_desc = {};
     shadow_sampler_desc.addressModeU = WGPUAddressMode_ClampToEdge;
@@ -447,7 +448,7 @@ void Application::initializeBuffers() {
 
     mLightSpaceTransformation.setLabel("Light space transform buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-        .setSize(sizeof(Scene) * 2)
+        .setSize(sizeof(Scene) * 5)
         .setMappedAtCraetion()
         .create(this);
 
@@ -761,8 +762,10 @@ void Application::mainLoop() {
 
     if (!look_as_light) {
         auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
-        auto all_scenes =
-            mShadowPass->createFrustumSplits(corners, middle_plane_length, far_plane_length, ddistance, dd);
+        auto all_scenes = mShadowPass->createFrustumSplits(
+            corners, {{0.0, middle_plane_length},
+                      {middle_plane_length - 4.0f, middle_plane_length + far_plane_length},
+                      {middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 100}});
 
         frustum.createFrustumPlanesFromCorner(corners);
         wgpuQueueWriteBuffer(mRendererResource.queue, mLightSpaceTransformation.getBuffer(), 0, all_scenes.data(),

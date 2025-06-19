@@ -353,7 +353,6 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
                 mesh.binding_data[1].textureView = mesh.mSpecularTexture->getTextureView();
             }
             if (mesh.mNormalMapTexture != nullptr && mesh.mNormalMapTexture->getTextureView() != nullptr) {
-                std::cout << ":::::::::::::::::::::::::::::::::::::\n\n::::::::::::::::;\n";
                 mesh.binding_data[2].nextInChain = nullptr;
                 mesh.binding_data[2].binding = 2;
                 mesh.binding_data[2].textureView = mesh.mNormalMapTexture->getTextureView();

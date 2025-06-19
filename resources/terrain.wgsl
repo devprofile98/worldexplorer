@@ -234,13 +234,13 @@ fn calculateSpotLight(currLight: PointLight, normal: vec3f, dir: vec3f) -> vec3f
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //let face_normal = normalize(in.normal);
-    var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
-    normal = normal * 2.0 - 1.0;
-    let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
-    normal = normalize(TBN * normal);
+    //var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
+    //normal = normal * 2.0 - 1.0;
+    //let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
+    //normal = normalize(TBN * normal);
     //normal = normalize(mix(in.normal, normal, 0.1));
 
-    //let normal = normalize(in.normal);
+    let normal = normalize(in.normal);
 
     let view_direction = normalize(in.viewDirection);
     let metallic_roughness = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
@@ -278,7 +278,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //        }
     //}
 
-        color = pow(calculateTerrainColor(in.color.r, in.uv) * color, vec3f(1.2));
+    color = pow(calculateTerrainColor(in.color.r, in.uv) * diffuse, vec3f(1.2));
     let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos));
 
     let ambient = color * shading;
@@ -295,6 +295,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //}else{
     //    return vec4f((col + vec3(0.0, 1.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
     //}
-    return vec4f(col * (1 - shadow * (0.75)), 1.0);
+    return vec4f(color * (1 - shadow * (0.75)), 1.0);
 }
 

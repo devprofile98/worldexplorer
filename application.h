@@ -14,13 +14,14 @@
 #include "model.h"
 #include "pipeline.h"
 #include "point_light.h"
-#include "shadow_pass.h"
 #include "shapes.h"
 #include "skybox.h"
 #include "terrain_pass.h"
 #include "transparency_pass.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
+
+class ShadowPass;
 
 struct MyUniform {
         glm::mat4 projectMatrix;
@@ -81,10 +82,8 @@ class Application {
         void updateViewMatrix();
         void updateDragInertia();
 
-        Model grass_model{};
-        Model cylinder{};
+
         Model water{};
-        Model sphere{};
 
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();

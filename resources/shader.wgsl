@@ -150,9 +150,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 
     var index = 0;
     if length(out.viewSpacePos) > ElapsedTime { index = 1;}
-;
     out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
-    //out.shadowPos = shadow_position;
     return out;
 }
 
@@ -257,9 +255,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let intensity = dot(direction, normal);
     var specular = pow(RoV, hardness) * intensity * color * metallic_factor ;
     var min_intensity = 0.6;
-    if objectTranformation.isFoliage != 1 {
-        min_intensity = 0.3;
-    }
+    //if objectTranformation.isFoliage == 1 {
+    //    min_intensity = 0.3;
+    //}
     let diffuse = max(min_intensity, intensity) * color;
     shading += diffuse + vec3f(0.1, 0.1, 0.15) ;
     if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
@@ -320,9 +318,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //    return vec4f((col + vec3(1.0, 0.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
     //}else{
     //    return vec4f((col + vec3(0.0, 1.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
-    //}
-    //if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
-    //	return vec4f(metallic_roughness, 1.0);
     //}
     return vec4f(col, 1.0);
 }
