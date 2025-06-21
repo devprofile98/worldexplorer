@@ -80,13 +80,13 @@ struct OffsetData {
 @group(0) @binding(2) var textureSampler: sampler;
 @group(0) @binding(3) var<uniform> lightingInfos: LightingUniforms;
 @group(0) @binding(4) var<uniform> pointLight: array<PointLight,10>;
-@group(0) @binding(5) var near_depth_texture: texture_depth_2d;
+@group(0) @binding(5) var near_depth_texture: texture_depth_2d_array;
 @group(0) @binding(6) var grass_ground_texture: texture_2d<f32>;
 @group(0) @binding(7) var rock_mountain_texture: texture_2d<f32>;
 @group(0) @binding(8) var sand_lake_texture: texture_2d<f32>;
 @group(0) @binding(15) var grass_normal_texture: texture_2d<f32>;
 @group(0) @binding(9) var snow_mountain_texture: texture_2d<f32>;
-@group(0) @binding(10) var depth_texture: texture_depth_2d;
+@group(0) @binding(10) var depth_texture: texture_depth_2d_array;
 @group(0) @binding(11) var<uniform> lightSpaceTrans: array<Scene, 2>;
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
@@ -138,15 +138,15 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     out.color = in.color;
     out.uv = in.uv;
 
-	   let T = normalize(vec3f((transform * vec4(in.tangent,   0.0)).xyz));
-	   let B = normalize(vec3f((transform * vec4(in.biTangent, 0.0)).xyz));
-	   let N = normalize(vec3f((transform * vec4(in.normal,    0.0)).xyz));
+    let T = normalize(vec3f((transform * vec4(in.tangent, 0.0)).xyz));
+    let B = normalize(vec3f((transform * vec4(in.biTangent, 0.0)).xyz));
+    let N = normalize(vec3f((transform * vec4(in.normal, 0.0)).xyz));
 
 
 
-	out.tangent = T;
-	out.biTangent = B;
-	out.aNormal = out.normal;
+    out.tangent = T;
+    out.biTangent = B;
+    out.aNormal = out.normal;
 
     var index = 0;
     if length(out.viewSpacePos) > ElapsedTime { index = 1;}
@@ -156,8 +156,10 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     return out;
 }
 
-fn calculateShadow(fragPosLightSpace: vec4f, distance: f32) -> f32 {
+                //closestDepth = textureSampleCompare(near_depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), projCoords.z);
+                //closestDepth = textureSampleCompareLevel(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), 1, projCoords.z);
 
+fn calculateShadow(fragPosLightSpace: vec4f, distance: f32) -> f32 {
     var projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
 
     projCoords = vec3(
@@ -170,9 +172,15 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32) -> f32 {
         for (var j: i32 = -1; j <= 1; j++) {
             var closestDepth = 0.0f;
             if distance < ElapsedTime {
-                closestDepth = textureSampleCompare(near_depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), projCoords.z);
+                closestDepth = textureSample(depth_texture, textureSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), 0);
             } else {
-                closestDepth = textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), projCoords.z);
+                closestDepth = textureSample(depth_texture, textureSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), 1);
+            }
+
+            if closestDepth > projCoords.z {
+                closestDepth = 0.0;
+            } else {
+                closestDepth = 1.0;
             }
             shadow += closestDepth;
         }
@@ -278,7 +286,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //        }
     //}
 
-    color = pow(calculateTerrainColor(in.color.r, in.uv) * diffuse, vec3f(1.2));
+    color = pow(calculateTerrainColor(in.color.r, in.uv) * max(min_intensity, intensity), vec3f(1.2));
     let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos));
 
     let ambient = color * shading;

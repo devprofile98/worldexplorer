@@ -52,6 +52,10 @@ class ShadowPass : public RenderPass {
         DepthStencilAttachment mRenderPassDepthStencil2;
         DepthStencilAttachment mRenderPassDepthStencil;
         float MinZ = 0.0f;
+        // sub frustums
+        ShadowFrustum* mNearFrustum;
+        ShadowFrustum* mFarFrustum;
+
 
     private:
         Application* mApp;
@@ -59,9 +63,6 @@ class ShadowPass : public RenderPass {
         Pipeline* mRenderPipeline;
         // render pass
 
-        // sub frustums
-        ShadowFrustum* mNearFrustum;
-        ShadowFrustum* mFarFrustum;
 
         // bindings
         BindingGroup mBindingGroup;
@@ -86,10 +87,10 @@ class ShadowPass : public RenderPass {
 class ShadowFrustum {
     public:
         ShadowFrustum(Application* app, size_t width, size_t height, Texture* renderTarget = nullptr);
-        WGPUTextureView getShadowMapView();
+        /*WGPUTextureView getShadowMapView();*/
+        /*WGPUTextureView getShadowMapViewArray();*/
         WGPURenderPassDescriptor* getRenderPassDescriptor();
 
-    private:
         Texture* mShadowDepthTexture;
         Texture* mRenderTarget = nullptr;
         WGPURenderPassDescriptor mRenderPassDesc;

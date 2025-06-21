@@ -1,5 +1,6 @@
 #include "texture.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <format>
 
@@ -25,12 +26,12 @@ WGPUTextureView Texture::createView() {
     return nullptr;
 }
 
-WGPUTextureView Texture::createViewDepthOnly() {
+WGPUTextureView Texture::createViewDepthOnly(uint32_t base, uint32_t count) {
     if (mIsTextureAlive) {
         WGPUTextureViewDescriptor texture_view_desc = {};
         texture_view_desc.aspect = WGPUTextureAspect_DepthOnly;
-        texture_view_desc.baseArrayLayer = 0;
-        texture_view_desc.arrayLayerCount = 1;
+        texture_view_desc.baseArrayLayer = base;
+        texture_view_desc.arrayLayerCount = count;
         texture_view_desc.baseMipLevel = 0;
         texture_view_desc.mipLevelCount = mDescriptor.mipLevelCount;
         texture_view_desc.dimension = WGPUTextureViewDimension_2D;
@@ -41,9 +42,41 @@ WGPUTextureView Texture::createViewDepthOnly() {
     std::cout << "failed here " << mIsTextureAlive << std::endl;
     return nullptr;
 }
+WGPUTextureView Texture::createViewDepthOnly2(uint32_t base, uint32_t count) {
+    if (mIsTextureAlive) {
+        WGPUTextureViewDescriptor texture_view_desc = {};
+        texture_view_desc.aspect = WGPUTextureAspect_DepthOnly;
+        texture_view_desc.baseArrayLayer = base;
+        texture_view_desc.arrayLayerCount = count;
+        texture_view_desc.baseMipLevel = 0;
+        texture_view_desc.mipLevelCount = mDescriptor.mipLevelCount;
+        texture_view_desc.dimension = WGPUTextureViewDimension_2D;
+        texture_view_desc.format = mDescriptor.format;
+        return wgpuTextureCreateView(mTexture, &texture_view_desc);
+    }
+    std::cout << "failed here " << mIsTextureAlive << std::endl;
+    return nullptr;
+}
+
+WGPUTextureView Texture::createViewArray(uint32_t base, uint32_t count) {
+    if (mIsTextureAlive) {
+        WGPUTextureViewDescriptor texture_view_desc = {};
+        texture_view_desc.aspect = WGPUTextureAspect_All;
+        texture_view_desc.baseArrayLayer = base;
+        texture_view_desc.arrayLayerCount = count;
+        texture_view_desc.baseMipLevel = 0;
+        texture_view_desc.mipLevelCount = mDescriptor.mipLevelCount;
+        texture_view_desc.dimension = WGPUTextureViewDimension_2DArray;
+        texture_view_desc.format = mDescriptor.format;
+        mArrayTextureView = wgpuTextureCreateView(mTexture, &texture_view_desc);
+        return mArrayTextureView;
+    }
+    std::cout << "failed here " << mIsTextureAlive << std::endl;
+    return nullptr;
+}
 
 Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
-                 WGPUTextureUsageFlags flags, WGPUTextureFormat textureFormat) {
+                 WGPUTextureUsageFlags flags, WGPUTextureFormat textureFormat, uint32_t extent) {
     mDescriptor = {};
     mDescriptor.label = "texture label";
     mDescriptor.nextInChain = nullptr;
@@ -51,7 +84,7 @@ Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, Texture
     mDescriptor.format = textureFormat;
     mDescriptor.mipLevelCount = 1;
     mDescriptor.sampleCount = 1;
-    mDescriptor.size = {width, height, 1};
+    mDescriptor.size = {width, height, extent};
     mDescriptor.usage = flags;
     mDescriptor.viewFormatCount = 0;
     mDescriptor.viewFormats = nullptr;
@@ -183,6 +216,7 @@ void Texture::Destroy() {
 }
 
 WGPUTextureView Texture::getTextureView() { return mTextureView; }
+WGPUTextureView Texture::getTextureViewArray() { return mArrayTextureView; };
 
 std::vector<uint8_t> Texture::expandToRGBA(uint8_t* data, size_t height, size_t width) {
     if (!data) {

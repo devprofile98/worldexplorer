@@ -32,8 +32,10 @@ ShadowFrustum::ShadowFrustum(Application* app, size_t width, size_t height, Text
                                       static_cast<uint32_t>(mHeight),
                                       TextureDimension::TEX_2D,
                                       WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
-                                      WGPUTextureFormat_Depth24Plus};
-    mShadowDepthTexture->createViewDepthOnly();
+                                      WGPUTextureFormat_Depth24Plus,
+                                      2};
+    mShadowDepthTexture->createViewArray(0, 1);
+    mShadowDepthTexture->createViewDepthOnly(0, 1);
 
     mColorAttachment = ColorAttachment{mRenderTarget->getTextureView(), nullptr, WGPUColor{0.02, 0.80, 0.92, 1.0},
                                        StoreOp::Discard, LoadOp::Load};
@@ -60,7 +62,17 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat) {
     /*createRenderPassDescriptor();*/
     /*createRenderPassDescriptor2();*/
     mNearFrustum = new ShadowFrustum{mApp, 2048, 2048};
-    mFarFrustum = new ShadowFrustum{mApp, 1024, 1024};
+    mFarFrustum = new ShadowFrustum{mApp, 2048, 2048};
+    mFarFrustum->mDepthStencilAttachment =
+        DepthStencilAttachment{mNearFrustum->mShadowDepthTexture->createViewDepthOnly2(1, 1),
+                               StoreOp::Store,
+                               LoadOp::Clear,
+                               false,
+                               StoreOp::Discard,
+                               LoadOp::Clear,
+                               true};
+
+    /*mNearFrustum->mShadowDepthTexture->createViewDepthOnly();*/
     // for projection
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(Scene));
     mBindingGroup.addBuffer(1,  //
@@ -299,9 +311,11 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
 
 std::vector<Scene>& ShadowPass::getScene() { return mScenes; }
 
-WGPUTextureView ShadowFrustum::getShadowMapView() { return mShadowDepthTexture->getTextureView(); }
-WGPUTextureView ShadowPass::getShadowMapView() { return mNearFrustum->getShadowMapView(); }
-WGPUTextureView ShadowPass::getShadowMapView2() { return mFarFrustum->getShadowMapView(); }
+/*WGPUTextureView ShadowFrustum::getShadowMapView() { return mShadowDepthTexture->getTextureView(); }*/
+/*WGPUTextureView ShadowFrustum::getShadowMapViewArray() { return mShadowDepthTexture->getTextureViewArray(); }*/
+
+WGPUTextureView ShadowPass::getShadowMapView() { return mNearFrustum->mShadowDepthTexture->getTextureView(); }
+WGPUTextureView ShadowPass::getShadowMapView2() { return mFarFrustum->mShadowDepthTexture->getTextureView(); }
 
 void printMatrix(const glm::mat4& matrix) {
     for (int row = 0; row < 4; ++row) {

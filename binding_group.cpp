@@ -52,6 +52,10 @@ WGPUTextureViewDimension viewDimensionFrom(TextureViewDimension dim) {
             break;
         case TextureViewDimension::CUBE:
             ret = WGPUTextureViewDimension_Cube;
+            break;
+        case TextureViewDimension::ARRAY_2D:
+            ret = WGPUTextureViewDimension_2DArray;
+            break;
         default:
             break;
     }

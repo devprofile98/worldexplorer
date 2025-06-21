@@ -17,6 +17,7 @@
 #include "shapes.h"
 #include "skybox.h"
 #include "terrain_pass.h"
+#include "texture.h"
 #include "transparency_pass.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
@@ -165,7 +166,8 @@ class Application {
 
         WGPUTextureView mDepthTextureView;
         // WGPUTextureView mShadowDepthTextureView;
-        WGPUTexture mDepthTexture;
+        Texture* mDepthTexture;
+
         // WGPUTexture mShadowDepthTexture;
 
         WGPURenderPipelineDescriptor mPipelineDescriptor;

@@ -16,17 +16,20 @@ class Texture {
     public:
         Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
                 WGPUTextureUsageFlags flags = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst,
-                WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm);
+                WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm, uint32_t extent = 1);
         Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm);
         ~Texture();
 
         // access function
         WGPUTexture getTexture();
         WGPUTextureView getTextureView();
+        WGPUTextureView getTextureViewArray();
 
         Texture& setBufferData(std::vector<uint8_t>& data);
         WGPUTextureView createView();
-        WGPUTextureView createViewDepthOnly();
+        WGPUTextureView createViewDepthOnly(uint32_t base = 0, uint32_t count = 1);
+        WGPUTextureView createViewDepthOnly2(uint32_t base = 0, uint32_t count = 1);
+        WGPUTextureView createViewArray(uint32_t base, uint32_t count);
         void uploadToGPU(WGPUQueue deviceQueue);
         bool isTransparent();
 
@@ -38,6 +41,7 @@ class Texture {
     private:
         WGPUTexture mTexture;
         WGPUTextureView mTextureView = nullptr;
+        WGPUTextureView mArrayTextureView = nullptr;
         WGPUTextureDescriptor mDescriptor;
         std::vector<uint8_t> mBufferData;
         bool mIsTextureAlive = false;  // Indicate whether the texure is still valid on VRAM or not

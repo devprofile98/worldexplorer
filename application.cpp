@@ -166,7 +166,7 @@ void Application::initializePipeline() {
                              TextureViewDimension::VIEW_2D);
     mBindingGroup.addTexture(10,  //
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
-                             TextureViewDimension::VIEW_2D);
+                             TextureViewDimension::ARRAY_2D);
     mBindingGroup.addBuffer(11,  //
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 2);
     mBindingGroup.addSampler(12,  //
@@ -286,7 +286,7 @@ void Application::initializePipeline() {
     mBindingData[5] = {};
     mBindingData[5].nextInChain = nullptr;
     mBindingData[5].binding = 5;
-    mBindingData[5].textureView = mShadowPass->getShadowMapView();
+    mBindingData[5].textureView = mShadowPass->mNearFrustum->mShadowDepthTexture->getTextureView();
 
     mBindingData[6] = {};
     mBindingData[6].nextInChain = nullptr;
@@ -314,16 +314,19 @@ void Application::initializePipeline() {
     mCompositionPass = new CompositionPass{this};
     mCompositionPass->initializePass();
 
+    static auto texture_array =
+        std::vector<WGPUTextureView>{mShadowPass->mNearFrustum->mShadowDepthTexture->getTextureViewArray(),
+                                     mShadowPass->mFarFrustum->mShadowDepthTexture->getTextureViewArray()};
     mBindingData[10] = {};
     mBindingData[10].nextInChain = nullptr;
     mBindingData[10].binding = 10;
-    mBindingData[10].textureView = mShadowPass->getShadowMapView2();
+    mBindingData[10].textureView = mShadowPass->mNearFrustum->mShadowDepthTexture->getTextureViewArray();
 
     mBindingData[11].nextInChain = nullptr;
     mBindingData[11].binding = 11;
     mBindingData[11].buffer = mLightSpaceTransformation.getBuffer();
     mBindingData[11].offset = 0;
-    mBindingData[11].size = sizeof(Scene) * 5;
+    mBindingData[11].size = sizeof(Scene) * 2;
 
     WGPUSamplerDescriptor shadow_sampler_desc = {};
     shadow_sampler_desc.addressModeU = WGPUAddressMode_ClampToEdge;
@@ -448,7 +451,7 @@ void Application::initializeBuffers() {
 
     mLightSpaceTransformation.setLabel("Light space transform buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-        .setSize(sizeof(Scene) * 5)
+        .setSize(sizeof(Scene) * 2)
         .setMappedAtCraetion()
         .create(this);
 
@@ -763,22 +766,24 @@ void Application::mainLoop() {
     if (!look_as_light) {
         auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
         auto all_scenes = mShadowPass->createFrustumSplits(
-            corners, {{0.0, middle_plane_length},
-                      {middle_plane_length - 4.0f, middle_plane_length + far_plane_length},
-                      {middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 100}});
+            corners,
+            {
+                {0.0, middle_plane_length}, {middle_plane_length - 4.0f, middle_plane_length + far_plane_length},
+                //{middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 100}
+
+            });
+
+	std::cout << "Model: \n";
+        printMatrix(all_scenes[1].model);
+	std::cout << "View: \n";
+        printMatrix(all_scenes[1].view);
+	std::cout << "Projecttion: \n";
+        printMatrix(all_scenes[1].projection);
 
         frustum.createFrustumPlanesFromCorner(corners);
         wgpuQueueWriteBuffer(mRendererResource.queue, mLightSpaceTransformation.getBuffer(), 0, all_scenes.data(),
                              sizeof(Scene) * all_scenes.size());
     }
-    // draw far
-    WGPURenderPassEncoder shadow_pass_encoder2 =
-        wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor2());
-    wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder2, mShadowPass->getPipeline()->getPipeline());
-    mShadowPass->render(mLoadedModel, shadow_pass_encoder2, 1);
-
-    wgpuRenderPassEncoderEnd(shadow_pass_encoder2);
-    wgpuRenderPassEncoderRelease(shadow_pass_encoder2);
 
     // draw near
     WGPURenderPassEncoder shadow_pass_encoder =
@@ -788,6 +793,15 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderEnd(shadow_pass_encoder);
     wgpuRenderPassEncoderRelease(shadow_pass_encoder);
+
+    // draw far
+    /*WGPURenderPassEncoder shadow_pass_encoder2 =*/
+    /*    wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor2());*/
+    /*wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder2, mShadowPass->getPipeline()->getPipeline());*/
+    /*mShadowPass->render(mLoadedModel, shadow_pass_encoder2, 1);*/
+    /**/
+    /*wgpuRenderPassEncoderEnd(shadow_pass_encoder2);*/
+    /*wgpuRenderPassEncoderRelease(shadow_pass_encoder2);*/
 
     /*mUniforms.time = static_cast<float>(glfwGetTime());*/
     mUniforms.setCamera(mCamera);
@@ -1044,38 +1058,23 @@ bool Application::initDepthBuffer() {
     glfwGetFramebufferSize(mRendererResource.window, &width, &height);
 
     WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
-    WGPUTextureDescriptor depth_texture_descriptor = {};
-    depth_texture_descriptor.nextInChain = nullptr;
-    depth_texture_descriptor.label = "Depth texture for framebuffer";
-    depth_texture_descriptor.dimension = WGPUTextureDimension_2D;
-    depth_texture_descriptor.format = depth_texture_format;
-    depth_texture_descriptor.mipLevelCount = 1;
-    depth_texture_descriptor.sampleCount = 1;
-    depth_texture_descriptor.size = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
-    depth_texture_descriptor.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
-    depth_texture_descriptor.viewFormatCount = 1;
-    depth_texture_descriptor.viewFormats = &depth_texture_format;
-    mDepthTexture = wgpuDeviceCreateTexture(mRendererResource.device, &depth_texture_descriptor);
+    mDepthTexture = new Texture{this->getRendererResource().device,
+                                static_cast<uint32_t>(width),
+                                static_cast<uint32_t>(height),
+                                TextureDimension::TEX_2D,
+                                WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
+                                depth_texture_format,
+                                2};
 
     // Create the view of the depth texture manipulated by the rasterizer
-    WGPUTextureViewDescriptor depth_texture_view_desc = {};
-    depth_texture_view_desc.label = "opaque path depth texture";
-    depth_texture_view_desc.aspect = WGPUTextureAspect_DepthOnly;
-    depth_texture_view_desc.baseArrayLayer = 0;
-    depth_texture_view_desc.arrayLayerCount = 1;
-    depth_texture_view_desc.baseMipLevel = 0;
-    depth_texture_view_desc.mipLevelCount = 1;
-    depth_texture_view_desc.dimension = WGPUTextureViewDimension_2D;
-    depth_texture_view_desc.format = depth_texture_format;
-    mDepthTextureView = wgpuTextureCreateView(mDepthTexture, &depth_texture_view_desc);
-
+    mDepthTextureView = mDepthTexture->createViewDepthOnly();
     return mDepthTextureView != nullptr;
 }
 
 void Application::terminateDepthBuffer() {
     wgpuTextureViewRelease(mDepthTextureView);
-    wgpuTextureDestroy(mDepthTexture);
-    wgpuTextureRelease(mDepthTexture);
+    wgpuTextureDestroy(mDepthTexture->getTexture());
+    delete mDepthTexture;
 }
 
 void Application::updateProjectionMatrix() {
