@@ -56,13 +56,11 @@ class ShadowPass : public RenderPass {
         ShadowFrustum* mNearFrustum;
         ShadowFrustum* mFarFrustum;
 
-
     private:
         Application* mApp;
         // pipeline
         Pipeline* mRenderPipeline;
         // render pass
-
 
         // bindings
         BindingGroup mBindingGroup;
@@ -79,7 +77,7 @@ class ShadowPass : public RenderPass {
         // buffers
         Buffer mSceneUniformBuffer;
 
-        Scene calculateFrustumScene(const std::vector<glm::vec4> frustum);
+        Scene calculateFrustumScene(const std::vector<glm::vec4> frustum, float farZ);
         // scene
         std::vector<Scene> mScenes;
 };

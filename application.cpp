@@ -105,7 +105,7 @@ void Application::initializePipeline() {
     sand_texture.createView();
     sand_texture.uploadToGPU(mRendererResource.queue);
 
-    Texture grass_normal_texture = Texture{mRendererResource.device, RESOURCE_DIR "/grass_normal.png"};
+    Texture grass_normal_texture = Texture{mRendererResource.device, RESOURCE_DIR "/gravelly_sand_diff.jpg"};
     grass_normal_texture.createView();
     grass_normal_texture.uploadToGPU(mRendererResource.queue);
 
@@ -353,8 +353,8 @@ void Application::initializePipeline() {
     mBindingData[13].offset = 0;
     mBindingData[13].size = mInstanceManager->mBufferSize;
 
-    mTimeBuffer.setLabel("time buffer")
-        .setSize(sizeof(float))
+    mTimeBuffer.setLabel("number of cascades buffer")
+        .setSize(sizeof(uint32_t))
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setMappedAtCraetion(false)
         .create(this);
@@ -364,7 +364,7 @@ void Application::initializePipeline() {
     mBindingData[14].buffer = mTimeBuffer.getBuffer();
     mBindingData[14].binding = 14;
     mBindingData[14].offset = 0;
-    mBindingData[14].size = sizeof(float);
+    mBindingData[14].size = sizeof(uint32_t);
 
     mBindingData[15] = {};
     mBindingData[15].nextInChain = nullptr;
@@ -408,12 +408,12 @@ void Application::initializeBuffers() {
     mLightManager = LightManager::init(this);
     mInstanceManager = new InstanceManager{this, sizeof(glm::mat4) * 100000 * 15, 100000};
 
-    water.load("water", this, RESOURCE_DIR "/bluecube.obj", mBindGroupLayouts[1])
-        .moveTo(glm::vec3{-3.725, -7.640, -3.425})
-        .scale(glm::vec3{100.0, 100.0, 1.0});
-    water.uploadToGPU(this);
-    water.setTransparent(false);
-    water.useTexture(false);
+    /*water.load("water", this, RESOURCE_DIR "/bluecube.obj", mBindGroupLayouts[1])*/
+    /*    .moveTo(glm::vec3{-3.725, -7.640, -3.425})*/
+    /*    .scale(glm::vec3{100.0, 100.0, 1.0});*/
+    /*water.uploadToGPU(this);*/
+    /*water.setTransparent(false);*/
+    /*water.useTexture(false);*/
 
     terrain.generate(200, 8, terrainData).uploadToGpu(this);
     std::cout << "Generate is " << terrainData.size() << '\n';
@@ -710,7 +710,7 @@ bool Application::initialize() {
 
     mLoadedModel = {
 
-        &water,
+        /*&water,*/
     };
 
     for (auto& model : mLoadedModel) {
@@ -742,9 +742,7 @@ void Application::mainLoop() {
     }
 
     /*float time = glfwGetTime();*/
-    float new_value = middle_plane_length;
     /*std::cout << "value is " << new_value << std::endl;*/
-    wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &new_value, sizeof(float));
 
     /*auto first_corner = getFrustumCornersWorldSpace(frustum_projection, mUniforms.viewMatrix);*/
     // create a commnad encoder
@@ -773,12 +771,14 @@ void Application::mainLoop() {
 
             });
 
-	std::cout << "Model: \n";
-        printMatrix(all_scenes[1].model);
-	std::cout << "View: \n";
-        printMatrix(all_scenes[1].view);
-	std::cout << "Projecttion: \n";
-        printMatrix(all_scenes[1].projection);
+        uint32_t new_value = 2;
+        wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &new_value, sizeof(uint32_t));
+        /*std::cout << "Model: \n";*/
+        /*       printMatrix(all_scenes[1].model);*/
+        /*std::cout << "View: \n";*/
+        /*       printMatrix(all_scenes[1].view);*/
+        /*std::cout << "Projecttion: \n";*/
+        /*       printMatrix(all_scenes[1].projection);*/
 
         frustum.createFrustumPlanesFromCorner(corners);
         wgpuQueueWriteBuffer(mRendererResource.queue, mLightSpaceTransformation.getBuffer(), 0, all_scenes.data(),
@@ -795,13 +795,13 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderRelease(shadow_pass_encoder);
 
     // draw far
-    /*WGPURenderPassEncoder shadow_pass_encoder2 =*/
-    /*    wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor2());*/
-    /*wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder2, mShadowPass->getPipeline()->getPipeline());*/
-    /*mShadowPass->render(mLoadedModel, shadow_pass_encoder2, 1);*/
-    /**/
-    /*wgpuRenderPassEncoderEnd(shadow_pass_encoder2);*/
-    /*wgpuRenderPassEncoderRelease(shadow_pass_encoder2);*/
+    WGPURenderPassEncoder shadow_pass_encoder2 =
+        wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor2());
+    wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder2, mShadowPass->getPipeline()->getPipeline());
+    mShadowPass->render(mLoadedModel, shadow_pass_encoder2, 1);
+
+    wgpuRenderPassEncoderEnd(shadow_pass_encoder2);
+    wgpuRenderPassEncoderRelease(shadow_pass_encoder2);
 
     /*mUniforms.time = static_cast<float>(glfwGetTime());*/
     mUniforms.setCamera(mCamera);
@@ -964,9 +964,7 @@ void Application::terminate() {
     wgpuBufferRelease(mBuffer1);
     wgpuBufferRelease(mUniformBuffer);
     terminateGui();
-
     wgpuRenderPipelineRelease(mPipeline->getPipeline());
-    wgpuRenderPipelineRelease(mPipeline2->getPipeline());
     wgpuSurfaceUnconfigure(mRendererResource.surface);
     wgpuQueueRelease(mRendererResource.queue);
     wgpuSurfaceRelease(mRendererResource.surface);
@@ -1284,19 +1282,19 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     if (ImGui::Button("Rotate", ImVec2(80, 30))) {
         /*std::cout << "Last orientation is " << water.mOrientation.x << " - " << water.mOrientation.y << " - "*/
         /*          << water.mOrientation.z << std::endl;*/
-        std::cout << "++++++++++++++++++++++++++++\n";
-        std::cout << "Water orientation is: " << glm::to_string(water.mOrientation) << "\n";
-        std::cout << "new Water oriensn is: " << glm::to_string(water_orientation) << "\n";
-
-        water_orientation = glm::normalize(water_orientation);
-
-        auto r = glm::normalize(glm::vec3{water.mOrientation.x, water.mOrientation.y, water.mOrientation.z});
-        glm::vec3 r_axis = glm::normalize(glm::cross(water_orientation, r));
+        /*std::cout << "++++++++++++++++++++++++++++\n";*/
+        /*std::cout << "Water orientation is: " << glm::to_string(water.mOrientation) << "\n";*/
+        /*std::cout << "new Water oriensn is: " << glm::to_string(water_orientation) << "\n";*/
+        /**/
+        /*water_orientation = glm::normalize(water_orientation);*/
+        /**/
+        /*auto r = glm::normalize(glm::vec3{water.mOrientation.x, water.mOrientation.y, water.mOrientation.z});*/
+        /*glm::vec3 r_axis = glm::normalize(glm::cross(water_orientation, r));*/
         /*if (glm::length(r_axis) > 0.001) {*/
-        float degree = glm::degrees(glm::acos(glm::dot(water_orientation, r)));
-
-        std::cout << "rotation axis is: " << glm::to_string(r_axis) << " and the degree is" << degree << std::endl;
-        water.rotate(r_axis, degree);
+        /*float degree = glm::degrees(glm::acos(glm::dot(water_orientation, r)));*/
+        /**/
+        /*std::cout << "rotation axis is: " << glm::to_string(r_axis) << " and the degree is" << degree << std::endl;*/
+        /*water.rotate(r_axis, degree);*/
         /*} else {*/
         /*    std::cout << "axis are colliner\n";*/
         /*}*/

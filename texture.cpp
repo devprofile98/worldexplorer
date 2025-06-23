@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <format>
 
+#include "glm/exponential.hpp"
 #include "webgpu.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -109,7 +110,7 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     mDescriptor.label = path.c_str();
     // by convention for bmp, png and jpg file. Be careful with other formats.
     mDescriptor.format = textureFormat;
-    mDescriptor.mipLevelCount = 11;
+    mDescriptor.mipLevelCount = glm::log2((float)width);
     mDescriptor.sampleCount = 1;
     mDescriptor.size = {(unsigned int)width, (unsigned int)height, 1};
     mDescriptor.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
@@ -131,7 +132,6 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     }
 
     stbi_image_free(pixel_data);
-    /*std::cout << "buffer size is _______________________ " << channels << " " << mBufferData.size() << std::endl;*/
     mIsTextureAlive = true;
 }
 

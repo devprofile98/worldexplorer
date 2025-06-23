@@ -34,7 +34,7 @@ ShadowFrustum::ShadowFrustum(Application* app, size_t width, size_t height, Text
                                       WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
                                       WGPUTextureFormat_Depth24Plus,
                                       2};
-    mShadowDepthTexture->createViewArray(0, 1);
+    mShadowDepthTexture->createViewArray(0, 2);
     mShadowDepthTexture->createViewDepthOnly(0, 1);
 
     mColorAttachment = ColorAttachment{mRenderTarget->getTextureView(), nullptr, WGPUColor{0.02, 0.80, 0.92, 1.0},
@@ -232,7 +232,7 @@ std::vector<glm::vec4> calculateSplit(std::vector<glm::vec4>& corners, float beg
     return {near0, far0, near1, far1, near2, far2, near3, far3};
 }
 
-Scene ShadowPass::calculateFrustumScene(const std::vector<glm::vec4> frustum) {
+Scene ShadowPass::calculateFrustumScene(const std::vector<glm::vec4> frustum, float farZ) {
     glm::vec3 center = glm::vec3(0, 0, 0);
     for (const auto& v : frustum) {
         center += glm::vec3(v);
@@ -245,14 +245,13 @@ Scene ShadowPass::calculateFrustumScene(const std::vector<glm::vec4> frustum) {
 
     auto view = glm::lookAt(lightPosition, center, glm::vec3{0.0f, 0.0f, 1.0f});
     glm::mat4 projection = createProjectionFromFrustumCorner(frustum, view, &MinZ, "frustum", 0.0);
-    return Scene{projection, glm::mat4{1.0}, view};
+    return Scene{projection, glm::mat4{1.0}, view, farZ};
 }
 
 std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corners, std::vector<FrustumParams> params) {
     mScenes.clear();
     for (const auto& param : params) {
-        mScenes.emplace_back(calculateFrustumScene(calculateSplit(corners, param.begin, param.end)));
-        /*mScenes.emplace_back(calculateFrustumScene(calculateSplit(corners, length, length + far_length)));*/
+        mScenes.emplace_back(calculateFrustumScene(calculateSplit(corners, param.begin, param.end), param.end));
     }
 
     return mScenes;

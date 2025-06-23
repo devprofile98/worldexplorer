@@ -84,7 +84,7 @@ class Application {
         void updateDragInertia();
 
 
-        Model water{};
+        /*Model water{};*/
 
         std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();

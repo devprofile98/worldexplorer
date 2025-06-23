@@ -6,7 +6,7 @@
 struct TreeModel : public IModel {
         TreeModel(Application* app) {
             mModel = new Model{};
-            mModel->load("tree", app, RESOURCE_DIR "/tree2.obj", app->getObjectBindGroupLayout())
+            mModel->load("tree", app, RESOURCE_DIR "/tree1.obj", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{0.725, -7.640, 1.125})
                 .scale(glm::vec3{0.9});
             mModel->uploadToGPU(app);
@@ -30,7 +30,7 @@ struct TreeModel : public IModel {
                 auto rotate =
                     glm::rotate(glm::mat4{1.0f}, glm::radians(dist_for_rotation(gen)), glm::vec3{0.0, 0.0, 1.0});
                 auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.9f * dist(gen)});
-                if (i % 40 == 0) {
+                if (i % 200 == 0) {
                     dddata.push_back(trans * rotate * scale);
                 }
             }
@@ -81,9 +81,9 @@ struct CarModel : public IModel {
         CarModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("car", app, RESOURCE_DIR "/car.obj", app->getObjectBindGroupLayout())
+            mModel->load("car", app, RESOURCE_DIR "/ford.obj", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{0.725, -1.0, 0.72})
-                .scale(glm::vec3{0.2})
+                .scale(glm::vec3{0.005})
                 .rotate(glm::vec3{0.0, 0.0, 1.0}, 90.0f);
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
@@ -221,11 +221,11 @@ struct SphereModel : public IModel {
 
 REGISTER_MODEL("tree", TreeModel);
 REGISTER_MODEL("boat", BoatModel);
-REGISTER_MODEL("jet", JetModel);
+/*REGISTER_MODEL("jet", JetModel);*/
 REGISTER_MODEL("car", CarModel);
 REGISTER_MODEL("tower", TowerModel);
 REGISTER_MODEL("desk", DeskModel);
 REGISTER_MODEL("arrow", ArrowModel);
 REGISTER_MODEL("grass", GrassModel);
-REGISTER_MODEL("cylinder", CylinderModel);
-REGISTER_MODEL("sphere", SphereModel);
+/*REGISTER_MODEL("cylinder", CylinderModel);*/
+/*REGISTER_MODEL("sphere", SphereModel);*/

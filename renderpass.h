@@ -18,6 +18,8 @@ struct Scene {
         glm::mat4 projection;
         glm::mat4 model;
         glm::mat4 view;
+        float farZ;
+        float padding[3]{};
 };
 
 enum class LoadOp {
