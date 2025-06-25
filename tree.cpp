@@ -82,7 +82,7 @@ struct CarModel : public IModel {
             mModel = new Model{};
 
             mModel->load("car", app, RESOURCE_DIR "/ford.obj", app->getObjectBindGroupLayout())
-                .moveTo(glm::vec3{0.725, -1.0, 0.72})
+                .moveTo(glm::vec3{-6.883, 3.048, -1.709})
                 .scale(glm::vec3{0.005})
                 .rotate(glm::vec3{0.0, 0.0, 1.0}, 90.0f);
             mModel->uploadToGPU(app);
@@ -100,10 +100,9 @@ struct TowerModel : public IModel {
             mModel = new Model{};
 
             mModel->load("tower", app, RESOURCE_DIR "/tower.obj", app->getObjectBindGroupLayout())
-                .moveTo(glm::vec3{0.0})
-                .scale(glm::vec3{0.3});
+                .moveTo(glm::vec3{-2.0, -1.0, -2.58})
+                .scale(glm::vec3{0.5});
             mModel->uploadToGPU(app);
-            mModel->moveTo({-2.0, -1.0, 0.0});
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
 

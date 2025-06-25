@@ -81,12 +81,12 @@ WGPUShaderModule loadShader(const fs::path& path, WGPUDevice device) {
     file.seekg(0);
     file.read(shader_code.data(), file_size);
 
-    WGPUShaderModuleWGSLDescriptor module_descriptor = {};
+    static WGPUShaderModuleWGSLDescriptor module_descriptor = {};
     module_descriptor.chain.next = nullptr;
     module_descriptor.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
     module_descriptor.code = shader_code.c_str();
 
-    WGPUShaderModuleDescriptor shader_descriptor = {};
+    static WGPUShaderModuleDescriptor shader_descriptor = {};
     shader_descriptor.nextInChain = nullptr;
     shader_descriptor.hintCount = 0;
     shader_descriptor.hints = nullptr;

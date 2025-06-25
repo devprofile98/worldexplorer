@@ -92,7 +92,7 @@ struct OffsetData {
 @group(0) @binding(15) var grass_normal_texture: texture_2d<f32>;
 @group(0) @binding(9) var snow_mountain_texture: texture_2d<f32>;
 @group(0) @binding(10) var depth_texture: texture_depth_2d_array;
-@group(0) @binding(11) var<uniform> lightSpaceTrans: array<Scene, 2>;
+@group(0) @binding(11) var<uniform> lightSpaceTrans: array<Scene, 5>;
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(14) var<uniform> numOfCascades: u32;
@@ -147,17 +147,12 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     let B = normalize(vec3f((transform * vec4(in.biTangent, 0.0)).xyz));
     let N = normalize(vec3f((transform * vec4(in.normal, 0.0)).xyz));
 
-
-
     out.tangent = T;
     out.biTangent = B;
     out.aNormal = out.normal;
 
     var index:u32 = 0;
-    if ( numOfCascades != 2 ) {
-    	index = index - 1;
 
-    }
     for (var i: u32 = 0u; i < numOfCascades; i = i + 1u) {
         if ( length(out.viewSpacePos) < lightSpaceTrans[i].farZ){
         	index= i;
@@ -167,43 +162,8 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     // if length(out.viewSpacePos) > ElapsedTime { index = 1;}
     out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
     out.shadowIdx = index;
-    //out.shadowPos = shadow_position;
     return out;
 }
-
-                //closestDepth = textureSampleCompare(near_depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), projCoords.z);
-                //closestDepth = textureSampleCompareLevel(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), 1, projCoords.z);
-
-//fn calculateShadow(fragPosLightSpace: vec4f, distance: f32) -> f32 {
-//    var projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-//
-//    projCoords = vec3(
-//        projCoords.xy * vec2(0.5, -0.5) + vec2(0.5),
-//        projCoords.z
-//    );
-//
-//    var shadow = 0.0;
-//    for (var i: i32 = -1; i <= 1; i++) {
-//        for (var j: i32 = -1; j <= 1; j++) {
-//            var closestDepth = 0.0f;
-//            if distance < ElapsedTime {
-//                closestDepth = textureSample(depth_texture, textureSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), 0);
-//            } else {
-//                closestDepth = textureSample(depth_texture, textureSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), 1);
-//            }
-//
-//            if closestDepth > projCoords.z {
-//                closestDepth = 0.0;
-//            } else {
-//                closestDepth = 1.0;
-//            }
-//            shadow += closestDepth;
-//        }
-//    }
-//    shadow /= 9.0;
-//    return shadow;
-//}
-
 
 fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, shadowIdx: u32) -> f32 {
 
@@ -217,17 +177,7 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, shadowIdx: u32) -> f
     var shadow = 0.0;
     for (var i: i32 = -1; i <= 1; i++) {
         for (var j: i32 = -1; j <= 1; j++) {
-            var closestDepth = 0.0f;
-            //if distance < ElapsedTime - 0.5 {
-            //    //closestDepth = textureSample(depth_texture, textureSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), 0);
-            //    //if closestDepth < projCoords.z {
-            //    //    closestDepth = projCoords.z;
-            //    //}
-            //    closestDepth = textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125),0, projCoords.z);
-            //} else {
-                closestDepth = textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), shadowIdx, projCoords.z);
-            //}
-            shadow += closestDepth;
+                shadow += textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), shadowIdx, projCoords.z);
         }
     }
     shadow /= 9.0;

@@ -41,12 +41,13 @@ static bool look_as_light = false;
 static float fov = 60.0f;
 static float znear = 0.01f;
 static float zfar = 200.0f;
-static bool which_frustum = false;
-static float middle_plane_length = 20.0f;
-static float far_plane_length = 40.0f;
+static size_t which_frustum = 0;
+static float middle_plane_length = 10.0f;
+static float far_plane_length = 50.0f;
 static float ddistance = 2.0f;
 static float dd = 5.0f;
-extern bool should;
+bool should_update_csm = true;
+extern float sunlength;
 
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
     const auto inv = glm::inverse(proj * view);
@@ -168,7 +169,7 @@ void Application::initializePipeline() {
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
                              TextureViewDimension::ARRAY_2D);
     mBindingGroup.addBuffer(11,  //
-                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 2);
+                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 5);
     mBindingGroup.addSampler(12,  //
                              BindGroupEntryVisibility::FRAGMENT, SampleType::Compare);
 
@@ -237,7 +238,7 @@ void Application::initializePipeline() {
     mDefaultTextureBindingData[2].textureView = default_normal_map_view;
 
     mShadowPass = new ShadowPass{this};
-    mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm);
+    mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm, 3);
 
     mTerrainPass = new TerrainPass{this};
     mTerrainPass->create(mSurfaceFormat);
@@ -286,7 +287,7 @@ void Application::initializePipeline() {
     mBindingData[5] = {};
     mBindingData[5].nextInChain = nullptr;
     mBindingData[5].binding = 5;
-    mBindingData[5].textureView = mShadowPass->mNearFrustum->mShadowDepthTexture->getTextureView();
+    mBindingData[5].textureView = mShadowPass->mSubFrustums[0]->mShadowDepthTexture;
 
     mBindingData[6] = {};
     mBindingData[6].nextInChain = nullptr;
@@ -314,19 +315,19 @@ void Application::initializePipeline() {
     mCompositionPass = new CompositionPass{this};
     mCompositionPass->initializePass();
 
-    static auto texture_array =
-        std::vector<WGPUTextureView>{mShadowPass->mNearFrustum->mShadowDepthTexture->getTextureViewArray(),
-                                     mShadowPass->mFarFrustum->mShadowDepthTexture->getTextureViewArray()};
+    /*static auto texture_array =*/
+    /*    std::vector<WGPUTextureView>{mShadowPass->mNearFrustum->mShadowDepthTexture->getTextureViewArray(),*/
+    /*                                 mShadowPass->mFarFrustum->mShadowDepthTexture->getTextureViewArray()};*/
     mBindingData[10] = {};
     mBindingData[10].nextInChain = nullptr;
     mBindingData[10].binding = 10;
-    mBindingData[10].textureView = mShadowPass->mNearFrustum->mShadowDepthTexture->getTextureViewArray();
+    mBindingData[10].textureView = mShadowPass->getShadowMapView();
 
     mBindingData[11].nextInChain = nullptr;
     mBindingData[11].binding = 11;
     mBindingData[11].buffer = mLightSpaceTransformation.getBuffer();
     mBindingData[11].offset = 0;
-    mBindingData[11].size = sizeof(Scene) * 2;
+    mBindingData[11].size = sizeof(Scene) * 5;
 
     WGPUSamplerDescriptor shadow_sampler_desc = {};
     shadow_sampler_desc.addressModeU = WGPUAddressMode_ClampToEdge;
@@ -451,7 +452,7 @@ void Application::initializeBuffers() {
 
     mLightSpaceTransformation.setLabel("Light space transform buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-        .setSize(sizeof(Scene) * 2)
+        .setSize(sizeof(Scene) * 5)
         .setMappedAtCraetion()
         .create(this);
 
@@ -761,24 +762,18 @@ void Application::mainLoop() {
     // ---------------- 1 - Preparing for shadow pass ---------------
     // The first pass is the shadow pass, only based on the opaque objects
 
-    if (!look_as_light) {
+    if (!look_as_light && should_update_csm) {
         auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
         auto all_scenes = mShadowPass->createFrustumSplits(
-            corners,
-            {
-                {0.0, middle_plane_length}, {middle_plane_length - 4.0f, middle_plane_length + far_plane_length},
-                //{middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 100}
+            corners, {
+                         {0.0, middle_plane_length},
+                         {0.0, middle_plane_length + far_plane_length},
+                         {0.0, middle_plane_length + far_plane_length + 100} /*{0, 60},*/
+                                                                             /*{0, 160}*/
+                     });
 
-            });
-
-        uint32_t new_value = 2;
+        uint32_t new_value = all_scenes.size();
         wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &new_value, sizeof(uint32_t));
-        /*std::cout << "Model: \n";*/
-        /*       printMatrix(all_scenes[1].model);*/
-        /*std::cout << "View: \n";*/
-        /*       printMatrix(all_scenes[1].view);*/
-        /*std::cout << "Projecttion: \n";*/
-        /*       printMatrix(all_scenes[1].projection);*/
 
         frustum.createFrustumPlanesFromCorner(corners);
         wgpuQueueWriteBuffer(mRendererResource.queue, mLightSpaceTransformation.getBuffer(), 0, all_scenes.data(),
@@ -787,7 +782,7 @@ void Application::mainLoop() {
 
     // draw near
     WGPURenderPassEncoder shadow_pass_encoder =
-        wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor());
+        wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor(0));
     wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder, mShadowPass->getPipeline()->getPipeline());
     mShadowPass->render(mLoadedModel, shadow_pass_encoder, 0);
 
@@ -796,12 +791,21 @@ void Application::mainLoop() {
 
     // draw far
     WGPURenderPassEncoder shadow_pass_encoder2 =
-        wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor2());
+        wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor(1));
     wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder2, mShadowPass->getPipeline()->getPipeline());
     mShadowPass->render(mLoadedModel, shadow_pass_encoder2, 1);
 
     wgpuRenderPassEncoderEnd(shadow_pass_encoder2);
     wgpuRenderPassEncoderRelease(shadow_pass_encoder2);
+
+    // draw very far
+    WGPURenderPassEncoder shadow_pass_encoder3 =
+        wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor(2));
+    wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder3, mShadowPass->getPipeline()->getPipeline());
+    mShadowPass->render(mLoadedModel, shadow_pass_encoder3, 2);
+
+    wgpuRenderPassEncoderEnd(shadow_pass_encoder3);
+    wgpuRenderPassEncoderRelease(shadow_pass_encoder3);
 
     /*mUniforms.time = static_cast<float>(glfwGetTime());*/
     mUniforms.setCamera(mCamera);
@@ -809,7 +813,7 @@ void Application::mainLoop() {
     mUniforms.cameraWorldPosition = getCamera().getPos();
     auto all_scenes = mShadowPass->getScene();
     if (look_as_light) {
-        auto all_scene = all_scenes[which_frustum == true ? 0 : 1];
+        auto all_scene = all_scenes[which_frustum];
         mUniforms.projectMatrix = all_scene.projection;
         mUniforms.viewMatrix = all_scene.view;
         mUniforms.modelMatrix = all_scene.model;
@@ -1261,6 +1265,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                              sizeof(LightingUniforms));
     }
+    ImGui::InputFloat("sun length", &sunlength);
     // ImGui::ColorEdit3("Color #1", glm::value_ptr(mLightingUniforms.colors[1]));
     ImGui::DragFloat3("sun pos direction", glm::value_ptr(pointlightshadow), 0.1, -10.0, 10.0);
     static glm::vec3 new_ligth_position = {};
@@ -1270,35 +1275,16 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui::SliderFloat("far split factor", &far_plane_length, 1.0, 200);
     ImGui::SliderFloat("visualizer", &mUniforms.time, -1.0, 1.0);
     /*ImGui::SliderFloat("frustum split factor", &split_fcator, 1.0, 100);*/
-    if (ImGui::Checkbox("near far frstum", &which_frustum)) {
-        auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
-        /*if (!look_as_light) {*/
-        /*    mShadowPass->changeActiveFrustum(which_frustum == true ? 1 : 0);*/
-        /*}*/
+    if (ImGui::InputInt("near far frstum", (int*)&which_frustum)) {
+        /*auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());*/
     }
+    ImGui::Text("Cascade number #%zu", which_frustum);
+
+    ImGui::Checkbox("shoud update csm", &should_update_csm);
 
     static glm::vec3 water_orientation = glm::vec3{0.0f};
     ImGui::InputFloat3("Water plane orientation:", glm::value_ptr(water_orientation));
     if (ImGui::Button("Rotate", ImVec2(80, 30))) {
-        /*std::cout << "Last orientation is " << water.mOrientation.x << " - " << water.mOrientation.y << " - "*/
-        /*          << water.mOrientation.z << std::endl;*/
-        /*std::cout << "++++++++++++++++++++++++++++\n";*/
-        /*std::cout << "Water orientation is: " << glm::to_string(water.mOrientation) << "\n";*/
-        /*std::cout << "new Water oriensn is: " << glm::to_string(water_orientation) << "\n";*/
-        /**/
-        /*water_orientation = glm::normalize(water_orientation);*/
-        /**/
-        /*auto r = glm::normalize(glm::vec3{water.mOrientation.x, water.mOrientation.y, water.mOrientation.z});*/
-        /*glm::vec3 r_axis = glm::normalize(glm::cross(water_orientation, r));*/
-        /*if (glm::length(r_axis) > 0.001) {*/
-        /*float degree = glm::degrees(glm::acos(glm::dot(water_orientation, r)));*/
-        /**/
-        /*std::cout << "rotation axis is: " << glm::to_string(r_axis) << " and the degree is" << degree << std::endl;*/
-        /*water.rotate(r_axis, degree);*/
-        /*} else {*/
-        /*    std::cout << "axis are colliner\n";*/
-        /*}*/
-        /*}*/
     }
 
     ImGui::End();

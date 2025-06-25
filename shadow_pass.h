@@ -29,14 +29,13 @@ class ShadowPass : public RenderPass {
         Pipeline* create(WGPUTextureFormat textureFormat);
 
         void createRenderPass(WGPUTextureFormat textureFormat) override;
+        void createRenderPass(WGPUTextureFormat textureFormat, size_t cascadeNumber);
 
         // Getters
-        WGPURenderPassDescriptor* getRenderPassDescriptor();
-        WGPURenderPassDescriptor* getRenderPassDescriptor2();
+        WGPURenderPassDescriptor* getRenderPassDescriptor(size_t index);
 
         Pipeline* getPipeline();
         WGPUTextureView getShadowMapView();
-        WGPUTextureView getShadowMapView2();
         void render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder, size_t which);
         std::vector<Scene>& getScene();
 
@@ -53,8 +52,9 @@ class ShadowPass : public RenderPass {
         DepthStencilAttachment mRenderPassDepthStencil;
         float MinZ = 0.0f;
         // sub frustums
-        ShadowFrustum* mNearFrustum;
-        ShadowFrustum* mFarFrustum;
+        /*ShadowFrustum* mNearFrustum;*/
+        /*ShadowFrustum* mFarFrustum;*/
+	std::vector<ShadowFrustum*> mSubFrustums;
 
     private:
         Application* mApp;
@@ -71,32 +71,28 @@ class ShadowPass : public RenderPass {
         // textures and views
         WGPUTextureView mDepthTextureView;
         WGPUTexture mDepthTexture;
-        Texture* render_target;
+        Texture* mRenderTarget;
         Texture* mShadowDepthTexture;
         Texture* mShadowDepthTexture2;
         // buffers
         Buffer mSceneUniformBuffer;
 
-        Scene calculateFrustumScene(const std::vector<glm::vec4> frustum, float farZ);
+        Scene calculateFrustumScene(const std::vector<glm::vec4> frustum, float farZ, size_t cascadeIdx);
         // scene
         std::vector<Scene> mScenes;
 };
 
 class ShadowFrustum {
     public:
-        ShadowFrustum(Application* app, size_t width, size_t height, Texture* renderTarget = nullptr);
-        /*WGPUTextureView getShadowMapView();*/
-        /*WGPUTextureView getShadowMapViewArray();*/
+        ShadowFrustum(Application* app, WGPUTextureView renderTarget, WGPUTextureView depthTexture);
         WGPURenderPassDescriptor* getRenderPassDescriptor();
 
-        Texture* mShadowDepthTexture;
-        Texture* mRenderTarget = nullptr;
+        WGPUTextureView mShadowDepthTexture;
+        WGPUTextureView mRenderTarget = nullptr;
         WGPURenderPassDescriptor mRenderPassDesc;
         Application* mApp;
         ColorAttachment mColorAttachment{};
         DepthStencilAttachment mDepthStencilAttachment{};
-        size_t mWidth = 1024;
-        size_t mHeight = 1024;
 };
 
 #endif  // WEBGPUTEST_SHADOW_PASS_H
