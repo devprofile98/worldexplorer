@@ -81,9 +81,9 @@ struct CarModel : public IModel {
         CarModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("car", app, RESOURCE_DIR "/ford.obj", app->getObjectBindGroupLayout())
+            mModel->load("car", app, RESOURCE_DIR "/jeep.obj", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
-                .scale(glm::vec3{0.005})
+                .scale(glm::vec3{1.0})
                 .rotate(glm::vec3{0.0, 0.0, 1.0}, 90.0f);
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
