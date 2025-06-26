@@ -6,7 +6,7 @@
 struct TreeModel : public IModel {
         TreeModel(Application* app) {
             mModel = new Model{};
-            mModel->load("tree", app, RESOURCE_DIR "/tree1.obj", app->getObjectBindGroupLayout())
+            mModel->load("tree", app, RESOURCE_DIR "/tree2.obj", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{0.725, -7.640, 1.125})
                 .scale(glm::vec3{0.9});
             mModel->uploadToGPU(app);
@@ -218,6 +218,22 @@ struct SphereModel : public IModel {
         void onLoad(Application* app) override { (void)app; };
 };
 
+struct Steampunk : public IModel {
+        Steampunk(Application* app) {
+            mModel = new Model{};
+
+            mModel->load("steampunk", app, RESOURCE_DIR "/steampunk.obj", app->getObjectBindGroupLayout())
+                .moveTo(glm::vec3{-1.45, -3.239, -0.810})
+                .scale(glm::vec3{0.01f});
+            mModel->uploadToGPU(app);
+            mModel->setTransparent(false);
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+        }
+
+        Model* getModel() override { return mModel; }
+        void onLoad(Application* app) override { (void)app; };
+};
+
 REGISTER_MODEL("tree", TreeModel);
 REGISTER_MODEL("boat", BoatModel);
 /*REGISTER_MODEL("jet", JetModel);*/
@@ -226,5 +242,6 @@ REGISTER_MODEL("tower", TowerModel);
 REGISTER_MODEL("desk", DeskModel);
 REGISTER_MODEL("arrow", ArrowModel);
 REGISTER_MODEL("grass", GrassModel);
+REGISTER_MODEL("steampunk", Steampunk);
 /*REGISTER_MODEL("cylinder", CylinderModel);*/
 /*REGISTER_MODEL("sphere", SphereModel);*/

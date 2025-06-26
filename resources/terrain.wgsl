@@ -271,16 +271,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
 
     var point_light_color = vec3f(0.0f);
-    //for (var i:i32 =0; i < lightCount ; i++) {
-    //        let curr_light = pointLight[i];
-    //        let dir = curr_light.position.xyz - in.worldPos;
+    for (var i:i32 =0; i < lightCount ; i++) {
+            let curr_light = pointLight[i];
+            let dir = curr_light.position.xyz - in.worldPos;
 
-    //        if (curr_light.ftype == 3){
-    //    	    point_light_color +=  calculatePointLight(curr_light, normal, dir);
-    //        } else if (curr_light.ftype == 2) {
-    //        	point_light_color += calculateSpotLight(curr_light, normal, dir);
-    //        }
-    //}
+            if (curr_light.ftype == 3){
+        	    point_light_color +=  calculatePointLight(curr_light, normal, dir);
+            } else if (curr_light.ftype == 2) {
+            	point_light_color += calculateSpotLight(curr_light, normal, dir);
+            }
+    }
 
     color = pow(calculateTerrainColor(in.color.r, in.uv) * max(min_intensity, intensity), vec3f(1.2));
     let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
@@ -299,6 +299,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //}else{
     //    return vec4f((col + vec3(0.0, 1.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
     //}
-    return vec4f(color * (1 - shadow * (0.75)), 1.0);
+    return vec4f(col * (1 - shadow * (0.75)), 1.0);
 }
 

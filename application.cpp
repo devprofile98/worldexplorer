@@ -42,7 +42,7 @@ static float fov = 60.0f;
 static float znear = 0.01f;
 static float zfar = 200.0f;
 static size_t which_frustum = 0;
-static float middle_plane_length = 10.0f;
+static float middle_plane_length = 15.0f;
 static float far_plane_length = 50.0f;
 static float ddistance = 2.0f;
 static float dd = 5.0f;
@@ -98,7 +98,7 @@ void Application::initializePipeline() {
     grass_texture.createView();
     grass_texture.uploadToGPU(mRendererResource.queue);
 
-    Texture rock_texture = Texture{mRendererResource.device, RESOURCE_DIR "/tiger_rock_diff.jpg"};
+    Texture rock_texture = Texture{mRendererResource.device, RESOURCE_DIR "/rock.jpg"};
     rock_texture.createView();
     rock_texture.uploadToGPU(mRendererResource.queue);
 
@@ -472,8 +472,8 @@ void Application::initializeBuffers() {
     glm::vec4 red = {1.0, 0.0, 0.0, 1.0};
     glm::vec4 blue = {0.0, 0.0, 1.0, 1.0};
 
-    mLightManager->createPointLight({0.0, 0.0, 1.0, 1.0}, red, red, red, 1.0, 0.7, 1.8);
-    mLightManager->createPointLight({-1.0, -2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
+    mLightManager->createPointLight({-1.0, -0.833, 1.0, 1.0}, blue, blue, blue, 1.0, -0.922, 1.8);
+    mLightManager->createPointLight({-2.5, -5.833, 0.184, 1.0}, red, red, red, 1.0, -3.0, 1.8);
     mLightManager->createPointLight({-5.0, -3.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
     mLightManager->createPointLight({2.0, 2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
     mLightManager->createSpotLight({1.0, 2.0, 1.0, 1.0}, {0.0, 0.0, -1.0f, 1.0f}, glm::cos(glm::radians(12.5f)),
@@ -1333,7 +1333,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
     ImGui::Begin("Point Light");
 
-    /*mLightManager->renderGUI();*/
+    mLightManager->renderGUI();
 
     float tmp_znear = znear;
     ImGui::SliderFloat("z-near", &tmp_znear, 0.0, 180.0f);

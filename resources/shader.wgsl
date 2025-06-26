@@ -220,7 +220,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     let view_direction = normalize(in.viewDirection);
     let metallic_roughness = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
-    let metallic_factor = metallic_roughness.b;
+    let metallic_factor = metallic_roughness.g;
 
     var shading = vec3f(0.0);
     // first, put directional light here
@@ -244,24 +244,25 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
 
     var point_light_color = vec3f(0.0f);
-    //for (var i:i32 =0; i < lightCount ; i++) {
-    //        let curr_light = pointLight[i];
-    //        let dir = curr_light.position.xyz - in.worldPos;
+    for (var i:i32 =0; i < lightCount ; i++) {
+            let curr_light = pointLight[i];
+            let dir = curr_light.position.xyz - in.worldPos;
 
-    //        if (curr_light.ftype == 3){
-    //    	    point_light_color +=  calculatePointLight(curr_light, normal, dir);
-    //        } else if (curr_light.ftype == 2) {
-    //        	point_light_color += calculateSpotLight(curr_light, normal, dir);
-    //        }
-    //}
+            if (curr_light.ftype == 3){
+        	    point_light_color +=  calculatePointLight(curr_light, normal, dir);
+            } else if (curr_light.ftype == 2) {
+            	point_light_color += calculateSpotLight(curr_light, normal, dir);
+            }
+    }
 
     let fragment_color = textureSample(diffuse_map, textureSampler, in.uv).rgba;
 	// specular = mix(vec3f(0.04), fragment_color.rgb, metallic_factor);	
         {
         var base_diffuse = fragment_color.rgb;
         let color2 = shading * base_diffuse;
-        let linear_color = pow(color2, vec3f(2.2));
-        let ambient = linear_color;
+        //let ambient = pow(color2, vec3f(2.2));
+        let ambient = color2;
+        //let ambient = linear_color;
         let diffuse = point_light_color * color * point_light_color;
 
         if objectTranformation.useTexture != 0 {
@@ -271,16 +272,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 			discard;
             }
         } else {
-            color = pow(in.color.rgb, vec3f(2.2));
+            // color = pow(in.color.rgb, vec3f(2.2));
+            color = in.color.rgb;
         }
-
-    	//if objectTranformation.isFoliage == 1 {
-	//		color = in.viewDirection;
-	//}
     } 
-    //else {
-    //    color = pow(calculateTerrainColor(in.color.r, in.uv) * color, vec3f(1.9));
-    //}
+
     let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
 
     let ambient = (color * (1 - shadow * (0.75))) + specular;
@@ -301,6 +297,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     // else if in.shadowIdx == 2 {
     //    return vec4f(vec3f(0.0,0.0,1.0) * (1 - shadow * (0.75)), 1.0);
     //}
+    
+    col = col / (col + vec3f(1.0));
+    // col = pow(col, vec3f(1.0/2.2));
+    col = pow(col, vec3f(2.2));
     return vec4f(col, 1.0);
 }
 
