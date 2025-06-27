@@ -7,6 +7,10 @@ project(
     LANGUAGES CXX C
 )
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_EXTENSIONS OFF) #
+
 add_subdirectory(imgui)
 add_subdirectory(webgpu)
 
@@ -68,7 +72,7 @@ endif()
 
 # target_copy_webgpu_binaries(App)
 target_link_libraries(App /home/ahmad/Documents/project/cpp/wgputest/webgpu/libwgpu_native.so glfw glfw3webgpu)
-target_link_libraries(App imgui)
+target_link_libraries(App imgui assimp)
 
 
 if (EMSCRIPTEN)

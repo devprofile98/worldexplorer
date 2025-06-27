@@ -1,7 +1,15 @@
 #include "model.h"
 
+#include <assimp/material.h>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+
+#include <assimp/Importer.hpp>
+#include <cstdint>
 #include <format>
 #include <iostream>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "application.h"
 #include "glm/ext/matrix_transform.hpp"
@@ -14,6 +22,8 @@
 #include "imgui.h"
 #include "tinyobjloader/tiny_obj_loader.h"
 #include "webgpu.h"
+
+static const char* model_name = "steampunk";
 
 Drawable::Drawable() {}
 
@@ -84,8 +94,175 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
     return glm::mat3x3(tangent, bitangent, cnormal);
 }
 
+void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
+    for (uint32_t i = 0; i < node->mNumMeshes; i++) {
+        aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+        if (getName() == model_name) {
+            std::cout << "Number of meshes for Steampunk is " << node->mNumMeshes << " " << mesh->mMaterialIndex << " "
+                      << node->mName.C_Str() << std::endl;
+        }
+        processMesh(app, mesh, scene);
+    }
+    for (uint32_t i = 0; i < node->mNumChildren; i++) {
+        processNode(app, node->mChildren[i], scene);
+    }
+}
+
+void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
+    (void)scene;
+    /*std::vector<VertexAttributes> vertices;*/
+    /*std::vector<Texture_INT> textures;*/
+    /*std::vector<uint32_t> indices;*/
+
+    aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+
+    for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
+        VertexAttributes vertex;
+        glm::vec3 vector;
+
+        vector.x = mesh->mVertices[i].x;
+        vector.y = mesh->mVertices[i].z;
+        vector.z = mesh->mVertices[i].y;
+
+        vertex.position = vector;
+
+        if (mesh->HasNormals()) {
+            vector.x = mesh->mNormals[i].x;
+            vector.y = mesh->mNormals[i].z;
+            vector.z = mesh->mNormals[i].y;
+            vertex.normal = vector;
+        }
+
+        if (mesh->mTextureCoords[0]) {
+            glm::vec2 vec;
+            vec.x = mesh->mTextureCoords[0][i].x;
+            vec.y = mesh->mTextureCoords[0][i].y;
+            vertex.uv = vec;
+            if (mesh->mTangents && mesh->mBitangents) {
+                // // tangent
+                vector.x = mesh->mTangents[i].x;
+                vector.y = mesh->mTangents[i].z;
+                vector.z = mesh->mTangents[i].y;
+                vertex.tangent = vector;
+
+                // // bitangent
+                vector.x = mesh->mBitangents[i].x;
+                vector.y = mesh->mBitangents[i].z;
+                vector.z = mesh->mBitangents[i].y;
+                vertex.biTangent = vector;
+            }
+        } else {
+            vertex.uv = glm::vec2{0.0f, 0.0f};
+        }
+
+        /*vertices.push_back(vertex);*/
+        mMeshes[mesh->mMaterialIndex].mVertexData.push_back(vertex);
+    }
+
+    for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
+        aiFace face = mesh->mFaces[i];
+        for (uint32_t j = 0; j < face.mNumIndices; j++) {
+            /*indices.push_back(face.mIndices[j]);*/
+            mMeshes[mesh->mMaterialIndex].mIndexData.push_back((uint32_t)face.mIndices[j]);
+        }
+    }
+    if (getName() == model_name) {
+        std::cout << std::format(" -------------- Assimp - Succesfully loaded mesh at {}\n", mesh->mMaterialIndex);
+    }
+
+    auto& render_resource = app->getRendererResource();
+    auto& mmesh = mMeshes[mesh->mMaterialIndex];
+    if (mmesh.mTexture == nullptr) {
+        for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); i++) {
+            aiString str;
+            material->GetTexture(aiTextureType_DIFFUSE, i, &str);
+            /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
+            std::string texture_path = RESOURCE_DIR;
+            texture_path += "/";
+            texture_path += str.C_Str();
+            mmesh.mTexture = new Texture{render_resource.device, texture_path};
+            if (mmesh.mTexture->createView() == nullptr) {
+                std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName, texture_path);
+            }
+            mmesh.mTexture->uploadToGPU(render_resource.queue);
+            mmesh.isTransparent = mmesh.mTexture->isTransparent();
+        }
+    }
+    if (mmesh.mSpecularTexture == nullptr) {
+        for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_SPECULAR); i++) {
+            aiString str;
+            material->GetTexture(aiTextureType_SPECULAR, i, &str);
+            /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
+            std::string texture_path = RESOURCE_DIR;
+            texture_path += "/";
+            texture_path += str.C_Str();
+            mmesh.mSpecularTexture = new Texture{render_resource.device, texture_path};
+            if (mmesh.mSpecularTexture->createView() == nullptr) {
+                std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName, texture_path);
+            }
+            mmesh.mSpecularTexture->uploadToGPU(render_resource.queue);
+            mmesh.isTransparent = mmesh.mSpecularTexture->isTransparent();
+        }
+    }
+    if (mmesh.mNormalMapTexture == nullptr) {
+        for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_HEIGHT); i++) {
+            aiString str;
+            material->GetTexture(aiTextureType_HEIGHT, i, &str);
+            /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
+            std::string texture_path = RESOURCE_DIR;
+            texture_path += "/";
+            texture_path += str.C_Str();
+            mmesh.mNormalMapTexture = new Texture{render_resource.device, texture_path};
+            if (mmesh.mNormalMapTexture->createView() == nullptr) {
+                std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName, texture_path);
+            }
+            mmesh.mNormalMapTexture->uploadToGPU(render_resource.queue);
+            mmesh.isTransparent = mmesh.mNormalMapTexture->isTransparent();
+        }
+    }
+    /*for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); i++) {*/
+    /*    aiString str;*/
+    /*    material->GetTexture(aiTextureType_DIFFUSE, i, &str);*/
+    /*    std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
+    /*}*/
+    /*for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); i++) {*/
+    /*    aiString str;*/
+    /*    material->GetTexture(aiTextureType_DIFFUSE, i, &str);*/
+    /*    std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
+    /*}*/
+
+    /*std::vector<Texture_INT> diffuseMap = loadMaterialTexture(material, aiTextureType_DIFFUSE,
+     * "texture_diffuse");*/
+    /*textures.insert(textures.end(), diffuseMap.begin(), diffuseMap.end());*/
+    /**/
+    /*std::vector<Texture_INT> specularMap = loadMaterialTexture(material, aiTextureType_SPECULAR,
+     * "texture_specular");*/
+    /*textures.insert(textures.end(), specularMap.begin(), specularMap.end());*/
+    /*if (!specularMap.empty()) {*/
+    /*    this->material.hasSpecular = true;*/
+    /*}*/
+    /*// 3. normal maps*/
+    /*std::vector<Texture_INT> normalMaps = loadMaterialTexture(material, aiTextureType_HEIGHT, "texture_normal");*/
+    /*textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());*/
+    /*if (!normalMaps.empty()) {*/
+    /*    this->material.hasBumpMap = true;*/
+    /*}*/
+    /*// 4. height maps*/
+    /*std::vector<Texture_INT> heightMaps = loadMaterialTexture(material, aiTextureType_AMBIENT,
+     * "texture_height");*/
+    /*textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());*/
+    /**/
+    /*if (textures.size() <= 0) {*/
+    /*    mat.should_draw = true;*/
+    /*}*/
+
+    // return a mesh object created from the extracted mesh data
+    /*return Mesh(vertices, indices, textures, mat);*/
+}
+
 Model& Model::load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout) {
     // load model from disk
+    (void)layout;
     mName = name;
 
     Drawable::configure(app);
@@ -96,6 +273,21 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     tinyobj::ObjReaderConfig reader_config;
     reader_config.triangulate = true;
     reader_config.mtl_search_path = "/home/ahmad/Documents/project/cpp/wgputest/resources";
+
+    Assimp::Importer import;
+    const aiScene* scene = import.ReadFile(
+        path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices);
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        // std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << std::endl;
+        std::cout << std::format("Assimp - Error while loading model {} : {}\n", (const char*)path.c_str(),
+                                 import.GetErrorString());
+    } else {
+        std::cout << std::format("Assimp - Succesfully loaded model {}\n", (const char*)path.c_str());
+    }
+    if (getName() != model_name) {
+        processNode(app, scene->mRootNode, scene);
+        return *this;
+    }
 
     if (!reader.ParseFromFile(path.string().c_str(), reader_config)) {
         if (!reader.Error().empty()) {
@@ -250,8 +442,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     }
     wgpuQueueWriteBuffer(app->getRendererResource().queue, offset_buffer.getBuffer(), 0, &dddata,
                          sizeof(glm::vec4) * 10);
-
-    (void)layout;
+    /*(void)layout;*/
     return *this;
 }
 
@@ -296,6 +487,17 @@ Model& Model::uploadToGPU(Application* app) {
 
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mVertexBuffer.getBuffer(), 0,
                              mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
+
+        /*if (getName() == "steampunk") {*/
+        mesh.mIndexBuffer.setLabel("index buffer for object info")
+            .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex | WGPUBufferUsage_Index)
+            .setSize((mesh.mIndexData.size()) * sizeof(uint32_t))
+            .setMappedAtCraetion()
+            .create(app);
+
+        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndexBuffer.getBuffer(), 0, mesh.mIndexData.data(),
+                             mesh.mIndexData.size() * sizeof(uint32_t));
+        /*}*/
     }
     /*createSomeBinding(app);*/
     return *this;
@@ -371,6 +573,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
     WGPUBindGroup active_bind_group = nullptr;
 
     // Bind Diffuse texture for the model if existed
+    /*std::cout << getName() << " has " << mMeshes.size() << " meshes\n";*/
     for (auto& [mat_id, mesh] : mMeshes) {
         if (mesh.isTransparent) {
             continue;
@@ -380,7 +583,10 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
 
         wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                              wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
-
+        if (getName() != model_name) {
+            wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
+                                                wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
+        }
         wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
 
         wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
@@ -393,8 +599,15 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
                                               : mesh.mTextureBindGroup,
                                           0, nullptr);
 
-        wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
-                                  this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0);
+        if (getName() != model_name) {
+            /*std::cout << "Drawing mesh for steampiunk at id" << mat_id << std::endl;*/
+            wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(),
+                                             this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0,
+                                             0);
+        } else {
+            wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
+                                      this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0);
+        }
     }
 }
 

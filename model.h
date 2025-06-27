@@ -1,6 +1,7 @@
 #ifndef WEBGPUTEST_MODEL_H
 #define WEBGPUTEST_MODEL_H
 
+#include <assimp/scene.h>
 #include <limits>
 
 #include "glm/fwd.hpp"
@@ -8,7 +9,10 @@
 #define DEVELOPMENT_BUILD 1
 
 #include <array>
+#include <assimp/Importer.hpp>
 #include <filesystem>
+#include <format>
+#include <iostream>
 #include <numeric>
 #include <vector>
 
@@ -120,6 +124,8 @@ class Model : public BaseModel {
     public:
         Model();
 
+        void processMesh(Application* app, aiMesh* mesh, const aiScene* scene);
+        void processNode(Application* app,aiNode* node, const aiScene* scene);
         Model& load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout);
         Model& uploadToGPU(Application* app);
         void draw(Application* app, WGPURenderPassEncoder encoder,

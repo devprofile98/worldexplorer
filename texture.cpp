@@ -166,7 +166,7 @@ void Texture::uploadToGPU(WGPUQueue deviceQueue) {
     source.bytesPerRow = 4 * mDescriptor.size.width;
 
     source.rowsPerImage = mDescriptor.size.height;
-    std::cout << "Data is .... " << mDescriptor.size.width << " " << mBufferData.size() << std::endl;
+    /*std::cout << "Data is .... " << mDescriptor.size.width << " " << mBufferData.size() << std::endl;*/
     wgpuQueueWriteTexture(deviceQueue, &destination, mBufferData.data(), mBufferData.size(), &source,
                           &mDescriptor.size);
 

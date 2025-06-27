@@ -1,6 +1,7 @@
 #ifndef WEBGPUTEST_MESH_H
 #define WEBGPUTEST_MESH_H
 
+#include <cstdint>
 #include <format>
 #include <iostream>
 
@@ -24,10 +25,12 @@ struct VertexAttributes {
 class Mesh {
     public:
         std::vector<VertexAttributes> mVertexData;
+        std::vector<uint32_t> mIndexData;
         Texture* mTexture = nullptr;
         Texture* mSpecularTexture = nullptr;
         Texture* mNormalMapTexture = nullptr;
         Buffer mVertexBuffer = {};
+        Buffer mIndexBuffer = {};
         bool isTransparent = false;
         WGPUBindGroup mTextureBindGroup = {};
         std::vector<WGPUBindGroupEntry> binding_data{2};

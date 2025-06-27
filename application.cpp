@@ -124,13 +124,13 @@ void Application::initializePipeline() {
     // Creating default meatlic-roughness texture
     mDefaultMetallicRoughness = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_metallic_roughness_texture_view = mDefaultMetallicRoughness->createView();
-    texture_data = {255, 100, 0, 255};  // White color for Default specular texture
+    texture_data = {255, 120, 10, 255};  // White color for Default specular texture
     mDefaultMetallicRoughness->setBufferData(texture_data);
     mDefaultMetallicRoughness->uploadToGPU(mRendererResource.queue);
 
     mDefaultNormalMap = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_normal_map_view = mDefaultNormalMap->createView();
-    texture_data = {0, 0, 255, 255};  // White color for Default specular texture
+    texture_data = {0, 255, 0, 255};  // White color for Default specular texture
     mDefaultNormalMap->setBufferData(texture_data);
     mDefaultNormalMap->uploadToGPU(mRendererResource.queue);
 
@@ -309,11 +309,11 @@ void Application::initializePipeline() {
     mBindingData[9].binding = 9;
     mBindingData[9].textureView = snow_texture.getTextureView();
 
-    mTransparencyPass = new TransparencyPass{this};
-    mTransparencyPass->initializePass();
-
-    mCompositionPass = new CompositionPass{this};
-    mCompositionPass->initializePass();
+    /*mTransparencyPass = new TransparencyPass{this};*/
+    /*mTransparencyPass->initializePass();*/
+    /**/
+    /*mCompositionPass = new CompositionPass{this};*/
+    /*mCompositionPass->initializePass();*/
 
     /*static auto texture_array =*/
     /*    std::vector<WGPUTextureView>{mShadowPass->mNearFrustum->mShadowDepthTexture->getTextureViewArray(),*/

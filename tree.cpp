@@ -146,7 +146,7 @@ struct GrassModel : public IModel {
 
             mModel->load("grass", app, RESOURCE_DIR "/grass.obj", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{0.725, -1.0, 0.72})
-                .scale(glm::vec3{0.3});
+                .scale(glm::vec3{0.001});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->setFoliage();
@@ -171,8 +171,10 @@ struct GrassModel : public IModel {
                 auto trans = glm::translate(glm::mat4{1.0f}, position);
                 auto rotate =
                     glm::rotate(glm::mat4{1.0f}, glm::radians(dist_for_rotation(gen)), glm::vec3{0.0, 0.0, 1.0});
-                auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f * dist(gen)});
+                auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2f * dist(gen)});
+                if (i % 5 == 0) {
                 dddata.push_back(trans * rotate * scale);
+                }
             }
 
             auto* ins = new Instance{dddata};
@@ -234,6 +236,22 @@ struct Steampunk : public IModel {
         void onLoad(Application* app) override { (void)app; };
 };
 
+struct Motor : public IModel {
+        Motor(Application* app) {
+            mModel = new Model{};
+
+            mModel->load("motor", app, RESOURCE_DIR "/motor.obj", app->getObjectBindGroupLayout())
+                .moveTo(glm::vec3{-2.45, -3.239, -0.810})
+                .scale(glm::vec3{1.0f});
+            mModel->uploadToGPU(app);
+            mModel->setTransparent(false);
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+        }
+
+        Model* getModel() override { return mModel; }
+        void onLoad(Application* app) override { (void)app; };
+};
+
 REGISTER_MODEL("tree", TreeModel);
 REGISTER_MODEL("boat", BoatModel);
 /*REGISTER_MODEL("jet", JetModel);*/
@@ -243,5 +261,6 @@ REGISTER_MODEL("desk", DeskModel);
 REGISTER_MODEL("arrow", ArrowModel);
 REGISTER_MODEL("grass", GrassModel);
 REGISTER_MODEL("steampunk", Steampunk);
+/*REGISTER_MODEL("motor", Motor);*/
 /*REGISTER_MODEL("cylinder", CylinderModel);*/
 /*REGISTER_MODEL("sphere", SphereModel);*/

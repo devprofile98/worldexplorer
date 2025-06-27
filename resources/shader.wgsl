@@ -328,7 +328,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	    var color = ambient + lo;
 
 	    // HDR tonemapping
-	    // color = color / (color + vec3f(1.0));
+	color = color / (color + vec3f(1.0));
 	    // gamma correct
 	   color = pow(color, vec3(1.1));
 	return vec4f(color, 1.0);
