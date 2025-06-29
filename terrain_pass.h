@@ -23,6 +23,7 @@ class TerrainPass : public RenderPass {
 
     public:
         explicit TerrainPass(Application* app);
+
         Pipeline* create(WGPUTextureFormat textureFormat);
 
     private:

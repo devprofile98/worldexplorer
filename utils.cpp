@@ -6,6 +6,7 @@
 
 #include "application.h"
 #include "stb_image.h"
+#include "webgpu.h"
 
 #define STBI_MSC_SECURE_CRT
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -101,17 +102,34 @@ void setDefault(WGPUStencilFaceState& stencilFaceState) {
     stencilFaceState.passOp = WGPUStencilOperation_Keep;
 }
 
-void setDefault(WGPUDepthStencilState& depthStencilState) {
-    depthStencilState.format = WGPUTextureFormat_Undefined;
-    depthStencilState.depthWriteEnabled = false;
-    depthStencilState.depthCompare = WGPUCompareFunction_Always;
+void setDefaultActiveStencil(WGPUDepthStencilState& depthStencilState) {
+    setDefault(depthStencilState.stencilFront);
+    setDefault(depthStencilState.stencilBack);
+    depthStencilState.format = WGPUTextureFormat_Depth24PlusStencil8;
+    depthStencilState.depthWriteEnabled = true;
+    depthStencilState.depthCompare = WGPUCompareFunction_Less;
+    depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
+    depthStencilState.stencilFront.passOp = WGPUStencilOperation_Replace;
+    depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
+    depthStencilState.stencilBack.passOp = WGPUStencilOperation_Replace;
     depthStencilState.stencilReadMask = 0xFFFFFFFF;
     depthStencilState.stencilWriteMask = 0xFFFFFFFF;
     depthStencilState.depthBias = 0;
     depthStencilState.depthBiasSlopeScale = 0;
     depthStencilState.depthBiasClamp = 0;
+}
+
+void setDefault(WGPUDepthStencilState& depthStencilState) {
     setDefault(depthStencilState.stencilFront);
     setDefault(depthStencilState.stencilBack);
+    depthStencilState.format = WGPUTextureFormat_Undefined;
+    depthStencilState.depthWriteEnabled = false;
+    depthStencilState.depthCompare = WGPUCompareFunction_Always;
+    depthStencilState.stencilReadMask = 0xFFFFFFFF;
+    depthStencilState.stencilWriteMask = 0x00;
+    depthStencilState.depthBias = 0;
+    depthStencilState.depthBiasSlopeScale = 0;
+    depthStencilState.depthBiasClamp = 0;
 }
 
 void setDefault(WGPULimits& limits) {

@@ -86,7 +86,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
     auto texture_bind_group_layout = mTextureBindingGroup.createLayout(mApp, "shadow pass pipeline");
 
-    mRenderPipeline = new Pipeline{mApp, {bind_group_layout, texture_bind_group_layout}};
+    mRenderPipeline = new Pipeline{mApp, {bind_group_layout, texture_bind_group_layout}, "shadow pass pipeline layout"};
     WGPUVertexBufferLayout d = mRenderPipeline->mVertexBufferLayout
                                    .addAttribute(0, 0, WGPUVertexFormat_Float32x3)  // for position
                                    .addAttribute(3 * sizeof(float), 1, WGPUVertexFormat_Float32x3)

@@ -2,6 +2,7 @@
 
 #include "application.h"
 #include "stb_image.h"
+#include "webgpu.h"
 
 float cubeVertexData[] = {
 
@@ -102,7 +103,7 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
 
     auto bind_group_layout = mBindingGroup.createLayout(app, "skybox pipeline");
 
-    mRenderPipeline = new Pipeline{app, {bind_group_layout}};
+    mRenderPipeline = new Pipeline{app, {bind_group_layout}, "skybox pipeline"};
     WGPUVertexBufferLayout d = mRenderPipeline->mVertexBufferLayout.addAttribute(0, 0, WGPUVertexFormat_Float32x3)
                                    .configure(sizeof(glm::vec3), VertexStepMode::VERTEX);
     mRenderPipeline->setShader(RESOURCE_DIR "/skybox.wgsl")
@@ -111,7 +112,7 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
 
             )
         .setPrimitiveState()
-        .setDepthStencilState()
+        .setDepthStencilState(false, 0,0, WGPUTextureFormat_Depth24PlusStencil8)
         .setBlendState()
         .setColorTargetState()
         .setFragmentState()

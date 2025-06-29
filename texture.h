@@ -17,7 +17,8 @@ class Texture {
         Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
                 WGPUTextureUsageFlags flags = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst,
                 WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm, uint32_t extent = 1);
-        Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm);
+        Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path,
+                WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm);
         ~Texture();
 
         // access function
@@ -28,6 +29,7 @@ class Texture {
         Texture& setBufferData(std::vector<uint8_t>& data);
         WGPUTextureView createView();
         WGPUTextureView createViewDepthOnly(uint32_t base = 0, uint32_t count = 1);
+        WGPUTextureView createViewDepthStencil(uint32_t base = 0, uint32_t count = 1);
         WGPUTextureView createViewDepthOnly2(uint32_t base = 0, uint32_t count = 1);
         WGPUTextureView createViewArray(uint32_t base, uint32_t count);
         void uploadToGPU(WGPUQueue deviceQueue);

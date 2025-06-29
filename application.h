@@ -129,7 +129,7 @@ class Application {
         LightingUniforms mLightingUniforms;
         LightManager* mLightManager;
         Pipeline* mPipeline;
-        Pipeline* mPipeline2;
+        Pipeline* mStenctilEnabledPipeline;
         Cube* shapes;
         Plane* plane;
 

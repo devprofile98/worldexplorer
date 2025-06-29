@@ -12,9 +12,10 @@ class Application;
 WGPURenderPassDescriptor createRenderPassDescriptor(WGPUTextureView colorAttachment, WGPUTextureView depthTextureView);
 class Pipeline {
     public:
-        Pipeline(Application* app, std::vector<WGPUBindGroupLayout> bindGroupLayout);
+        Pipeline(Application* app, std::vector<WGPUBindGroupLayout> bindGroupLayout, std::string name);
 
-        Pipeline& defaultConfiguration(Application* app, WGPUTextureFormat surfaceTexture);
+        Pipeline& defaultConfiguration(Application* app, WGPUTextureFormat surfaceTexture,
+                                       WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus);
         Pipeline& createPipeline(Application* app);
 
         // Getters
@@ -31,7 +32,9 @@ class Pipeline {
         Pipeline& setPrimitiveState(WGPUFrontFace frontFace = WGPUFrontFace_CCW,
                                     WGPUCullMode cullMode = WGPUCullMode_None);
         Pipeline& setDepthStencilState(bool depthWriteEnabled = false, uint32_t stencilReadMask = 0x0,
-                                       uint32_t stencilWriteMask = 0x0);
+                                       uint32_t stencilWriteMask = 0x0,
+                                       WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus);
+        Pipeline& setDepthStencilState(WGPUDepthStencilState state);
         Pipeline& setBlendState();
         Pipeline& setBlendState(WGPUBlendState blendState);
         Pipeline& setColorTargetState(WGPUTextureFormat format = WGPUTextureFormat_Undefined);
@@ -40,10 +43,13 @@ class Pipeline {
         Pipeline& setFragmentState(WGPUFragmentState fragmentState);
         Pipeline& setMultiSampleState(/*WGPUMultisampleState multiSampleState*/);
 
+        WGPUDepthStencilState& getDepthStencilState();
+
         VertexBufferLayout mVertexBufferLayout = {};
 
     private:
         Application* mApp;
+        std::string mPipelineName{};
         WGPURenderPipelineDescriptor mDescriptor = {};
         std::vector<WGPUBindGroupLayout> mBindGroupLayouts;
         WGPUPipelineLayout mPipelineLayout;

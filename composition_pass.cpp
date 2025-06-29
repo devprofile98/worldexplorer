@@ -68,7 +68,7 @@ void CompositionPass::initializePass() {
     mBindingGroup.addBuffer(1, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::STORAGE, linkedlist_size);
 
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "composition pass pipeline");
-    mRenderPipeline = new Pipeline{mApp, {bind_group_layout}};
+    mRenderPipeline = new Pipeline{mApp, {bind_group_layout}, "Composition layout"};
 
     /*WGPUVertexBufferLayout d = mRenderPipeline->getDefaultVertexBufferLayout();*/
     WGPUVertexBufferLayout d = {};

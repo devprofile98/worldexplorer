@@ -86,7 +86,7 @@ void TransparencyPass::initializePass() {
 
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
 
-    mRenderPipeline = new Pipeline{mApp, {bind_group_layout}};
+    mRenderPipeline = new Pipeline{mApp, {bind_group_layout}, "Transparencty pass layout"};
 
     WGPUVertexBufferLayout d = mRenderPipeline->getDefaultVertexBufferLayout();
 

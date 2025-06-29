@@ -216,11 +216,17 @@ void Application::initializePipeline() {
     mBindGroupLayouts[1] = wgpuDeviceCreateBindGroupLayout(mRendererResource.device, &bind_group_layout_descriptor1);
     mBindGroupLayouts[2] = texture_bind_group_layout;
 
-    mPipeline = new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2]}};
-    mPipeline->defaultConfiguration(this, mSurfaceFormat).createPipeline(this);
+    mPipeline =
+        new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2]}, "standard pipeline"};
 
-    /*mPipeline2 = new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1]}};*/
-    /*mPipeline2->defaultConfiguration(this, WGPUTextureFormat_RGBA8Unorm).createPipeline(this);*/
+    mPipeline->defaultConfiguration(this, mSurfaceFormat);
+    setDefaultActiveStencil(mPipeline->getDepthStencilState());
+    mPipeline->setDepthStencilState(mPipeline->getDepthStencilState());
+    mPipeline->createPipeline(this);
+
+
+    mStenctilEnabledPipeline = new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2]}, "Draw outline pipe"};
+    mStenctilEnabledPipeline->defaultConfiguration(this, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8).createPipeline(this);
 
     mDefaultTextureBindingData[0] = {};
     mDefaultTextureBindingData[0].nextInChain = nullptr;
@@ -868,7 +874,7 @@ void Application::mainLoop() {
         depth_stencil_attachment.stencilClearValue = 0;
         depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Clear;
         depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
-        depth_stencil_attachment.stencilReadOnly = true;
+        depth_stencil_attachment.stencilReadOnly = false;
         render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
         render_pass_descriptor.timestampWrites = nullptr;
     }
@@ -879,11 +885,10 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mSkybox->getPipeline()->getPipeline());
     mSkybox->draw(this, render_pass_encoder, mvp);
 
-    wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
+    wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mStenctilEnabledPipeline->getPipeline());
 
     for (const auto& model : mLoadedModel) {
-        /*auto [in_world_min, in_world_max] = model->getWorldMin();*/
-        if (!model->isTransparent() /*&& frustum.AABBTest(in_world_min, in_world_max)*/) {
+        if (!model->isTransparent()) {
             model->draw(this, render_pass_encoder, mBindingData);
         }
     }
@@ -896,7 +901,7 @@ void Application::mainLoop() {
     mTerrainPass->setColorAttachment(
         {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
     mTerrainPass->setDepthStencilAttachment(
-        {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, true});
+        {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false});
     mTerrainPass->init();
 
     WGPURenderPassEncoder terrain_pass_encoder =
@@ -1059,7 +1064,7 @@ bool Application::initDepthBuffer() {
     int width, height;
     glfwGetFramebufferSize(mRendererResource.window, &width, &height);
 
-    WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
+    WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24PlusStencil8;
     mDepthTexture = new Texture{this->getRendererResource().device,
                                 static_cast<uint32_t>(width),
                                 static_cast<uint32_t>(height),
@@ -1069,7 +1074,7 @@ bool Application::initDepthBuffer() {
                                 2};
 
     // Create the view of the depth texture manipulated by the rasterizer
-    mDepthTextureView = mDepthTexture->createViewDepthOnly();
+    mDepthTextureView = mDepthTexture->createViewDepthStencil();
     return mDepthTextureView != nullptr;
 }
 
@@ -1228,7 +1233,7 @@ bool Application::initGui() {
     init_info.Device = mRendererResource.device;
     init_info.NumFramesInFlight = 3;
     init_info.RenderTargetFormat = WGPUTextureFormat_BGRA8UnormSrgb;
-    init_info.DepthStencilFormat = WGPUTextureFormat_Depth24Plus;
+    init_info.DepthStencilFormat = WGPUTextureFormat_Depth24PlusStencil8;
     ImGui_ImplWGPU_Init(&init_info);
     std::cout << " failed to run1111" << std::endl;
     return true;
