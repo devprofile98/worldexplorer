@@ -224,9 +224,10 @@ void Application::initializePipeline() {
     mPipeline->setDepthStencilState(mPipeline->getDepthStencilState());
     mPipeline->createPipeline(this);
 
-
-    mStenctilEnabledPipeline = new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2]}, "Draw outline pipe"};
-    mStenctilEnabledPipeline->defaultConfiguration(this, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8).createPipeline(this);
+    mStenctilEnabledPipeline =
+        new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2]}, "Draw outline pipe"};
+    mStenctilEnabledPipeline->defaultConfiguration(this, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8)
+        .createPipeline(this);
 
     mDefaultTextureBindingData[0] = {};
     mDefaultTextureBindingData[0].nextInChain = nullptr;
@@ -880,14 +881,17 @@ void Application::mainLoop() {
     }
 
     WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
-    glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mUniforms.viewMatrix));
-    glm::mat4 mvp = mUniforms.projectMatrix * viewNoTranslation;
-    wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mSkybox->getPipeline()->getPipeline());
-    mSkybox->draw(this, render_pass_encoder, mvp);
-
-    wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mStenctilEnabledPipeline->getPipeline());
+    /*glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mUniforms.viewMatrix));*/
+    /*glm::mat4 mvp = mUniforms.projectMatrix * viewNoTranslation;*/
+    /*wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mSkybox->getPipeline()->getPipeline());*/
+    /*mSkybox->draw(this, render_pass_encoder, mvp);*/
+    int32_t stencilReferenceValue = 240;
+    wgpuRenderPassEncoderSetStencilReference(render_pass_encoder, stencilReferenceValue);
 
     for (const auto& model : mLoadedModel) {
+        wgpuRenderPassEncoderSetPipeline(
+            render_pass_encoder, (model->getName() == "tower" ? mPipeline : mStenctilEnabledPipeline)->getPipeline());
+
         if (!model->isTransparent()) {
             model->draw(this, render_pass_encoder, mBindingData);
         }
@@ -898,22 +902,22 @@ void Application::mainLoop() {
     // end of color render pass
 
     // terrain pass
-    mTerrainPass->setColorAttachment(
-        {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    mTerrainPass->setDepthStencilAttachment(
-        {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false});
-    mTerrainPass->init();
-
-    WGPURenderPassEncoder terrain_pass_encoder =
-        wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());
-    wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());
-
-    terrain.draw(this, terrain_pass_encoder, mBindingData);
-
-    updateGui(terrain_pass_encoder);
-
-    wgpuRenderPassEncoderEnd(terrain_pass_encoder);
-    wgpuRenderPassEncoderRelease(terrain_pass_encoder);
+    /*mTerrainPass->setColorAttachment(*/
+    /*    {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});*/
+    /*mTerrainPass->setDepthStencilAttachment(*/
+    /*    {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false});*/
+    /*mTerrainPass->init();*/
+    /**/
+    /*WGPURenderPassEncoder terrain_pass_encoder =*/
+    /*    wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());*/
+    /*wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());*/
+    /**/
+    /*terrain.draw(this, terrain_pass_encoder, mBindingData);*/
+    /**/
+    /*updateGui(terrain_pass_encoder);*/
+    /**/
+    /*wgpuRenderPassEncoderEnd(terrain_pass_encoder);*/
+    /*wgpuRenderPassEncoderRelease(terrain_pass_encoder);*/
 
     ModelRegistry::instance().tick(this);
     // ------------ 3- Transparent pass
@@ -1071,7 +1075,8 @@ bool Application::initDepthBuffer() {
                                 TextureDimension::TEX_2D,
                                 WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
                                 depth_texture_format,
-                                2};
+                                2,
+                                "Standard depth texture"};
 
     // Create the view of the depth texture manipulated by the rasterizer
     mDepthTextureView = mDepthTexture->createViewDepthStencil();

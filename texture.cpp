@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <format>
+#include <string>
 
 #include "glm/exponential.hpp"
 #include "webgpu.h"
@@ -96,9 +97,11 @@ WGPUTextureView Texture::createViewArray(uint32_t base, uint32_t count) {
 }
 
 Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
-                 WGPUTextureUsageFlags flags, WGPUTextureFormat textureFormat, uint32_t extent) {
+                 WGPUTextureUsageFlags flags, WGPUTextureFormat textureFormat, uint32_t extent,
+                 std::string textureLabel) {
+    mLabel = textureLabel;
     mDescriptor = {};
-    mDescriptor.label = "texture label";
+    mDescriptor.label = mLabel.c_str();
     mDescriptor.nextInChain = nullptr;
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(dimension);
     mDescriptor.format = textureFormat;

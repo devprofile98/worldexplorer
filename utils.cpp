@@ -102,6 +102,19 @@ void setDefault(WGPUStencilFaceState& stencilFaceState) {
     stencilFaceState.passOp = WGPUStencilOperation_Keep;
 }
 
+void setDefault(WGPUDepthStencilState& depthStencilState) {
+    setDefault(depthStencilState.stencilFront);
+    setDefault(depthStencilState.stencilBack);
+    depthStencilState.format = WGPUTextureFormat_Undefined;
+    depthStencilState.depthWriteEnabled = false;
+    depthStencilState.depthCompare = WGPUCompareFunction_Always;
+    depthStencilState.stencilReadMask = 0;
+    depthStencilState.stencilWriteMask = 0x00;
+    depthStencilState.depthBias = 0;
+    depthStencilState.depthBiasSlopeScale = 0;
+    depthStencilState.depthBiasClamp = 0;
+}
+
 void setDefaultActiveStencil(WGPUDepthStencilState& depthStencilState) {
     setDefault(depthStencilState.stencilFront);
     setDefault(depthStencilState.stencilBack);
@@ -112,25 +125,13 @@ void setDefaultActiveStencil(WGPUDepthStencilState& depthStencilState) {
     depthStencilState.stencilFront.passOp = WGPUStencilOperation_Replace;
     depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
     depthStencilState.stencilBack.passOp = WGPUStencilOperation_Replace;
-    depthStencilState.stencilReadMask = 0xFFFFFFFF;
-    depthStencilState.stencilWriteMask = 0xFFFFFFFF;
+    depthStencilState.stencilReadMask = 0xFF;
+    depthStencilState.stencilWriteMask = 0xFF;
     depthStencilState.depthBias = 0;
     depthStencilState.depthBiasSlopeScale = 0;
     depthStencilState.depthBiasClamp = 0;
 }
 
-void setDefault(WGPUDepthStencilState& depthStencilState) {
-    setDefault(depthStencilState.stencilFront);
-    setDefault(depthStencilState.stencilBack);
-    depthStencilState.format = WGPUTextureFormat_Undefined;
-    depthStencilState.depthWriteEnabled = false;
-    depthStencilState.depthCompare = WGPUCompareFunction_Always;
-    depthStencilState.stencilReadMask = 0xFFFFFFFF;
-    depthStencilState.stencilWriteMask = 0x00;
-    depthStencilState.depthBias = 0;
-    depthStencilState.depthBiasSlopeScale = 0;
-    depthStencilState.depthBiasClamp = 0;
-}
 
 void setDefault(WGPULimits& limits) {
     limits.maxTextureDimension1D = WGPU_LIMIT_U32_UNDEFINED;

@@ -16,7 +16,7 @@ class Texture {
     public:
         Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
                 WGPUTextureUsageFlags flags = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst,
-                WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm, uint32_t extent = 1);
+                WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm, uint32_t extent = 1, std::string textureLabel = "texture label");
         Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path,
                 WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm);
         ~Texture();
@@ -41,6 +41,7 @@ class Texture {
         static std::vector<uint8_t> expandToRGBA(uint8_t* data, size_t height, size_t width);
 
     private:
+	std::string mLabel;
         WGPUTexture mTexture;
         WGPUTextureView mTextureView = nullptr;
         WGPUTextureView mArrayTextureView = nullptr;

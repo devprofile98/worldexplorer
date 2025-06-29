@@ -102,7 +102,7 @@ Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat sur
     // WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
     mDepthStencilState.format = depthTexture;
     mDepthStencilState.stencilReadMask = 0;
-    mDepthStencilState.stencilWriteMask = 0;
+    mDepthStencilState.stencilWriteMask = 0xff;
     mDescriptor.depthStencil = &mDepthStencilState;
 
     // 6 - blend state
