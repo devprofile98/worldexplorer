@@ -37,9 +37,7 @@ WGPUTextureView Texture::createViewDepthStencil(uint32_t base, uint32_t count) {
         texture_view_desc.mipLevelCount = mDescriptor.mipLevelCount;
         texture_view_desc.dimension = WGPUTextureViewDimension_2D;
         texture_view_desc.format = mDescriptor.format;
-        /*if (texture_view_desc.format == WGPUTextureFormat_Depth24PlusStencil8) {*/
-        /*    texture_view_desc.format = WGPUTextureFormat_Depth24Plus;  // Correct depth-only format*/
-        /*}*/
+
         mTextureView = wgpuTextureCreateView(mTexture, &texture_view_desc);
         return mTextureView;
     }
@@ -57,8 +55,11 @@ WGPUTextureView Texture::createViewDepthOnly(uint32_t base, uint32_t count) {
         texture_view_desc.mipLevelCount = mDescriptor.mipLevelCount;
         texture_view_desc.dimension = WGPUTextureViewDimension_2D;
         texture_view_desc.format = mDescriptor.format;
-        mTextureView = wgpuTextureCreateView(mTexture, &texture_view_desc);
-        return mTextureView;
+        if (texture_view_desc.format == WGPUTextureFormat_Depth24PlusStencil8) {
+            texture_view_desc.format = WGPUTextureFormat_Depth24Plus;  // Correct depth-only format
+        }
+        return wgpuTextureCreateView(mTexture, &texture_view_desc);
+        /*return mTextureView;*/
     }
     std::cout << "failed here " << mIsTextureAlive << std::endl;
     return nullptr;

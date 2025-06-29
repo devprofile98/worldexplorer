@@ -250,6 +250,9 @@ void Application::initializePipeline() {
     mTerrainPass = new TerrainPass{this};
     mTerrainPass->create(mSurfaceFormat);
 
+    mOutlinePass = new OutlinePass{this};
+    mOutlinePass->create(mSurfaceFormat);
+
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
     mBindingData[0].buffer = mUniformBuffer;
@@ -291,9 +294,12 @@ void Application::initializePipeline() {
     mBindingData[4].offset = 0;
     mBindingData[4].size = sizeof(Light) * 10;
 
+    /*mDepthTextureViewDepthOnly = mDepthTexture->createViewDepthOnly();*/
+
     mBindingData[5] = {};
     mBindingData[5].nextInChain = nullptr;
     mBindingData[5].binding = 5;
+    /*mBindingData[5].textureView = mDepthTextureViewDepthOnly;*/
     mBindingData[5].textureView = mShadowPass->mSubFrustums[0]->mShadowDepthTexture;
 
     mBindingData[6] = {};
@@ -902,22 +908,103 @@ void Application::mainLoop() {
     // end of color render pass
 
     // terrain pass
-    /*mTerrainPass->setColorAttachment(*/
-    /*    {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});*/
-    /*mTerrainPass->setDepthStencilAttachment(*/
-    /*    {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false});*/
-    /*mTerrainPass->init();*/
+    /*    mTerrainPass->setColorAttachment(*/
+    /*        {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});*/
+    /*    mTerrainPass->setDepthStencilAttachment(*/
+    /*        {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false});*/
+    /*    mTerrainPass->init();*/
     /**/
-    /*WGPURenderPassEncoder terrain_pass_encoder =*/
-    /*    wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());*/
-    /*wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());*/
+    /*    auto* terrain_pass_desc = mTerrainPass->getRenderPassDescriptor();*/
     /**/
-    /*terrain.draw(this, terrain_pass_encoder, mBindingData);*/
+    /*    {*/
+    /*        terrain_pass_desc->nextInChain = nullptr;*/
     /**/
-    /*updateGui(terrain_pass_encoder);*/
+    /*        static WGPURenderPassColorAttachment color_attachment = {};*/
+    /*        color_attachment.view = target_view;*/
+    /*        color_attachment.resolveTarget = nullptr;*/
+    /*        color_attachment.loadOp = WGPULoadOp_Load;*/
+    /*        color_attachment.storeOp = WGPUStoreOp_Store;*/
+    /*        color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};*/
+    /*#ifndef WEBGPU_BACKEND_WGPU*/
+    /*        color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;*/
+    /*#endif  // NOT WEBGPU_BACKEND_WGPU*/
     /**/
-    /*wgpuRenderPassEncoderEnd(terrain_pass_encoder);*/
-    /*wgpuRenderPassEncoderRelease(terrain_pass_encoder);*/
+    /*        terrain_pass_desc->colorAttachmentCount = 1;*/
+    /*        terrain_pass_desc->colorAttachments = &color_attachment;*/
+    /**/
+    /*        static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;*/
+    /*        depth_stencil_attachment.view = mDepthTextureView;*/
+    /*        depth_stencil_attachment.depthClearValue = 1.0f;*/
+    /*        depth_stencil_attachment.depthLoadOp = WGPULoadOp_Load;*/
+    /*        depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Discard;*/
+    /*        depth_stencil_attachment.depthReadOnly = false;*/
+    /*        depth_stencil_attachment.stencilClearValue = 0;*/
+    /*        depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Load;*/
+    /*        depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Discard;*/
+    /*        depth_stencil_attachment.stencilReadOnly = false;*/
+    /*        terrain_pass_desc->depthStencilAttachment = &depth_stencil_attachment;*/
+    /*        terrain_pass_desc->timestampWrites = nullptr;*/
+    /*    }*/
+    /*    WGPURenderPassEncoder terrain_pass_encoder =*/
+    /*        wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());*/
+    /*    wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());*/
+    /**/
+    /*    terrain.draw(this, terrain_pass_encoder, mBindingData);*/
+    /**/
+    /*    updateGui(terrain_pass_encoder);*/
+    /**/
+    /*    wgpuRenderPassEncoderEnd(terrain_pass_encoder);*/
+    /*    wgpuRenderPassEncoderRelease(terrain_pass_encoder);*/
+
+    // ---------------------------------------------------------------------
+
+    mOutlinePass->init();
+    auto* outline_pass_desc = mOutlinePass->getRenderPassDescriptor();
+    /*WGPURenderPassDescriptor render_pass_descriptor = {};*/
+
+    {
+        outline_pass_desc->nextInChain = nullptr;
+
+        static WGPURenderPassColorAttachment color_attachment = {};
+        color_attachment.view = target_view;
+        color_attachment.resolveTarget = nullptr;
+        color_attachment.loadOp = WGPULoadOp_Load;
+        color_attachment.storeOp = WGPUStoreOp_Store;
+        color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
+#ifndef WEBGPU_BACKEND_WGPU
+        color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif  // NOT WEBGPU_BACKEND_WGPU
+
+        outline_pass_desc->colorAttachmentCount = 1;
+        outline_pass_desc->colorAttachments = &color_attachment;
+
+        static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
+        depth_stencil_attachment.view = mDepthTextureView;
+        depth_stencil_attachment.depthClearValue = 1.0f;
+        depth_stencil_attachment.depthLoadOp = WGPULoadOp_Load;
+        depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Discard;
+        depth_stencil_attachment.depthReadOnly = false;
+        depth_stencil_attachment.stencilClearValue = 0;
+        depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Load;
+        depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Discard;
+        depth_stencil_attachment.stencilReadOnly = false;
+        outline_pass_desc->depthStencilAttachment = &depth_stencil_attachment;
+        outline_pass_desc->timestampWrites = nullptr;
+    }
+
+    WGPURenderPassEncoder outline_pass_encoder =
+        wgpuCommandEncoderBeginRenderPass(encoder, mOutlinePass->getRenderPassDescriptor());
+    wgpuRenderPassEncoderSetStencilReference(outline_pass_encoder, stencilReferenceValue);
+
+    for (const auto& model : mLoadedModel) {
+        if (model->getName() == "tower") {
+            wgpuRenderPassEncoderSetPipeline(outline_pass_encoder, mOutlinePass->getPipeline()->getPipeline());
+            model->draw(this, outline_pass_encoder, mBindingData);
+        }
+    }
+
+    wgpuRenderPassEncoderEnd(outline_pass_encoder);
+    wgpuRenderPassEncoderRelease(outline_pass_encoder);
 
     ModelRegistry::instance().tick(this);
     // ------------ 3- Transparent pass
@@ -1080,6 +1167,20 @@ bool Application::initDepthBuffer() {
 
     // Create the view of the depth texture manipulated by the rasterizer
     mDepthTextureView = mDepthTexture->createViewDepthStencil();
+    // 2. Create a WGPUTextureView for the DEPTH aspect only
+    WGPUTextureViewDescriptor depthViewDesc = {};
+    depthViewDesc.format = WGPUTextureFormat_Depth24Plus;  // Must match the base texture format
+    depthViewDesc.dimension = WGPUTextureViewDimension_2D;
+    depthViewDesc.baseMipLevel = 0;
+    depthViewDesc.mipLevelCount = 1;
+    depthViewDesc.baseArrayLayer = 0;
+    depthViewDesc.arrayLayerCount = 1;
+    depthViewDesc.aspect = WGPUTextureAspect_DepthOnly;  // <-- CRITICAL: Specify Depth Only
+    depthViewDesc.label = "Depth-Only View";             // Label for debugging
+
+    mDepthTextureViewDepthOnly = wgpuTextureCreateView(mDepthTexture->getTexture(), &depthViewDesc);
+
+    /*mDepthTextureViewDepthOnly = mDepthTexture->createViewDepthOnly();*/
     return mDepthTextureView != nullptr;
 }
 

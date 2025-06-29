@@ -138,6 +138,7 @@ class Application {
         TransparencyPass* mTransparencyPass;
         CompositionPass* mCompositionPass;
         TerrainPass* mTerrainPass;
+        OutlinePass* mOutlinePass;
         WGPUSampler mDefaultSampler;
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();
@@ -165,6 +166,7 @@ class Application {
         uint32_t mIndexCount;
 
         WGPUTextureView mDepthTextureView;
+        WGPUTextureView mDepthTextureViewDepthOnly;
         // WGPUTextureView mShadowDepthTextureView;
         Texture* mDepthTexture;
 

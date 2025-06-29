@@ -30,4 +30,18 @@ class TerrainPass : public RenderPass {
         Application* mApp;
 };
 
+
+
+class OutlinePass : public RenderPass {
+        void createRenderPass(WGPUTextureFormat textureFormat) override;
+
+    public:
+        explicit OutlinePass(Application* app);
+
+        Pipeline* create(WGPUTextureFormat textureFormat);
+
+    private:
+        Application* mApp;
+};
+
 #endif  // !WEBGPUTEST_TERRAIN_PASS_H

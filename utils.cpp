@@ -123,10 +123,27 @@ void setDefaultActiveStencil(WGPUDepthStencilState& depthStencilState) {
     depthStencilState.depthCompare = WGPUCompareFunction_Less;
     depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
     depthStencilState.stencilFront.passOp = WGPUStencilOperation_Replace;
+    depthStencilState.stencilFront.depthFailOp = WGPUStencilOperation_Replace;
     depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
     depthStencilState.stencilBack.passOp = WGPUStencilOperation_Replace;
+    depthStencilState.stencilBack.depthFailOp = WGPUStencilOperation_Replace;
     depthStencilState.stencilReadMask = 0xFF;
     depthStencilState.stencilWriteMask = 0xFF;
+    depthStencilState.depthBias = 0;
+    depthStencilState.depthBiasSlopeScale = 0;
+    depthStencilState.depthBiasClamp = 0;
+}
+
+void setDefaultUseStencil(WGPUDepthStencilState& depthStencilState) {
+    setDefault(depthStencilState.stencilFront);
+    setDefault(depthStencilState.stencilBack);
+    depthStencilState.format = WGPUTextureFormat_Depth24PlusStencil8;
+    depthStencilState.depthWriteEnabled = false;
+    depthStencilState.depthCompare = WGPUCompareFunction_Always;
+    depthStencilState.stencilFront.compare = WGPUCompareFunction_NotEqual;
+    depthStencilState.stencilBack.compare = WGPUCompareFunction_NotEqual;
+    depthStencilState.stencilReadMask = 0xFF;
+    depthStencilState.stencilWriteMask = 0x00;
     depthStencilState.depthBias = 0;
     depthStencilState.depthBiasSlopeScale = 0;
     depthStencilState.depthBiasClamp = 0;
