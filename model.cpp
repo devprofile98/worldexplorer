@@ -124,6 +124,14 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
         vector.y = mesh->mVertices[i].z;
         vector.z = mesh->mVertices[i].y;
 
+        min.x = std::min(min.x, vertex.position.x);
+        min.y = std::min(min.y, vertex.position.y);
+        min.z = std::min(min.z, vertex.position.z);
+        /**/
+        max.x = std::max(max.x, vertex.position.x);
+        max.y = std::max(max.y, vertex.position.y);
+        max.z = std::max(max.z, vertex.position.z);
+
         vertex.position = vector;
 
         if (mesh->HasNormals()) {
@@ -519,6 +527,7 @@ void BaseModel::setTransparent(bool value) {
 bool BaseModel::isTransparent() { return mIsTransparent; }
 
 void BaseModel::selected(bool selected) { mObjectInfo.isSelected = selected; }
+bool BaseModel::isSelected() const { return mObjectInfo.isSelected; }
 
 void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData) {
     WGPUBindGroupEntry mBindGroupEntry = {};

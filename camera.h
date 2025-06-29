@@ -5,6 +5,7 @@
 
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
+#include "model.h"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
 
@@ -62,6 +63,7 @@ class Camera {
         void processMouse(int x, int y);
         void processScroll(double value);
         void updateCursor(int x, int y);
+	void lookAtAABB(BaseModel* model);
 
         CameraState mCameraState;
         DragState mDragState;

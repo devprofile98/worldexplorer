@@ -49,6 +49,10 @@ static float dd = 5.0f;
 bool should_update_csm = true;
 extern float sunlength;
 
+double lastClickTime = 0.0;
+double lastClickX = 0.0;
+double lastClickY = 0.0;
+
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
     const auto inv = glm::inverse(proj * view);
 
@@ -607,30 +611,9 @@ bool Application::initialize() {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         that->getCamera().processInput(key, scancode, action, mods);
 
-        /*auto first_corner = getFrustumCornersWorldSpace(frustum_projection, that->mUniforms.viewMatrix);*/
-        /*glm::vec3 center = glm::vec3(0, 0, 0);*/
-        /*for (const auto& v : first_corner) {*/
-        /*    center += glm::vec3(v);*/
-        /*}*/
-        /*center /= first_corner.size();*/
-        /*sphere4.moveTo(center);*/
-        /**/
-        /*that->mShadowPass->center = center;*/
-
         if (GLFW_KEY_KP_0 == key && action == GLFW_PRESS) {
             BaseModel* model = that->getModelCounter();
-            if (model) {
-                glm::vec3 temp_pos = model->getPosition();
-                glm::vec3 temp_aabb_size = model->getAABBSize();
-                float temp_smallest_size = std::min(temp_aabb_size.x, std::min(temp_aabb_size.y, temp_aabb_size.z));
-                temp_pos.z += temp_smallest_size;
-                temp_pos.x += temp_smallest_size;
-                temp_pos.y += temp_smallest_size;
-                that->getCamera().setPosition(temp_pos);
-                that->getCamera().setTarget(model->getPosition() - temp_pos);
-                std::cout << "volume calculation result for " << model->getName() << " is: " << model->calculateVolume()
-                          << std::endl;
-            }
+            that->getCamera().lookAtAABB(model);
         } else if (GLFW_KEY_KP_1 == key && action == GLFW_PRESS) {
             look_as_light = !look_as_light;
 
@@ -895,8 +878,8 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetStencilReference(render_pass_encoder, stencilReferenceValue);
 
     for (const auto& model : mLoadedModel) {
-        wgpuRenderPassEncoderSetPipeline(
-            render_pass_encoder, (model->getName() == "tower" ? mPipeline : mStenctilEnabledPipeline)->getPipeline());
+        wgpuRenderPassEncoderSetPipeline(render_pass_encoder,
+                                         (model->isSelected() ? mPipeline : mStenctilEnabledPipeline)->getPipeline());
 
         if (!model->isTransparent()) {
             model->draw(this, render_pass_encoder, mBindingData);
@@ -951,7 +934,7 @@ void Application::mainLoop() {
 
     terrain.draw(this, terrain_pass_encoder, mBindingData);
 
-    /*updateGui(terrain_pass_encoder);*/
+    updateGui(terrain_pass_encoder);
 
     wgpuRenderPassEncoderEnd(terrain_pass_encoder);
     wgpuRenderPassEncoderRelease(terrain_pass_encoder);
@@ -997,7 +980,7 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetStencilReference(outline_pass_encoder, stencilReferenceValue);
 
     for (const auto& model : mLoadedModel) {
-        if (model->getName() == "tower") {
+        if (model->isSelected()) {
             wgpuRenderPassEncoderSetPipeline(outline_pass_encoder, mOutlinePass->getPipeline()->getPipeline());
             model->draw(this, outline_pass_encoder, mBindingData);
         }
@@ -1236,6 +1219,9 @@ bool intersection(const glm::vec3& ray_origin, const glm::vec3& ray_dir, const g
     return tmin < tmax;
 }
 
+const double DOUBLE_CLICK_TIME_THRESHOLD = 0.3;               // Time in seconds (e.g., 300 milliseconds)
+const double DOUBLE_CLICK_DISTANCE_THRESHOLD_SQ = 5.0 * 5.0;  // Max squared distance in pixels (e.g., 5x5 pixel area)
+
 void Application::onMouseButton(int button, int action, int /* modifiers */) {
     ImGuiIO& io = ImGui::GetIO();
     if (io.WantCaptureMouse) {
@@ -1248,6 +1234,16 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         // calculating the NDC for x and y
         if (action == GLFW_PRESS) {
+            double currentX, currentY;
+            glfwGetCursorPos(mRendererResource.window, &currentX, &currentY);  // Get current mouse position
+
+            double currentTime = glfwGetTime();  // Get current time
+            double deltaTime = currentTime - lastClickTime;
+            double distanceSq =
+                (currentX - lastClickX) * (currentX - lastClickX) + (currentY - lastClickY) * (currentY - lastClickY);
+
+            // Check if it's within the time and distance thresholds for a double-click
+
             auto [w_width, w_height] = getWindowSize();
             double xpos, ypos;
             glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
@@ -1264,10 +1260,6 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
             auto normalized = glm::normalize(worldray);
 
             for (auto* obj : mLoadedModel) {
-                /*auto obj = dynamic_cast<BaseModel*>(obj1);*/
-                /*if (obj) {*/
-                /*auto obj_in_world_min = obj->getTranformMatrix() * glm::vec4(obj->min, 1.0);*/
-                /*auto obj_in_world_max = obj->getTranformMatrix() * glm::vec4(obj->max, 1.0);*/
                 auto [obj_in_world_min, obj_in_world_max] = obj->getWorldMin();
                 bool does_intersect = intersection(ray_origin, normalized, obj_in_world_min, obj_in_world_max);
                 if (does_intersect) {
@@ -1276,10 +1268,18 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
                     }
                     mSelectedModel = obj;
                     mSelectedModel->selected(true);
+                    if (deltaTime < DOUBLE_CLICK_TIME_THRESHOLD && distanceSq < DOUBLE_CLICK_DISTANCE_THRESHOLD_SQ) {
+                        std::cout << "double click detected" << std::endl;
+                        getCamera().lookAtAABB(obj);
+                    }
                     std::cout << std::format("the ray {}intersect with {}\n", "", obj->getName());
                     break;
                 }
             }
+
+            lastClickTime = currentTime;
+            lastClickX = currentX;
+            lastClickY = currentY;
         }
 
     } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
@@ -1291,6 +1291,10 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
             case GLFW_RELEASE:
                 drag_state.active = false;
                 drag_state.firstMouse = false;
+                /*if (mSelectedModel != nullptr) {*/
+                /*    mSelectedModel->selected(false);*/
+                /*    mSelectedModel = nullptr;*/
+                /*}*/
                 break;
         }
     }
