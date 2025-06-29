@@ -23,6 +23,7 @@ void setDefault(WGPUStencilFaceState& stencilFaceState);
 
 void setDefaultUseStencil(WGPUDepthStencilState& depthStencilState);
 void setDefaultActiveStencil(WGPUDepthStencilState& depthStencilState);
+void setDefaultActiveStencil2(WGPUDepthStencilState& depthStencilState);
 void setDefault(WGPUBindGroupLayoutEntry& bindingLayout);
 void setDefault(WGPULimits& limits);
 
