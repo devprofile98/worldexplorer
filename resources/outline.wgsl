@@ -134,14 +134,18 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     }
 
 
-    let world_position = transform * vec4f(in.position + in.normal * 0.02, 1.0);
-    out.normal = (transform * vec4f(in.normal, 0.0)).xyz;
-
+    let world_position = transform * vec4f(in.position, 1.0);
     out.viewSpacePos = uMyUniform.viewMatrix * world_position;
+    out.normal = (transform * vec4f(in.normal, 0.0)).xyz;
+    //let color = min(max(abs(out.viewSpacePos.z) / 20.0, 0.02), 0.04);
+    let color = max(pow(clamp(abs(out.viewSpacePos.z), 0.0, 10.0), 2.0) / 1250.0, 0.02);
+    let extruded_position = transform * vec4f(in.position + in.normal * color , 1.0);
+    out.viewSpacePos = uMyUniform.viewMatrix * extruded_position;
+
     out.position = uMyUniform.projectionMatrix * out.viewSpacePos;
     out.worldPos = world_position.xyz;
     out.viewDirection = uMyUniform.cameraWorldPosition - world_position.xyz;
-    out.color = in.color;
+    out.color = vec3f(color * 3,0,0);
     out.uv = in.uv;
 
     let T = normalize(vec3f((transform * vec4(in.tangent, 0.0)).xyz));
@@ -168,6 +172,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+    //return vec4f(in.color, 1.0);
     return vec4f(vec3f(1.0, 1.0, 0.0 ), 1.0);
 }
 

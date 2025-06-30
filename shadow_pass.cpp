@@ -16,6 +16,8 @@
 
 float sunlength = 5.0;
 
+extern const char* model_name;
+
 ShadowPass::ShadowPass(Application* app) { mApp = app; }
 
 ShadowFrustum::ShadowFrustum(Application* app, WGPUTextureView renderTarget, WGPUTextureView depthTexture)
@@ -108,7 +110,10 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
 
     // fill bindgroup
     mBindingData.reserve(5);
+    mBindingData.resize(5);
 
+    // mBindingData.push_back(entry);
+    mBindingData[0] = {};
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
     mBindingData[0].buffer = nullptr;
@@ -281,6 +286,10 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
             wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                                  wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
 
+            if (model->getName() != model_name) {
+                wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
+                                                    wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
+            }
             wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
             wgpuRenderPassEncoderSetBindGroup(encoder, 1,
                                               mesh.mTextureBindGroup == nullptr
@@ -288,8 +297,14 @@ void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder en
                                                   : mesh.mTextureBindGroup,
                                               0, nullptr);
 
-            wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
-                                      model->instance == nullptr ? 1 : model->instance->getInstanceCount(), 0, 0);
+            if (model->getName() != model_name) {
+                wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(),
+                                                 model->instance == nullptr ? 1 : model->instance->getInstanceCount(),
+                                                 0, 0, 0);
+            } else {
+                wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
+                                          model->instance == nullptr ? 1 : model->instance->getInstanceCount(), 0, 0);
+            }
 
             wgpuBufferRelease(modelUniformBuffer.getBuffer());
             wgpuBindGroupRelease(bindgroup);

@@ -23,7 +23,7 @@
 #include "tinyobjloader/tiny_obj_loader.h"
 #include "webgpu.h"
 
-static const char* model_name = "steampunk";
+const char* model_name = "steampunk";
 
 Drawable::Drawable() {}
 
