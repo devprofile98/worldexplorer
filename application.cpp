@@ -255,7 +255,7 @@ void Application::initializePipeline() {
     mTerrainPass->create(mSurfaceFormat);
 
     mOutlinePass = new OutlinePass{this};
-    mOutlinePass->create(mSurfaceFormat);
+    mOutlinePass->create(mSurfaceFormat, mDepthTextureViewDepthOnly);
 
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
@@ -303,8 +303,8 @@ void Application::initializePipeline() {
     mBindingData[5] = {};
     mBindingData[5].nextInChain = nullptr;
     mBindingData[5].binding = 5;
-    /*mBindingData[5].textureView = mDepthTextureViewDepthOnly;*/
-    mBindingData[5].textureView = mShadowPass->mSubFrustums[0]->mShadowDepthTexture;
+    // mBindingData[5].textureView = nullptr;
+    mBindingData[5].textureView = mDepthTextureViewDepthOnly;
 
     mBindingData[6] = {};
     mBindingData[6].nextInChain = nullptr;
@@ -506,6 +506,7 @@ void wgpuPollEvents([[maybe_unused]] WGPUDevice device, [[maybe_unused]] bool yi
 
 void Application::onResize() {
     // Terminate in reverse order
+    std::cout << "On rsize called -------------------------\n";
     terminateDepthBuffer();
     terminateSwapChain();
 
@@ -714,6 +715,7 @@ bool Application::initialize() {
         static_cast<Model*>(model)->createSomeBinding(this, mDefaultTextureBindingData);
     }
 
+    std::cout << "On rsize called +++++++++++++++++++++\n";
     return true;
 }
 
@@ -912,16 +914,32 @@ void Application::mainLoop() {
 
     // ---------------------------------------------------------------------
 
-    // outline pass 
+    // outline pass
     mOutlinePass->setColorAttachment(
         {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
     mOutlinePass->setDepthStencilAttachment(
-        {mDepthTextureView, StoreOp::Discard, LoadOp::Load, false, StoreOp::Discard, LoadOp::Load, false});
+        {mDepthTextureView, StoreOp::Discard, LoadOp::Load, false, StoreOp::Discard, LoadOp::Load, false, 0.0});
     mOutlinePass->init();
+
+    std::cout << "Debug for Render Pass Descriptor:" << std::endl;
+    std::cout << "  depthLoadOp: " << mOutlinePass->mDepthStencilAttachment.get()->depthLoadOp
+              << std::endl;  // Print the enum value
+    std::cout << "  depthStoreOp: " << mOutlinePass->mDepthStencilAttachment.get()->depthStoreOp << std::endl;
+    std::cout << "  depthReadOnly: " << mOutlinePass->mDepthStencilAttachment.get()->depthReadOnly << std::endl;
+    std::cout << "  stencilLoadOp: " << mOutlinePass->mDepthStencilAttachment.get()->stencilLoadOp
+              << std::endl;  // <-- Focus on this!
+    std::cout << "  stencilStoreOp: " << mOutlinePass->mDepthStencilAttachment.get()->stencilStoreOp << std::endl;
+    std::cout << "  stencilReadOnly: " << mOutlinePass->mDepthStencilAttachment.get()->stencilReadOnly << std::endl;
 
     WGPURenderPassEncoder outline_pass_encoder =
         wgpuCommandEncoderBeginRenderPass(encoder, mOutlinePass->getRenderPassDescriptor());
     wgpuRenderPassEncoderSetStencilReference(outline_pass_encoder, stencilReferenceValue);
+
+    mOutlinePass->mTextureView = mDepthTexture->createViewDepthOnly();
+    mOutlinePass->createSomeBinding();
+
+    wgpuRenderPassEncoderSetBindGroup(outline_pass_encoder, 3, mOutlinePass->mDepthTextureBindgroup.getBindGroup(), 0,
+                                      nullptr);
 
     for (const auto& model : mLoadedModel) {
         if (model->isSelected()) {
@@ -1038,7 +1056,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     required_limits.limits.maxInterStageShaderComponents = 116;
 
     // Binding groups
-    required_limits.limits.maxBindGroups = 3;
+    required_limits.limits.maxBindGroups = 4;
     required_limits.limits.maxUniformBuffersPerShaderStage = 6;
     required_limits.limits.maxUniformBufferBindingSize = 2048;  // 16 * 4 * sizeof(float);
 
@@ -1112,9 +1130,9 @@ bool Application::initDepthBuffer() {
 }
 
 void Application::terminateDepthBuffer() {
-    wgpuTextureViewRelease(mDepthTextureView);
-    wgpuTextureDestroy(mDepthTexture->getTexture());
-    delete mDepthTexture;
+    // wgpuTextureViewRelease(mDepthTextureView);
+    // wgpuTextureDestroy(mDepthTexture->getTexture());
+    // delete mDepthTexture;
 }
 
 void Application::updateProjectionMatrix() {

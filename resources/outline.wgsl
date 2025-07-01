@@ -85,7 +85,7 @@ struct OffsetData {
 @group(0) @binding(2) var textureSampler: sampler;
 @group(0) @binding(3) var<uniform> lightingInfos: LightingUniforms;
 @group(0) @binding(4) var<uniform> pointLight: array<PointLight,10>;
-@group(0) @binding(5) var near_depth_texture: texture_2d<f32>;
+@group(0) @binding(5) var near_depth_texture: texture_depth_2d;
 @group(0) @binding(6) var grass_ground_texture: texture_2d<f32>;
 @group(0) @binding(7) var rock_mountain_texture: texture_2d<f32>;
 @group(0) @binding(8) var sand_lake_texture: texture_2d<f32>;
@@ -102,6 +102,8 @@ struct OffsetData {
 @group(2) @binding(0) var diffuse_map: texture_2d<f32>;
 @group(2) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
 @group(2) @binding(2) var normal_map: texture_2d<f32>;
+
+@group(3) @binding(0) var standard_depth: texture_depth_2d;
 
 const PI: f32 = 3.141592653589793;
 
@@ -173,6 +175,22 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //return vec4f(in.color, 1.0);
-    return vec4f(vec3f(1.0, 1.0, 0.0 ), 1.0);
+	let frag_ambient = textureSample(diffuse_map, textureSampler, in.uv).rgba;
+	if (frag_ambient.a < 0.001 ) {
+		discard;
+	}
+
+	let screen_uv = in.position.xy / vec2f(1920.0, 1022.0);
+	// let existing_depth_ndc_z = textureSample(near_depth_texture, textureSampler, screen_uv).x;
+	let outline_ndc_z = in.position.z / in.position.w;
+        let compare_res = textureSampleCompare(near_depth_texture, shadowMapSampler, screen_uv, outline_ndc_z  - 0.0001 );
+
+        var outline_alpha = 1.0; // Make it more transparent
+    if (compare_res == 1) {
+        outline_alpha = 0.3; // Make it more transparent
+    	return vec4f(vec3f(0.0, 1.0, 1.0 ), outline_alpha);
+    }
+
+    return vec4f(vec3f(1.0, 1.0, 0.0 ), outline_alpha);
 }
 

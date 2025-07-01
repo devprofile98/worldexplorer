@@ -48,6 +48,11 @@ Pipeline& Pipeline::createPipeline(Application* app) {
     mPipelineLayout = wgpuDeviceCreatePipelineLayout(app->getRendererResource().device, &pipeline_layout_descriptor);
 
     mDescriptor.layout = mPipelineLayout;
+    std::cout << mDescriptor.depthStencil->depthWriteEnabled << std::endl;
+    std::cout << mDescriptor.depthStencil->depthCompare << std::endl;
+    std::cout << mDescriptor.depthStencil->depthBiasSlopeScale << std::endl;
+    std::cout << mDescriptor.depthStencil->stencilWriteMask << std::endl;
+
 
     mDescriptor.label = mPipelineName.c_str();
     mPipeline = wgpuDeviceCreateRenderPipeline(app->getRendererResource().device, &mDescriptor);

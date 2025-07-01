@@ -25,13 +25,20 @@ Pipeline* TerrainPass::create(WGPUTextureFormat textureFormat) {
     return mRenderPipeline;
 }
 
+OutlinePass::OutlinePass(Application* app) {
+    mApp = app;
 
+    mDepthTextureBindgroup.addTexture(0,  //
+                                      BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
+                                      TextureViewDimension::VIEW_2D);
 
-OutlinePass::OutlinePass(Application* app) { mApp = app; }
+    mLayerThree = mDepthTextureBindgroup.createLayout(app, "layer three bidngroup");
+}
 
 void OutlinePass::createRenderPass(WGPUTextureFormat textureFormat) {
+    mDepthTextureBindgroup.create(mApp, mOutlineSpecificBindingData);
     auto* layouts = mApp->getBindGroupLayouts();
-    mRenderPipeline = new Pipeline{mApp, {layouts[0], layouts[1], layouts[2]}, "Outline Pass"};
+    mRenderPipeline = new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], mLayerThree}, "Outline Pass"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
     mRenderPipeline->setShader(RESOURCE_DIR "/outline.wgsl");
     setDefaultUseStencil(mRenderPipeline->getDepthStencilState());
@@ -40,7 +47,21 @@ void OutlinePass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline->createPipeline(mApp);
 }
 
-Pipeline* OutlinePass::create(WGPUTextureFormat textureFormat) {
+void OutlinePass::createSomeBinding() {
+    mOutlineSpecificBindingData[0] = {};
+    mOutlineSpecificBindingData[0].nextInChain = nullptr;
+    mOutlineSpecificBindingData[0].binding = 0;
+    mOutlineSpecificBindingData[0].textureView = mTextureView;
+
+    mDepthTextureBindgroup.create(mApp, mOutlineSpecificBindingData);
+}
+
+Pipeline* OutlinePass::create(WGPUTextureFormat textureFormat, WGPUTextureView textureview) {
+    mTextureView = textureview;
+    mOutlineSpecificBindingData[0] = {};
+    mOutlineSpecificBindingData[0].nextInChain = nullptr;
+    mOutlineSpecificBindingData[0].binding = 0;
+    mOutlineSpecificBindingData[0].textureView = mTextureView;
     createRenderPass(textureFormat);
     return mRenderPipeline;
 }

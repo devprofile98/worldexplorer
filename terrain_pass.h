@@ -9,14 +9,12 @@
 #include "glm/glm.hpp"
 #include "model.h"
 #include "pipeline.h"
+#include "renderpass.h"
 #include "shadow_pass.h"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
-#include "renderpass.h"
 
 class Application;
-
-
 
 class TerrainPass : public RenderPass {
         void createRenderPass(WGPUTextureFormat textureFormat) override;
@@ -30,15 +28,19 @@ class TerrainPass : public RenderPass {
         Application* mApp;
 };
 
-
-
 class OutlinePass : public RenderPass {
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 
+
     public:
         explicit OutlinePass(Application* app);
+        BindingGroup mDepthTextureBindgroup;
+        WGPUBindGroupLayout mLayerThree;
+	WGPUTextureView mTextureView;
+        std::vector<WGPUBindGroupEntry> mOutlineSpecificBindingData{1};
+	void createSomeBinding();
 
-        Pipeline* create(WGPUTextureFormat textureFormat);
+        Pipeline* create(WGPUTextureFormat textureFormat, WGPUTextureView textureview);
 
     private:
         Application* mApp;

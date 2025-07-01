@@ -21,10 +21,10 @@ WGPURenderPassColorAttachment* ColorAttachment::get() { return &mAttachment; }
 
 DepthStencilAttachment::DepthStencilAttachment(WGPUTextureView target, StoreOp depthStoreOp, LoadOp depthLoadOp,
                                                bool depthReadOnly, StoreOp stencilStoreOp, LoadOp stencilLoadOp,
-                                               bool stencilReadOnly) {
+                                               bool stencilReadOnly, float c) {
     mAttachment = {};
     mAttachment.view = target;
-    mAttachment.depthClearValue = 1.0f;
+    mAttachment.depthClearValue = c;
     mAttachment.depthLoadOp = from(depthLoadOp);
     mAttachment.depthStoreOp = from(depthStoreOp);
     mAttachment.depthReadOnly = depthReadOnly;
@@ -55,6 +55,7 @@ RenderPass& RenderPass::setDepthStencilAttachment(const DepthStencilAttachment& 
 }
 
 WGPURenderPassDescriptor* RenderPass::init() {
+    mRenderPassDesc.label = "what is it";
     mRenderPassDesc.nextInChain = nullptr;
     mRenderPassDesc.colorAttachmentCount = 1;
     mRenderPassDesc.colorAttachments = mColorAttachment.get();

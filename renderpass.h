@@ -58,7 +58,7 @@ class DepthStencilAttachment {
         DepthStencilAttachment(WGPUTextureView target, StoreOp depthStoreOp = StoreOp::Store,
                                LoadOp depthLoadOp = LoadOp::Load, bool depthReadOnly = false,
                                StoreOp stencilStoreOp = StoreOp::Store, LoadOp stencilLoadOp = LoadOp::Load,
-                               bool stencilReadOnly = true);
+                               bool stencilReadOnly = true, float c = 1.0);
         WGPURenderPassDepthStencilAttachment* get();
 
     private:
@@ -74,6 +74,9 @@ class RenderPass {
         RenderPass& setColorAttachment(const ColorAttachment& attachment);
         RenderPass& setDepthStencilAttachment(const DepthStencilAttachment& attachment);
         WGPURenderPassDescriptor* init();
+
+        ColorAttachment mColorAttachment;
+        DepthStencilAttachment mDepthStencilAttachment;
 
     private:
         // render pass
@@ -93,8 +96,6 @@ class RenderPass {
     protected:
         Pipeline* mRenderPipeline;
         virtual void createRenderPass(WGPUTextureFormat textureFormat) = 0;
-        ColorAttachment mColorAttachment;
-        DepthStencilAttachment mDepthStencilAttachment;
 };
 
 #endif  // WEBGPUTEST_ABSTRACT_RENDER_PASS_H
