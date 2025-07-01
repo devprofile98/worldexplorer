@@ -6,6 +6,7 @@
 
 #include <assimp/Importer.hpp>
 #include <cstdint>
+#include <cstdio>
 #include <format>
 #include <iostream>
 #include <unordered_map>
@@ -629,9 +630,38 @@ void Model::userInterface() {
     ImGui::SliderFloat("Z", &mPosition.z, -100.0f, 100.0f);
 
     ImGui::SliderFloat3("Scale", glm::value_ptr(mScale), 0.0f, 10.0f);
+    ImGui::SliderFloat3("orientation", glm::value_ptr(mOrientation), -10.0f, 10.0f);
     moveTo(this->mPosition);
     scale(mScale);
     getTranformMatrix();
+    bool has_normal = mObjectInfo.hasFlag(MaterialProps::HasNormalMap);
+    if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
+        this->mObjectInfo.setFlag(MaterialProps::HasNormalMap, has_normal);
+    }
+
+
+    bool has_specular = mObjectInfo.hasFlag(MaterialProps::HasRoughnessMap);
+    if (ImGui::Checkbox("Has Specular Map", &has_specular)) {
+        this->mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, has_specular);
+    }
+
+    if (ImGui::SliderFloat("Roughness", &mObjectInfo.roughness, 0.0f, 1.0f)) {
+        // this->mObjectInfo.setFlag(MaterialProps::HasNormalMap, has_normal);
+        // ImGui::Image((ImTextureID)(intptr_t)mMeshes[0].mTexture->getTextureView(), ImVec2(256, 256));
+        // for (const auto& [key, value] : mMeshes) {
+            // (void)value;
+            // std::printf("%p\n", (void*)mMeshes.begin()->second.mNormalMapTexture->getTextureView());
+        // }
+    }
+    // if (!mMeshes.empty()) {
+    //     // The map is not empty, it's safe to get the first element
+    //     WGPUTextureView firstTexture = mMeshes.begin()->second.mNormalMapTexture->getTextureView();
+    //     // Use firstTexture safely
+    //     ImGui::Image((ImTextureID)firstTexture, ImVec2(256, 256));
+    // } else {
+    //     // The map is empty
+    //     ImGui::Text("No textures loaded!");
+    // }
 }
 #endif  // DEVELOPMENT_BUILD
 

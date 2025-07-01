@@ -11,6 +11,8 @@ struct VertexOutput {
     @location(8) biTangent: vec3f,
     @location(9) aNormal: vec3f,
     @location(10) @interpolate(flat) shadowIdx: u32,
+    @location(11) @interpolate(flat) materialProps: u32,
+    @location(12) @interpolate(flat) userSpecular: f32,
 };
 
 struct VertexInput {
@@ -44,8 +46,8 @@ struct ObjectInfo {
     isFoliage: i32,
     offsetId: u32,
     isHovered: u32,
-    offset1: u32,
-    offset2: u32,
+    materialProps: u32,
+    metallicness: f32,
     offset3: u32
 }
 
@@ -140,7 +142,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     out.position = uMyUniform.projectionMatrix * out.viewSpacePos;
     out.worldPos = world_position.xyz;
     out.viewDirection = uMyUniform.cameraWorldPosition - world_position.xyz;
-    out.color = in.color;
+    out.color = in.normal;
     out.uv = in.uv;
 
     let T = normalize(vec3f((transform * vec4(in.tangent, 0.0)).xyz));
@@ -158,12 +160,11 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
         	break;
         }
     }
-
-
-
     // if length(out.viewSpacePos) > ElapsedTime { index = 1;}
     out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
     out.shadowIdx = index;
+    out.materialProps = objectTranformation.materialProps;
+    out.userSpecular = objectTranformation.metallicness;
     return out;
 }
 
@@ -254,14 +255,22 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let material = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
 	let ao = material.r;
 	let roughness = material.g;
-	let metallic = material.b;
+	var metallic = material.b;
 
 
 	var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
-	normal = normal * 2.0 - 1.0;
-	let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
-	let N = normalize(TBN * normal);
-    	let V = normalize(in.viewDirection);
+	  normal = normal * 2.0 - 1.0;
+	  let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
+	  var N = normalize(TBN * normal);
+    	  let V = normalize(in.viewDirection);
+
+	if ((in.materialProps & (1u << 1u))  == 2u){
+	  N = in.normal;
+	}
+
+	if ((in.materialProps & (1u << 3u))  == 8u){
+	  metallic = in.userSpecular;
+	}
 
 	var F0 = vec3f(0.04f); //base reflectivity: default to 0.04 for even dieelectric material
 	F0 = mix(F0, albedo, metallic);
@@ -428,6 +437,6 @@ fn fs_main2(in: VertexOutput) -> @location(0) vec4f {
     col = col / (col + vec3f(1.0));
     // col = pow(col, vec3f(1.0/2.2));
     col = pow(col, vec3f(2.2));
-    return vec4f(col, 1.0);
+    return vec4f(in.normal, 1.0);
 }
 

@@ -2,6 +2,7 @@
 #define WEBGPUTEST_MODEL_H
 
 #include <assimp/scene.h>
+
 #include <limits>
 
 #include "glm/fwd.hpp"
@@ -27,6 +28,41 @@
 // forward declaration
 class Application;
 
+enum class MaterialProps : uint32_t {
+    None = 0,                     // No flags set
+    HasDiffuseMap = (1u << 0),    // Bit 0: Does the material have a diffuse texture map?
+    HasNormalMap = (1u << 1),     // Bit 1: Does the material have a normal map?
+    IsMetallic = (1u << 2),       // Bit 2: Is it a metallic material?
+    HasRoughnessMap = (1u << 3),  // Bit 3: Does it have a roughness map?
+    HasEmissiveMap = (1u << 4),   // Bit 4: Does it have an emissive map?
+    IsDoubleSided = (1u << 5),    // Bit 5: Is it double-sided?
+
+};
+
+inline MaterialProps operator|(MaterialProps a, MaterialProps b) {
+    return static_cast<MaterialProps>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+}
+
+inline MaterialProps operator&(MaterialProps a, MaterialProps b) {
+    return static_cast<MaterialProps>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
+}
+
+inline MaterialProps operator^(MaterialProps a, MaterialProps b) {
+    return static_cast<MaterialProps>(static_cast<uint32_t>(a) ^ static_cast<uint32_t>(b));
+}
+
+inline MaterialProps& operator|=(MaterialProps& a, MaterialProps b) {
+    a = static_cast<MaterialProps>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+    return a;
+}
+
+inline MaterialProps& operator&=(MaterialProps& a, MaterialProps b) {
+    a = static_cast<MaterialProps>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
+    return a;
+}
+
+inline MaterialProps operator~(MaterialProps a) { return static_cast<MaterialProps>(~static_cast<uint32_t>(a)); }
+
 /*
  * hold the object specific configuration for rendering in shader
  */
@@ -37,7 +73,21 @@ struct ObjectInfo {
         uint32_t isFoliage;
         uint32_t instanceOffsetId;
         uint32_t isSelected;
-        std::array<uint32_t, 3> offset;
+        uint32_t materialProps;
+	float roughness;
+        std::array<uint32_t, 1> offset;
+
+        inline bool hasFlag(MaterialProps checkFlag) {
+            return (static_cast<uint32_t>(materialProps) & static_cast<uint32_t>(checkFlag)) != 0;
+        }
+
+        inline void setFlag(MaterialProps flag, bool value) {
+            if (value) {
+                materialProps |= static_cast<uint32_t>(flag);
+            } else {
+                materialProps &= ~static_cast<uint32_t>(flag);
+            }
+        }
 };
 
 // Hold the properties and needed object to represents the object transformation
@@ -126,7 +176,7 @@ class Model : public BaseModel {
         Model();
 
         void processMesh(Application* app, aiMesh* mesh, const aiScene* scene);
-        void processNode(Application* app,aiNode* node, const aiScene* scene);
+        void processNode(Application* app, aiNode* node, const aiScene* scene);
         Model& load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout);
         Model& uploadToGPU(Application* app);
         void draw(Application* app, WGPURenderPassEncoder encoder,

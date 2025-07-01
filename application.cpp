@@ -618,6 +618,12 @@ bool Application::initialize() {
         if (GLFW_KEY_KP_0 == key && action == GLFW_PRESS) {
             BaseModel* model = that->getModelCounter();
             that->getCamera().lookAtAABB(model);
+            if (that->mSelectedModel) {
+                that->mSelectedModel->selected(false);
+            }
+            that->mSelectedModel = model;
+            that->mSelectedModel->selected(true);
+
         } else if (GLFW_KEY_KP_1 == key && action == GLFW_PRESS) {
             look_as_light = !look_as_light;
 
@@ -901,7 +907,7 @@ void Application::mainLoop() {
     mTerrainPass->setColorAttachment(
         {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
     mTerrainPass->setDepthStencilAttachment(
-        {mDepthTextureView, StoreOp::Undefined, LoadOp::Load, true, StoreOp::Undefined, LoadOp::Undefined, true});
+        {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined, true});
     mTerrainPass->init();
 
     WGPURenderPassEncoder terrain_pass_encoder =
@@ -1394,6 +1400,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     }
     ImGui::SliderFloat("distance", &ddistance, 0.0, 30.0);
     ImGui::SliderFloat("dd", &dd, 0.0, 120.0);
+    ImGui::Image((ImTextureID)(intptr_t)mBindingData[9].textureView, ImVec2(256, 256));
     ImGui::End();
     mShadowPass->lightPos = pointlightshadow;
     /*mShadowPass->setupScene({1.0f, 1.0f, 4.0f});*/

@@ -145,8 +145,8 @@ struct GrassModel : public IModel {
             mModel = new Model{};
 
             mModel->load("grass", app, RESOURCE_DIR "/grass.obj", app->getObjectBindGroupLayout())
-                .moveTo(glm::vec3{0.725, -1.0, 0.72})
-                .scale(glm::vec3{0.001});
+                .moveTo(glm::vec3{6.125, 2.239, -2.859})
+                .scale(glm::vec3{0.2});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->setFoliage();
@@ -252,6 +252,24 @@ struct Motor : public IModel {
         void onLoad(Application* app) override { (void)app; };
 };
 
+
+
+struct SheepModel : public IModel {
+        SheepModel(Application* app) {
+            mModel = new Model{};
+
+            mModel->load("sheep", app, RESOURCE_DIR "/sheep/sheep.obj", app->getObjectBindGroupLayout())
+                .moveTo(glm::vec3{5.125, 2.239, -2.859})
+                .scale(glm::vec3{0.5f});
+            mModel->uploadToGPU(app);
+            mModel->setTransparent(false);
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+        }
+
+        Model* getModel() override { return mModel; }
+        void onLoad(Application* app) override { (void)app; };
+};
+
 REGISTER_MODEL("tree", TreeModel);
 REGISTER_MODEL("boat", BoatModel);
 /*REGISTER_MODEL("jet", JetModel);*/
@@ -262,5 +280,5 @@ REGISTER_MODEL("arrow", ArrowModel);
 REGISTER_MODEL("grass", GrassModel);
 REGISTER_MODEL("steampunk", Steampunk);
 /*REGISTER_MODEL("motor", Motor);*/
-/*REGISTER_MODEL("cylinder", CylinderModel);*/
+REGISTER_MODEL("sheep", SheepModel);
 /*REGISTER_MODEL("sphere", SphereModel);*/
