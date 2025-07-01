@@ -514,6 +514,9 @@ void Application::onResize() {
 
     initSwapChain();
     initDepthBuffer();
+
+    mOutlinePass->mTextureView = mDepthTexture->createViewDepthOnly();
+    mOutlinePass->createSomeBinding();
     updateProjectionMatrix();
 }
 
@@ -898,7 +901,7 @@ void Application::mainLoop() {
     mTerrainPass->setColorAttachment(
         {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
     mTerrainPass->setDepthStencilAttachment(
-        {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false});
+        {mDepthTextureView, StoreOp::Undefined, LoadOp::Load, true, StoreOp::Undefined, LoadOp::Undefined, true});
     mTerrainPass->init();
 
     WGPURenderPassEncoder terrain_pass_encoder =
@@ -917,26 +920,13 @@ void Application::mainLoop() {
     // outline pass
     mOutlinePass->setColorAttachment(
         {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    mOutlinePass->setDepthStencilAttachment(
-        {mDepthTextureView, StoreOp::Discard, LoadOp::Load, false, StoreOp::Discard, LoadOp::Load, false, 0.0});
+    mOutlinePass->setDepthStencilAttachment({mDepthTextureView, StoreOp::Undefined, LoadOp::Undefined, true,
+                                             StoreOp::Undefined, LoadOp::Undefined, true, 0.0});
     mOutlinePass->init();
-
-    std::cout << "Debug for Render Pass Descriptor:" << std::endl;
-    std::cout << "  depthLoadOp: " << mOutlinePass->mDepthStencilAttachment.get()->depthLoadOp
-              << std::endl;  // Print the enum value
-    std::cout << "  depthStoreOp: " << mOutlinePass->mDepthStencilAttachment.get()->depthStoreOp << std::endl;
-    std::cout << "  depthReadOnly: " << mOutlinePass->mDepthStencilAttachment.get()->depthReadOnly << std::endl;
-    std::cout << "  stencilLoadOp: " << mOutlinePass->mDepthStencilAttachment.get()->stencilLoadOp
-              << std::endl;  // <-- Focus on this!
-    std::cout << "  stencilStoreOp: " << mOutlinePass->mDepthStencilAttachment.get()->stencilStoreOp << std::endl;
-    std::cout << "  stencilReadOnly: " << mOutlinePass->mDepthStencilAttachment.get()->stencilReadOnly << std::endl;
 
     WGPURenderPassEncoder outline_pass_encoder =
         wgpuCommandEncoderBeginRenderPass(encoder, mOutlinePass->getRenderPassDescriptor());
     wgpuRenderPassEncoderSetStencilReference(outline_pass_encoder, stencilReferenceValue);
-
-    mOutlinePass->mTextureView = mDepthTexture->createViewDepthOnly();
-    mOutlinePass->createSomeBinding();
 
     wgpuRenderPassEncoderSetBindGroup(outline_pass_encoder, 3, mOutlinePass->mDepthTextureBindgroup.getBindGroup(), 0,
                                       nullptr);

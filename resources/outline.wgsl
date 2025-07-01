@@ -183,14 +183,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let screen_uv = in.position.xy / vec2f(1920.0, 1022.0);
 	// let existing_depth_ndc_z = textureSample(near_depth_texture, textureSampler, screen_uv).x;
 	let outline_ndc_z = in.position.z / in.position.w;
-        let compare_res = textureSampleCompare(near_depth_texture, shadowMapSampler, screen_uv, outline_ndc_z  - 0.0001 );
+        let compare_res = textureSampleCompare(standard_depth, shadowMapSampler, screen_uv, outline_ndc_z  - 0.0001 );
 
-        var outline_alpha = 1.0; // Make it more transparent
+        var outline_alpha = 0.9; // Make it more transparent
     if (compare_res == 1) {
         outline_alpha = 0.3; // Make it more transparent
-    	return vec4f(vec3f(0.0, 1.0, 1.0 ), outline_alpha);
+    	return vec4f(vec3f(1.0, 1.0, 0.0), outline_alpha);
     }
 
-    return vec4f(vec3f(1.0, 1.0, 0.0 ), outline_alpha);
+    return vec4f(vec3f(1.0, 0.5, 0.0 ), outline_alpha);
 }
 
