@@ -74,7 +74,7 @@ struct ObjectInfo {
         uint32_t instanceOffsetId;
         uint32_t isSelected;
         uint32_t materialProps;
-	float roughness;
+        float roughness;
         std::array<uint32_t, 1> offset;
 
         inline bool hasFlag(MaterialProps checkFlag) {
@@ -105,6 +105,7 @@ class Transform {
         ObjectInfo mObjectInfo;
 
         glm::vec3 mPosition;
+        glm::vec3 mEulerRotation;
         glm::vec3 mScale;
 
         glm::mat4 mScaleMatrix;
@@ -146,8 +147,8 @@ struct AABB {
 class BaseModel : public Transform, public Drawable, public AABB, public DebugUI {
     public:
         BaseModel()
-            : Transform({}, {glm::vec3{0.0}}, glm::vec3{1.0}, glm::mat4{1.0}, glm::mat4{1.0}, glm::mat4{1.0},
-                        glm::mat4{1.0}, glm::vec3{0.0, 0.0, 1.0}) {};
+            : Transform({}, {glm::vec3{0.0}}, glm::vec3{1.0}, glm::vec3{0.0}, glm::mat4{1.0}, glm::mat4{1.0},
+                        glm::mat4{1.0}, glm::mat4{1.0}, glm::vec3{0.0, 0.0, 1.0}) {};
 
         std::string mName;
         const std::string& getName();

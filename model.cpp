@@ -625,43 +625,51 @@ size_t Model::getInstaceCount() { return this->instances; }
 
 #ifdef DEVELOPMENT_BUILD
 void Model::userInterface() {
-    ImGui::SliderFloat("X", &mPosition.x, -20.0f, 20.0f);
-    ImGui::SliderFloat("Y", &mPosition.y, -100.0f, 100.0f);
-    ImGui::SliderFloat("Z", &mPosition.z, -100.0f, 100.0f);
+    ImGuiIO& io = ImGui::GetIO();
 
-    ImGui::SliderFloat3("Scale", glm::value_ptr(mScale), 0.0f, 10.0f);
-    ImGui::SliderFloat3("orientation", glm::value_ptr(mOrientation), -10.0f, 10.0f);
-    moveTo(this->mPosition);
-    scale(mScale);
-    getTranformMatrix();
-    bool has_normal = mObjectInfo.hasFlag(MaterialProps::HasNormalMap);
-    if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
-        this->mObjectInfo.setFlag(MaterialProps::HasNormalMap, has_normal);
+    // Determine the drag speed based on modifier keys
+    float drag_speed = 1.0f;  // Default speed
+    if (io.KeyCtrl) {
+        drag_speed = 0.1f;  // Finer control when Ctrl is held
+    } else if (io.KeyShift) {
+        drag_speed = 10.0f;  // Faster control when Shift is held
     }
 
+    if (ImGui::CollapsingHeader("Transformations",
+                                ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+        ImGui::Text("Position:");
+        ImGui::DragFloat3("Position", glm::value_ptr(mPosition), drag_speed);
+        ImGui::DragFloat3("Scale", glm::value_ptr(mScale), drag_speed);
 
-    bool has_specular = mObjectInfo.hasFlag(MaterialProps::HasRoughnessMap);
-    if (ImGui::Checkbox("Has Specular Map", &has_specular)) {
-        this->mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, has_specular);
-    }
+        if (ImGui::DragFloat3("Rotation", glm::value_ptr(mEulerRotation), drag_speed, 360.0f)) {
+            glm::vec3 euler_radians = glm::radians(mEulerRotation);
+            this->mRotationMatrix = glm::toMat4(glm::quat(euler_radians));
 
-    if (ImGui::SliderFloat("Roughness", &mObjectInfo.roughness, 0.0f, 1.0f)) {
-        // this->mObjectInfo.setFlag(MaterialProps::HasNormalMap, has_normal);
-        // ImGui::Image((ImTextureID)(intptr_t)mMeshes[0].mTexture->getTextureView(), ImVec2(256, 256));
-        // for (const auto& [key, value] : mMeshes) {
-            // (void)value;
-            // std::printf("%p\n", (void*)mMeshes.begin()->second.mNormalMapTexture->getTextureView());
-        // }
+            if (mEulerRotation.x < 0) mEulerRotation.x += 360.0f;
+            if (mEulerRotation.y < 0) mEulerRotation.y += 360.0f;
+            if (mEulerRotation.z < 0) mEulerRotation.z += 360.0f;
+            if (mEulerRotation.x > 360.0) mEulerRotation.x -= 360.0f;
+            if (mEulerRotation.y > 360.0) mEulerRotation.y -= 360.0f;
+            if (mEulerRotation.z > 360.0) mEulerRotation.z -= 360.0f;
+        }
+
+        moveTo(this->mPosition);
+        scale(mScale);
+        getTranformMatrix();
     }
-    // if (!mMeshes.empty()) {
-    //     // The map is not empty, it's safe to get the first element
-    //     WGPUTextureView firstTexture = mMeshes.begin()->second.mNormalMapTexture->getTextureView();
-    //     // Use firstTexture safely
-    //     ImGui::Image((ImTextureID)firstTexture, ImVec2(256, 256));
-    // } else {
-    //     // The map is empty
-    //     ImGui::Text("No textures loaded!");
-    // }
+    if (ImGui::CollapsingHeader("Materials",
+                                ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+        bool has_normal = mObjectInfo.hasFlag(MaterialProps::HasNormalMap);
+        if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
+            this->mObjectInfo.setFlag(MaterialProps::HasNormalMap, has_normal);
+        }
+        bool has_specular = mObjectInfo.hasFlag(MaterialProps::HasRoughnessMap);
+        if (ImGui::Checkbox("Has Specular Map", &has_specular)) {
+            this->mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, has_specular);
+        }
+        if (ImGui::SliderFloat("Roughness", &mObjectInfo.roughness, 0.0f, 1.0f)) {
+        }
+    }
 }
 #endif  // DEVELOPMENT_BUILD
 
@@ -687,7 +695,7 @@ glm::vec3& Transform::getPosition() { return mPosition; }
 glm::vec3& Transform::getScale() { return mScale; }
 
 glm::mat4& Transform::getTranformMatrix() {
-    mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
+    mTransformMatrix = mTranslationMatrix * mRotationMatrix * mScaleMatrix;
     mObjectInfo.transformation = mTransformMatrix;
     return mTransformMatrix;
 }

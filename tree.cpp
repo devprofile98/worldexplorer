@@ -252,8 +252,6 @@ struct Motor : public IModel {
         void onLoad(Application* app) override { (void)app; };
 };
 
-
-
 struct SheepModel : public IModel {
         SheepModel(Application* app) {
             mModel = new Model{};
@@ -270,6 +268,21 @@ struct SheepModel : public IModel {
         void onLoad(Application* app) override { (void)app; };
 };
 
+struct GizmoModel : public IModel {
+        GizmoModel(Application* app) {
+            mModel = new Model{};
+
+            mModel->load("gizmo", app, RESOURCE_DIR "/gizmo/scene.gltf", app->getObjectBindGroupLayout())
+                .moveTo(glm::vec3{5.125, 2.239, -2.859})
+                .scale(glm::vec3{0.5f});
+            mModel->uploadToGPU(app);
+            mModel->setTransparent(false);
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+        }
+
+        Model* getModel() override { return mModel; }
+        void onLoad(Application* app) override { (void)app; };
+};
 REGISTER_MODEL("tree", TreeModel);
 REGISTER_MODEL("boat", BoatModel);
 /*REGISTER_MODEL("jet", JetModel);*/
@@ -281,4 +294,4 @@ REGISTER_MODEL("grass", GrassModel);
 REGISTER_MODEL("steampunk", Steampunk);
 /*REGISTER_MODEL("motor", Motor);*/
 REGISTER_MODEL("sheep", SheepModel);
-/*REGISTER_MODEL("sphere", SphereModel);*/
+REGISTER_MODEL("gizmo", GizmoModel);

@@ -5,6 +5,7 @@
 
 #include "application.h"
 #include "glm/fwd.hpp"
+#include "glm/gtx/string_cast.hpp"
 #include "utils.h"
 #include "webgpu.h"
 
@@ -92,9 +93,28 @@ void LightManager::renderGUI() {
         wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->mBuffer1, sizeof(Light) * mSelectedLightInGui,
                              mPointlight, sizeof(Light));
     }
+
+    ImGui::BeginChild("Light manager list", ImVec2(0, 200),
+                      ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY);
+
+    for (size_t i = 0; i < getLights().size(); i++) {
+        // Create a unique ID for each selectable item based on its unique item.id
+        auto* light = &getLights()[i];
+        ImGui::PushID((void*)&light);
+
+        if (ImGui::Selectable("light", light == &getLights()[mSelectedLightInGui])) {
+            ImGui::Text("%s", glm::to_string(light->mPosition).c_str());
+        }
+
+        ImGui::PopID();  // Pop the unique ID for this item
+    }
+    ImGui::EndChild();  // End the scrollable list
+
     //
 }
 
 void LightManager::nextLight() {
     mSelectedLightInGui = mSelectedLightInGui < mLights.size() - 1 ? mSelectedLightInGui + 1 : 0;
 }
+
+std::vector<Light>& LightManager::getLights() { return mLights; }

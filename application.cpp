@@ -47,7 +47,6 @@ static float far_plane_length = 50.0f;
 static float ddistance = 2.0f;
 static float dd = 5.0f;
 bool should_update_csm = true;
-extern float sunlength;
 
 double lastClickTime = 0.0;
 double lastClickX = 0.0;
@@ -1317,50 +1316,100 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    if (mSelectedModel) {
-        ImGui::Begin(mSelectedModel->getName().c_str());  // Create a window called "Hello, world!" and append into it.
+    if (ImGui::BeginTabBar("ObjectTabs")) {
+        if (ImGui::BeginTabItem("Scene")) {
+            ImGuiIO& io = ImGui::GetIO();
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+
+            if (ImGui::CollapsingHeader("Camera",
+                                        ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+                                                                            //
+                if (ImGui::SliderFloat("z-near", &znear, 0.0, 180.0f) ||
+                    ImGui::SliderFloat("z-far", &zfar, 0.0, 1000.0f) ||
+                    ImGui::DragFloat("FOV", &fov, 0.1, 0.0, 1000.0f)) {
+                    updateProjectionMatrix();
+                }
+
+                if (ImGui::Button("Reset to default Params")) {
+                    fov = 60.0f;
+                    znear = 0.01f;
+                    zfar = 200.0f;
+                    updateProjectionMatrix();
+                }
+            }
+
+            static glm::vec3 pointlightshadow = glm::vec3{5.6f, -2.1f, 6.0f};
+            if (ImGui::CollapsingHeader("Lights",
+                                        ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+                                                                            // ImGui::Begin("Lighting");
+                ImGui::Text("Directional Light");
+                if (ImGui::ColorEdit3("Color", glm::value_ptr(mLightingUniforms.colors[0])) ||
+                    ImGui::DragFloat3("Direction", glm::value_ptr(mLightingUniforms.directions[0]), 0.1, -1.0, 1.0)) {
+                    wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
+                                         sizeof(LightingUniforms));
+                }
+                ImGui::DragFloat3("sun pos direction", glm::value_ptr(pointlightshadow), 0.1, -10.0, 10.0);
+                static glm::vec3 new_ligth_position = {};
+                ImGui::InputFloat3("create new light at:", glm::value_ptr(new_ligth_position));
+                ImGui::SliderFloat("frustum split factor", &middle_plane_length, 1.0, 100);
+                ImGui::SliderFloat("far split factor", &far_plane_length, 1.0, 200);
+                ImGui::SliderFloat("visualizer", &mUniforms.time, -1.0, 1.0);
+                if (ImGui::InputInt("near far frstum", (int*)&which_frustum)) {
+                    /*auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());*/
+                }
+                ImGui::Text("Cascade number #%zu", which_frustum);
+
+                ImGui::Checkbox("shoud update csm", &should_update_csm);
+
+                mShadowPass->lightPos = pointlightshadow;
+
+                ImGui::Text("    ");
+                ImGui::Text("Point Lights");
+
+                mLightManager->renderGUI();
+
+
+            }
+
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Objects")) {
+            ImGui::BeginChild("ScrollableList", ImVec2(0, 200),
+                              ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY);
+
+            for (const auto& item : mLoadedModel) {
+                // Create a unique ID for each selectable item based on its unique item.id
+                ImGui::PushID((void*)item);
+
+                if (ImGui::Selectable(item->getName().c_str(),
+                                      mSelectedModel && item->getName() == mSelectedModel->getName())) {
+                    ImGui::Text("%s", item->getName().c_str());
+
+                    if (mSelectedModel) {
+                        mSelectedModel->selected(false);
+                    }
+                    mSelectedModel = item;
+                    mSelectedModel->selected(true);
+                }
+
+                ImGui::PopID();  // Pop the unique ID for this item
+            }
+            ImGui::EndChild();  // End the scrollable list
+
+            if (mSelectedModel) {
+                ImGui::Text("Model: %s, Meshes: %zu", mSelectedModel->getName().c_str(),
+                            mSelectedModel->mMeshes.size());
 
 #ifdef DEVELOPMENT_BUILD
-        mSelectedModel->userInterface();
+                mSelectedModel->userInterface();
 #endif  // DEVELOPMENT_BUILD
-
-        ImGui::SameLine();
-
-        ImGuiIO& io = ImGui::GetIO();
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-        ImGui::End();
+            }
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
     }
 
-    static glm::vec3 pointlightshadow = glm::vec3{5.6f, -2.1f, 6.0f};
-    ImGui::Begin("Lighting");
-    if (ImGui::ColorEdit3("Color #0", glm::value_ptr(mLightingUniforms.colors[0])) ||
-        ImGui::DragFloat3("Direction #0", glm::value_ptr(mLightingUniforms.directions[0]), 0.1, -1.0, 1.0)) {
-        wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
-                             sizeof(LightingUniforms));
-    }
-    ImGui::InputFloat("sun length", &sunlength);
-    // ImGui::ColorEdit3("Color #1", glm::value_ptr(mLightingUniforms.colors[1]));
-    ImGui::DragFloat3("sun pos direction", glm::value_ptr(pointlightshadow), 0.1, -10.0, 10.0);
-    static glm::vec3 new_ligth_position = {};
-    ImGui::InputFloat3("create new light at:", glm::value_ptr(new_ligth_position));
-    /*static float split_fcator = 1.0;*/
-    ImGui::SliderFloat("frustum split factor", &middle_plane_length, 1.0, 100);
-    ImGui::SliderFloat("far split factor", &far_plane_length, 1.0, 200);
-    ImGui::SliderFloat("visualizer", &mUniforms.time, -1.0, 1.0);
-    /*ImGui::SliderFloat("frustum split factor", &split_fcator, 1.0, 100);*/
-    if (ImGui::InputInt("near far frstum", (int*)&which_frustum)) {
-        /*auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());*/
-    }
-    ImGui::Text("Cascade number #%zu", which_frustum);
-
-    ImGui::Checkbox("shoud update csm", &should_update_csm);
-
-    static glm::vec3 water_orientation = glm::vec3{0.0f};
-    ImGui::InputFloat3("Water plane orientation:", glm::value_ptr(water_orientation));
-    if (ImGui::Button("Rotate", ImVec2(80, 30))) {
-    }
-
-    ImGui::End();
+    // ImGui::End();
 
     ImGui::Begin("Add Line");
 
@@ -1401,28 +1450,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui::SliderFloat("distance", &ddistance, 0.0, 30.0);
     ImGui::SliderFloat("dd", &dd, 0.0, 120.0);
     ImGui::Image((ImTextureID)(intptr_t)mBindingData[9].textureView, ImVec2(256, 256));
-    ImGui::End();
-    mShadowPass->lightPos = pointlightshadow;
-    /*mShadowPass->setupScene({1.0f, 1.0f, 4.0f});*/
-
-    ImGui::Begin("Point Light");
-
-    mLightManager->renderGUI();
-
-    float tmp_znear = znear;
-    ImGui::SliderFloat("z-near", &tmp_znear, 0.0, 180.0f);
-    if (tmp_znear != znear) {
-        znear = tmp_znear;
-        updateProjectionMatrix();
-    }
-
-    float tmp_zfar = zfar;
-    ImGui::SliderFloat("z-far", &tmp_zfar, 0.0, 1000.0f);
-    if (tmp_zfar != zfar) {
-        zfar = tmp_zfar;
-        updateProjectionMatrix();
-    }
-
     ImGui::End();
 
     // Draw the UI

@@ -11,7 +11,7 @@
 
 class Application;
 
-enum LightType : uint32_t { DIRECTIONAL = 1, SPOT, POINT};
+enum LightType : uint32_t { DIRECTIONAL = 1, SPOT, POINT };
 
 struct Light {
         glm::vec4 mPosition;
@@ -26,7 +26,7 @@ struct Light {
         LightType type;
         float mInnerCutoff;
         float mOuterCutoff;
-	float padding[2];
+        float padding[2];
 };
 
 class LightManager {
@@ -43,6 +43,7 @@ class LightManager {
         void renderGUI();
         void nextLight();
         Buffer& getCountBuffer();
+        std::vector<Light>& getLights();
 
     private:
         Application* mApp;
