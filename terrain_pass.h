@@ -46,4 +46,22 @@ class OutlinePass : public RenderPass {
         Application* mApp;
 };
 
+
+class ViewPort3DPass : public RenderPass {
+        void createRenderPass(WGPUTextureFormat textureFormat) override;
+
+    public:
+        explicit ViewPort3DPass(Application* app);
+        // BindingGroup mDepthTextureBindgroup;
+        // WGPUBindGroupLayout mLayerThree;
+	// WGPUTextureView mTextureView;
+        // std::vector<WGPUBindGroupEntry> mOutlineSpecificBindingData{1};
+	void createSomeBinding();
+
+        Pipeline* create(WGPUTextureFormat textureFormat);
+
+    private:
+        Application* mApp;
+};
+
 #endif  // !WEBGPUTEST_TERRAIN_PASS_H

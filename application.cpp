@@ -256,6 +256,9 @@ void Application::initializePipeline() {
     mOutlinePass = new OutlinePass{this};
     mOutlinePass->create(mSurfaceFormat, mDepthTextureViewDepthOnly);
 
+    m3DviewportPass = new ViewPort3DPass{this};
+    m3DviewportPass->create(mSurfaceFormat);
+
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
     mBindingData[0].buffer = mUniformBuffer;
@@ -892,7 +895,7 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder,
                                          (model->isSelected() ? mPipeline : mStenctilEnabledPipeline)->getPipeline());
 
-        if (!model->isTransparent()) {
+        if (!model->isTransparent() && model->getName() != "gizmo") {
             model->draw(this, render_pass_encoder, mBindingData);
         }
     }
@@ -945,6 +948,30 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderEnd(outline_pass_encoder);
     wgpuRenderPassEncoderRelease(outline_pass_encoder);
+
+    // outline pass
+    m3DviewportPass->setColorAttachment(
+        {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    m3DviewportPass->setDepthStencilAttachment({mDepthTextureView, StoreOp::Undefined, LoadOp::Undefined, true,
+                                                StoreOp::Undefined, LoadOp::Undefined, true, 0.0});
+    m3DviewportPass->init();
+
+    WGPURenderPassEncoder viewport_3d_pass_encoder =
+        wgpuCommandEncoderBeginRenderPass(encoder, m3DviewportPass->getRenderPassDescriptor());
+    wgpuRenderPassEncoderSetStencilReference(viewport_3d_pass_encoder, stencilReferenceValue);
+
+    // wgpuRenderPassEncoderSetBindGroup(viewport_3d_pass_encoder, 3,
+    // mOutlinePass->mDepthTextureBindgroup.getBindGroup(), 0, nullptr);
+
+    for (const auto& model : mLoadedModel) {
+        if (model->getName() == "gizmo") {
+            wgpuRenderPassEncoderSetPipeline(viewport_3d_pass_encoder, m3DviewportPass->getPipeline()->getPipeline());
+            model->draw(this, viewport_3d_pass_encoder, mBindingData);
+        }
+    }
+
+    wgpuRenderPassEncoderEnd(viewport_3d_pass_encoder);
+    wgpuRenderPassEncoderRelease(viewport_3d_pass_encoder);
 
     ModelRegistry::instance().tick(this);
     // ------------ 3- Transparent pass
@@ -1366,8 +1393,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
                 ImGui::Text("Point Lights");
 
                 mLightManager->renderGUI();
-
-
             }
 
             ImGui::EndTabItem();

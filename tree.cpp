@@ -273,9 +273,12 @@ struct GizmoModel : public IModel {
             mModel = new Model{};
 
             mModel->load("gizmo", app, RESOURCE_DIR "/gizmo/scene.gltf", app->getObjectBindGroupLayout())
-                .moveTo(glm::vec3{5.125, 2.239, -2.859})
+                .moveTo(glm::vec3{-6.883, 3.048, -1.709})
+		//
                 .scale(glm::vec3{0.1f});
+	    mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
             mModel->uploadToGPU(app);
+            mModel->getTranformMatrix();
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }

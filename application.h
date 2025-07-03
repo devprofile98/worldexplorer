@@ -83,7 +83,6 @@ class Application {
         void updateViewMatrix();
         void updateDragInertia();
 
-
         /*Model water{};*/
 
         std::vector<BaseModel*> mLoadedModel;
@@ -139,6 +138,7 @@ class Application {
         CompositionPass* mCompositionPass;
         TerrainPass* mTerrainPass;
         OutlinePass* mOutlinePass;
+        ViewPort3DPass* m3DviewportPass;
         WGPUSampler mDefaultSampler;
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();
