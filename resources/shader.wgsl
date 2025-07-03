@@ -142,7 +142,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     out.position = uMyUniform.projectionMatrix * out.viewSpacePos;
     out.worldPos = world_position.xyz;
     out.viewDirection = uMyUniform.cameraWorldPosition - world_position.xyz;
-    out.color = in.normal;
+    out.color = in.color;
     out.uv = in.uv;
 
     let T = normalize(vec3f((transform * vec4(in.tangent, 0.0)).xyz));
@@ -247,7 +247,11 @@ fn geometrySmith(N: vec3f, V: vec3f, L: vec3f, roughness: f32) -> f32 {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-	let frag_ambient = textureSample(diffuse_map, textureSampler, in.uv).rgba;
+	var frag_ambient = textureSample(diffuse_map, textureSampler, in.uv).rgba;
+	if ((in.materialProps & (1u << 0u))  != 1u) {
+		frag_ambient = vec4f(in.color.rgb, 1.0);
+
+	}
 	if (frag_ambient.a < 0.001 ) {
 		discard;
 	}
@@ -264,11 +268,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	  var N = normalize(TBN * normal);
     	  let V = normalize(in.viewDirection);
 
-	if ((in.materialProps & (1u << 1u))  == 2u){
+	if ((in.materialProps & (1u << 1u))  != 2u){
 	  N = in.normal;
 	}
 
-	if ((in.materialProps & (1u << 3u))  == 8u){
+	if ((in.materialProps & (1u << 3u))  != 8u){
 	  metallic = in.userSpecular;
 	}
 

@@ -1338,7 +1338,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
                 }
             }
 
-            static glm::vec3 pointlightshadow = glm::vec3{5.6f, -2.1f, 6.0f};
+            // static glm::vec3 pointlightshadow = glm::vec3{5.6f, -2.1f, 6.0f};
             if (ImGui::CollapsingHeader("Lights",
                                         ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
                                                                             // ImGui::Begin("Lighting");
@@ -1348,7 +1348,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
                     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                                          sizeof(LightingUniforms));
                 }
-                ImGui::DragFloat3("sun pos direction", glm::value_ptr(pointlightshadow), 0.1, -10.0, 10.0);
                 static glm::vec3 new_ligth_position = {};
                 ImGui::InputFloat3("create new light at:", glm::value_ptr(new_ligth_position));
                 ImGui::SliderFloat("frustum split factor", &middle_plane_length, 1.0, 100);
@@ -1361,7 +1360,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
                 ImGui::Checkbox("shoud update csm", &should_update_csm);
 
-                mShadowPass->lightPos = pointlightshadow;
+                mShadowPass->lightPos = mLightingUniforms.directions[0];
 
                 ImGui::Text("    ");
                 ImGui::Text("Point Lights");

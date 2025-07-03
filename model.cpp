@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <format>
 #include <iostream>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -19,6 +20,7 @@
 #include "glm/geometric.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/gtx/quaternion.hpp"
+#include "glm/gtx/string_cast.hpp"
 #include "glm/trigonometric.hpp"
 #include "imgui.h"
 #include "tinyobjloader/tiny_obj_loader.h"
@@ -142,6 +144,10 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
             vertex.normal = vector;
         }
 
+        aiColor4D baseColor(1.0f, 0.0f, 1.0f, 1.0f);
+        material->Get(AI_MATKEY_COLOR_DIFFUSE, baseColor);
+        vertex.color = glm::vec3(baseColor.r, baseColor.g, baseColor.b);
+
         if (mesh->mTextureCoords[0]) {
             glm::vec2 vec;
             vec.x = mesh->mTextureCoords[0][i].x;
@@ -179,10 +185,15 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
         std::cout << std::format(" -------------- Assimp - Succesfully loaded mesh at {}\n", mesh->mMaterialIndex);
     }
 
+    mObjectInfo.setFlag(MaterialProps::HasNormalMap, false);
+    mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, false);
+    mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, false);
+
     auto& render_resource = app->getRendererResource();
     auto& mmesh = mMeshes[mesh->mMaterialIndex];
     if (mmesh.mTexture == nullptr) {
         for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); i++) {
+            mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, true);
             aiString str;
             material->GetTexture(aiTextureType_DIFFUSE, i, &str);
             /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
@@ -199,6 +210,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
     }
     if (mmesh.mSpecularTexture == nullptr) {
         for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_SPECULAR); i++) {
+            mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, true);
             aiString str;
             material->GetTexture(aiTextureType_SPECULAR, i, &str);
             /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
@@ -215,6 +227,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
     }
     if (mmesh.mNormalMapTexture == nullptr) {
         for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_HEIGHT); i++) {
+            mObjectInfo.setFlag(MaterialProps::HasNormalMap, true);
             aiString str;
             material->GetTexture(aiTextureType_HEIGHT, i, &str);
             /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
@@ -629,17 +642,33 @@ void Model::userInterface() {
 
     // Determine the drag speed based on modifier keys
     float drag_speed = 1.0f;  // Default speed
+    bool lock_scale = false;
     if (io.KeyCtrl) {
         drag_speed = 0.1f;  // Finer control when Ctrl is held
     } else if (io.KeyShift) {
-        drag_speed = 10.0f;  // Faster control when Shift is held
+        lock_scale = true;
     }
 
     if (ImGui::CollapsingHeader("Transformations",
                                 ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
         ImGui::Text("Position:");
         ImGui::DragFloat3("Position", glm::value_ptr(mPosition), drag_speed);
-        ImGui::DragFloat3("Scale", glm::value_ptr(mScale), drag_speed);
+
+        if (ImGui::DragFloat("Scale x", &mScale.x, 0.01)) {
+            if (lock_scale) {
+                mScale = glm::vec3{mScale.x};
+            }
+        }
+        if (ImGui::DragFloat("Scale y", &mScale.y, 0.01)) {
+            if (lock_scale) {
+                mScale = glm::vec3{mScale.y};
+            }
+        }
+        if (ImGui::DragFloat("Scale z", &mScale.z, 0.01)) {
+            if (lock_scale) {
+                mScale = glm::vec3{mScale.z};
+            }
+        }
 
         if (ImGui::DragFloat3("Rotation", glm::value_ptr(mEulerRotation), drag_speed, 360.0f)) {
             glm::vec3 euler_radians = glm::radians(mEulerRotation);
@@ -667,7 +696,11 @@ void Model::userInterface() {
         if (ImGui::Checkbox("Has Specular Map", &has_specular)) {
             this->mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, has_specular);
         }
-        if (ImGui::SliderFloat("Roughness", &mObjectInfo.roughness, 0.0f, 1.0f)) {
+        bool has_diffuse = mObjectInfo.hasFlag(MaterialProps::HasDiffuseMap);
+        if (ImGui::Checkbox("Has Diffuse Map", &has_diffuse)) {
+            this->mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, has_diffuse);
+        }
+        if (ImGui::SliderFloat("Diffuse Value", &mObjectInfo.roughness, 0.0f, 1.0f)) {
         }
     }
 }

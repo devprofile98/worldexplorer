@@ -173,7 +173,7 @@ struct GrassModel : public IModel {
                     glm::rotate(glm::mat4{1.0f}, glm::radians(dist_for_rotation(gen)), glm::vec3{0.0, 0.0, 1.0});
                 auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2f * dist(gen)});
                 if (i % 5 == 0) {
-                dddata.push_back(trans * rotate * scale);
+                    dddata.push_back(trans * rotate * scale);
                 }
             }
 
@@ -274,7 +274,7 @@ struct GizmoModel : public IModel {
 
             mModel->load("gizmo", app, RESOURCE_DIR "/gizmo/scene.gltf", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{5.125, 2.239, -2.859})
-                .scale(glm::vec3{0.5f});
+                .scale(glm::vec3{0.1f});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
