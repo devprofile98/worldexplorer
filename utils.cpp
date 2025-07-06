@@ -3,8 +3,12 @@
 #include <format>
 #include <iostream>
 #include <numeric>
+#include <vector>
 
 #include "application.h"
+#include "glm/ext/quaternion_geometric.hpp"
+#include "glm/fwd.hpp"
+#include "model.h"
 #include "stb_image.h"
 #include "webgpu.h"
 
@@ -600,3 +604,110 @@ WGPUVertexBufferLayout VertexBufferLayout::configure(uint64_t arrayStride, Verte
 }
 
 WGPUVertexBufferLayout VertexBufferLayout::getLayout() { return mLayout; }
+
+bool intersection(const glm::vec3& ray_origin, const glm::vec3& ray_dir, const glm::vec3& box_min,
+                  const glm::vec3& box_max, glm::vec3* intersection_point) {
+    float tmin = 0.0, tmax = INFINITY;
+
+    for (int d = 0; d < 3; ++d) {
+        float t1 = (box_min[d] - ray_origin[d]) / ray_dir[d];
+        float t2 = (box_max[d] - ray_origin[d]) / ray_dir[d];
+
+        tmin = std::max(tmin, std::min(std::min(t1, t2), tmax));
+        tmax = std::min(tmax, std::max(std::max(t1, t2), tmin));
+    }
+
+    if (tmin < tmax && tmax >= 0.0f) {
+        if (intersection_point != nullptr) {
+            // If tmin < 0, the ray starts inside the box; use tmax (exit point)
+            float t = tmin >= 0.0f ? tmin : tmax;
+            *intersection_point = ray_origin + t * ray_dir;
+        }
+        return true;
+    }
+    return false;
+}
+
+float rayDotVector(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
+                   const glm::vec3& vec) {
+    auto [xpos, ypos] = mouseCoord;
+    double xndc = 2.0 * xpos / (float)width - 1.0;
+    double yndc = 1.0 - (2.0 * ypos) / (float)height;
+    glm::vec4 clip_coords = glm::vec4{xndc, yndc, 0.0, 1.0};
+    glm::vec4 eyecoord = glm::inverse(camera.getProjection()) * clip_coords;
+    eyecoord = glm::vec4{eyecoord.x, eyecoord.y, -1.0f, 0.0f};
+
+    // auto ray_origin = camera.getPos();
+
+    glm::vec4 worldray = glm::normalize(glm::inverse(camera.getView()) * eyecoord);
+    return glm::dot(glm::vec3{worldray}, vec);
+}
+
+BaseModel* testIntersection(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
+                            const ModelRegistry::ModelContainer& models) {
+    auto [xpos, ypos] = mouseCoord;
+    double xndc = 2.0 * xpos / (float)width - 1.0;
+    double yndc = 1.0 - (2.0 * ypos) / (float)height;
+    glm::vec4 clip_coords = glm::vec4{xndc, yndc, 0.0, 1.0};
+    glm::vec4 eyecoord = glm::inverse(camera.getProjection()) * clip_coords;
+    eyecoord = glm::vec4{eyecoord.x, eyecoord.y, -1.0f, 0.0f};
+
+    auto ray_origin = camera.getPos();
+
+    glm::vec4 worldray = glm::inverse(camera.getView()) * eyecoord;
+    auto normalized = glm::normalize(worldray);
+    for (auto& [name, obj] : models) {
+        auto [obj_in_world_min, obj_in_world_max] = obj->getWorldMin();
+        bool does_intersect = intersection(ray_origin, normalized, obj_in_world_min, obj_in_world_max);
+        if (does_intersect) {
+            return obj;
+        }
+    }
+    return nullptr;
+}
+
+std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
+                             const glm::vec3& min, const glm::vec3& max) {
+    auto [xpos, ypos] = mouseCoord;
+    double xndc = 2.0 * xpos / (float)width - 1.0;
+    double yndc = 1.0 - (2.0 * ypos) / (float)height;
+    glm::vec4 clip_coords = glm::vec4{xndc, yndc, 0.0, 1.0};
+    glm::vec4 eyecoord = glm::inverse(camera.getProjection()) * clip_coords;
+    eyecoord = glm::vec4{eyecoord.x, eyecoord.y, -1.0f, 0.0f};
+
+    auto ray_origin = camera.getPos();
+
+    glm::vec4 worldray = glm::inverse(camera.getView()) * eyecoord;
+    auto normalized = glm::normalize(worldray);
+    // auto [obj_in_world_min, obj_in_world_max] = obj->getWorldMin();
+    glm::vec3 data{};
+    auto res = intersection(ray_origin, normalized, min, max, &data);
+    return {res, data};
+}
+
+BaseModel* testIntersection2(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
+                             const std::vector<BaseModel*>& models) {
+    auto [xpos, ypos] = mouseCoord;
+    double xndc = 2.0 * xpos / (float)width - 1.0;
+    double yndc = 1.0 - (2.0 * ypos) / (float)height;
+    glm::vec4 clip_coords = glm::vec4{xndc, yndc, 0.0, 1.0};
+    glm::vec4 eyecoord = glm::inverse(camera.getProjection()) * clip_coords;
+    eyecoord = glm::vec4{eyecoord.x, eyecoord.y, -1.0f, 0.0f};
+
+    auto ray_origin = camera.getPos();
+
+    glm::vec4 worldray = glm::inverse(camera.getView()) * eyecoord;
+    auto normalized = glm::normalize(worldray);
+    for (auto& obj : models) {
+        if (obj == nullptr) {
+            std::cout << "I am Null\n";
+            continue;
+        }
+        auto [obj_in_world_min, obj_in_world_max] = obj->getWorldMin();
+        bool does_intersect = intersection(ray_origin, normalized, obj_in_world_min, obj_in_world_max);
+        if (does_intersect) {
+            return obj;
+        }
+    }
+    return nullptr;
+}

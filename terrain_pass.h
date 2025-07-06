@@ -52,12 +52,8 @@ class ViewPort3DPass : public RenderPass {
 
     public:
         explicit ViewPort3DPass(Application* app);
-        // BindingGroup mDepthTextureBindgroup;
-        // WGPUBindGroupLayout mLayerThree;
-	// WGPUTextureView mTextureView;
-        // std::vector<WGPUBindGroupEntry> mOutlineSpecificBindingData{1};
-	void createSomeBinding();
-
+        WGPUBindGroupLayout mLayerThree;
+        BindingGroup mLayerThreeBindgroup;
         Pipeline* create(WGPUTextureFormat textureFormat);
 
     private:

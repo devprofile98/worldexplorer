@@ -18,10 +18,16 @@ std::vector<std::string> ModelRegistry::getRegisteredNames() const {
     return names;
 }
 
-Model* ModelRegistry::create(Application* app, const std::string& name) const {
-    auto it = factories.find(name);
-    if (it != factories.end()) return it->second(app);
-    return nullptr;
+// LoadModelResult ModelRegistry::create(Application* app, const std::string& name) const {
+//     auto it = factories.find(name);
+//     if (it != factories.end()) return it->second(app);
+//     return {nullptr, Visibility_User};
+// }
+//
+//
+
+ModelRegistry::ModelContainer& ModelRegistry::getLoadedModel(ModelVisibility visibility) {
+    return mLoadedModels[visibility];
 }
 
 void ModelRegistry::tick(Application* app) {
@@ -33,8 +39,10 @@ void ModelRegistry::tick(Application* app) {
 
     for (auto it = futures.begin(); it != futures.end();) {
         if (it->wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
-            auto* model = it->get();
-            app->mLoadedModel.push_back(model);
+            LoadModelResult model = it->get();
+            auto &container = mLoadedModels[model.visibility];
+	    std::cout << "Model loaded with visibility " << model.visibility <<" " << container.size()<< std::endl;
+            container[model.model->getName()] = model.model;
             it = futures.erase(it);
         } else {
             it++;

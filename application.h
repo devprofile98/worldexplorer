@@ -12,6 +12,7 @@
 #include "gpu_buffer.h"
 #include "instance.h"
 #include "model.h"
+#include "model_registery.h"
 #include "pipeline.h"
 #include "point_light.h"
 #include "shapes.h"
@@ -21,6 +22,7 @@
 #include "transparency_pass.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
+#include "editor.h"
 
 class ShadowPass;
 
@@ -85,7 +87,7 @@ class Application {
 
         /*Model water{};*/
 
-        std::vector<BaseModel*> mLoadedModel;
+        // std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();
 
         InstanceManager* mInstanceManager;
@@ -119,6 +121,7 @@ class Application {
 
         WGPUBuffer mBuffer1;
         BindingGroup mDefaultTextureBindingGroup = {};
+        Editor mEditor;
 
     private:
         size_t mWindowWidth = 1920;
@@ -131,6 +134,8 @@ class Application {
         Pipeline* mStenctilEnabledPipeline;
         Cube* shapes;
         Plane* plane;
+
+        ModelRegistry mViewportModelRegistery;
 
         /*Line* line;*/
         ShadowPass* mShadowPass;

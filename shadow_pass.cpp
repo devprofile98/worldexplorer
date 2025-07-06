@@ -39,6 +39,7 @@ ShadowFrustum::ShadowFrustum(Application* app, WGPUTextureView renderTarget, WGP
 
 void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat) { (void)textureFormat; }
 void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascadeNumber) {
+    mNumOfCascades = cascadeNumber;
     mRenderTarget =
         new Texture{mApp->getRendererResource().device, static_cast<uint32_t>(2048), static_cast<uint32_t>(2048),
                     TextureDimension::TEX_2D, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};
@@ -53,7 +54,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
                                       5};
 
     mShadowDepthTexture->createViewArray(0, 5);
-    for (size_t c = 0; c < cascadeNumber; c++) {
+    for (size_t c = 0; c < mNumOfCascades; c++) {
         mSubFrustums.push_back(
             new ShadowFrustum{mApp, mRenderTarget->getTextureView(), mShadowDepthTexture->createViewDepthOnly2(c, 1)});
     }
@@ -258,9 +259,20 @@ WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor(size_t index) {
 
 WGPURenderPassDescriptor* ShadowFrustum::getRenderPassDescriptor() { return &mRenderPassDesc; }
 
-void ShadowPass::render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder, size_t which) {
+void ShadowPass::renderAllCascades(WGPUCommandEncoder encoder) {
+    for (size_t c = 0; c < mNumOfCascades; ++c) {
+        WGPURenderPassEncoder shadow_pass_encoder =
+            wgpuCommandEncoderBeginRenderPass(encoder, getRenderPassDescriptor(c));
+        wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder, getPipeline()->getPipeline());
+        render(ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User), shadow_pass_encoder, c);
+        wgpuRenderPassEncoderEnd(shadow_pass_encoder);
+        wgpuRenderPassEncoderRelease(shadow_pass_encoder);
+    }
+}
+
+void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEncoder encoder, size_t which) {
     /*auto& render_resource = mApp->getRendererResource();*/
-    for (auto* model : models) {
+    for (auto [name, model] : models) {
         for (auto& [mat_id, mesh] : model->mMeshes) {
             Buffer modelUniformBuffer = {};
             modelUniformBuffer.setLabel("Model Uniform Buffer")

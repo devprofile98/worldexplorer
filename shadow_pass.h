@@ -7,6 +7,7 @@
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "model.h"
+#include "model_registery.h"
 #include "pipeline.h"
 #include "renderpass.h"
 #include "texture.h"
@@ -36,7 +37,8 @@ class ShadowPass : public RenderPass {
 
         Pipeline* getPipeline();
         WGPUTextureView getShadowMapView();
-        void render(std::vector<BaseModel*> models, WGPURenderPassEncoder encoder, size_t which);
+        void render(ModelRegistry::ModelContainer& models, WGPURenderPassEncoder encoder, size_t which);
+        void renderAllCascades(WGPUCommandEncoder encoder);
         std::vector<Scene>& getScene();
 
         glm::vec3 lightPos = glm::vec3{0.0f};
@@ -54,13 +56,14 @@ class ShadowPass : public RenderPass {
         // sub frustums
         /*ShadowFrustum* mNearFrustum;*/
         /*ShadowFrustum* mFarFrustum;*/
-	std::vector<ShadowFrustum*> mSubFrustums;
+        std::vector<ShadowFrustum*> mSubFrustums;
 
     private:
         Application* mApp;
         // pipeline
         Pipeline* mRenderPipeline;
         // render pass
+	size_t mNumOfCascades;
 
         // bindings
         BindingGroup mBindingGroup;

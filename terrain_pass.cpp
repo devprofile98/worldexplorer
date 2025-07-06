@@ -1,5 +1,6 @@
 
 #include "terrain_pass.h"
+#include <cstdint>
 
 #include "application.h"
 #include "utils.h"
@@ -66,45 +67,27 @@ Pipeline* OutlinePass::create(WGPUTextureFormat textureFormat, WGPUTextureView t
     return mRenderPipeline;
 }
 
-// ----------------------------------- 3D viewport 3D item render pass
+// ----------------------------------- 3D viewport item render pass
 ViewPort3DPass::ViewPort3DPass(Application* app) {
     mApp = app;
+    mLayerThreeBindgroup.addBuffer(0,  //
+                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(int32_t));
 
-    // mDepthTextureBindgroup.addTexture(0,  //
-    //                                   BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
-    //                                   TextureViewDimension::VIEW_2D);
-    //
-    // mLayerThree = mDepthTextureBindgroup.createLayout(app, "layer three bidngroup");
+    mLayerThree = mLayerThreeBindgroup.createLayout(app, "layer three bidngroup");
 }
 
 void ViewPort3DPass::createRenderPass(WGPUTextureFormat textureFormat) {
-    // mDepthTextureBindgroup.create(mApp, mOutlineSpecificBindingData);
     auto* layouts = mApp->getBindGroupLayouts();
     mRenderPipeline = new Pipeline{mApp, {layouts[0], layouts[1], layouts[2] /*, mLayerThree*/}, "3D ViewPort Pass"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
-    // mRenderPipeline->setShader(RESOURCE_DIR "/outline.wgsl");
-    /*setDefaultActiveStencil(mRenderPipeline->getDepthStencilState());*/
+    mRenderPipeline->setShader(RESOURCE_DIR "/editor.wgsl");
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     setDefault(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->getDepthStencilState().format = WGPUTextureFormat_Depth24PlusStencil8;
     mRenderPipeline->createPipeline(mApp);
 }
 
-void ViewPort3DPass::createSomeBinding() {
-    // mOutlineSpecificBindingData[0] = {};
-    // mOutlineSpecificBindingData[0].nextInChain = nullptr;
-    // mOutlineSpecificBindingData[0].binding = 0;
-    // mOutlineSpecificBindingData[0].textureView = mTextureView;
-
-    // mDepthTextureBindgroup.create(mApp, mOutlineSpecificBindingData);
-}
-
 Pipeline* ViewPort3DPass::create(WGPUTextureFormat textureFormat) {
-    // mTextureView = textureview;
-    // mOutlineSpecificBindingData[0] = {};
-    // mOutlineSpecificBindingData[0].nextInChain = nullptr;
-    // mOutlineSpecificBindingData[0].binding = 0;
-    // mOutlineSpecificBindingData[0].textureView = mTextureView;
     createRenderPass(textureFormat);
     return mRenderPipeline;
 }

@@ -113,9 +113,6 @@ void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
 
 void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
     (void)scene;
-    /*std::vector<VertexAttributes> vertices;*/
-    /*std::vector<Texture_INT> textures;*/
-    /*std::vector<uint32_t> indices;*/
 
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
@@ -127,13 +124,13 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
         vector.y = mesh->mVertices[i].z;
         vector.z = mesh->mVertices[i].y;
 
-        min.x = std::min(min.x, vertex.position.x);
-        min.y = std::min(min.y, vertex.position.y);
-        min.z = std::min(min.z, vertex.position.z);
+        min.x = std::min(min.x, vector.x);
+        min.y = std::min(min.y, vector.y);
+        min.z = std::min(min.z, vector.z);
         /**/
-        max.x = std::max(max.x, vertex.position.x);
-        max.y = std::max(max.y, vertex.position.y);
-        max.z = std::max(max.z, vertex.position.z);
+        max.x = std::max(max.x, vector.x);
+        max.y = std::max(max.y, vector.y);
+        max.z = std::max(max.z, vector.z);
 
         vertex.position = vector;
 
@@ -414,6 +411,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         }
         auto& mesh = mMeshes[material_id];
         if (!material.diffuse_texname.empty()) {
+            mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, true);
             std::string texture_path = RESOURCE_DIR;
             texture_path += "/";
             texture_path += material.diffuse_texname;
@@ -427,6 +425,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
         // Load and upload specular texture
         if (!materials[material_id].specular_texname.empty()) {
+            mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, true);
             std::string texture_path = RESOURCE_DIR;
             texture_path += "/";
             texture_path += materials[material_id].specular_texname;
@@ -439,6 +438,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
         // Load and upload normal texture
         if (!materials[material_id].bump_texname.empty()) {
+            mObjectInfo.setFlag(MaterialProps::HasNormalMap, true);
             /*if (!materials[0].normal_texname.empty()) {*/
             std::string texture_path = RESOURCE_DIR;
             texture_path += "/";
@@ -486,7 +486,10 @@ Model& Model::useTexture(bool use) {
 
 Transform& Transform::moveBy(const glm::vec3& translationVec) {
     // justify position by the factor `m`
-    (void)translationVec;
+    // (void)translationVec;
+    mPosition += translationVec;
+    mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
+    getTranformMatrix();
     return *this;
 }
 
@@ -745,6 +748,37 @@ glm::vec3 AABB::getAABBSize() {
     float dz = std::abs(min.z - max.z);
 
     return glm::vec3{dx, dy, dz};
+}
+
+std::pair<glm::vec3, glm::vec3> BaseModel::getWorldSpaceAABB() {
+    glm::vec3 corners[8];
+    corners[0] = glm::vec3(min.x, min.y, min.z);
+    corners[1] = glm::vec3(max.x, min.y, min.z);
+    corners[2] = glm::vec3(min.x, max.y, min.z);
+    corners[3] = glm::vec3(min.x, min.y, max.z);
+    corners[4] = glm::vec3(max.x, max.y, min.z);
+    corners[5] = glm::vec3(max.x, min.y, max.z);
+    corners[6] = glm::vec3(min.x, max.y, max.z);
+    corners[7] = glm::vec3(max.x, max.y, max.z);
+
+    // 2. Initialize worldMin and worldMax
+    glm::vec3 worldMin(std::numeric_limits<float>::max());
+    glm::vec3 worldMax(std::numeric_limits<float>::lowest());  // Equivalent to -FLT_MAX
+
+    // 3. Transform each corner and update worldMin/worldMax
+    for (int i = 0; i < 8; ++i) {
+        glm::vec4 transformedCorner = this->getTranformMatrix() * glm::vec4(corners[i], 1.0f);
+
+        worldMin.x = glm::min(worldMin.x, transformedCorner.x);
+        worldMin.y = glm::min(worldMin.y, transformedCorner.y);
+        worldMin.z = glm::min(worldMin.z, transformedCorner.z);
+
+        worldMax.x = glm::max(worldMax.x, transformedCorner.x);
+        worldMax.y = glm::max(worldMax.y, transformedCorner.y);
+        worldMax.z = glm::max(worldMax.z, transformedCorner.z);
+    }
+
+    return {worldMin, worldMax};
 }
 
 std::pair<glm::vec3, glm::vec3> BaseModel::getWorldMin() {

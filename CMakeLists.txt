@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0...3.25)
 
 
 project(
-    LearnWebgpu
+	WorldExplorer
     VERSION 0.1.0
     LANGUAGES CXX C
 )
@@ -19,6 +19,8 @@ add_subdirectory(webgpu)
 
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+ set(CMAKE_BUILD_TYPE Release)
+
 
 add_executable(
     App 
@@ -46,6 +48,7 @@ add_executable(
     model_registery.cpp
     renderpass.cpp
 
+    editor.cpp
 
 
     tree.cpp

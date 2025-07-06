@@ -10,6 +10,7 @@
 
 #include "GLFW/glfw3.h"
 #include "composition_pass.h"
+#include "editor.h"
 #include "frustum_culling.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
@@ -22,6 +23,7 @@
 #include "imgui/backends/imgui_impl_wgpu.h"
 #include "imgui/imgui.h"
 #include "instance.h"
+#include "model.h"
 #include "model_registery.h"
 #include "pipeline.h"
 #include "point_light.h"
@@ -475,7 +477,7 @@ void Application::initializeBuffers() {
         .setMappedAtCraetion()
         .create(this);
 
-    mLightingUniforms.directions = {glm::vec4{0.5, 0.5, 0.4, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
+    mLightingUniforms.directions = {glm::vec4{0.7, 0.4, 1.0, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
     mLightingUniforms.colors = {glm::vec4{0.99, 1.0, 0.88, 1.0}, glm::vec4{0.6, 0.9, 1.0, 1.0}};
     wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
                          lighting_buffer_descriptor.size);
@@ -537,18 +539,20 @@ void onWindowResize(GLFWwindow* window, int width, int height) {
 /*static int WINDOW_HEIGHT = 1080;*/
 
 BaseModel* Application::getModelCounter() {
-    static size_t counter = 0;
-    if (mLoadedModel.size() == 0) {
-        return nullptr;
-    }
-
-    if (counter >= mLoadedModel.size()) {
-        counter = 0;
-    }
-    BaseModel* temp = mLoadedModel[counter];
-    counter++;
-    std::cout << "the counter is " << counter << std::endl;
-    return temp;
+    // static size_t counter = 0;
+    // auto& loadedModel =  ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User);
+    // if (loadedModel.size() == 0) {
+    //     return nullptr;
+    // }
+    //
+    // if (counter >= loadedModel.size()) {
+    //     counter = 0;
+    // }
+    // BaseModel* temp = loadedModel.begin()[0];
+    // counter++;
+    // std::cout << "the counter is " << counter << std::endl;
+    // return temp;
+    return nullptr;
 }
 
 bool Application::initialize() {
@@ -618,13 +622,13 @@ bool Application::initialize() {
         that->getCamera().processInput(key, scancode, action, mods);
 
         if (GLFW_KEY_KP_0 == key && action == GLFW_PRESS) {
-            BaseModel* model = that->getModelCounter();
-            that->getCamera().lookAtAABB(model);
-            if (that->mSelectedModel) {
-                that->mSelectedModel->selected(false);
-            }
-            that->mSelectedModel = model;
-            that->mSelectedModel->selected(true);
+            // BaseModel* model = that->getModelCounter();
+            // that->getCamera().lookAtAABB(model);
+            // if (that->mSelectedModel) {
+            //     that->mSelectedModel->selected(false);
+            // }
+            // that->mSelectedModel = model;
+            // that->mSelectedModel->selected(true);
 
         } else if (GLFW_KEY_KP_1 == key && action == GLFW_PRESS) {
             look_as_light = !look_as_light;
@@ -717,14 +721,14 @@ bool Application::initialize() {
     wgpuQueueSubmit(mRendererResource.queue, 1, &command);
     wgpuCommandBufferRelease(command);
 
-    mLoadedModel = {
+    // mLoadedModel = {
+    //
+    //     /*&water,*/
+    // };
 
-        /*&water,*/
-    };
-
-    for (auto& model : mLoadedModel) {
-        static_cast<Model*>(model)->createSomeBinding(this, mDefaultTextureBindingData);
-    }
+    // for (auto& model : mLoadedModel) {
+    //     static_cast<Model*>(model)->createSomeBinding(this, mDefaultTextureBindingData);
+    // }
 
     std::cout << "On rsize called +++++++++++++++++++++\n";
     return true;
@@ -768,9 +772,58 @@ void Application::mainLoop() {
     Frustum frustum{};
     /*frustum.extractPlanes(mCamera.getProjection() * mCamera.getView());*/
 
+    // --- find intersection between mouse cursor and ui objects in the scene
+    auto [w_width, w_height] = getWindowSize();
+    double xpos, ypos;
+    glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
+    auto intersected_model = GizmoElement::testSelection(mCamera, w_width, w_height, {xpos, ypos});
+
+    if (!GizmoElement::mIsLocked) {
+        if (intersected_model != nullptr) {
+            if (mEditor.mSelectedElement != nullptr) {
+                mEditor.mSelectedElement->selected(false);
+            }
+            mEditor.mSelectedElement = intersected_model;
+            mEditor.mSelectedElement->selected(true);
+            // std::cout << std::format("the ray {} intersect with {}\n", "", intersected_model->getName());
+        } else {
+            if (mEditor.mSelectedElement != nullptr) {
+                mEditor.mSelectedElement->selected(false);
+                mEditor.mSelectedElement = nullptr;
+            }
+        }
+    } else if (mSelectedModel != nullptr && mEditor.mSelectedElement != nullptr) {
+        glm::vec3 intersection_box_min;
+        glm::vec3 intersection_box_max;
+        float scalar = 100.0f;
+        if (mEditor.mSelectedElement == GizmoElement::x) {
+            intersection_box_min = {-scalar, mSelectedModel->getPosition().y, -scalar};
+            intersection_box_max = {scalar, mSelectedModel->getPosition().y + 1.0, scalar};
+            auto [res, data] = testIntersectionWithBox(mCamera, w_width, w_height, {xpos, ypos}, intersection_box_min,
+                                                       intersection_box_max);
+            mSelectedModel->moveTo({data.x, mSelectedModel->getPosition().y, mSelectedModel->getPosition().z});
+        } else if (mEditor.mSelectedElement == GizmoElement::y) {
+            // std::cout << "the Result for box intersection is "<< std::endl;
+            intersection_box_min = {mSelectedModel->getPosition().x, -scalar, -scalar};
+            intersection_box_max = {mSelectedModel->getPosition().x + 1, scalar, scalar};
+            auto [res, data] = testIntersectionWithBox(mCamera, w_width, w_height, {xpos, ypos}, intersection_box_min,
+                                                       intersection_box_max);
+            mSelectedModel->moveTo({mSelectedModel->getPosition().x, data.y, mSelectedModel->getPosition().z});
+        } else if (mEditor.mSelectedElement == GizmoElement::z) {
+            intersection_box_min = {-scalar, mSelectedModel->getPosition().y, -scalar};
+            intersection_box_max = {scalar, mSelectedModel->getPosition().y + 1.0, scalar};
+            auto [res, data] = testIntersectionWithBox(mCamera, w_width, w_height, {xpos, ypos}, intersection_box_min,
+                                                       intersection_box_max);
+            mSelectedModel->moveTo({mSelectedModel->getPosition().x, mSelectedModel->getPosition().y, data.z});
+        }
+
+        auto [min, max] = mSelectedModel->getWorldSpaceAABB();
+        GizmoElement::moveTo((max + min) / glm::vec3{2.0});
+    }
+
     // ---------------- 1 - Preparing for shadow pass ---------------
     // The first pass is the shadow pass, only based on the opaque objects
-
+    //
     if (!look_as_light && should_update_csm) {
         auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
         auto all_scenes = mShadowPass->createFrustumSplits(
@@ -789,33 +842,9 @@ void Application::mainLoop() {
                              sizeof(Scene) * all_scenes.size());
     }
 
-    // draw near
-    WGPURenderPassEncoder shadow_pass_encoder =
-        wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor(0));
-    wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder, mShadowPass->getPipeline()->getPipeline());
-    mShadowPass->render(mLoadedModel, shadow_pass_encoder, 0);
-
-    wgpuRenderPassEncoderEnd(shadow_pass_encoder);
-    wgpuRenderPassEncoderRelease(shadow_pass_encoder);
-
-    // draw far
-    WGPURenderPassEncoder shadow_pass_encoder2 =
-        wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor(1));
-    wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder2, mShadowPass->getPipeline()->getPipeline());
-    mShadowPass->render(mLoadedModel, shadow_pass_encoder2, 1);
-
-    wgpuRenderPassEncoderEnd(shadow_pass_encoder2);
-    wgpuRenderPassEncoderRelease(shadow_pass_encoder2);
-
-    // draw very far
-    WGPURenderPassEncoder shadow_pass_encoder3 =
-        wgpuCommandEncoderBeginRenderPass(encoder, mShadowPass->getRenderPassDescriptor(2));
-    wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder3, mShadowPass->getPipeline()->getPipeline());
-    mShadowPass->render(mLoadedModel, shadow_pass_encoder3, 2);
-
-    wgpuRenderPassEncoderEnd(shadow_pass_encoder3);
-    wgpuRenderPassEncoderRelease(shadow_pass_encoder3);
-
+    mShadowPass->renderAllCascades(encoder);
+    //-------------- End of shadow pass
+    //
     /*mUniforms.time = static_cast<float>(glfwGetTime());*/
     mUniforms.setCamera(mCamera);
     /*std::cout << "camera position is " << glm::to_string(getCamera().getPos()) << std::endl;*/
@@ -830,25 +859,8 @@ void Application::mainLoop() {
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, sizeof(MyUniform));
 
-    //-------------- End of shadow pass
     // ---------------- 2 - begining of the opaque object color pass ---------------
 
-    /*auto light_pass_descriptor =*/
-    /*    createRenderPassDescriptor(mLightViewSceneTexture->getTextureView(), mDepthTextureView);*/
-    /*WGPURenderPassEncoder light_space_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &light_pass_descriptor);*/
-    /**/
-    /*wgpuRenderPassEncoderSetPipeline(light_space_encoder, mPipeline2->getPipeline());*/
-    /*for (const auto& model : mLoadedModel) {*/
-    /*    if (!model->isTransparent()) {*/
-    /*        model->draw(this, light_space_encoder, mBindingData);*/
-    /*    }*/
-    /*}*/
-    /**/
-    /*terrain.draw(this, light_space_encoder, mBindingData);*/
-    /*wgpuRenderPassEncoderEnd(light_space_encoder);*/
-    /*wgpuRenderPassEncoderRelease(light_space_encoder);*/
-
-    // ------------------------------------
     /*auto render_pass_descriptor = createRenderPassDescriptor(target_view, mDepthTextureView);*/
     WGPURenderPassDescriptor render_pass_descriptor = {};
 
@@ -891,11 +903,11 @@ void Application::mainLoop() {
     int32_t stencilReferenceValue = 240;
     wgpuRenderPassEncoderSetStencilReference(render_pass_encoder, stencilReferenceValue);
 
-    for (const auto& model : mLoadedModel) {
+    for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder,
                                          (model->isSelected() ? mPipeline : mStenctilEnabledPipeline)->getPipeline());
 
-        if (!model->isTransparent() && model->getName() != "gizmo") {
+        if (!model->isTransparent()) {
             model->draw(this, render_pass_encoder, mBindingData);
         }
     }
@@ -939,7 +951,7 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetBindGroup(outline_pass_encoder, 3, mOutlinePass->mDepthTextureBindgroup.getBindGroup(), 0,
                                       nullptr);
 
-    for (const auto& model : mLoadedModel) {
+    for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
         if (model->isSelected()) {
             wgpuRenderPassEncoderSetPipeline(outline_pass_encoder, mOutlinePass->getPipeline()->getPipeline());
             model->draw(this, outline_pass_encoder, mBindingData);
@@ -960,14 +972,9 @@ void Application::mainLoop() {
         wgpuCommandEncoderBeginRenderPass(encoder, m3DviewportPass->getRenderPassDescriptor());
     wgpuRenderPassEncoderSetStencilReference(viewport_3d_pass_encoder, stencilReferenceValue);
 
-    // wgpuRenderPassEncoderSetBindGroup(viewport_3d_pass_encoder, 3,
-    // mOutlinePass->mDepthTextureBindgroup.getBindGroup(), 0, nullptr);
-
-    for (const auto& model : mLoadedModel) {
-        if (model->getName() == "gizmo") {
-            wgpuRenderPassEncoderSetPipeline(viewport_3d_pass_encoder, m3DviewportPass->getPipeline()->getPipeline());
-            model->draw(this, viewport_3d_pass_encoder, mBindingData);
-        }
+    for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_Editor)) {
+        wgpuRenderPassEncoderSetPipeline(viewport_3d_pass_encoder, m3DviewportPass->getPipeline()->getPipeline());
+        model->draw(this, viewport_3d_pass_encoder, mBindingData);
     }
 
     wgpuRenderPassEncoderEnd(viewport_3d_pass_encoder);
@@ -1188,21 +1195,6 @@ void Application::onMouseMove(double xpos, double ypos) {
     // }
 }
 
-bool intersection(const glm::vec3& ray_origin, const glm::vec3& ray_dir, const glm::vec3& box_min,
-                  const glm::vec3& box_max) {
-    float tmin = 0.0, tmax = INFINITY;
-
-    for (int d = 0; d < 3; ++d) {
-        float t1 = (box_min[d] - ray_origin[d]) / ray_dir[d];
-        float t2 = (box_max[d] - ray_origin[d]) / ray_dir[d];
-
-        tmin = std::max(tmin, std::min(std::min(t1, t2), tmax));
-        tmax = std::min(tmax, std::max(std::max(t1, t2), tmin));
-    }
-
-    return tmin < tmax;
-}
-
 const double DOUBLE_CLICK_TIME_THRESHOLD = 0.3;               // Time in seconds (e.g., 300 milliseconds)
 const double DOUBLE_CLICK_DISTANCE_THRESHOLD_SQ = 5.0 * 5.0;  // Max squared distance in pixels (e.g., 5x5 pixel area)
 
@@ -1217,53 +1209,45 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
     DragState& drag_state = mCamera.getDrag();
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         // calculating the NDC for x and y
+        auto [w_width, w_height] = getWindowSize();
+        double xpos, ypos;
+        glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
+
         if (action == GLFW_PRESS) {
-            double currentX, currentY;
-            glfwGetCursorPos(mRendererResource.window, &currentX, &currentY);  // Get current mouse position
-
-            double currentTime = glfwGetTime();  // Get current time
-            double deltaTime = currentTime - lastClickTime;
-            double distanceSq =
-                (currentX - lastClickX) * (currentX - lastClickX) + (currentY - lastClickY) * (currentY - lastClickY);
-
-            // Check if it's within the time and distance thresholds for a double-click
-
-            auto [w_width, w_height] = getWindowSize();
-            double xpos, ypos;
-            glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
-            double xndc = 2.0 * xpos / (float)w_width - 1.0;
-            double yndc = 1.0 - (2.0 * ypos) / (float)w_height;
-            glm::vec4 clip_coords = glm::vec4{xndc, yndc, 0.0, 1.0};
-            std::cout << clip_coords.x << ":" << clip_coords.y << std::endl;
-            glm::vec4 eyecoord = glm::inverse(mCamera.getProjection()) * clip_coords;
-            eyecoord = glm::vec4{eyecoord.x, eyecoord.y, -1.0f, 0.0f};
-
-            auto ray_origin = mCamera.getPos();
-
-            glm::vec4 worldray = glm::inverse(mCamera.getView()) * eyecoord;
-            auto normalized = glm::normalize(worldray);
-
-            for (auto* obj : mLoadedModel) {
-                auto [obj_in_world_min, obj_in_world_max] = obj->getWorldMin();
-                bool does_intersect = intersection(ray_origin, normalized, obj_in_world_min, obj_in_world_max);
-                if (does_intersect) {
-                    if (mSelectedModel) {
-                        mSelectedModel->selected(false);
-                    }
-                    mSelectedModel = obj;
-                    mSelectedModel->selected(true);
-                    if (deltaTime < DOUBLE_CLICK_TIME_THRESHOLD && distanceSq < DOUBLE_CLICK_DISTANCE_THRESHOLD_SQ) {
-                        std::cout << "double click detected" << std::endl;
-                        getCamera().lookAtAABB(obj);
-                    }
-                    std::cout << std::format("the ray {}intersect with {}\n", "", obj->getName());
-                    break;
-                }
+            if (mEditor.mSelectedElement == GizmoElement::center || mEditor.mSelectedElement == GizmoElement::x ||
+                mEditor.mSelectedElement == GizmoElement::y || mEditor.mSelectedElement == GizmoElement::z) {
+                GizmoElement::mIsLocked = true;
+                return;
             }
-
-            lastClickTime = currentTime;
-            lastClickX = currentX;
-            lastClickY = currentY;
+            auto intersected_model =
+                testIntersection(mCamera, w_width, w_height, {xpos, ypos},
+                                 ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User));
+            if (intersected_model != nullptr) {
+                if (mSelectedModel) {
+                    mSelectedModel->selected(false);
+                }
+                mSelectedModel = intersected_model;
+                mSelectedModel->selected(true);
+                auto& editor_elems = ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_Editor);
+                auto it = editor_elems.find("gizmo");
+                if (it != editor_elems.end() && editor_elems.contains("gizmo_x") && editor_elems.contains("gizmo_y") &&
+                    editor_elems.contains("gizmo_center")) {
+                    auto [min, max] = mSelectedModel->getWorldSpaceAABB();
+                    auto center = (min + max) / glm::vec3{2.0f};
+                    std::cout << "AABB for " << mSelectedModel->getName() << " is at " << glm::to_string(min) << " "
+                              << glm::to_string(max) << " Setting Gizmo at Center of the with center "
+                              << glm::to_string(center) << std::endl;
+                    it->second->moveTo(center);
+                    editor_elems.find("gizmo_x")->second->moveTo(center);
+                    editor_elems.find("gizmo_y")->second->moveTo(center);
+                    editor_elems.find("gizmo_center")->second->moveTo(center);
+                } else {
+                    std::cout << "Couldnt find the gizmo model " << mSelectedModel->getName() << std::endl;
+                }
+                std::cout << std::format("the ray {} intersect with {}\n", "", intersected_model->getName());
+            }
+        } else if (action == GLFW_RELEASE) {
+            GizmoElement::mIsLocked = false;
         }
 
     } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
@@ -1401,7 +1385,8 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
             ImGui::BeginChild("ScrollableList", ImVec2(0, 200),
                               ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY);
 
-            for (const auto& item : mLoadedModel) {
+            for (const auto& [name, item] :
+                 ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
                 // Create a unique ID for each selectable item based on its unique item.id
                 ImGui::PushID((void*)item);
 
@@ -1467,9 +1452,9 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         /*}*/
     }
     if (ImGui::Button("remove frustum", ImVec2(100, 30))) {
-        for (int i = 0; i < 24; i++) {
-            mLoadedModel.pop_back();
-        };
+        // for (int i = 0; i < 24; i++) {
+        //     mLoadedModel.pop_back();
+        // };
     }
     ImGui::SliderFloat("distance", &ddistance, 0.0, 30.0);
     ImGui::SliderFloat("dd", &dd, 0.0, 120.0);

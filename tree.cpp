@@ -1,6 +1,7 @@
 #include <random>
 
 #include "application.h"
+#include "model.h"
 #include "model_registery.h"
 
 struct TreeModel : public IModel {
@@ -16,7 +17,9 @@ struct TreeModel : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override {
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)params;
             std::random_device rd;   // Seed the random number generator
             std::mt19937 gen(rd());  // Mersenne Twister PRNG
             std::uniform_real_distribution<float> dist_for_rotation(0.0, 90.0);
@@ -56,7 +59,8 @@ struct BoatModel : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override {
+        void onLoad(Application* app, void* params) override {
+            (void)params;
             (void)app;
             mModel->moveTo(glm::vec3{2.0, -1., 1.});
         };
@@ -74,7 +78,10 @@ struct JetModel : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override { (void)app; };
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
 };
 
 struct CarModel : public IModel {
@@ -92,7 +99,11 @@ struct CarModel : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override { (void)app; };
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+
+            (void)app;
+        };
 };
 
 struct TowerModel : public IModel {
@@ -107,7 +118,10 @@ struct TowerModel : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override { (void)app; };
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
 };
 
 struct ArrowModel : public IModel {
@@ -122,7 +136,11 @@ struct ArrowModel : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override { (void)app; };
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+
+            (void)app;
+        };
 };
 
 struct DeskModel : public IModel {
@@ -137,7 +155,10 @@ struct DeskModel : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override { (void)app; };
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
 };
 
 struct GrassModel : public IModel {
@@ -154,7 +175,8 @@ struct GrassModel : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override {
+        void onLoad(Application* app, void* params) override {
+            (void)params;
             (void)app;
 
             std::vector<glm::mat4> dddata = {};
@@ -201,7 +223,10 @@ struct CylinderModel : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override { (void)app; };
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
 };
 
 struct SphereModel : public IModel {
@@ -217,7 +242,10 @@ struct SphereModel : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override { (void)app; };
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
 };
 
 struct Steampunk : public IModel {
@@ -233,7 +261,10 @@ struct Steampunk : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override { (void)app; };
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
 };
 
 struct Motor : public IModel {
@@ -249,7 +280,10 @@ struct Motor : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override { (void)app; };
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
 };
 
 struct SheepModel : public IModel {
@@ -265,36 +299,60 @@ struct SheepModel : public IModel {
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override { (void)app; };
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
 };
 
-struct GizmoModel : public IModel {
-        GizmoModel(Application* app) {
+struct HouseModel : public IModel {
+        HouseModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("gizmo", app, RESOURCE_DIR "/gizmo/scene.gltf", app->getObjectBindGroupLayout())
+            mModel->load("house", app, RESOURCE_DIR "/suburban_house/scene.gltf", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
-		//
-                .scale(glm::vec3{0.1f});
-	    mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
+                .scale(glm::vec3{0.001f});
             mModel->uploadToGPU(app);
-            mModel->getTranformMatrix();
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
 
         Model* getModel() override { return mModel; }
-        void onLoad(Application* app) override { (void)app; };
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
 };
-REGISTER_MODEL("tree", TreeModel);
-REGISTER_MODEL("boat", BoatModel);
-/*REGISTER_MODEL("jet", JetModel);*/
-REGISTER_MODEL("car", CarModel);
-REGISTER_MODEL("tower", TowerModel);
-REGISTER_MODEL("desk", DeskModel);
-REGISTER_MODEL("arrow", ArrowModel);
-REGISTER_MODEL("grass", GrassModel);
-REGISTER_MODEL("steampunk", Steampunk);
-/*REGISTER_MODEL("motor", Motor);*/
-REGISTER_MODEL("sheep", SheepModel);
-REGISTER_MODEL("gizmo", GizmoModel);
+
+struct CubeModel : public IModel {
+        CubeModel(Application* app) {
+            mModel = new Model{};
+
+            mModel->load("cube", app, RESOURCE_DIR "/cube.glb", app->getObjectBindGroupLayout())
+                .moveTo(glm::vec3{-6.883, 3.048, -1.709})
+                .scale(glm::vec3{0.2f});
+            mModel->uploadToGPU(app);
+            mModel->setTransparent(false);
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+        }
+
+        Model* getModel() override { return mModel; }
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
+};
+
+USER_REGISTER_MODEL("tree", TreeModel);
+USER_REGISTER_MODEL("boat", BoatModel);
+USER_REGISTER_MODEL("car", CarModel);
+USER_REGISTER_MODEL("tower", TowerModel);
+USER_REGISTER_MODEL("desk", DeskModel);
+USER_REGISTER_MODEL("arrow", ArrowModel);
+USER_REGISTER_MODEL("grass", GrassModel);
+USER_REGISTER_MODEL("steampunk", Steampunk);
+USER_REGISTER_MODEL("sheep", SheepModel);
+USER_REGISTER_MODEL("cube", CubeModel);
+// USER_REGISTER_MODEL("house", HouseModel);
+/*USER_REGISTER_MODEL("motor", Motor);*/
+/*USER_REGISTER_MODEL("jet", JetModel);*/

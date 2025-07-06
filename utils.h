@@ -8,9 +8,11 @@
 #include <string>
 #include <vector>
 
+#include "camera.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "model.h"
+#include "model_registery.h"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
 
@@ -38,7 +40,7 @@ struct Terrain {
         Terrain& generate(size_t gridSize, uint8_t octaves, std::vector<glm::vec3>& output);
         void draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData);
         void createSomeBinding(Application* app);
-	static float perlin(float x, float y);
+        static float perlin(float x, float y);
 
     private:
         WGPUBuffer mVertexBuffer;
@@ -84,6 +86,18 @@ struct VertexBufferLayout {
         WGPUVertexBufferLayout mLayout;
 };
 
+bool intersection(const glm::vec3& ray_origin, const glm::vec3& ray_dir, const glm::vec3& box_min,
+                  const glm::vec3& box_max, glm::vec3* intersection_point = nullptr);
+
+BaseModel* testIntersection(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
+                            const ModelRegistry::ModelContainer& models);
+BaseModel* testIntersection2(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
+                             const std::vector<BaseModel*>& models);
+float rayDotVector(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
+                   const glm::vec3& vec);
+
+std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
+                                   const glm::vec3& min, const glm::vec3& max);
 // Terrain generateTerrainVertices(size_t gridSize);
 
 #endif  //  TEST_WGPU_UTILS_H
