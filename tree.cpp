@@ -328,7 +328,7 @@ struct CubeModel : public IModel {
         CubeModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("cube", app, RESOURCE_DIR "/cube.glb", app->getObjectBindGroupLayout())
+            mModel->load("cube", app, RESOURCE_DIR "/new_cube.obj", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
                 .scale(glm::vec3{0.2f});
             mModel->uploadToGPU(app);
@@ -352,7 +352,7 @@ USER_REGISTER_MODEL("arrow", ArrowModel);
 USER_REGISTER_MODEL("grass", GrassModel);
 USER_REGISTER_MODEL("steampunk", Steampunk);
 USER_REGISTER_MODEL("sheep", SheepModel);
-USER_REGISTER_MODEL("cube", CubeModel);
+// USER_REGISTER_MODEL("cube", CubeModel);
 // USER_REGISTER_MODEL("house", HouseModel);
-/*USER_REGISTER_MODEL("motor", Motor);*/
+// USER_REGISTER_MODEL("motor", Motor);
 /*USER_REGISTER_MODEL("jet", JetModel);*/

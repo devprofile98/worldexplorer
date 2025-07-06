@@ -26,7 +26,7 @@
 #include "tinyobjloader/tiny_obj_loader.h"
 #include "webgpu.h"
 
-const char* model_name = "steampunk";
+const char* model_name = "cube1";
 
 Drawable::Drawable() {}
 
@@ -116,6 +116,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
 
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
+    size_t index_offset = mMeshes[mesh->mMaterialIndex].mVertexData.size();
     for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
         VertexAttributes vertex;
         glm::vec3 vector;
@@ -175,7 +176,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
         aiFace face = mesh->mFaces[i];
         for (uint32_t j = 0; j < face.mNumIndices; j++) {
             /*indices.push_back(face.mIndices[j]);*/
-            mMeshes[mesh->mMaterialIndex].mIndexData.push_back((uint32_t)face.mIndices[j]);
+            mMeshes[mesh->mMaterialIndex].mIndexData.push_back((uint32_t)face.mIndices[j] + index_offset);
         }
     }
     if (getName() == model_name) {
