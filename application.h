@@ -23,6 +23,7 @@
 #include "utils.h"
 #include "webgpu/webgpu.h"
 #include "editor.h"
+#include "input_manager.h"
 
 class ShadowPass;
 
@@ -89,6 +90,7 @@ class Application {
 
         // std::vector<BaseModel*> mLoadedModel;
         BaseModel* getModelCounter();
+	InputManager* mInputManager;
 
         InstanceManager* mInstanceManager;
         std::vector<glm::vec3> terrainData = {};
@@ -122,6 +124,7 @@ class Application {
         WGPUBuffer mBuffer1;
         BindingGroup mDefaultTextureBindingGroup = {};
         Editor mEditor;
+        BaseModel* mSelectedModel = nullptr;
 
     private:
         size_t mWindowWidth = 1920;
@@ -179,7 +182,6 @@ class Application {
 
         WGPURenderPipelineDescriptor mPipelineDescriptor;
 
-        BaseModel* mSelectedModel = nullptr;
         SkyBox* mSkybox;
 };
 

@@ -255,7 +255,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	if (frag_ambient.a < 0.001 ) {
 		discard;
 	}
-	let albedo = pow(frag_ambient.rgb, vec3f(1.0f));
+	let albedo = pow(frag_ambient.rgb, vec3f(1.5f));
         let material = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
 	let ao = material.r;
 	let roughness = material.g;
@@ -310,10 +310,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
 {
             let curr_light = lightingInfos.colors[0].rgb;
-	    let L = lightingInfos.directions[0].xyz; // normalize(curr_light.position.xyz - in.worldPos);
+	    let L = normalize(lightingInfos.directions[0].xyz); // normalize(curr_light.position.xyz - in.worldPos);
 	    let H = normalize(V + L);
-	    //let distance = length(curr_light.position.xyz - in.worldPos);
-	    //let attenuation = 1.0f / ( distance * distance);
 
 	    let radiance = lightingInfos.colors[0].rgb;
 

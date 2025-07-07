@@ -49,6 +49,7 @@ add_executable(
     renderpass.cpp
 
     editor.cpp
+    input_manager.cpp
 
 
     tree.cpp

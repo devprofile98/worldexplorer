@@ -538,22 +538,7 @@ void onWindowResize(GLFWwindow* window, int width, int height) {
 /*static int WINDOW_WIDTH = 1920;*/
 /*static int WINDOW_HEIGHT = 1080;*/
 
-BaseModel* Application::getModelCounter() {
-    // static size_t counter = 0;
-    // auto& loadedModel =  ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User);
-    // if (loadedModel.size() == 0) {
-    //     return nullptr;
-    // }
-    //
-    // if (counter >= loadedModel.size()) {
-    //     counter = 0;
-    // }
-    // BaseModel* temp = loadedModel.begin()[0];
-    // counter++;
-    // std::cout << "the counter is " << counter << std::endl;
-    // return temp;
-    return nullptr;
-}
+BaseModel* Application::getModelCounter() { return nullptr; }
 
 bool Application::initialize() {
     // We create a descriptor
@@ -575,41 +560,23 @@ bool Application::initialize() {
         glfwTerminate();
         return false;
     }
+    glfwMakeContextCurrent(provided_window);  // window: your GLFWwindow*
     glfwSwapInterval(0);
     // Set up Callbacks
     glfwSetWindowUserPointer(provided_window, this);  // set user pointer to be used in the callback function
     glfwSetFramebufferSizeCallback(provided_window, onWindowResize);
-    glfwSetCursorPosCallback(provided_window, [](GLFWwindow* window, double xpos, double ypos) {
-        auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
-        // if (that != nullptr) that->onMouseMove(xpos, ypos);
+    glfwSetCursorPosCallback(provided_window, InputManager::handleMouseMove);
+    Screen::instance().initialize(this);
+    InputManager::instance().mMouseMoveListeners.push_back(&Screen::instance());
+    InputManager::instance().mMouseButtonListeners.push_back(&Screen::instance());
+    InputManager::instance().mMouseMoveListeners.push_back(&mEditor.gizmo);
+    InputManager::instance().mMouseButtonListeners.push_back(&mEditor.gizmo);
 
-        if (that != nullptr) {
-            DragState& drag_state = that->getCamera().getDrag();
-            if (drag_state.active) that->getCamera().processMouse(xpos, ypos);
-        }
-
-        auto [window_width, window_height] = that->getWindowSize();
-        if (ypos <= 0) {
-            glfwSetCursorPos(window, xpos, window_height - 1);
-            if (that != nullptr) that->getCamera().updateCursor(xpos, window_height - 1);
-        } else if (ypos > window_height - 20) {
-            glfwSetCursorPos(window, xpos, 1);
-            if (that != nullptr) that->getCamera().updateCursor(xpos, 1);
-        }
-
-        if (xpos <= 0) {
-            glfwSetCursorPos(window, window_width - 1, ypos);
-            if (that != nullptr) that->getCamera().updateCursor(window_width - 1, ypos);
-        } else if (xpos >= window_width - 1) {
-            glfwSetCursorPos(window, 1, ypos);
-            if (that != nullptr) that->getCamera().updateCursor(1, ypos);
-        }
-    });
-
-    glfwSetMouseButtonCallback(provided_window, [](GLFWwindow* window, int button, int action, int mods) {
-        auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
-        if (that != nullptr) that->onMouseButton(button, action, mods);
-    });
+    glfwSetMouseButtonCallback(provided_window, InputManager::handleButton);
+    // glfwSetMouseButtonCallback(provided_window, [](GLFWwindow* window, int button, int action, int mods) {
+    //     auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+    //     if (that != nullptr) that->onMouseButton(button, action, mods);
+    // });
     glfwSetScrollCallback(provided_window, [](GLFWwindow* window, double xoffset, double yoffset) {
         auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
         (void)xoffset;
@@ -771,55 +738,6 @@ void Application::mainLoop() {
 
     Frustum frustum{};
     /*frustum.extractPlanes(mCamera.getProjection() * mCamera.getView());*/
-
-    // --- find intersection between mouse cursor and ui objects in the scene
-    auto [w_width, w_height] = getWindowSize();
-    double xpos, ypos;
-    glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
-    auto intersected_model = GizmoElement::testSelection(mCamera, w_width, w_height, {xpos, ypos});
-
-    if (!GizmoElement::mIsLocked) {
-        if (intersected_model != nullptr) {
-            if (mEditor.mSelectedElement != nullptr) {
-                mEditor.mSelectedElement->selected(false);
-            }
-            mEditor.mSelectedElement = intersected_model;
-            mEditor.mSelectedElement->selected(true);
-            // std::cout << std::format("the ray {} intersect with {}\n", "", intersected_model->getName());
-        } else {
-            if (mEditor.mSelectedElement != nullptr) {
-                mEditor.mSelectedElement->selected(false);
-                mEditor.mSelectedElement = nullptr;
-            }
-        }
-    } else if (mSelectedModel != nullptr && mEditor.mSelectedElement != nullptr) {
-        glm::vec3 intersection_box_min;
-        glm::vec3 intersection_box_max;
-        float scalar = 100.0f;
-        if (mEditor.mSelectedElement == GizmoElement::x) {
-            intersection_box_min = {-scalar, mSelectedModel->getPosition().y, -scalar};
-            intersection_box_max = {scalar, mSelectedModel->getPosition().y + 1.0, scalar};
-            auto [res, data] = testIntersectionWithBox(mCamera, w_width, w_height, {xpos, ypos}, intersection_box_min,
-                                                       intersection_box_max);
-            mSelectedModel->moveTo({data.x, mSelectedModel->getPosition().y, mSelectedModel->getPosition().z});
-        } else if (mEditor.mSelectedElement == GizmoElement::y) {
-            // std::cout << "the Result for box intersection is "<< std::endl;
-            intersection_box_min = {mSelectedModel->getPosition().x, -scalar, -scalar};
-            intersection_box_max = {mSelectedModel->getPosition().x + 1, scalar, scalar};
-            auto [res, data] = testIntersectionWithBox(mCamera, w_width, w_height, {xpos, ypos}, intersection_box_min,
-                                                       intersection_box_max);
-            mSelectedModel->moveTo({mSelectedModel->getPosition().x, data.y, mSelectedModel->getPosition().z});
-        } else if (mEditor.mSelectedElement == GizmoElement::z) {
-            intersection_box_min = {-scalar, mSelectedModel->getPosition().y, -scalar};
-            intersection_box_max = {scalar, mSelectedModel->getPosition().y + 1.0, scalar};
-            auto [res, data] = testIntersectionWithBox(mCamera, w_width, w_height, {xpos, ypos}, intersection_box_min,
-                                                       intersection_box_max);
-            mSelectedModel->moveTo({mSelectedModel->getPosition().x, mSelectedModel->getPosition().y, data.z});
-        }
-
-        auto [min, max] = mSelectedModel->getWorldSpaceAABB();
-        GizmoElement::moveTo((max + min) / glm::vec3{2.0});
-    }
 
     // ---------------- 1 - Preparing for shadow pass ---------------
     // The first pass is the shadow pass, only based on the opaque objects
@@ -1214,8 +1132,8 @@ void Application::onMouseButton(int button, int action, int /* modifiers */) {
         glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
 
         if (action == GLFW_PRESS) {
-            if (mEditor.mSelectedElement == GizmoElement::center || mEditor.mSelectedElement == GizmoElement::x ||
-                mEditor.mSelectedElement == GizmoElement::y || mEditor.mSelectedElement == GizmoElement::z) {
+            if (GizmoElement::mSelectedPart == GizmoElement::center || GizmoElement::mSelectedPart == GizmoElement::x ||
+                GizmoElement::mSelectedPart == GizmoElement::y || GizmoElement::mSelectedPart == GizmoElement::z) {
                 GizmoElement::mIsLocked = true;
                 return;
             }
@@ -1425,7 +1343,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     static glm::vec3 start = glm::vec3{0.0f};
     static glm::vec3 end = glm::vec3{0.0f};
     static glm::vec3 color = glm::vec3{0.0f};
-    /*static glm::vec3 color2 = glm::vec3{0.0f};*/
 
     ImGui::InputFloat3("Start", glm::value_ptr(start));
     ImGui::InputFloat3("End", glm::value_ptr(end));
