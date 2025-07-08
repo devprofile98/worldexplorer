@@ -22,6 +22,7 @@
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_wgpu.h"
 #include "imgui/imgui.h"
+#include "input_manager.h"
 #include "instance.h"
 #include "model.h"
 #include "model_registery.h"
@@ -538,8 +539,6 @@ void onWindowResize(GLFWwindow* window, int width, int height) {
 /*static int WINDOW_WIDTH = 1920;*/
 /*static int WINDOW_HEIGHT = 1080;*/
 
-BaseModel* Application::getModelCounter() { return nullptr; }
-
 bool Application::initialize() {
     // We create a descriptor
 
@@ -566,44 +565,37 @@ bool Application::initialize() {
     glfwSetWindowUserPointer(provided_window, this);  // set user pointer to be used in the callback function
     glfwSetFramebufferSizeCallback(provided_window, onWindowResize);
     glfwSetCursorPosCallback(provided_window, InputManager::handleMouseMove);
+    glfwSetMouseButtonCallback(provided_window, InputManager::handleButton);
+    glfwSetScrollCallback(provided_window, InputManager::handleScroll);
+    glfwSetKeyCallback(provided_window, InputManager::handleKeyboard);
+
     Screen::instance().initialize(this);
     InputManager::instance().mMouseMoveListeners.push_back(&Screen::instance());
     InputManager::instance().mMouseButtonListeners.push_back(&Screen::instance());
     InputManager::instance().mMouseMoveListeners.push_back(&mEditor.gizmo);
     InputManager::instance().mMouseButtonListeners.push_back(&mEditor.gizmo);
+    InputManager::instance().mMouseScrollListeners.push_back(&Screen::instance());
+    InputManager::instance().mKeyListener.push_back(&Screen::instance());
 
-    glfwSetMouseButtonCallback(provided_window, InputManager::handleButton);
-    // glfwSetMouseButtonCallback(provided_window, [](GLFWwindow* window, int button, int action, int mods) {
+    // glfwSetKeyCallback(provided_window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
     //     auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
-    //     if (that != nullptr) that->onMouseButton(button, action, mods);
+    //     that->getCamera().processInput(key, scancode, action, mods);
+    //
+    //     if (GLFW_KEY_KP_0 == key && action == GLFW_PRESS) {
+    //         // that->getCamera().lookAtAABB(model);
+    //         // if (that->mSelectedModel) {
+    //         //     that->mSelectedModel->selected(false);
+    //         // }
+    //         // that->mSelectedModel = model;
+    //         // that->mSelectedModel->selected(true);
+    //
+    //     } else if (GLFW_KEY_KP_1 == key && action == GLFW_PRESS) {
+    //         look_as_light = !look_as_light;
+    //
+    //     } else if (GLFW_KEY_KP_2 == key && action == GLFW_PRESS) {
+    //         that->mLightManager->nextLight();
+    //     }
     // });
-    glfwSetScrollCallback(provided_window, [](GLFWwindow* window, double xoffset, double yoffset) {
-        auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
-        (void)xoffset;
-        // if (that != nullptr) that->onScroll(xoffset, yoffset);
-        if (that != nullptr) that->getCamera().processScroll(yoffset);
-    });
-
-    glfwSetKeyCallback(provided_window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
-        auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
-        that->getCamera().processInput(key, scancode, action, mods);
-
-        if (GLFW_KEY_KP_0 == key && action == GLFW_PRESS) {
-            // BaseModel* model = that->getModelCounter();
-            // that->getCamera().lookAtAABB(model);
-            // if (that->mSelectedModel) {
-            //     that->mSelectedModel->selected(false);
-            // }
-            // that->mSelectedModel = model;
-            // that->mSelectedModel->selected(true);
-
-        } else if (GLFW_KEY_KP_1 == key && action == GLFW_PRESS) {
-            look_as_light = !look_as_light;
-
-        } else if (GLFW_KEY_KP_2 == key && action == GLFW_PRESS) {
-            that->mLightManager->nextLight();
-        }
-    });
 
     WGPUInstanceDescriptor desc = {};
     desc.nextInChain = nullptr;
@@ -731,7 +723,7 @@ void Application::mainLoop() {
     encoder_descriptor.nextInChain = nullptr;
     encoder_descriptor.label = "command encoder descriptor";
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, &encoder_descriptor);
-    updateDragInertia();
+    // updateDragInertia();
 
     // preprocessing
     // doing frustum culling
@@ -1088,130 +1080,6 @@ void Application::updateProjectionMatrix() {
     float ratio = width / (float)height;
     mUniforms.projectMatrix = glm::perspective(fov * Camera::PI / 180, ratio, znear, zfar);
     mCamera.setProjection(mUniforms.projectMatrix);
-    /*frustum_projection = mUniforms.projectMatrix;*/
-
-    /*wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, offsetof(MyUniform, projectMatrix),*/
-    /*                     &mUniforms.projectMatrix, sizeof(MyUniform::projectMatrix));*/
-}
-
-void Application::onMouseMove(double xpos, double ypos) {
-    (void)xpos;
-    (void)ypos;
-
-    // CameraState& camera_state = mCamera.getSate();
-    // DragState& drag_state = mCamera.getDrag();
-    // if (drag_state.active) {
-    //     glm::vec2 currentMouse = glm::vec2(-(float)xpos, (float)ypos);
-    //     glm::vec2 delta = (currentMouse - drag_state.startMouse) * drag_state.sensitivity;
-    //     camera_state.angles = drag_state.startCameraState.angles + delta;
-    //     // Clamp to avoid going too far when orbitting up/down
-    //     camera_state.angles.y = glm::clamp(camera_state.angles.y, -Camera::PI / 2 + 1e-5f, Camera::PI / 2 - 1e-5f);
-    //     updateViewMatrix();
-    //     // Inertia
-    //     drag_state.velocity = delta - drag_state.previousDelta;
-    //     drag_state.previousDelta = delta;
-    // }
-}
-
-const double DOUBLE_CLICK_TIME_THRESHOLD = 0.3;               // Time in seconds (e.g., 300 milliseconds)
-const double DOUBLE_CLICK_DISTANCE_THRESHOLD_SQ = 5.0 * 5.0;  // Max squared distance in pixels (e.g., 5x5 pixel area)
-
-void Application::onMouseButton(int button, int action, int /* modifiers */) {
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse) {
-        // Don't rotate the camera if the mouse is already captured by an ImGui
-        // interaction at this frame.
-        return;
-    }
-    // CameraState& camera_state = mCamera.getSate();
-    DragState& drag_state = mCamera.getDrag();
-    if (button == GLFW_MOUSE_BUTTON_LEFT) {
-        // calculating the NDC for x and y
-        auto [w_width, w_height] = getWindowSize();
-        double xpos, ypos;
-        glfwGetCursorPos(mRendererResource.window, &xpos, &ypos);
-
-        if (action == GLFW_PRESS) {
-            if (GizmoElement::mSelectedPart == GizmoElement::center || GizmoElement::mSelectedPart == GizmoElement::x ||
-                GizmoElement::mSelectedPart == GizmoElement::y || GizmoElement::mSelectedPart == GizmoElement::z) {
-                GizmoElement::mIsLocked = true;
-                return;
-            }
-            auto intersected_model =
-                testIntersection(mCamera, w_width, w_height, {xpos, ypos},
-                                 ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User));
-            if (intersected_model != nullptr) {
-                if (mSelectedModel) {
-                    mSelectedModel->selected(false);
-                }
-                mSelectedModel = intersected_model;
-                mSelectedModel->selected(true);
-                auto& editor_elems = ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_Editor);
-                auto it = editor_elems.find("gizmo");
-                if (it != editor_elems.end() && editor_elems.contains("gizmo_x") && editor_elems.contains("gizmo_y") &&
-                    editor_elems.contains("gizmo_center")) {
-                    auto [min, max] = mSelectedModel->getWorldSpaceAABB();
-                    auto center = (min + max) / glm::vec3{2.0f};
-                    std::cout << "AABB for " << mSelectedModel->getName() << " is at " << glm::to_string(min) << " "
-                              << glm::to_string(max) << " Setting Gizmo at Center of the with center "
-                              << glm::to_string(center) << std::endl;
-                    it->second->moveTo(center);
-                    editor_elems.find("gizmo_x")->second->moveTo(center);
-                    editor_elems.find("gizmo_y")->second->moveTo(center);
-                    editor_elems.find("gizmo_center")->second->moveTo(center);
-                } else {
-                    std::cout << "Couldnt find the gizmo model " << mSelectedModel->getName() << std::endl;
-                }
-                std::cout << std::format("the ray {} intersect with {}\n", "", intersected_model->getName());
-            }
-        } else if (action == GLFW_RELEASE) {
-            GizmoElement::mIsLocked = false;
-        }
-
-    } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
-        switch (action) {
-            case GLFW_PRESS:
-                drag_state.active = true;
-                drag_state.firstMouse = true;
-                break;
-            case GLFW_RELEASE:
-                drag_state.active = false;
-                drag_state.firstMouse = false;
-                /*if (mSelectedModel != nullptr) {*/
-                /*    mSelectedModel->selected(false);*/
-                /*    mSelectedModel = nullptr;*/
-                /*}*/
-                break;
-        }
-    }
-}
-
-void Application::onScroll(double /* xoffset */, double yoffset) {
-    (void)yoffset;
-    // CameraState& camera_state = mCamera.getSate();
-    // DragState& drag_state = mCamera.getDrag();
-    // camera_state.zoom += drag_state.scrollSensitivity * static_cast<float>(yoffset);
-    // camera_state.zoom = glm::clamp(camera_state.zoom, -30.0f, 30.0f);
-    updateViewMatrix();
-}
-
-void Application::updateDragInertia() {
-    // constexpr float eps = 1e-4f;
-    // CameraState& camera_state = mCamera.getSate();
-    // DragState& drag_state = mCamera.getDrag();
-    // // Apply inertia only when the user released the click.
-    // if (!drag_state.active) {
-    //     // Avoid updating the matrix when the velocity is no longer noticeable
-    //     if (std::abs(drag_state.velocity.x) < eps && std::abs(drag_state.velocity.y) < eps) {
-    //         return;
-    //     }
-    //     camera_state.angles += drag_state.velocity;
-    //     camera_state.angles.y = glm::clamp(camera_state.angles.y, -Camera::PI / 2 + 1e-5f, Camera::PI / 2 - 1e-5f);
-    //     // Dampen the velocity so that it decreases exponentially and stops
-    //     // after a few frames.
-    //     drag_state.velocity *= drag_state.intertia;
-    //     updateViewMatrix();
-    // }
 }
 
 // called in onInit

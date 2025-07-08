@@ -141,7 +141,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     out.normal = (transform * vec4f(in.normal, 0.0)).xyz;
     //let color = min(max(abs(out.viewSpacePos.z) / 20.0, 0.02), 0.04);
     let color = max(pow(clamp(abs(out.viewSpacePos.z), 0.0, 10.0), 2.0) / 1250.0, 0.02);
-    let extruded_position = transform * vec4f(in.position + in.normal * color , 1.0);
+    let extruded_position = transform * vec4f(in.position + normalize(in.normal) * color , 1.0);
     out.viewSpacePos = uMyUniform.viewMatrix * extruded_position;
 
     out.position = uMyUniform.projectionMatrix * out.viewSpacePos;

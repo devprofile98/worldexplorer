@@ -30,11 +30,16 @@ struct Editor {
         GizmoElement gizmo;
 };
 
-class Screen : public MouseMoveListener, public MouseButtonListener {
+class Screen : public MouseMoveListener,
+               public MouseButtonListener,
+               public MouseScrollListener,
+               public KeyboardListener {
     public:
         static void initialize(Application* app);
         void onMouseMove(MouseEvent event) override;
         void onMouseClick(MouseEvent event) override;
+        void onMouseScroll(MouseEvent event) override;
+        void onKey(KeyEvent event) override;
         static Screen& instance();
 
     private:

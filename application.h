@@ -9,7 +9,9 @@
 #include "binding_group.h"
 #include "camera.h"
 #include "composition_pass.h"
+#include "editor.h"
 #include "gpu_buffer.h"
+#include "input_manager.h"
 #include "instance.h"
 #include "model.h"
 #include "model_registery.h"
@@ -22,8 +24,6 @@
 #include "transparency_pass.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
-#include "editor.h"
-#include "input_manager.h"
 
 class ShadowPass;
 
@@ -74,29 +74,21 @@ class Application {
         void onResize();
         void updateProjectionMatrix();
 
-        // Mouse events
-        void onMouseMove(double xpos, double ypos);
-        void onMouseButton(int button, int action, int mods);
-        void onScroll(double xoffset, double yoffset);
-
         bool initSwapChain();
         bool initDepthBuffer();
         void terminateSwapChain();
         void terminateDepthBuffer();
         void updateViewMatrix();
-        void updateDragInertia();
 
-        /*Model water{};*/
-
-        // std::vector<BaseModel*> mLoadedModel;
-        BaseModel* getModelCounter();
-	InputManager* mInputManager;
-
+        InputManager* mInputManager;
         InstanceManager* mInstanceManager;
+
         std::vector<glm::vec3> terrainData = {};
-        bool initGui();                                    // called in onInit
-        void terminateGui();                               // called in onFinish
-        void updateGui(WGPURenderPassEncoder renderPass);  // called in onFrame
+
+        bool initGui();
+        void terminateGui();
+
+        void updateGui(WGPURenderPassEncoder renderPass);
 
         // Getters
         RendererResource& getRendererResource();

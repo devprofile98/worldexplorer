@@ -18,23 +18,30 @@ void InputManager::handleMouseMove(GLFWwindow* window, double xPos, double yPos)
 }
 
 void InputManager::handleButton(GLFWwindow* window, int click, int action, int mods) {
-    (void)window;
-    (void)click;
-    (void)action;
-    (void)mods;
-
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
 
     MouseEvent event = Click{window, xpos, ypos, click, action, mods};
-    std::cout << "sdfsdfsdf " << instance().mMouseButtonListeners.size() << " " << click << " "
-              << (std::get<Click>(event).click) << std::endl;
 
     for (auto* listener : instance().mMouseButtonListeners) {
         listener->onMouseClick(event);
     }
 }
 
+void InputManager::handleScroll(GLFWwindow* window, double xOffset, double yOffset) {
+    MouseEvent event = Scroll{window, xOffset, yOffset};
+    for (auto* listener : instance().mMouseScrollListeners) {
+        listener->onMouseScroll(event);
+    }
+}
+
 void InputManager::setCursorPosition(GLFWwindow* window, double xPos, double yPos) {
     glfwSetCursorPos(window, xPos, yPos);
+}
+
+void InputManager::handleKeyboard(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    KeyEvent event = Keyboard{window, key, scancode, action, mods};
+    for (auto* listener : instance().mKeyListener) {
+        listener->onKey(event);
+    }
 }

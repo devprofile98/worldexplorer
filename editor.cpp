@@ -24,12 +24,27 @@ void GizmoElement::moveTo(const glm::vec3 position) {
 
 void GizmoElement::onMouseClick(MouseEvent event) {
     auto click = std::get<Click>(event);
-    if (click.action == GLFW_PRESS) {
-        if (GizmoElement::mSelectedPart == GizmoElement::center || GizmoElement::mSelectedPart == GizmoElement::x ||
-            GizmoElement::mSelectedPart == GizmoElement::y || GizmoElement::mSelectedPart == GizmoElement::z) {
-            GizmoElement::mIsLocked = true;
-            std::cout << "Gizmo is locked in event handlerln " << click.click << std::endl;
-            return;
+    auto app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(click.window));
+
+    if (click.click == GLFW_MOUSE_BUTTON_LEFT) {
+        if (click.action == GLFW_PRESS) {
+            if (mSelectedPart == center || mSelectedPart == x || mSelectedPart == y || mSelectedPart == z) {
+                mIsLocked = true;
+                std::cout << "Gizmo is locked in event handlerln " << click.click << std::endl;
+                return;
+            }
+
+            if (app->mSelectedModel != nullptr) {
+                if (z != nullptr && x != nullptr && y != nullptr && GizmoElement::center != nullptr) {
+                    auto [min, max] = app->mSelectedModel->getWorldSpaceAABB();
+                    auto center = (min + max) / glm::vec3{2.0f};
+                    GizmoElement::moveTo(center);
+                } else {
+                    std::cout << "Couldnt find the gizmo model " << app->mSelectedModel->getName() << std::endl;
+                }
+            }
+        } else if (click.action == GLFW_RELEASE) {
+            GizmoElement::mIsLocked = false;
         }
     }
 }
@@ -236,21 +251,45 @@ void Screen::onMouseMove(MouseEvent event) {
 
 void Screen::onMouseClick(MouseEvent event) {
     auto click = std::get<Click>(event);
-    auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(click.window));
+    mApp = reinterpret_cast<Application*>(glfwGetWindowUserPointer(click.window));
 
-    mApp = that;
     if (mApp == nullptr) {
         return;
     }
     DragState& drag_state = mApp->getCamera().getDrag();
-    if (drag_state.active) mApp->getCamera().processMouse(click.xPos, click.yPos);
-    if (click.click == GLFW_MOUSE_BUTTON_RIGHT) {
+    // if (drag_state.active) mApp->getCamera().processMouse(click.xPos, click.yPos);
+
+    if (click.click == GLFW_MOUSE_BUTTON_LEFT) {
+        // calculating the NDC for x and y
+        auto [w_width, w_height] = mApp->getWindowSize();
+        double xpos, ypos;
+        glfwGetCursorPos(click.window, &xpos, &ypos);
+
+        if (click.action == GLFW_PRESS) {
+            if (GizmoElement::mSelectedPart == GizmoElement::center || GizmoElement::mSelectedPart == GizmoElement::x ||
+                GizmoElement::mSelectedPart == GizmoElement::y || GizmoElement::mSelectedPart == GizmoElement::z) {
+                GizmoElement::mIsLocked = true;
+                return;
+            }
+            auto intersected_model =
+                testIntersection(mApp->getCamera(), w_width, w_height, {xpos, ypos},
+                                 ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User));
+            if (intersected_model != nullptr) {
+                if (mApp->mSelectedModel) {
+                    mApp->mSelectedModel->selected(false);
+                }
+                mApp->mSelectedModel = intersected_model;
+                mApp->mSelectedModel->selected(true);
+            }
+        }
+    } else if (click.click == GLFW_MOUSE_BUTTON_RIGHT) {
         switch (click.action) {
-            case GLFW_PRESS:
+            case GLFW_PRESS: {
                 drag_state.active = true;
                 drag_state.firstMouse = true;
                 break;
-            case GLFW_RELEASE:
+            }
+            case GLFW_RELEASE: {
                 drag_state.active = false;
                 drag_state.firstMouse = false;
                 /*if (mSelectedModel != nullptr) {*/
@@ -258,6 +297,35 @@ void Screen::onMouseClick(MouseEvent event) {
                 /*    mSelectedModel = nullptr;*/
                 /*}*/
                 break;
+            }
         }
+    }
+}
+
+void Screen::onMouseScroll(MouseEvent event) {
+    auto scroll = std::get<Scroll>(event);
+    mApp = reinterpret_cast<Application*>(glfwGetWindowUserPointer(scroll.window));
+    if (mApp != nullptr) mApp->getCamera().processScroll(scroll.yOffset);
+}
+
+void Screen::onKey(KeyEvent event) {
+    auto key = std::get<Keyboard>(event);
+
+    mApp = reinterpret_cast<Application*>(glfwGetWindowUserPointer(key.window));
+    mApp->getCamera().processInput(key.key, key.scancode, key.action, key.mods);
+
+    if (GLFW_KEY_KP_0 == key.key && GLFW_PRESS == key.action) {
+        // that->getCamera().lookAtAABB(model);
+        // if (that->mSelectedModel) {
+        //     that->mSelectedModel->selected(false);
+        // }
+        // that->mSelectedModel = model;
+        // that->mSelectedModel->selected(true);
+
+    } else if (GLFW_KEY_KP_1 == key.key && GLFW_PRESS == key.action) {
+        // look_as_light = !look_as_light;
+
+    } else if (GLFW_KEY_KP_2 == key.key && key.action == GLFW_PRESS) {
+        // that->mLightManager->nextLight();
     }
 }
