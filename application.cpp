@@ -295,7 +295,7 @@ void Application::initializePipeline() {
     mWaterRefractionPass = new WaterRefractionPass{this};
     mWaterRefractionPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
 
-    mWaterRenderPass = new WaterPass{this, mWaterPass->mRenderTarget};
+    mWaterRenderPass = new WaterPass{this, mWaterPass->mRenderTarget, mWaterRefractionPass->mRenderTarget};
     mWaterRenderPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
 
     mBindingData[0].nextInChain = nullptr;
@@ -967,11 +967,36 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                       nullptr);
     for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+        if (name == "water") {
+            continue;
+        }
         model->draw(this, water_refraction_pass_encoder, mBindingData);
     }
 
     wgpuRenderPassEncoderEnd(water_refraction_pass_encoder);
     wgpuRenderPassEncoderRelease(water_refraction_pass_encoder);
+
+    {  // Terrain Render Pass for Water Refraction
+
+        mTerrainPass->setColorAttachment({mWaterRefractionPass->mRenderTargetView, nullptr,
+                                          WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+        mTerrainPass->setDepthStencilAttachment({mWaterRefractionPass->mDepthTextureView, StoreOp::Store, LoadOp::Load,
+                                                 false, StoreOp::Undefined, LoadOp::Undefined, true});
+        mTerrainPass->init();
+
+        WGPURenderPassEncoder terrain_pass_encoder =
+            wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());
+        wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());
+        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
+                                          nullptr);
+
+        terrain.draw(this, terrain_pass_encoder, mBindingData);
+
+        // updateGui(terrain_pass_encoder);
+
+        wgpuRenderPassEncoderEnd(terrain_pass_encoder);
+        wgpuRenderPassEncoderRelease(terrain_pass_encoder);
+    }
 
     // skybox and pbr render pass
     WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
@@ -1411,7 +1436,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
     ImGui::Begin("Add Line");
 
-    ImGui::Image((ImTextureID)(intptr_t)mWaterPass->mRenderTargetView, ImVec2(1920 / 4.0, 1022 / 4.0));
+    ImGui::Image((ImTextureID)(intptr_t)mWaterRefractionPass->mRenderTargetView, ImVec2(1920 / 4.0, 1022 / 4.0));
 
     static glm::vec3 start = glm::vec3{0.0f};
     static glm::vec3 end = glm::vec3{0.0f};

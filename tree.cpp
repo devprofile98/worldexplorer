@@ -51,7 +51,7 @@ struct BoatModel : public IModel {
         BoatModel(Application* app) {
             mModel = new Model{};
             mModel->load("boat", app, RESOURCE_DIR "/fourareen.obj", app->getObjectBindGroupLayout())
-                .scale(glm::vec3{0.8});
+                .scale(glm::vec3{0.8}).rotate(glm::vec3{0.0f, 0.0f, 45.0f}, 0.0);
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->setFoliage();
@@ -62,7 +62,7 @@ struct BoatModel : public IModel {
         void onLoad(Application* app, void* params) override {
             (void)params;
             (void)app;
-            mModel->moveTo(glm::vec3{2.0, -1., 1.});
+            mModel->moveTo(glm::vec3{-3.950, 13.316, -3.375});
         };
 };
 

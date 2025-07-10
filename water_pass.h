@@ -51,7 +51,7 @@ class WaterRefractionPass : public RenderPass {
 
 class WaterPass : public RenderPass {
     public:
-        WaterPass(Application* app, Texture* renderTarget);
+        WaterPass(Application* app, Texture* renderTarget, Texture* refractionTarget);
 
         // Texture* mRenderTarget;
         // Texture* mDepthTexture;

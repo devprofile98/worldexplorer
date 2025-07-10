@@ -122,7 +122,7 @@ void WaterRefractionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline->createPipeline(mApp);
 }
 
-WaterPass::WaterPass(Application* app, Texture* renderTarget) : mApp(app) {
+WaterPass::WaterPass(Application* app, Texture* renderTarget, Texture* refractionTarget) : mApp(app) {
     mWaterTextureBindGroup.addTexture(0,  //
                                       BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                                       TextureViewDimension::VIEW_2D);
@@ -138,7 +138,7 @@ WaterPass::WaterPass(Application* app, Texture* renderTarget) : mApp(app) {
     mWaterTextureBindngData[1] = {};
     mWaterTextureBindngData[1].nextInChain = nullptr;
     mWaterTextureBindngData[1].binding = 1;
-    mWaterTextureBindngData[1].textureView = renderTarget->getTextureView();
+    mWaterTextureBindngData[1].textureView = refractionTarget->getTextureView();
 
     mBindGroupLayout = mWaterTextureBindGroup.createLayout(mApp, "water refletcion bind group layout");
 
