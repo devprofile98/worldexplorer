@@ -841,13 +841,6 @@ void Application::mainLoop() {
         render_pass_descriptor.timestampWrites = nullptr;
     }
 
-    // water pass
-    mWaterPass->setColorAttachment(
-        {mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Clear});
-    mWaterPass->setDepthStencilAttachment({mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Clear, false,
-                                           StoreOp::Store, LoadOp::Load, false, 1.0});
-    mWaterPass->init();
-
     // inverting pitch and reflect camera based on the water plane
     auto water_plane = ModelRegistry::instance().getLoadedModel(Visibility_User).find("water");
     if (water_plane != ModelRegistry::instance().getLoadedModel(Visibility_User).end()) {
@@ -863,7 +856,64 @@ void Application::mainLoop() {
         muniform.setCamera(camera);
         muniform.cameraWorldPosition = camera.getPos();
         wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, sizeof(MyUniform), &muniform, sizeof(MyUniform));
+        glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(muniform.viewMatrix));
+        glm::mat4 mvp = muniform.projectMatrix * viewNoTranslation;
+        auto reflected_camera = mvp;
+        wgpuQueueWriteBuffer(mRendererResource.queue, mSkybox->mReflectedCameraMatrix.getBuffer(), 0, &reflected_camera,
+                             sizeof(glm::mat4));
     }
+
+    {
+        WGPURenderPassDescriptor render_pass_descriptor = {};
+
+        {
+            render_pass_descriptor.nextInChain = nullptr;
+
+            static WGPURenderPassColorAttachment color_attachment = {};
+            color_attachment.view = mWaterPass->mRenderTargetView;
+            color_attachment.resolveTarget = nullptr;
+            color_attachment.loadOp = WGPULoadOp_Clear;
+            color_attachment.storeOp = WGPUStoreOp_Store;
+            color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
+#ifndef WEBGPU_BACKEND_WGPU
+            color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif  // NOT WEBGPU_BACKEND_WGPU
+
+            render_pass_descriptor.colorAttachmentCount = 1;
+            render_pass_descriptor.colorAttachments = &color_attachment;
+
+            static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
+            depth_stencil_attachment.view = mWaterPass->mDepthTextureView;
+            depth_stencil_attachment.depthClearValue = 1.0f;
+            depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
+            depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
+            depth_stencil_attachment.depthReadOnly = false;
+            depth_stencil_attachment.stencilClearValue = 0;
+            depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Clear;
+            depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
+            depth_stencil_attachment.stencilReadOnly = false;
+            render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
+            render_pass_descriptor.timestampWrites = nullptr;
+        }
+
+        WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
+        glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mUniforms.viewMatrix));
+        glm::mat4 mvp = mUniforms.projectMatrix * viewNoTranslation;
+        wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mSkybox->getPipeline()->getPipeline());
+        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 0, mSkybox->mReflectedBindingGroup.getBindGroup(), 0,
+                                          nullptr);
+        mSkybox->draw(this, render_pass_encoder, mvp);
+
+        wgpuRenderPassEncoderEnd(render_pass_encoder);
+        wgpuRenderPassEncoderRelease(render_pass_encoder);
+    }
+
+    // water pass
+    mWaterPass->setColorAttachment(
+        {mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    mWaterPass->setDepthStencilAttachment(
+        {mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false, 1.0});
+    mWaterPass->init();
 
     WGPURenderPassEncoder water_pass_encoder =
         wgpuCommandEncoderBeginRenderPass(encoder, mWaterPass->getRenderPassDescriptor());
@@ -873,11 +923,6 @@ void Application::mainLoop() {
                                       nullptr);
 
     {
-        // glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mUniforms.viewMatrix));
-        // glm::mat4 mvp = mUniforms.projectMatrix * viewNoTranslation;
-        // wgpuRenderPassEncoderSetPipeline(water_pass_encoder, mSkybox->getPipeline()->getPipeline());
-        // mSkybox->draw(this, water_pass_encoder, mvp);
-
         for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
             model->draw(this, water_pass_encoder, mBindingData);
         }
@@ -933,6 +978,7 @@ void Application::mainLoop() {
     glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mUniforms.viewMatrix));
     glm::mat4 mvp = mUniforms.projectMatrix * viewNoTranslation;
     wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mSkybox->getPipeline()->getPipeline());
+    wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 0, mSkybox->mBindingGroup.getBindGroup(), 0, nullptr);
     mSkybox->draw(this, render_pass_encoder, mvp);
     int32_t stencilReferenceValue = 240;
     wgpuRenderPassEncoderSetStencilReference(render_pass_encoder, stencilReferenceValue);

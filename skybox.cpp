@@ -1,6 +1,7 @@
 #include "skybox.h"
 
 #include "application.h"
+#include "glm/fwd.hpp"
 #include "stb_image.h"
 #include "webgpu.h"
 
@@ -101,7 +102,14 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
     mBindingGroup.addTexture(2, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                              TextureViewDimension::CUBE);
 
+    mReflectedBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM,
+                                     sizeof(glm::mat4));
+    mReflectedBindingGroup.addSampler(1, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
+    mReflectedBindingGroup.addTexture(2, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+                                      TextureViewDimension::CUBE);
+
     auto bind_group_layout = mBindingGroup.createLayout(app, "skybox pipeline");
+    mReflectedBindingGroup.createLayout(app, "skybox reflected bindgroup");
 
     mRenderPipeline = new Pipeline{app, {bind_group_layout}, "skybox pipeline"};
     WGPUVertexBufferLayout d = mRenderPipeline->mVertexBufferLayout.addAttribute(0, 0, WGPUVertexFormat_Float32x3)
@@ -112,7 +120,7 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
 
             )
         .setPrimitiveState()
-        .setDepthStencilState(false, 0,0, WGPUTextureFormat_Depth24PlusStencil8)
+        .setDepthStencilState(false, 0, 0, WGPUTextureFormat_Depth24PlusStencil8)
         .setBlendState()
         .setColorTargetState()
         .setFragmentState()
@@ -163,7 +171,17 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
     mBindingData[2].binding = 2;
     mBindingData[2].textureView = texture_view;
 
+    mReflectedCameraMatrix.setLabel("Reflected Camera skybox")
+        .setMappedAtCraetion()
+        .setSize(sizeof(glm::mat4))
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .create(app);
+
+    mReflectedBindingData = mBindingData;
+    mReflectedBindingData[0].buffer = mReflectedCameraMatrix.getBuffer();
+
     mBindingGroup.create(app, mBindingData);
+    mReflectedBindingGroup.create(app, mReflectedBindingData);
 
     WGPUBufferDescriptor vertex_buffer = {};
     vertex_buffer.nextInChain = nullptr;
@@ -184,6 +202,7 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
     mCubeIndexDataBuffer = wgpuDeviceCreateBuffer(app->getRendererResource().device, &index_buffer);
     wgpuQueueWriteBuffer(app->getRendererResource().queue, mCubeIndexDataBuffer, 0, cubeIndexData,
                          sizeof(cubeIndexData));
+
 }
 
 void SkyBox::draw(Application* app, WGPURenderPassEncoder encoder, const glm::mat4& mvp) {
@@ -193,7 +212,6 @@ void SkyBox::draw(Application* app, WGPURenderPassEncoder encoder, const glm::ma
                                          wgpuBufferGetSize(mCubeVertexDataBuffer));
     wgpuRenderPassEncoderSetIndexBuffer(encoder, mCubeIndexDataBuffer, WGPUIndexFormat_Uint16, 0,
                                         wgpuBufferGetSize(mCubeIndexDataBuffer));
-    wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindingGroup.getBindGroup(), 0, nullptr);
 
     wgpuQueueWriteBuffer(render_resource.queue, mMatrixBuffer, 0, &mvp, sizeof(glm::mat4));
 

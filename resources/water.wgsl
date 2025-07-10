@@ -266,7 +266,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let final_uv = vec2f(uv_for_reflection.x, 1.0 - uv_for_reflection.y);
 
     	var frag_ambient = textureSample(water_reflection_texture, textureSampler, final_uv).rgba;
-	return vec4f(frag_ambient.xyz, 0.8) + vec4f(0.0, 0.0, 0.3, 0.2);
+	// return vec4f(frag_ambient.xyz, 0.8) + vec4f(0.0, 0.0, 0.3, 0.2);
+	return frag_ambient;
 }
 
 @fragment
