@@ -36,8 +36,7 @@ WGPURenderPassDescriptor createRenderPassDescriptor(WGPUTextureView colorAttachm
 }
 
 Pipeline::Pipeline(Application* app, std::vector<WGPUBindGroupLayout> bindGroupLayout, std::string name)
-    : mApp(app), mPipelineName(name), mDescriptor({}), mBindGroupLayouts(bindGroupLayout) {
-}
+    : mApp(app), mPipelineName(name), mDescriptor({}), mBindGroupLayouts(bindGroupLayout) {}
 
 Pipeline& Pipeline::createPipeline(Application* app) {
     WGPUPipelineLayoutDescriptor pipeline_layout_descriptor = {};
@@ -72,10 +71,14 @@ WGPUVertexBufferLayout Pipeline::getDefaultVertexBufferLayout() {
 }
 
 Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat surfaceTexture,
-                                         WGPUTextureFormat depthTexture) {
+                                         WGPUTextureFormat depthTexture, const char* shaderPath
+
+) {
     // 0 - Load Default shader
 
-    mShaderModule = loadShader(RESOURCE_DIR "/shader.wgsl", app->getRendererResource().device);
+    std::cout << "Defalt confiiguraton for " << shaderPath << std::endl;
+
+    mShaderModule = loadShader(shaderPath, app->getRendererResource().device);
     // 1 - vertex state
     mlVertexBufferLayout = getDefaultVertexBufferLayout();
     mDescriptor.nextInChain = nullptr;

@@ -142,6 +142,7 @@ class Application {
         OutlinePass* mOutlinePass;
         ViewPort3DPass* m3DviewportPass;
 	WaterReflectionPass* mWaterPass;
+	WaterRefractionPass* mWaterRefractionPass;
 	WaterPass* mWaterRenderPass;
         WGPUSampler mDefaultSampler;
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;

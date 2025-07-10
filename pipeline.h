@@ -15,7 +15,8 @@ class Pipeline {
         Pipeline(Application* app, std::vector<WGPUBindGroupLayout> bindGroupLayout, std::string name);
 
         Pipeline& defaultConfiguration(Application* app, WGPUTextureFormat surfaceTexture,
-                                       WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus);
+                                       WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus,
+                                       const char* shaderPath = "./resources/shader.wgsl");
         Pipeline& createPipeline(Application* app);
 
         // Getters

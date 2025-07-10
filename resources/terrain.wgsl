@@ -139,10 +139,10 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     let world_position = transform * vec4f(in.position, 1.0);
     out.normal = (transform * vec4f(in.normal, 0.0)).xyz;
 
-    out.viewSpacePos = uMyUniform[0].viewMatrix * world_position;
-    out.position = uMyUniform[0].projectionMatrix * out.viewSpacePos;
+    out.viewSpacePos = uMyUniform[myuniformindex].viewMatrix * world_position;
+    out.position = uMyUniform[myuniformindex].projectionMatrix * out.viewSpacePos;
     out.worldPos = world_position.xyz;
-    out.viewDirection = uMyUniform[0].cameraWorldPosition - world_position.xyz;
+    out.viewDirection = uMyUniform[myuniformindex].cameraWorldPosition - world_position.xyz;
     out.color = in.color;
     out.uv = in.uv;
 
@@ -236,7 +236,6 @@ fn calculateSpotLight(currLight: PointLight, normal: vec3f, dir: vec3f) -> vec3f
 
     return diffuse * intensity * attenuation;
 }
-
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {

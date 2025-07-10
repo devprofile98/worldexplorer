@@ -28,9 +28,30 @@ class WaterReflectionPass : public RenderPass {
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 };
 
+
+class WaterRefractionPass : public RenderPass {
+    public:
+        WaterRefractionPass(Application* app);
+
+        Texture* mRenderTarget;
+        Texture* mDepthTexture;
+        WGPUTextureView mRenderTargetView;
+        WGPUTextureView mDepthTextureView;
+
+        Application* mApp;
+
+        // BindingGroup mDefaultCameraIndexBindgroup = {};
+        // std::vector<WGPUBindGroupEntry> mDefaultCameraIndexBindingData{1};
+        // Buffer mDefaultCameraIndex;
+        // WGPUBindGroupLayout layout;
+
+        void createRenderPass(WGPUTextureFormat textureFormat) override;
+};
+
+
 class WaterPass : public RenderPass {
     public:
-        WaterPass(Application* app);
+        WaterPass(Application* app, Texture* renderTarget);
 
         // Texture* mRenderTarget;
         // Texture* mDepthTexture;
@@ -38,6 +59,10 @@ class WaterPass : public RenderPass {
         // WGPUTextureView mDepthTextureView;
 
         Application* mApp;
+
+        BindingGroup mWaterTextureBindGroup = {};
+        std::vector<WGPUBindGroupEntry> mWaterTextureBindngData{2};
+        WGPUBindGroupLayout mBindGroupLayout;
 
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 };

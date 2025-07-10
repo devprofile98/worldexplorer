@@ -12,12 +12,13 @@ TerrainPass::TerrainPass(Application* app) { mApp = app; }
 
 void TerrainPass::createRenderPass(WGPUTextureFormat textureFormat) {
     auto* layouts = mApp->getBindGroupLayouts();
-    mRenderPipeline = new Pipeline{mApp, {layouts[0], layouts[1], layouts[2]}, "Terrain pipeline"};
+    mRenderPipeline = new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], layouts[3]}, "Terrain pipeline"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
     mRenderPipeline->setShader(RESOURCE_DIR "/terrain.wgsl");
     /*setDefaultUseStencil(mRenderPipeline->getDepthStencilState());*/
     setDefaultActiveStencil2(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
+    mRenderPipeline->setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_Back);
     mRenderPipeline->createPipeline(mApp);
 }
 
