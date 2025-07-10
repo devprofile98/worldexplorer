@@ -34,6 +34,7 @@
 #include "texture.h"
 #include "transparency_pass.h"
 #include "utils.h"
+#include "water_pass.h"
 #include "webgpu.h"
 #include "wgpu.h"
 #include "wgpu_utils.h"
@@ -141,7 +142,8 @@ void Application::initializePipeline() {
     mDefaultNormalMap->uploadToGPU(mRendererResource.queue);
 
     mBindingGroup.addBuffer(0,  //
-                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(MyUniform));
+                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
+                            sizeof(MyUniform) * 10);
 
     mBindingGroup.addBuffer(1,  //
                             BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t));
@@ -201,9 +203,15 @@ void Application::initializePipeline() {
                                            BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
                                            TextureViewDimension::VIEW_2D);
 
+    mDefaultCameraIndexBindgroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM,
+                                           sizeof(uint32_t));
+
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
     WGPUBindGroupLayout texture_bind_group_layout =
         mDefaultTextureBindingGroup.createLayout(this, "default texture bindgroup layout");
+
+    WGPUBindGroupLayout camera_bind_group_layout =
+        mDefaultCameraIndexBindgroup.createLayout(this, "default camera index bindgroup layout");
 
     WGPUBindGroupLayoutEntry object_transformation = {};
     setDefault(object_transformation);
@@ -221,9 +229,11 @@ void Application::initializePipeline() {
     mBindGroupLayouts[0] = bind_group_layout;
     mBindGroupLayouts[1] = wgpuDeviceCreateBindGroupLayout(mRendererResource.device, &bind_group_layout_descriptor1);
     mBindGroupLayouts[2] = texture_bind_group_layout;
+    mBindGroupLayouts[3] = camera_bind_group_layout;
 
-    mPipeline =
-        new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2]}, "standard pipeline"};
+    mPipeline = new Pipeline{this,
+                             {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3]},
+                             "standard pipeline"};
 
     mPipeline->defaultConfiguration(this, mSurfaceFormat);
     setDefaultActiveStencil(mPipeline->getDepthStencilState());
@@ -231,7 +241,9 @@ void Application::initializePipeline() {
     mPipeline->createPipeline(this);
 
     mStenctilEnabledPipeline =
-        new Pipeline{this, {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2]}, "Draw outline pipe"};
+        new Pipeline{this,
+                     {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3]},
+                     "Draw outline pipe"};
     mStenctilEnabledPipeline->defaultConfiguration(this, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8)
         .createPipeline(this);
 
@@ -250,6 +262,21 @@ void Application::initializePipeline() {
     mDefaultTextureBindingData[2].binding = 2;
     mDefaultTextureBindingData[2].textureView = default_normal_map_view;
 
+    mDefaultCameraIndex.setLabel("defualt camera index buffer")
+        .setMappedAtCraetion()
+        .setSize(sizeof(uint32_t))
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .create(this);
+
+    static uint32_t cidx = 0;
+    wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultCameraIndex.getBuffer(), 0, &cidx, sizeof(uint32_t));
+
+    mDefaultCameraIndexBindingData[0] = {};
+    mDefaultCameraIndexBindingData[0].nextInChain = nullptr;
+    mDefaultCameraIndexBindingData[0].binding = 0;
+    mDefaultCameraIndexBindingData[0].buffer = mDefaultCameraIndex.getBuffer();
+    mDefaultCameraIndexBindingData[0].size = sizeof(uint32_t);
+
     mShadowPass = new ShadowPass{this};
     mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm, 3);
 
@@ -262,11 +289,17 @@ void Application::initializePipeline() {
     m3DviewportPass = new ViewPort3DPass{this};
     m3DviewportPass->create(mSurfaceFormat);
 
+    mWaterPass = new WaterReflectionPass{this};
+    mWaterPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
+
+    mWaterRenderPass = new WaterPass{this};
+    mWaterRenderPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
+
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
     mBindingData[0].buffer = mUniformBuffer;
     mBindingData[0].offset = 0;
-    mBindingData[0].size = sizeof(MyUniform);
+    mBindingData[0].size = sizeof(MyUniform) * 10;
 
     mBindingData[1] = {};
     mBindingData[1].nextInChain = nullptr;
@@ -397,6 +430,8 @@ void Application::initializePipeline() {
     mBindingGroup.create(this, mBindingData);
     mDefaultTextureBindingGroup.create(this, mDefaultTextureBindingData);
 
+    mDefaultCameraIndexBindgroup.create(this, mDefaultCameraIndexBindingData);
+
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
     buffer_descriptor.label = "ahgmadasdsad f";
@@ -452,7 +487,7 @@ void Application::initializeBuffers() {
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
     // Create Uniform buffers
-    buffer_descriptor.size = sizeof(MyUniform);
+    buffer_descriptor.size = sizeof(MyUniform) * 10;
     buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     buffer_descriptor.mappedAtCreation = false;
     mUniformBuffer = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
@@ -723,7 +758,6 @@ void Application::mainLoop() {
     encoder_descriptor.nextInChain = nullptr;
     encoder_descriptor.label = "command encoder descriptor";
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, &encoder_descriptor);
-    // updateDragInertia();
 
     // preprocessing
     // doing frustum culling
@@ -804,6 +838,48 @@ void Application::mainLoop() {
         render_pass_descriptor.timestampWrites = nullptr;
     }
 
+    // water pass
+    mWaterPass->setColorAttachment(
+        {mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Clear});
+    mWaterPass->setDepthStencilAttachment({mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Clear, false,
+                                           StoreOp::Store, LoadOp::Load, false, 1.0});
+    mWaterPass->init();
+
+    // inverting pitch and reflect camera based on the water plane
+    auto water_plane = ModelRegistry::instance().getLoadedModel(Visibility_User).find("water");
+    if (water_plane != ModelRegistry::instance().getLoadedModel(Visibility_User).end()) {
+        static Camera camera = getCamera();
+	camera = getCamera();
+        static MyUniform muniform = mUniforms;
+        float diff = 2 * (camera.getPos().z - water_plane->second->getPosition().z);
+        auto new_pos = camera.getPos();
+        new_pos.z -= diff;
+        camera.setPosition(new_pos);
+        camera.mPitch *= -1.0;
+        camera.updateCamera();
+        muniform.setCamera(camera);
+        muniform.cameraWorldPosition = camera.getPos();
+        std::cout << "Camera 1 position is " << glm::to_string(muniform.cameraWorldPosition) << std::endl;
+        wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, sizeof(MyUniform), &muniform, sizeof(MyUniform));
+    }
+
+    WGPURenderPassEncoder water_pass_encoder =
+        wgpuCommandEncoderBeginRenderPass(encoder, mWaterPass->getRenderPassDescriptor());
+
+    wgpuRenderPassEncoderSetPipeline(water_pass_encoder, mWaterPass->getPipeline()->getPipeline());
+    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 3, mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(), 0,
+                                      nullptr);
+    for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+        model->draw(this, water_pass_encoder, mBindingData);
+    }
+
+    wgpuRenderPassEncoderEnd(water_pass_encoder);
+    wgpuRenderPassEncoderRelease(water_pass_encoder);
+
+    // getCamera() = camera;
+    // mUniforms.setCamera(mCamera);
+    // mUniforms.cameraWorldPosition = getCamera().getPos();
+    // wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, sizeof(MyUniform));
     // skybox and pbr render pass
     WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
     glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mUniforms.viewMatrix));
@@ -814,9 +890,14 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetStencilReference(render_pass_encoder, stencilReferenceValue);
 
     for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+        if (name == "water") {
+            continue;
+        }
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder,
                                          (model->isSelected() ? mPipeline : mStenctilEnabledPipeline)->getPipeline());
 
+        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
+                                          nullptr);
         if (!model->isTransparent()) {
             model->draw(this, render_pass_encoder, mBindingData);
         }
@@ -826,6 +907,29 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderRelease(render_pass_encoder);
     // end of color render pass
     // ---------------------------------------------------------------------
+
+    mWaterRenderPass->setColorAttachment(
+        {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    mWaterRenderPass->setDepthStencilAttachment(
+        {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false, 1.0});
+    mWaterRenderPass->init();
+
+    WGPURenderPassEncoder water_render_pass_encoder =
+        wgpuCommandEncoderBeginRenderPass(encoder, mWaterRenderPass->getRenderPassDescriptor());
+    for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+        if (name != "water") {
+            continue;
+        }
+        wgpuRenderPassEncoderSetPipeline(water_render_pass_encoder, mWaterRenderPass->getPipeline()->getPipeline());
+        wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
+                                          nullptr);
+
+        if (!model->isTransparent()) {
+            model->draw(this, water_render_pass_encoder, mBindingData);
+        }
+    }
+    wgpuRenderPassEncoderEnd(water_render_pass_encoder);
+    wgpuRenderPassEncoderRelease(water_render_pass_encoder);
 
     // terrain pass
     mTerrainPass->setColorAttachment(
@@ -860,6 +964,7 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderSetBindGroup(outline_pass_encoder, 3, mOutlinePass->mDepthTextureBindgroup.getBindGroup(), 0,
                                       nullptr);
+    wgpuRenderPassEncoderSetBindGroup(outline_pass_encoder, 4, mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
 
     for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
         if (model->isSelected()) {
@@ -871,7 +976,7 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderEnd(outline_pass_encoder);
     wgpuRenderPassEncoderRelease(outline_pass_encoder);
 
-    // outline pass
+    // 3D editor elements pass
     m3DviewportPass->setColorAttachment(
         {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
     m3DviewportPass->setDepthStencilAttachment({mDepthTextureView, StoreOp::Undefined, LoadOp::Undefined, true,
@@ -995,9 +1100,9 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     required_limits.limits.maxInterStageShaderComponents = 116;
 
     // Binding groups
-    required_limits.limits.maxBindGroups = 4;
+    required_limits.limits.maxBindGroups = 5;
     required_limits.limits.maxUniformBuffersPerShaderStage = 6;
-    required_limits.limits.maxUniformBufferBindingSize = 2048;  // 16 * 4 * sizeof(float);
+    required_limits.limits.maxUniformBufferBindingSize = 2048 * 2;  // 16 * 4 * sizeof(float);
 
     required_limits.limits.maxTextureDimension1D = 4096;
     required_limits.limits.maxTextureDimension2D = 4096;
@@ -1208,6 +1313,8 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
     ImGui::Begin("Add Line");
 
+    ImGui::Image((ImTextureID)(intptr_t)mWaterPass->mRenderTargetView, ImVec2(1920 / 4.0, 1022 / 4.0));
+
     static glm::vec3 start = glm::vec3{0.0f};
     static glm::vec3 end = glm::vec3{0.0f};
     static glm::vec3 color = glm::vec3{0.0f};
@@ -1243,7 +1350,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     }
     ImGui::SliderFloat("distance", &ddistance, 0.0, 30.0);
     ImGui::SliderFloat("dd", &dd, 0.0, 120.0);
-    ImGui::Image((ImTextureID)(intptr_t)mBindingData[9].textureView, ImVec2(256, 256));
     ImGui::End();
 
     // Draw the UI

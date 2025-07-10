@@ -80,7 +80,7 @@ struct OffsetData {
 };
 
 
-@group(0) @binding(0) var<uniform> uMyUniform: MyUniform;
+@group(0) @binding(0) var<uniform> uMyUniform: array<MyUniform, 10>;
 @group(0) @binding(1) var<uniform> lightCount: i32;
 @group(0) @binding(2) var textureSampler: sampler;
 @group(0) @binding(3) var<uniform> lightingInfos: LightingUniforms;
@@ -102,6 +102,9 @@ struct OffsetData {
 @group(2) @binding(0) var diffuse_map: texture_2d<f32>;
 @group(2) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
 @group(2) @binding(2) var normal_map: texture_2d<f32>;
+
+
+@group(3) @binding(0) var<uniform> myuniformindex: u32;
 
 const PI: f32 = 3.141592653589793;
 
@@ -136,10 +139,10 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     let world_position = transform * vec4f(in.position, 1.0);
     out.normal = (transform * vec4f(in.normal, 0.0)).xyz;
 
-    out.viewSpacePos = uMyUniform.viewMatrix * world_position;
-    out.position = uMyUniform.projectionMatrix * out.viewSpacePos;
+    out.viewSpacePos = uMyUniform[0].viewMatrix * world_position;
+    out.position = uMyUniform[0].projectionMatrix * out.viewSpacePos;
     out.worldPos = world_position.xyz;
-    out.viewDirection = uMyUniform.cameraWorldPosition - world_position.xyz;
+    out.viewDirection = uMyUniform[0].cameraWorldPosition - world_position.xyz;
     out.color = in.color;
     out.uv = in.uv;
 

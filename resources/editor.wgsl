@@ -81,7 +81,7 @@ struct OffsetData {
 };
 
 
-@group(0) @binding(0) var<uniform> uMyUniform: MyUniform;
+@group(0) @binding(0) var<uniform> uMyUniform: array<MyUniform, 10>;
 @group(0) @binding(1) var<uniform> lightCount: i32;
 @group(0) @binding(2) var textureSampler: sampler;
 @group(0) @binding(3) var<uniform> lightingInfos: LightingUniforms;
@@ -105,6 +105,9 @@ struct OffsetData {
 @group(2) @binding(2) var normal_map: texture_2d<f32>;
 
 @group(3) @binding(0) var standard_depth: texture_depth_2d;
+
+
+@group(4) @binding(0) var<uniform> myuniformindex: u32;
 
 const PI: f32 = 3.141592653589793;
 
@@ -138,16 +141,16 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 
 
     let world_position = transform * vec4f(in.position, 1.0);
-    out.viewSpacePos = uMyUniform.viewMatrix * world_position;
+    out.viewSpacePos = uMyUniform[0].viewMatrix * world_position;
     out.normal = (transform * vec4f(in.normal, 0.0)).xyz;
     //let color = min(max(abs(out.viewSpacePos.z) / 20.0, 0.02), 0.04);
     let color = max(pow(clamp(abs(out.viewSpacePos.z), 0.0, 10.0), 2.0) / 1250.0, 0.02);
     let extruded_position = transform * vec4f(in.position + in.normal * color, 1.0);
-    out.viewSpacePos = uMyUniform.viewMatrix * extruded_position;
+    out.viewSpacePos = uMyUniform[0].viewMatrix * extruded_position;
 
-    out.position = uMyUniform.projectionMatrix * out.viewSpacePos;
+    out.position = uMyUniform[0].projectionMatrix * out.viewSpacePos;
     out.worldPos = world_position.xyz;
-    out.viewDirection = uMyUniform.cameraWorldPosition - world_position.xyz;
+    out.viewDirection = uMyUniform[0].cameraWorldPosition - world_position.xyz;
     out.color = in.color;
     mix(out.color, vec4f(1.0, 1.0, 0.0, 1.0), objectTranformation.isHovered);
     out.uv = in.uv;

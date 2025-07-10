@@ -36,7 +36,8 @@ WGPURenderPassDescriptor createRenderPassDescriptor(WGPUTextureView colorAttachm
 }
 
 Pipeline::Pipeline(Application* app, std::vector<WGPUBindGroupLayout> bindGroupLayout, std::string name)
-    : mApp(app), mPipelineName(name), mDescriptor({}), mBindGroupLayouts(bindGroupLayout) {}
+    : mApp(app), mPipelineName(name), mDescriptor({}), mBindGroupLayouts(bindGroupLayout) {
+}
 
 Pipeline& Pipeline::createPipeline(Application* app) {
     WGPUPipelineLayoutDescriptor pipeline_layout_descriptor = {};
@@ -44,15 +45,16 @@ Pipeline& Pipeline::createPipeline(Application* app) {
     pipeline_layout_descriptor.nextInChain = nullptr;
     pipeline_layout_descriptor.bindGroupLayoutCount = mBindGroupLayouts.size();
     pipeline_layout_descriptor.bindGroupLayouts = mBindGroupLayouts.data();
+    std::cout << "****************************" << mPipelineName << mBindGroupLayouts.size() << std::endl;
 
     mPipelineLayout = wgpuDeviceCreatePipelineLayout(app->getRendererResource().device, &pipeline_layout_descriptor);
 
     mDescriptor.layout = mPipelineLayout;
-    std::cout << mDescriptor.depthStencil->depthWriteEnabled << std::endl;
-    std::cout << mDescriptor.depthStencil->depthCompare << std::endl;
-    std::cout << mDescriptor.depthStencil->depthBiasSlopeScale << std::endl;
-    std::cout << mDescriptor.depthStencil->stencilWriteMask << std::endl;
-
+    // std::cout << mPipelineName << std::endl;
+    // std::cout << mDescriptor.depthStencil->depthWriteEnabled << std::endl;
+    // std::cout << mDescriptor.depthStencil->depthCompare << std::endl;
+    // std::cout << mDescriptor.depthStencil->depthBiasSlopeScale << std::endl;
+    // std::cout << mDescriptor.depthStencil->stencilWriteMask << std::endl;
 
     mDescriptor.label = mPipelineName.c_str();
     mPipeline = wgpuDeviceCreateRenderPipeline(app->getRendererResource().device, &mDescriptor);
@@ -69,7 +71,8 @@ WGPUVertexBufferLayout Pipeline::getDefaultVertexBufferLayout() {
         .configure(sizeof(VertexAttributes), VertexStepMode::VERTEX);
 }
 
-Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat surfaceTexture, WGPUTextureFormat depthTexture) {
+Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat surfaceTexture,
+                                         WGPUTextureFormat depthTexture) {
     // 0 - Load Default shader
 
     mShaderModule = loadShader(RESOURCE_DIR "/shader.wgsl", app->getRendererResource().device);
@@ -185,7 +188,8 @@ Pipeline& Pipeline::setPrimitiveState(WGPUFrontFace frontFace, WGPUCullMode cull
     return *this;
 }
 
-Pipeline& Pipeline::setDepthStencilState(bool depthWriteEnabled, uint32_t stencilReadMask, uint32_t stencilWriteMask, WGPUTextureFormat depthTextureFormat) {
+Pipeline& Pipeline::setDepthStencilState(bool depthWriteEnabled, uint32_t stencilReadMask, uint32_t stencilWriteMask,
+                                         WGPUTextureFormat depthTextureFormat) {
     mDepthStencilState = {};
     setDefault(mDepthStencilState);
 

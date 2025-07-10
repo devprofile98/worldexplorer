@@ -343,6 +343,25 @@ struct CubeModel : public IModel {
         };
 };
 
+struct WaterModel : public IModel {
+        WaterModel(Application* app) {
+            mModel = new Model{};
+
+            mModel->load("water", app, RESOURCE_DIR "/waterplane.glb", app->getObjectBindGroupLayout())
+                .moveTo(glm::vec3{52.275, 56.360, -3.5})
+                .scale(glm::vec3{100.0, 100.0, 1.0});
+            mModel->uploadToGPU(app);
+            mModel->setTransparent(false);
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+        }
+
+        Model* getModel() override { return mModel; }
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
+};
+
 USER_REGISTER_MODEL("tree", TreeModel);
 USER_REGISTER_MODEL("boat", BoatModel);
 USER_REGISTER_MODEL("car", CarModel);
@@ -352,6 +371,7 @@ USER_REGISTER_MODEL("arrow", ArrowModel);
 USER_REGISTER_MODEL("grass", GrassModel);
 USER_REGISTER_MODEL("steampunk", Steampunk);
 USER_REGISTER_MODEL("sheep", SheepModel);
+USER_REGISTER_MODEL("water", WaterModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
 // USER_REGISTER_MODEL("house", HouseModel);
 // USER_REGISTER_MODEL("motor", Motor);

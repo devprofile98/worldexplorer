@@ -273,6 +273,9 @@ void ShadowPass::renderAllCascades(WGPUCommandEncoder encoder) {
 void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEncoder encoder, size_t which) {
     /*auto& render_resource = mApp->getRendererResource();*/
     for (auto [name, model] : models) {
+        if (name == "water") {
+            continue;
+        }
         for (auto& [mat_id, mesh] : model->mMeshes) {
             Buffer modelUniformBuffer = {};
             modelUniformBuffer.setLabel("Model Uniform Buffer")

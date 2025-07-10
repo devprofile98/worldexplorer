@@ -23,6 +23,7 @@
 #include "texture.h"
 #include "transparency_pass.h"
 #include "utils.h"
+#include "water_pass.h"
 #include "webgpu/webgpu.h"
 
 class ShadowPass;
@@ -34,7 +35,7 @@ struct MyUniform {
         glm::vec4 color;
         glm::vec3 cameraWorldPosition;
         float time;
-        float _padding[3];
+        // float _padding[3];
 
         void setCamera(Camera& camera);
 };
@@ -101,7 +102,7 @@ class Application {
         WGPUBindGroup bindGrouptrans = {};
         glm::mat4 mtransmodel{1.0};
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
-        std::array<WGPUBindGroupLayout, 3> mBindGroupLayouts;
+        std::array<WGPUBindGroupLayout, 4> mBindGroupLayouts;
         Camera& getCamera();
         WGPUTextureFormat getTextureFormat();
         WGPUSampler getDefaultSampler();
@@ -115,6 +116,7 @@ class Application {
 
         WGPUBuffer mBuffer1;
         BindingGroup mDefaultTextureBindingGroup = {};
+        BindingGroup mDefaultCameraIndexBindgroup = {};
         Editor mEditor;
         BaseModel* mSelectedModel = nullptr;
 
@@ -139,6 +141,8 @@ class Application {
         TerrainPass* mTerrainPass;
         OutlinePass* mOutlinePass;
         ViewPort3DPass* m3DviewportPass;
+	WaterReflectionPass* mWaterPass;
+	WaterPass* mWaterRenderPass;
         WGPUSampler mDefaultSampler;
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();
@@ -153,6 +157,7 @@ class Application {
         BindingGroup mBindingGroup;
         std::vector<WGPUBindGroupEntry> mBindingData{20};
         std::vector<WGPUBindGroupEntry> mDefaultTextureBindingData{3};
+        std::vector<WGPUBindGroupEntry> mDefaultCameraIndexBindingData{1};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
         // WGPUBindGroup mBindGroup;
         WGPUBuffer mUniformBuffer;
@@ -160,6 +165,7 @@ class Application {
         WGPUBuffer mDirectionalLightBuffer;
         Buffer mLightSpaceTransformation;
         Buffer mTimeBuffer;
+        Buffer mDefaultCameraIndex;
 
         // WGPUBuffer mPointlightBuffer = {};
         MyUniform mUniforms;

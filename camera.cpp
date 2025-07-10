@@ -93,6 +93,10 @@ void Camera::processMouse(int x, int y) {
     // front.y = sin(glm::radians(mPitch));
     // front.z = sin(glm::radians(mYaw)) * cos(glm::radians(mPitch));
     // mCameraFront = glm::normalize(front);
+    updateCamera();
+}
+
+Camera& Camera::updateCamera() {
     mCameraFront.x = cos(glm::radians(mYaw));
     mCameraFront.y = -sin(glm::radians(mYaw));
     mCameraFront.z = sin(glm::radians(mPitch));
@@ -104,6 +108,7 @@ void Camera::processMouse(int x, int y) {
     mRight = glm::normalize(
         glm::cross(mCameraFront, mWorldUp));  // normalize the vectors, because their length gets closer to 0 the
     mCameraUp = glm::normalize(glm::cross(mRight, mCameraFront));
+    return *this;
 }
 
 void Camera::processScroll(double value) { mCameraPos += (float)value * glm::normalize(mCameraFront); }

@@ -700,7 +700,6 @@ BaseModel* testIntersection2(Camera& camera, size_t width, size_t height, std::p
     auto normalized = glm::normalize(worldray);
     for (auto& obj : models) {
         if (obj == nullptr) {
-            std::cout << "I am Null\n";
             continue;
         }
         auto [obj_in_world_min, obj_in_world_max] = obj->getWorldMin();

@@ -39,7 +39,7 @@ OutlinePass::OutlinePass(Application* app) {
 void OutlinePass::createRenderPass(WGPUTextureFormat textureFormat) {
     mDepthTextureBindgroup.create(mApp, mOutlineSpecificBindingData);
     auto* layouts = mApp->getBindGroupLayouts();
-    mRenderPipeline = new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], mLayerThree}, "Outline Pass"};
+    mRenderPipeline = new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], mLayerThree, layouts[3]}, "Outline Pass"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
     mRenderPipeline->setShader(RESOURCE_DIR "/outline.wgsl");
     setDefaultUseStencil(mRenderPipeline->getDepthStencilState());

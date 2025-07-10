@@ -19,7 +19,8 @@ add_subdirectory(webgpu)
 
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
- set(CMAKE_BUILD_TYPE Release)
+ # set(CMAKE_BUILD_TYPE Release)
+ set(CMAKE_BUILD_TYPE Debug)
 
 
 add_executable(
@@ -47,9 +48,11 @@ add_executable(
     terrain_pass.cpp
     model_registery.cpp
     renderpass.cpp
+    water_pass.cpp
 
     editor.cpp
     input_manager.cpp
+
 
 
     tree.cpp
