@@ -192,29 +192,30 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, shadowIdx: u32) -> f
 
 
 fn calculateTerrainColor(level: f32, uv: vec2f) -> vec3f {
-    var color = vec3f(0.0f);
-    if level == 1 {
+    var color = vec3f(0.0f, 1.0f, 0.0f);
+    if level <= 1.1 && level >= 0.9 {
         color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
-    } else if level > 1 && level < 2 {
+	// color = vec3f(1.0, 0.0, 0.0);
+    } else if level >= 1.1 && level < 1.9 {
         let distance = level - 1.0;
         let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
         color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
         color = mix(color, grass_color, distance);
-    } else if level == 2 {
+    } else if level >= 1.9 && level < 2.1 {
         color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
-    } else if level > 2 && level < 3 {
+    } else if level >= 2.1 && level < 2.9 {
         let distance = level - 2.0;
         let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
         color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
         color = mix(grass_color, color, distance);
-    } else if level == 3 {
+    } else if level >= 2.9 && level < 3.1 {
         color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
-    } else if level > 3 && level < 4 {
+    } else if level >= 3.1 && level < 3.9 {
         let distance = level - 3.0;
         let snow_color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
         color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
         color = mix(color, snow_color, distance);
-    } else if level == 4 {
+    } else if level >= 3.9 {
         color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
     }
     return color;
@@ -292,7 +293,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         }
     }
 
-    color = pow(calculateTerrainColor(in.color.r, in.uv) * max(min_intensity, intensity), vec3f(1.2));
+    let terrain_color = calculateTerrainColor(in.color.r, in.uv);
+    color = pow(terrain_color * max(min_intensity, intensity), vec3f(1.2));
     let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
 
     let ambient = color * shading;
@@ -300,10 +302,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     var col = (diffuse_final + ambient);
 
-    if objectTranformation.isHovered == 1 {
-        let variation = abs(sin(1.0 * 2.0));
-        col = col * (vec3f(1.0 + variation * 2.0, 0.0, 0.0));
-    }
+    //if objectTranformation.isHovered == 1 {
+    //    let variation = abs(sin(1.0 * 2.0));
+    //    col = col * (vec3f(1.0 + variation * 2.0, 0.0, 0.0));
+    //}
     //if length(in.viewSpacePos) > ElapsedTime {
     //    return vec4f((col + vec3(1.0, 0.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
     //}else{

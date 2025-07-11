@@ -258,18 +258,22 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	// transform world position of the water fragment to reflection camera clip-space
-	let reflected_clip_pos =  uMyUniform[1].projectionMatrix * uMyUniform[1].viewMatrix * vec4f(in.worldPos, 1.0);
+    let reflected_clip_pos = uMyUniform[1].projectionMatrix * uMyUniform[1].viewMatrix * vec4f(in.worldPos, 1.0);
 	// perform projection deviding to find ndc
-	let ndc_pos = reflected_clip_pos.xyz / reflected_clip_pos.w;
+    let ndc_pos = reflected_clip_pos.xyz / reflected_clip_pos.w;
 	// ndc to uv 
-        let uv_for_reflection = vec2f((ndc_pos.x + 1.0) * 0.5, (ndc_pos.y + 1.0) * 0.5);
+    let uv_for_reflection = vec2f((ndc_pos.x + 1.0) * 0.5, (ndc_pos.y + 1.0) * 0.5);
 
-        let final_uv = vec2f(uv_for_reflection.x, 1.0 - uv_for_reflection.y);
+    let final_uv = vec2f(uv_for_reflection.x, 1.0 - uv_for_reflection.y);
+    let F0 = pow((1.0 - 1.33) / (1.0 + 1.33), 2.0);
+    let cos_theta = saturate(dot(normalize(in.viewDirection), normalize(in.normal)));
+    let fresnel_co = F0 + (1.0 - F0) * pow(1.0 - cos_theta, 5.0) ;
 
-    	let reflection = textureSample(water_reflection_texture, textureSampler, final_uv).rgba;
-    	let refraction = textureSample(water_refraction_texture, textureSampler, uv_for_reflection).rgba;
-	let greenish_blue = vec4f(0.0, 0.3, 0.2,1.0);
-	return mix(mix(reflection, refraction, 0.5),greenish_blue, 0.2);
+
+    let reflection = textureSample(water_reflection_texture, textureSampler, final_uv).rgba;
+    let refraction = textureSample(water_refraction_texture, textureSampler, uv_for_reflection).rgba;
+    let greenish_blue = vec4f(0.0, 0.3, 0.2, 1.0);
+    return mix(mix(reflection, refraction, 1.0 - fresnel_co), greenish_blue, 0.2);
 }
 
 @fragment
