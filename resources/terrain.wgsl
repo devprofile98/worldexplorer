@@ -106,6 +106,8 @@ struct OffsetData {
 
 @group(3) @binding(0) var<uniform> myuniformindex: u32;
 
+@group(4) @binding(0) var<uniform> clipping_plane: vec4f;
+
 const PI: f32 = 3.141592653589793;
 
 fn degreeToRadians(degrees: f32) -> f32 {
@@ -154,11 +156,11 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     out.biTangent = B;
     out.aNormal = out.normal;
 
-    var index:u32 = 0;
+    var index: u32 = 0;
 
     for (var i: u32 = 0u; i < numOfCascades; i = i + 1u) {
-        if ( length(out.viewSpacePos) < lightSpaceTrans[i].farZ){
-        	index= i;
+        if length(out.viewSpacePos) < lightSpaceTrans[i].farZ {
+            index = i;
 		break;
         }
     }
@@ -170,6 +172,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 
 fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, shadowIdx: u32) -> f32 {
 
+
     var projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
 
     projCoords = vec3(
@@ -180,7 +183,7 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, shadowIdx: u32) -> f
     var shadow = 0.0;
     for (var i: i32 = -1; i <= 1; i++) {
         for (var j: i32 = -1; j <= 1; j++) {
-                shadow += textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), shadowIdx, projCoords.z);
+            shadow += textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), shadowIdx, projCoords.z);
         }
     }
     shadow /= 9.0;
@@ -246,6 +249,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //normal = normalize(TBN * normal);
     //normal = normalize(mix(in.normal, normal, 0.1));
 
+    let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
+    if d > 0.0 {
+	discard;
+    }
+
     let normal = normalize(in.normal);
 
     let view_direction = normalize(in.viewDirection);
@@ -273,15 +281,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
 
     var point_light_color = vec3f(0.0f);
-    for (var i:i32 =0; i < lightCount ; i++) {
-            let curr_light = pointLight[i];
-            let dir = curr_light.position.xyz - in.worldPos;
+    for (var i: i32 = 0; i < lightCount ; i++) {
+        let curr_light = pointLight[i];
+        let dir = curr_light.position.xyz - in.worldPos;
 
-            if (curr_light.ftype == 3){
-        	    point_light_color +=  calculatePointLight(curr_light, normal, dir);
-            } else if (curr_light.ftype == 2) {
-            	point_light_color += calculateSpotLight(curr_light, normal, dir);
-            }
+        if curr_light.ftype == 3 {
+            point_light_color += calculatePointLight(curr_light, normal, dir);
+        } else if curr_light.ftype == 2 {
+            point_light_color += calculateSpotLight(curr_light, normal, dir);
+        }
     }
 
     color = pow(calculateTerrainColor(in.color.r, in.uv) * max(min_intensity, intensity), vec3f(1.2));

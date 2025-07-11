@@ -99,6 +99,7 @@ struct OffsetData {
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(14) var<uniform> numOfCascades: u32;
+@group(0) @binding(15) var<uniform> clipping_plane: vec4f;
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 
@@ -265,10 +266,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
         let final_uv = vec2f(uv_for_reflection.x, 1.0 - uv_for_reflection.y);
 
-    	var reflection = textureSample(water_reflection_texture, textureSampler, final_uv).rgba;
-    	var refraction = textureSample(water_refraction_texture, textureSampler, uv_for_reflection).rgba;
-	return mix(reflection, refraction, 0.5);
-	// return frag_ambient;
+    	let reflection = textureSample(water_reflection_texture, textureSampler, final_uv).rgba;
+    	let refraction = textureSample(water_refraction_texture, textureSampler, uv_for_reflection).rgba;
+	let greenish_blue = vec4f(0.0, 0.3, 0.2,1.0);
+	return mix(mix(reflection, refraction, 0.5),greenish_blue, 0.2);
 }
 
 @fragment

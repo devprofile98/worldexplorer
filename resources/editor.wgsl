@@ -97,6 +97,7 @@ struct OffsetData {
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(14) var<uniform> numOfCascades: u32;
+@group(0) @binding(15) var<uniform> clipping_plane: vec4f;
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 
@@ -181,7 +182,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     if in.isHovered > 0 {
-    	return vec4f(in.color, 0.3);
+        return vec4f(in.color, 0.3);
     }
     return vec4f(in.color, 0.9);
 }

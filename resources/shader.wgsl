@@ -107,6 +107,8 @@ struct OffsetData {
 
 @group(3) @binding(0) var<uniform> myuniformindex: u32;
 
+@group(4) @binding(0) var<uniform> clipping_plane: vec4f;
+
 const PI: f32 = 3.141592653589793;
 
 fn degreeToRadians(degrees: f32) -> f32 {
@@ -157,8 +159,8 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 
     var index: u32 = 0u;
     for (var i: u32 = 0u; i < numOfCascades; i = i + 1u) {
-        if (abs(out.viewSpacePos.z) < lightSpaceTrans[i].farZ){
-        	index= i;
+        if abs(out.viewSpacePos.z) < lightSpaceTrans[i].farZ {
+            index = i;
         	break;
         }
     }
@@ -182,7 +184,7 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, cascadeIdx: u32) -> 
     var shadow = 0.0;
     for (var i: i32 = -1; i <= 1; i++) {
         for (var j: i32 = -1; j <= 1; j++) {
-                shadow += textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), cascadeIdx, projCoords.z -  0.005 );
+            shadow += textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), cascadeIdx, projCoords.z - 0.005);
         }
     }
     shadow /= 9.0;
@@ -209,142 +211,146 @@ fn calculateSpotLight(currLight: PointLight, normal: vec3f, dir: vec3f) -> vec3f
     return diffuse * intensity * attenuation;
 }
 
-fn fresnelSchlick(cosTheta: f32, F0: vec3f) -> vec3f
-{
+fn fresnelSchlick(cosTheta: f32, F0: vec3f) -> vec3f {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
 
-fn distributionGGX(N: vec3f, H: vec3f, roughness: f32) -> f32{
-	let a = roughness * roughness;
-	let a2 = a *a ;
-	let NdotH = max(dot(N, H), 0.0);
-	let NdotH2 = NdotH * NdotH;
+fn distributionGGX(N: vec3f, H: vec3f, roughness: f32) -> f32 {
+    let a = roughness * roughness;
+    let a2 = a * a ;
+    let NdotH = max(dot(N, H), 0.0);
+    let NdotH2 = NdotH * NdotH;
 
-	let nom = a2;
-	var denom = (NdotH2 * (a2 - 1.0) + 1.0);
-	denom = PI * denom * denom;
-	return nom / denom;
+    let nom = a2;
+    var denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+    return nom / denom;
 }
 
-fn geometrySchlickGGX(NdotV: f32, roughness: f32) -> f32{
+fn geometrySchlickGGX(NdotV: f32, roughness: f32) -> f32 {
 
     let r = (roughness + 1.0);
-    let k = (r*r) / 8.0;
+    let k = (r * r) / 8.0;
 
-    let nom   = NdotV;
+    let nom = NdotV;
     let denom = NdotV * (1.0 - k) + k;
 
     return nom / denom;
-
 }
 
 fn geometrySmith(N: vec3f, V: vec3f, L: vec3f, roughness: f32) -> f32 {
-	let NdotV = max(dot(N,V), 0.0); 
-	let NdotL = max(dot(N,L), 0.0); 
-	let ggx2 = geometrySchlickGGX(NdotV, roughness);
-	let ggx1 = geometrySchlickGGX(NdotL, roughness);
-	return ggx2 * ggx1;
+    let NdotV = max(dot(N, V), 0.0);
+    let NdotL = max(dot(N, L), 0.0);
+    let ggx2 = geometrySchlickGGX(NdotV, roughness);
+    let ggx1 = geometrySchlickGGX(NdotL, roughness);
+    return ggx2 * ggx1;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-	var frag_ambient = textureSample(diffuse_map, textureSampler, in.uv).rgba;
-	if ((in.materialProps & (1u << 0u))  != 1u) {
-		frag_ambient = vec4f(in.color.rgb, 1.0);
 
-	}
-	if (frag_ambient.a < 0.001 ) {
+    //let d = in.worldPos.z + 3.5;
+    let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
+    if d > 0.0 {
 		discard;
-	}
-	let albedo = pow(frag_ambient.rgb, vec3f(1.5f));
-        let material = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
-	let ao = material.r;
-	let roughness = material.g;
-	var metallic = material.b;
+    }
+
+    var frag_ambient = textureSample(diffuse_map, textureSampler, in.uv).rgba;
+    if (in.materialProps & (1u << 0u)) != 1u {
+        frag_ambient = vec4f(in.color.rgb, 1.0);
+    }
+    if frag_ambient.a < 0.001 {
+		discard;
+    }
+    let albedo = pow(frag_ambient.rgb, vec3f(1.5f));
+    let material = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
+    let ao = material.r;
+    let roughness = material.g;
+    var metallic = material.b;
 
 
-	var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
-	  normal = normal * 2.0 - 1.0;
-	  let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
-	  var N = normalize(TBN * normal);
-    	  let V = normalize(in.viewDirection);
+    var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
+    normal = normal * 2.0 - 1.0;
+    let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
+    var N = normalize(TBN * normal);
+    let V = normalize(in.viewDirection);
 
-	if ((in.materialProps & (1u << 1u))  != 2u){
-	  N = in.normal;
-	}
+    if (in.materialProps & (1u << 1u)) != 2u {
+        N = in.normal;
+    }
 
-	if ((in.materialProps & (1u << 3u))  != 8u){
-	  metallic = in.userSpecular;
-	}
+    if (in.materialProps & (1u << 3u)) != 8u {
+        metallic = in.userSpecular;
+    }
 
-	var F0 = vec3f(0.04f); //base reflectivity: default to 0.04 for even dieelectric material
-	F0 = mix(F0, albedo, metallic);
+    var F0 = vec3f(0.04f); //base reflectivity: default to 0.04 for even dieelectric material
+    F0 = mix(F0, albedo, metallic);
 
-	var lo: vec3f = vec3f(0.0);
-	for (var i = 0u; i < 2; i += 1u){
-            let curr_light = pointLight[i];
-	    let L = normalize(curr_light.position.xyz - in.worldPos);
-	    let H = normalize(V + L);
-	    let distance = length(curr_light.position.xyz - in.worldPos);
-	    let attenuation = 1.0f / ( distance * distance);
+    var lo: vec3f = vec3f(0.0);
+    for (var i = 0u; i < 2; i += 1u) {
+        let curr_light = pointLight[i];
+        let L = normalize(curr_light.position.xyz - in.worldPos);
+        let H = normalize(V + L);
+        let distance = length(curr_light.position.xyz - in.worldPos);
+        let attenuation = 1.0f / (distance * distance);
 
-	    let radiance = curr_light.ambient.rgb * attenuation;
+        let radiance = curr_light.ambient.rgb * attenuation;
 
-	    let NDF = distributionGGX(N, H, roughness);
-	    let G = geometrySmith(N, V, L, roughness);
-	    let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+        let NDF = distributionGGX(N, H, roughness);
+        let G = geometrySmith(N, V, L, roughness);
+        let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 
-	    let numerator = NDF * G * F;
-	    let denominator = 4.0 * max(dot(N,V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-	    let specular = numerator / denominator;
-
-
-	    let kS = F;
-
-	    var kD = vec3f(1.0) - kS;
-	    kD = kD * (1.0 - metallic);
-
-	    let NdotL = max(dot(N,L), 0.0);
-
-	    lo += (kD * albedo / PI + specular) * radiance * NdotL;
-	}
-
-{
-            let curr_light = lightingInfos.colors[0].rgb;
-	    let L = normalize(lightingInfos.directions[0].xyz); // normalize(curr_light.position.xyz - in.worldPos);
-	    let H = normalize(V + L);
-
-	    let radiance = lightingInfos.colors[0].rgb;
-
-	    let NDF = distributionGGX(N, H, roughness);
-	    let G = geometrySmith(N, V, L, roughness);
-	    let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
-
-	    let numerator = NDF * G * F;
-	    let denominator = 4.0 * max(dot(N,V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-	    let specular = numerator / denominator;
+        let numerator = NDF * G * F;
+        let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+        let specular = numerator / denominator;
 
 
-	    let kS = F;
+        let kS = F;
 
-	    var kD = vec3f(1.0) - kS;
-	    kD = kD * (1.0 - metallic);
+        var kD = vec3f(1.0) - kS;
+        kD = kD * (1.0 - metallic);
 
-	    let NdotL = max(dot(N,L), 0.0);
+        let NdotL = max(dot(N, L), 0.0);
 
-	    lo += (kD * albedo / PI + specular) * radiance * NdotL;
-	    }
+        lo += (kD * albedo / PI + specular) * radiance * NdotL;
+    }
 
-	let ambient = vec3(0.03) * albedo * ao;
-	
-	    var color = ambient + lo;
+        {
+        let curr_light = lightingInfos.colors[0].rgb;
+        let L = normalize(lightingInfos.directions[0].xyz); // normalize(curr_light.position.xyz - in.worldPos);
+        let H = normalize(V + L);
+
+        let radiance = lightingInfos.colors[0].rgb;
+
+        let NDF = distributionGGX(N, H, roughness);
+        let G = geometrySmith(N, V, L, roughness);
+        let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+        let numerator = NDF * G * F;
+        let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+        let specular = numerator / denominator;
+
+
+        let kS = F;
+
+        var kD = vec3f(1.0) - kS;
+        kD = kD * (1.0 - metallic);
+
+        let NdotL = max(dot(N, L), 0.0);
+
+        lo += (kD * albedo / PI + specular) * radiance * NdotL;
+    }
+
+    let ambient = vec3(0.03) * albedo * ao;
+
+    var color = ambient + lo;
 
 	    // HDR tonemapping
-	color = color / (color + vec3f(1.0));
+    color = color / (color + vec3f(1.0));
 	    // gamma correct
-	   color = pow(color, vec3(1.1));
-	return vec4f(color, 1.0);
+    color = pow(color, vec3(1.1));
+    return vec4f(color, 1.0);
 }
 
 @fragment
@@ -384,15 +390,15 @@ fn fs_main2(in: VertexOutput) -> @location(0) vec4f {
 
 
     var point_light_color = vec3f(0.0f);
-    for (var i:i32 =0; i < lightCount ; i++) {
-            let curr_light = pointLight[i];
-            let dir = curr_light.position.xyz - in.worldPos;
+    for (var i: i32 = 0; i < lightCount ; i++) {
+        let curr_light = pointLight[i];
+        let dir = curr_light.position.xyz - in.worldPos;
 
-            if (curr_light.ftype == 3){
-        	    point_light_color +=  calculatePointLight(curr_light, normal, dir);
-            } else if (curr_light.ftype == 2) {
-            	point_light_color += calculateSpotLight(curr_light, normal, dir);
-            }
+        if curr_light.ftype == 3 {
+            point_light_color += calculatePointLight(curr_light, normal, dir);
+        } else if curr_light.ftype == 2 {
+            point_light_color += calculateSpotLight(curr_light, normal, dir);
+        }
     }
 
     let fragment_color = textureSample(diffuse_map, textureSampler, in.uv).rgba;
@@ -415,7 +421,7 @@ fn fs_main2(in: VertexOutput) -> @location(0) vec4f {
             // color = pow(in.color.rgb, vec3f(2.2));
             color = in.color.rgb;
         }
-    } 
+    }
 
     let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
 
@@ -437,7 +443,7 @@ fn fs_main2(in: VertexOutput) -> @location(0) vec4f {
     // else if in.shadowIdx == 2 {
     //    return vec4f(vec3f(0.0,0.0,1.0) * (1 - shadow * (0.75)), 1.0);
     //}
-    
+
     col = col / (col + vec3f(1.0));
     // col = pow(col, vec3f(1.0/2.2));
     col = pow(col, vec3f(2.2));

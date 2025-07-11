@@ -102,7 +102,7 @@ class Application {
         WGPUBindGroup bindGrouptrans = {};
         glm::mat4 mtransmodel{1.0};
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
-        std::array<WGPUBindGroupLayout, 4> mBindGroupLayouts;
+        std::array<WGPUBindGroupLayout, 5> mBindGroupLayouts;
         Camera& getCamera();
         WGPUTextureFormat getTextureFormat();
         WGPUSampler getDefaultSampler();
@@ -117,6 +117,8 @@ class Application {
         WGPUBuffer mBuffer1;
         BindingGroup mDefaultTextureBindingGroup = {};
         BindingGroup mDefaultCameraIndexBindgroup = {};
+        BindingGroup mDefaultClipPlaneBG = {};
+
         Editor mEditor;
         BaseModel* mSelectedModel = nullptr;
 
@@ -141,9 +143,9 @@ class Application {
         TerrainPass* mTerrainPass;
         OutlinePass* mOutlinePass;
         ViewPort3DPass* m3DviewportPass;
-	WaterReflectionPass* mWaterPass;
-	WaterRefractionPass* mWaterRefractionPass;
-	WaterPass* mWaterRenderPass;
+        WaterReflectionPass* mWaterPass;
+        WaterRefractionPass* mWaterRefractionPass;
+        WaterPass* mWaterRenderPass;
         WGPUSampler mDefaultSampler;
         WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();
@@ -159,6 +161,7 @@ class Application {
         std::vector<WGPUBindGroupEntry> mBindingData{20};
         std::vector<WGPUBindGroupEntry> mDefaultTextureBindingData{3};
         std::vector<WGPUBindGroupEntry> mDefaultCameraIndexBindingData{1};
+        std::vector<WGPUBindGroupEntry> mDefaultClipPlaneBGData{1};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
         // WGPUBindGroup mBindGroup;
         WGPUBuffer mUniformBuffer;
@@ -167,6 +170,8 @@ class Application {
         Buffer mLightSpaceTransformation;
         Buffer mTimeBuffer;
         Buffer mDefaultCameraIndex;
+        Buffer mDefaultClipPlaneBuf;
+        glm::vec4 mDefaultPlane{0.0, 0.0, 1.0, -100};
 
         // WGPUBuffer mPointlightBuffer = {};
         MyUniform mUniforms;

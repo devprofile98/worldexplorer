@@ -96,6 +96,7 @@ struct OffsetData {
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(14) var<uniform> numOfCascades: u32;
+@group(0) @binding(15) var<uniform> clipping_plane: vec4f;
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 

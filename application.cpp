@@ -188,9 +188,13 @@ void Application::initializePipeline() {
     mBindingGroup.addBuffer(14,  //
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float));
 
-    mBindingGroup.addTexture(15,  //
-                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-                             TextureViewDimension::VIEW_2D);
+    // mBindingGroup.addBuffer(15,  //
+    //                         BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
+    //                         sizeof(glm::mat4));
+
+    // mBindingGroup.addTexture(15,  //
+    //                          BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
+    //                          TextureViewDimension::VIEW_2D);
 
     mDefaultTextureBindingGroup.addTexture(0,  //
                                            BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
@@ -203,8 +207,12 @@ void Application::initializePipeline() {
                                            BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
                                            TextureViewDimension::VIEW_2D);
 
-    mDefaultCameraIndexBindgroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM,
+    mDefaultCameraIndexBindgroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
                                            sizeof(uint32_t));
+
+    mDefaultClipPlaneBG.addBuffer(0,  //
+                                  BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
+                                  sizeof(glm::vec4));
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
     WGPUBindGroupLayout texture_bind_group_layout =
@@ -212,6 +220,9 @@ void Application::initializePipeline() {
 
     WGPUBindGroupLayout camera_bind_group_layout =
         mDefaultCameraIndexBindgroup.createLayout(this, "default camera index bindgroup layout");
+
+    WGPUBindGroupLayout clipplane_bind_group_layout =
+        mDefaultClipPlaneBG.createLayout(this, "default clip plane bindgroup layout");
 
     WGPUBindGroupLayoutEntry object_transformation = {};
     setDefault(object_transformation);
@@ -230,20 +241,22 @@ void Application::initializePipeline() {
     mBindGroupLayouts[1] = wgpuDeviceCreateBindGroupLayout(mRendererResource.device, &bind_group_layout_descriptor1);
     mBindGroupLayouts[2] = texture_bind_group_layout;
     mBindGroupLayouts[3] = camera_bind_group_layout;
+    mBindGroupLayouts[4] = clipplane_bind_group_layout;
 
-    mPipeline = new Pipeline{this,
-                             {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3]},
-                             "standard pipeline"};
+    mPipeline = new Pipeline{
+        this,
+        {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3], mBindGroupLayouts[4]},
+        "standard pipeline"};
 
     mPipeline->defaultConfiguration(this, mSurfaceFormat);
     setDefaultActiveStencil(mPipeline->getDepthStencilState());
     mPipeline->setDepthStencilState(mPipeline->getDepthStencilState());
     mPipeline->createPipeline(this);
 
-    mStenctilEnabledPipeline =
-        new Pipeline{this,
-                     {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3]},
-                     "Draw outline pipe"};
+    mStenctilEnabledPipeline = new Pipeline{
+        this,
+        {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3], mBindGroupLayouts[4]},
+        "Draw outline pipe"};
     mStenctilEnabledPipeline->defaultConfiguration(this, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8)
         .createPipeline(this);
 
@@ -276,6 +289,23 @@ void Application::initializePipeline() {
     mDefaultCameraIndexBindingData[0].binding = 0;
     mDefaultCameraIndexBindingData[0].buffer = mDefaultCameraIndex.getBuffer();
     mDefaultCameraIndexBindingData[0].size = sizeof(uint32_t);
+
+    // Create Default clip plane buffer
+    mDefaultClipPlaneBuf.setMappedAtCraetion()
+        .setLabel("default cilp plane buffer")
+        .setSize(sizeof(glm::vec4))
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .create(this);
+
+    // glm::vec4 default_clip_plane{0.0, 0.0, 1.0, 100};
+    wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultClipPlaneBuf.getBuffer(), 0, glm::value_ptr(mDefaultPlane),
+                         sizeof(glm::vec4));
+
+    mDefaultClipPlaneBGData[0].nextInChain = nullptr;
+    mDefaultClipPlaneBGData[0].binding = 0;
+    mDefaultClipPlaneBGData[0].buffer = mDefaultClipPlaneBuf.getBuffer();
+    mDefaultClipPlaneBGData[0].offset = 0;
+    mDefaultClipPlaneBGData[0].size = sizeof(glm::vec4);
 
     mShadowPass = new ShadowPass{this};
     mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm, 3);
@@ -424,16 +454,20 @@ void Application::initializePipeline() {
     mBindingData[14].binding = 14;
     mBindingData[14].offset = 0;
     mBindingData[14].size = sizeof(uint32_t);
-
-    mBindingData[15] = {};
-    mBindingData[15].nextInChain = nullptr;
-    mBindingData[15].binding = 15;
-    mBindingData[15].textureView = grass_normal_texture.getTextureView();
+    //
+    // mBindingData[15] = {};
+    // mBindingData[15].nextInChain = nullptr;
+    // mBindingData[15].buffer = mTimeBuffer.getBuffer();
+    // mBindingData[15].binding = 15;
+    // mBindingData[15].offset = 0;
+    // mBindingData[15].size = sizeof(uint32_t);
 
     mBindingGroup.create(this, mBindingData);
     mDefaultTextureBindingGroup.create(this, mDefaultTextureBindingData);
 
     mDefaultCameraIndexBindgroup.create(this, mDefaultCameraIndexBindingData);
+
+    mDefaultClipPlaneBG.create(this, mDefaultClipPlaneBGData);
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -921,6 +955,8 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetPipeline(water_pass_encoder, mWaterPass->getPipeline()->getPipeline());
     wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 3, mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                       nullptr);
+    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
+                                      nullptr);
 
     {
         for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
@@ -945,6 +981,8 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 3,
                                           mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
 
+        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
+                                          nullptr);
         terrain.draw(this, terrain_pass_encoder, mBindingData);
 
         // updateGui(terrain_pass_encoder);
@@ -966,6 +1004,9 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetPipeline(water_refraction_pass_encoder, mWaterRefractionPass->getPipeline()->getPipeline());
     wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                       nullptr);
+
+    wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 4,
+                                      mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
     for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
         if (name == "water") {
             continue;
@@ -990,6 +1031,8 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                           nullptr);
 
+        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4,
+                                          mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
         terrain.draw(this, terrain_pass_encoder, mBindingData);
 
         // updateGui(terrain_pass_encoder);
@@ -1017,6 +1060,7 @@ void Application::mainLoop() {
 
         wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                           nullptr);
+        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
         if (!model->isTransparent()) {
             model->draw(this, render_pass_encoder, mBindingData);
         }
@@ -1065,6 +1109,8 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                       nullptr);
+
+    wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
     terrain.draw(this, terrain_pass_encoder, mBindingData);
 
     updateGui(terrain_pass_encoder);
@@ -1392,6 +1438,11 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
 
                 mLightManager->renderGUI();
             }
+            ImGui::Text("\nClip Plane");
+            if (ImGui::DragFloat4("clip plane:", glm::value_ptr(mDefaultPlane))) {
+                wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultClipPlaneBuf.getBuffer(), 0,
+                                     glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
+            }
 
             ImGui::EndTabItem();
         }
@@ -1432,11 +1483,10 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
         ImGui::EndTabBar();
     }
 
-    // ImGui::End();
-
     ImGui::Begin("Add Line");
 
     ImGui::Image((ImTextureID)(intptr_t)mWaterRefractionPass->mRenderTargetView, ImVec2(1920 / 4.0, 1022 / 4.0));
+    ImGui::Image((ImTextureID)(intptr_t)mWaterPass->mRenderTargetView, ImVec2(1920 / 4.0, 1022 / 4.0));
 
     static glm::vec3 start = glm::vec3{0.0f};
     static glm::vec3 end = glm::vec3{0.0f};

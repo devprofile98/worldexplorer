@@ -1,5 +1,6 @@
 
 #include "terrain_pass.h"
+
 #include <cstdint>
 
 #include "application.h"
@@ -12,7 +13,8 @@ TerrainPass::TerrainPass(Application* app) { mApp = app; }
 
 void TerrainPass::createRenderPass(WGPUTextureFormat textureFormat) {
     auto* layouts = mApp->getBindGroupLayouts();
-    mRenderPipeline = new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], layouts[3]}, "Terrain pipeline"};
+    mRenderPipeline =
+        new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4]}, "Terrain pipeline"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
     mRenderPipeline->setShader(RESOURCE_DIR "/terrain.wgsl");
     /*setDefaultUseStencil(mRenderPipeline->getDepthStencilState());*/
@@ -72,7 +74,8 @@ Pipeline* OutlinePass::create(WGPUTextureFormat textureFormat, WGPUTextureView t
 ViewPort3DPass::ViewPort3DPass(Application* app) {
     mApp = app;
     mLayerThreeBindgroup.addBuffer(0,  //
-                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(int32_t));
+                                   BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
+                                   sizeof(int32_t));
 
     mLayerThree = mLayerThreeBindgroup.createLayout(app, "layer three bidngroup");
 }

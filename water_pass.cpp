@@ -43,7 +43,7 @@ WaterReflectionPass::WaterReflectionPass(Application* app) : mApp(app) {
     wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mDefaultCameraIndex.getBuffer(), 0, &cidx,
                          sizeof(uint32_t));
 
-    mDefaultCameraIndexBindgroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM,
+    mDefaultCameraIndexBindgroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
                                            sizeof(uint32_t));
 
     mDefaultCameraIndexBindingData[0] = {};
@@ -55,14 +55,38 @@ WaterReflectionPass::WaterReflectionPass(Application* app) : mApp(app) {
     layout = mDefaultCameraIndexBindgroup.createLayout(mApp, "water refletcion bind group layout");
 
     mDefaultCameraIndexBindgroup.create(mApp, mDefaultCameraIndexBindingData);
+
+    // clip plane bind group configuration
+    mDefaultClipPlaneBG.addBuffer(0,  //
+                                  BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
+                                  sizeof(glm::vec4));
+    mDefaultClipPlaneBG.createLayout(mApp, "water clip plane clip plane bindgroup layout");
+
+    mDefaultClipPlaneBuf.setMappedAtCraetion()
+        .setLabel("water reflection cilp plane buffer")
+        .setSize(sizeof(glm::vec4))
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .create(mApp);
+
+    // glm::vec4 default_clip_plane{0.0, 0.0, 1.0, 100};
+    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
+                         glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
+
+    mDefaultClipPlaneBGData[0].nextInChain = nullptr;
+    mDefaultClipPlaneBGData[0].binding = 0;
+    mDefaultClipPlaneBGData[0].buffer = mDefaultClipPlaneBuf.getBuffer();
+    mDefaultClipPlaneBGData[0].offset = 0;
+    mDefaultClipPlaneBGData[0].size = sizeof(glm::vec4);
+
+    mDefaultClipPlaneBG.create(mApp, mDefaultClipPlaneBGData);
 }
 
 void WaterReflectionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     (void)textureFormat;
 
     auto* layouts = mApp->getBindGroupLayouts();
-    mRenderPipeline =
-        new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], layout /*, mLayerThree*/}, "Water Render Pass1"};
+    mRenderPipeline = new Pipeline{
+        mApp, {layouts[0], layouts[1], layouts[2], layout, layouts[4] /*, mLayerThree*/}, "Water Render Pass1"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
     // mRenderPipeline->setShader(RESOURCE_DIR "/editor.wgsl");
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
@@ -102,14 +126,38 @@ WaterRefractionPass::WaterRefractionPass(Application* app) : mApp(app) {
 
     // Create the view of the depth texture manipulated by the rasterizer
     mDepthTextureView = mDepthTexture->createViewDepthStencil();
+
+    // clip plane bind group configuration
+    mDefaultClipPlaneBG.addBuffer(0,  //
+                                  BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
+                                  sizeof(glm::vec4));
+    mDefaultClipPlaneBG.createLayout(mApp, "water refraction clip plane clip plane bindgroup layout");
+
+    mDefaultClipPlaneBuf.setMappedAtCraetion()
+        .setLabel("water refraction cilp plane buffer")
+        .setSize(sizeof(glm::vec4))
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .create(mApp);
+
+    // glm::vec4 default_clip_plane{0.0, 0.0, 1.0, 100};
+    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
+                         glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
+
+    mDefaultClipPlaneBGData[0].nextInChain = nullptr;
+    mDefaultClipPlaneBGData[0].binding = 0;
+    mDefaultClipPlaneBGData[0].buffer = mDefaultClipPlaneBuf.getBuffer();
+    mDefaultClipPlaneBGData[0].offset = 0;
+    mDefaultClipPlaneBGData[0].size = sizeof(glm::vec4);
+
+    mDefaultClipPlaneBG.create(mApp, mDefaultClipPlaneBGData);
 }
 
 void WaterRefractionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     (void)textureFormat;
 
     auto* layouts = mApp->getBindGroupLayouts();
-    mRenderPipeline =
-        new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], layouts[3] /*, mLayerThree*/}, "Water Render Pass1"};
+    mRenderPipeline = new Pipeline{
+        mApp, {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4] /*, mLayerThree*/}, "Water Render Pass1"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
     // mRenderPipeline->setShader(RESOURCE_DIR "/editor.wgsl");
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
