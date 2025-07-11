@@ -194,12 +194,12 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, shadowIdx: u32) -> f
 fn calculateTerrainColor(level: f32, uv: vec2f) -> vec3f {
     var color = vec3f(0.0f, 1.0f, 0.0f);
     if level <= 1.1 && level >= 0.9 {
-        color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
-	// color = vec3f(1.0, 0.0, 0.0);
+        let texture_col = textureSample(sand_lake_texture, textureSampler, uv).rgb;
+	color = mix(texture_col, vec3f(1.0, 0.0, 0.0), 0.05);
     } else if level >= 1.1 && level < 1.9 {
         let distance = level - 1.0;
         let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
-        color = textureSample(sand_lake_texture, textureSampler, uv).rgb;
+        color = mix(textureSample(sand_lake_texture, textureSampler, uv).rgb, vec3f(1.0, 0.0, 0.0), 0.05);
         color = mix(color, grass_color, distance);
     } else if level >= 1.9 && level < 2.1 {
         color = textureSample(grass_ground_texture, textureSampler, uv).rgb;

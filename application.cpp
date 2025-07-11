@@ -72,6 +72,58 @@ std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const 
     return frustumCorners;
 }
 
+bool isInFrustum(const std::vector<glm::vec4>& corners, BaseModel* model) {
+    (void)model;
+    if (model == nullptr) {
+        return false;
+    }
+    // for left plane
+    auto near_bottom_left = corners[0];
+    auto far_bottom_left = corners[1];
+    auto near_top_left = corners[2];
+    auto far_top_left = corners[3];
+    auto ab = glm::vec3(near_bottom_left - far_bottom_left);
+    auto ac = glm::vec3(near_bottom_left - near_top_left);
+    auto left_plane_normal = glm::normalize(glm::cross(ab, ac));
+    auto left_constant_sigend_distanc = -glm::dot(left_plane_normal, glm::vec3(far_top_left));
+
+    // for right plane
+    auto near_bottom_right = corners[4];
+    auto far_bottom_right = corners[5];
+    auto near_top_right = corners[6];
+    auto far_top_right = corners[7];
+    ab = glm::vec3(near_bottom_right - far_bottom_right);
+    ac = glm::vec3(near_bottom_right - near_top_right);
+    auto right_plane_normal = glm::normalize(glm::cross(ab, ac));
+    auto right_constant_sigend_distanc = -glm::dot(right_plane_normal, glm::vec3(far_top_right));
+
+    // std::cout << "Left : " << glm::to_string(left_plane_normal) << " With constant " << left_constant_sigend_distanc
+    //           << std::endl;
+    // std::cout << "Right: " << glm::to_string(right_plane_normal) << " With constant " <<
+    // right_constant_sigend_distanc
+    //           << std::endl;
+    // check if the object is inside frustum or not
+
+    auto [min, max] = model->getWorldSpaceAABB();
+    auto dmin = glm::dot(left_plane_normal, min) + left_constant_sigend_distanc;
+    auto dmax = glm::dot(left_plane_normal, max) + left_constant_sigend_distanc;
+
+    auto drmin = glm::dot(right_plane_normal, min) + right_constant_sigend_distanc;
+    auto drmax = glm::dot(right_plane_normal, max) + right_constant_sigend_distanc;
+
+    auto ret = (drmax < 0.0 || drmin < 0.0) && (dmin > 0.0 || dmax > 0.0);
+
+    // std::cout << "for " << model->getName() << " -> left plane d min is: " << dmin << " and d max is: " << dmax
+    //           << std::endl;
+    // std::cout << "for " << model->getName() << " -> right plane d min is: " << drmin << " and d right max is: " <<
+    // drmax
+    //           << std::endl;
+    // std::cout << model->getName() << (ret ? " is" : " isnot") << " inside frustum" << std::endl;
+    // std::cout << "++++++++++++++++++++++++++++++++++++++" << std::endl;
+
+    return ret;
+}
+
 void MyUniform::setCamera(Camera& camera) {
     projectMatrix = camera.getProjection();
     viewMatrix = camera.getView();
@@ -805,8 +857,8 @@ void Application::mainLoop() {
     // ---------------- 1 - Preparing for shadow pass ---------------
     // The first pass is the shadow pass, only based on the opaque objects
     //
+    auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
     if (!look_as_light && should_update_csm) {
-        auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
         auto all_scenes = mShadowPass->createFrustumSplits(
             corners, {
                          {0.0, middle_plane_length},
@@ -1052,7 +1104,7 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetStencilReference(render_pass_encoder, stencilReferenceValue);
 
     for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-        if (name == "water") {
+        if (name == "water" || !isInFrustum(corners, model)) {
             continue;
         }
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder,
