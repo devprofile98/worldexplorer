@@ -19,6 +19,7 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "glm/trigonometric.hpp"
+#include "gpu_buffer.h"
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_wgpu.h"
 #include "imgui/imgui.h"
@@ -97,13 +98,6 @@ bool isInFrustum(const std::vector<glm::vec4>& corners, BaseModel* model) {
     auto right_plane_normal = glm::normalize(glm::cross(ab, ac));
     auto right_constant_sigend_distanc = -glm::dot(right_plane_normal, glm::vec3(far_top_right));
 
-    // std::cout << "Left : " << glm::to_string(left_plane_normal) << " With constant " << left_constant_sigend_distanc
-    //           << std::endl;
-    // std::cout << "Right: " << glm::to_string(right_plane_normal) << " With constant " <<
-    // right_constant_sigend_distanc
-    //           << std::endl;
-    // check if the object is inside frustum or not
-
     auto [min, max] = model->getWorldSpaceAABB();
     auto dmin = glm::dot(left_plane_normal, min) + left_constant_sigend_distanc;
     auto dmax = glm::dot(left_plane_normal, max) + left_constant_sigend_distanc;
@@ -113,16 +107,113 @@ bool isInFrustum(const std::vector<glm::vec4>& corners, BaseModel* model) {
 
     auto ret = (drmax < 0.0 || drmin < 0.0) && (dmin > 0.0 || dmax > 0.0);
 
-    // std::cout << "for " << model->getName() << " -> left plane d min is: " << dmin << " and d max is: " << dmax
-    //           << std::endl;
-    // std::cout << "for " << model->getName() << " -> right plane d min is: " << drmin << " and d right max is: " <<
-    // drmax
-    //           << std::endl;
-    // std::cout << model->getName() << (ret ? " is" : " isnot") << " inside frustum" << std::endl;
-    // std::cout << "++++++++++++++++++++++++++++++++++++++" << std::endl;
-
     return ret;
 }
+
+Buffer inputBuffer;   // copy dst, storage
+Buffer resultBuffer;  // copy src, storage
+Buffer outputBuffer;  // copy dst, map read
+                      //
+WGPUBindGroup computeBindGroup;
+WGPUComputePipeline computePipeline;
+
+std::vector<uint32_t> input_values = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
+
+void setupComputePass(Application* app) {
+    size_t data_size_bytes = input_values.size() * sizeof(uint32_t);
+    auto& resources = app->getRendererResource();
+
+    const char* shader_code = R"(
+        @group(0) @binding(0) var<storage, read> input_data: array<u32>;
+        @group(0) @binding(1) var<storage, read_write> output_data: array<u32>;
+
+        @compute @workgroup_size(64)
+        fn main(@builtin(global_invocation_id) global_id: vec3u) {
+            let index = global_id.x;
+            if index < arrayLength(&input_data) {
+                output_data[index] = input_data[index] + 1u;
+            }
+        }
+    )";
+
+    // create neccesarry buffers
+    inputBuffer.setLabel("input buffer")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
+        .setSize(data_size_bytes)
+        .setMappedAtCraetion()
+        .create(app);
+
+    wgpuQueueWriteBuffer(resources.queue, inputBuffer.getBuffer(), 0, input_values.data(), data_size_bytes);
+    // one buffer for input, one for output
+    resultBuffer.setLabel("result buffer")
+        .setUsage(WGPUBufferUsage_CopySrc | WGPUBufferUsage_Storage)
+        .setSize(data_size_bytes)
+        .setMappedAtCraetion()
+        .create(app);
+    // create the compute pass, bind group and pipeline
+    WGPUShaderModuleWGSLDescriptor shader_wgsl_desc = {};
+    shader_wgsl_desc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
+    shader_wgsl_desc.code = shader_code;
+    WGPUShaderModuleDescriptor shader_module_desc = {};
+    shader_module_desc.nextInChain = &shader_wgsl_desc.chain;
+    shader_module_desc.label = "Simple Compute Shader Module";
+    WGPUShaderModule shader_module = wgpuDeviceCreateShaderModule(resources.device, &shader_module_desc);
+
+    // 4. Create Bind Group Layout
+    WGPUBindGroupLayoutEntry bind_group_layout_entries[2] = {};
+    // Binding 0: input_data (ReadOnlyStorage)
+    bind_group_layout_entries[0].binding = 0;
+    bind_group_layout_entries[0].visibility = WGPUShaderStage_Compute;  // Only visible to compute stage
+    bind_group_layout_entries[0].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    // Binding 1: output_data (Storage)
+    bind_group_layout_entries[1].binding = 1;
+    bind_group_layout_entries[1].visibility = WGPUShaderStage_Compute;
+    bind_group_layout_entries[1].buffer.type = WGPUBufferBindingType_Storage;  // Writable storage
+
+    WGPUBindGroupLayoutDescriptor bind_group_layout_desc = {};
+    bind_group_layout_desc.label = "Compute Bind Group Layout";
+    bind_group_layout_desc.entryCount = 2;
+    bind_group_layout_desc.entries = bind_group_layout_entries;
+    WGPUBindGroupLayout bind_group_layout = wgpuDeviceCreateBindGroupLayout(resources.device, &bind_group_layout_desc);
+
+    // 5. Create Pipeline Layout
+    WGPUPipelineLayoutDescriptor pipeline_layout_desc = {};
+    pipeline_layout_desc.label = "Compute Pipeline Layout";
+    pipeline_layout_desc.bindGroupLayoutCount = 1;
+    pipeline_layout_desc.bindGroupLayouts = &bind_group_layout;
+    WGPUPipelineLayout pipeline_layout = wgpuDeviceCreatePipelineLayout(resources.device, &pipeline_layout_desc);
+
+    // 6. Create Compute Pipeline
+    WGPUComputePipelineDescriptor compute_pipeline_desc = {};
+    compute_pipeline_desc.label = "Simple Compute Pipeline";
+    compute_pipeline_desc.layout = pipeline_layout;
+    compute_pipeline_desc.compute.module = shader_module;
+    compute_pipeline_desc.compute.entryPoint = "main";  // Matches `fn main` in WGSL
+    computePipeline = wgpuDeviceCreateComputePipeline(resources.device, &compute_pipeline_desc);
+
+    // 7. Create Bind Group (linking actual buffers to shader bindings)
+    WGPUBindGroupEntry bind_group_entries[2] = {};
+    bind_group_entries[0].binding = 0;
+    bind_group_entries[0].buffer = inputBuffer.getBuffer();
+    bind_group_entries[0].offset = 0;
+    bind_group_entries[0].size = data_size_bytes;
+    bind_group_entries[1].binding = 1;
+    bind_group_entries[1].buffer = resultBuffer.getBuffer();
+    bind_group_entries[1].offset = 0;
+    bind_group_entries[1].size = data_size_bytes;
+
+    WGPUBindGroupDescriptor bind_group_desc = {};
+    bind_group_desc.label = "Compute Bind Group";
+    bind_group_desc.layout = bind_group_layout;
+    bind_group_desc.entryCount = 2;
+    bind_group_desc.entries = bind_group_entries;
+    computeBindGroup = wgpuDeviceCreateBindGroup(resources.device, &bind_group_desc);
+
+    // dispatch the compute work
+    // copy back data from output buffer to a cpu side buffer
+    // wait for async map read from buffer
+    // release resources
+};
 
 void MyUniform::setCamera(Camera& camera) {
     projectMatrix = camera.getProjection();
@@ -547,6 +638,8 @@ void Application::initializePipeline() {
 
     bindGrouptrans = wgpuDeviceCreateBindGroup(mRendererResource.device, &mTrasBindGroupDesc);
     mSkybox = new SkyBox{this, RESOURCE_DIR "/skybox"};
+
+    setupComputePass(this);
 }
 
 // Initializing Vertex Buffers
@@ -700,26 +793,6 @@ bool Application::initialize() {
     InputManager::instance().mMouseButtonListeners.push_back(&mEditor.gizmo);
     InputManager::instance().mMouseScrollListeners.push_back(&Screen::instance());
     InputManager::instance().mKeyListener.push_back(&Screen::instance());
-
-    // glfwSetKeyCallback(provided_window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
-    //     auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
-    //     that->getCamera().processInput(key, scancode, action, mods);
-    //
-    //     if (GLFW_KEY_KP_0 == key && action == GLFW_PRESS) {
-    //         // that->getCamera().lookAtAABB(model);
-    //         // if (that->mSelectedModel) {
-    //         //     that->mSelectedModel->selected(false);
-    //         // }
-    //         // that->mSelectedModel = model;
-    //         // that->mSelectedModel->selected(true);
-    //
-    //     } else if (GLFW_KEY_KP_1 == key && action == GLFW_PRESS) {
-    //         look_as_light = !look_as_light;
-    //
-    //     } else if (GLFW_KEY_KP_2 == key && action == GLFW_PRESS) {
-    //         that->mLightManager->nextLight();
-    //     }
-    // });
 
     WGPUInstanceDescriptor desc = {};
     desc.nextInChain = nullptr;
@@ -891,6 +964,41 @@ void Application::mainLoop() {
     }
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, sizeof(MyUniform));
+
+    // -----------------------------------------------------------------
+    // Compute Pass
+    // ----------------------------------------------------------------
+    // WGPUCommandEncoderDescriptor encoder_desc = {};
+    // encoder_desc.label = "Compute Command Encoder";
+    // WGPUCommandEncoder compute_encoder = wgpuDeviceCreateCommandEncoder(this->getRendererResource().device,
+    // &encoder_desc);
+
+    // 9. Begin Compute Pass
+    WGPUComputePassDescriptor compute_pass_desc = {};
+    compute_pass_desc.label = "Simple Compute Pass";
+    WGPUComputePassEncoder compute_pass_encoder = wgpuCommandEncoderBeginComputePass(encoder, &compute_pass_desc);
+
+    // Set the pipeline and bind group for the compute pass
+    wgpuComputePassEncoderSetPipeline(compute_pass_encoder, computePipeline);
+    wgpuComputePassEncoderSetBindGroup(compute_pass_encoder, 0, computeBindGroup, 0,
+                                       nullptr);  // Group 0, no dynamic offsets
+
+    // Calculate dispatch dimensions
+    // For a 1D array of `num_elements` and a @workgroup_size(64),
+    // we need `ceil(num_elements / 64)` workgroups in the X dimension.
+    uint32_t num_elements = input_values.size();
+    uint32_t workgroup_size_x = 64;  // Must match shader's @workgroup_size(64)
+    uint32_t num_workgroups_x = (num_elements + workgroup_size_x - 1) / workgroup_size_x;  // Ceil division
+
+    // Dispatch the compute shader workgroups
+    wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, num_workgroups_x, 1, 1);
+
+    // End the compute pass
+    wgpuComputePassEncoderEnd(compute_pass_encoder);
+    // -----------------------------------------------------------------
+    // END - Compute Pass
+    // ----------------------------------------------------------------
+    wgpuDevicePoll(mRendererResource.device, true, nullptr);
 
     // ---------------- 2 - begining of the opaque object color pass ---------------
 

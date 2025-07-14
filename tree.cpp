@@ -1,6 +1,7 @@
 #include <random>
 
 #include "application.h"
+#include "glm/fwd.hpp"
 #include "model.h"
 #include "model_registery.h"
 
@@ -19,31 +20,34 @@ struct TreeModel : public IModel {
         Model* getModel() override { return mModel; }
         void onLoad(Application* app, void* params) override {
             (void)params;
-            (void)params;
             std::random_device rd;   // Seed the random number generator
             std::mt19937 gen(rd());  // Mersenne Twister PRNG
             std::uniform_real_distribution<float> dist_for_rotation(0.0, 90.0);
             std::uniform_real_distribution<float> dist(1.9, 2.5);
-            std::vector<glm::mat4> dddata;
 
-            (void)app;
+            std::vector<glm::vec3> positions;
+            std::vector<float> degrees;
+            std::vector<glm::vec3> scales;
+            positions.reserve(5000);
+            degrees.reserve(5000);
+            scales.reserve(5000);
+
             for (size_t i = 0; i < app->terrainData.size(); i++) {
-                glm::vec3 position = glm::vec3(app->terrainData[i].x, app->terrainData[i].y, app->terrainData[i].z);
-                auto trans = glm::translate(glm::mat4{1.0f}, position);
-                auto rotate =
-                    glm::rotate(glm::mat4{1.0f}, glm::radians(dist_for_rotation(gen)), glm::vec3{0.0, 0.0, 1.0});
-                auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.9f * dist(gen)});
                 if (i % 200 == 0) {
-                    dddata.push_back(trans * rotate * scale);
+                    positions.emplace_back(
+                        glm::vec3(app->terrainData[i].x, app->terrainData[i].y, app->terrainData[i].z));
+                    degrees.emplace_back(glm::radians(dist_for_rotation(gen)));
+                    scales.emplace_back(glm::vec3{0.9f * dist(gen)});
                 }
             }
-            auto* ins = new Instance{dddata};
+            // auto* ins = new Instance{dddata};
+            auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0}, degrees, scales};
             mModel->setInstanced(ins);
             mModel->mObjectInfo.instanceOffsetId = 1;
 
             wgpuQueueWriteBuffer(app->getRendererResource().queue,
                                  app->mInstanceManager->getInstancingBuffer().getBuffer(), 100000 * sizeof(glm::mat4),
-                                 dddata.data(), sizeof(glm::mat4) * (dddata.size() - 1));
+                                 ins->mInstanceBuffer.data(), sizeof(glm::mat4) * (ins->mInstanceBuffer.size() - 1));
         };
 };
 
@@ -51,7 +55,8 @@ struct BoatModel : public IModel {
         BoatModel(Application* app) {
             mModel = new Model{};
             mModel->load("boat", app, RESOURCE_DIR "/fourareen.obj", app->getObjectBindGroupLayout())
-                .scale(glm::vec3{0.8}).rotate(glm::vec3{0.0f, 0.0f, 45.0f}, 0.0);
+                .scale(glm::vec3{0.8})
+                .rotate(glm::vec3{0.0f, 0.0f, 45.0f}, 0.0);
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->setFoliage();
@@ -179,7 +184,7 @@ struct GrassModel : public IModel {
             (void)params;
             (void)app;
 
-            std::vector<glm::mat4> dddata = {};
+            // std::vector<glm::mat4> dddata = {};
 
             std::random_device rd;   // Seed the random number generator
             std::mt19937 gen(rd());  // Mersenne Twister PRNG
@@ -188,24 +193,29 @@ struct GrassModel : public IModel {
             std::uniform_real_distribution<float> dist_for_tree(1.9, 2.5);
             std::uniform_real_distribution<float> dist_for_grass(1.0, 1.8);
 
+            std::vector<glm::vec3> positions;
+            std::vector<float> degrees;
+            std::vector<glm::vec3> scales;
+            positions.reserve(5000);
+            degrees.reserve(5000);
+            scales.reserve(5000);
+
             for (size_t i = 0; i < app->terrainData.size(); i++) {
-                glm::vec3 position = glm::vec3(app->terrainData[i].x, app->terrainData[i].y, app->terrainData[i].z);
-                auto trans = glm::translate(glm::mat4{1.0f}, position);
-                auto rotate =
-                    glm::rotate(glm::mat4{1.0f}, glm::radians(dist_for_rotation(gen)), glm::vec3{0.0, 0.0, 1.0});
-                auto scale = glm::scale(glm::mat4{1.0f}, glm::vec3{0.2f * dist(gen)});
                 if (i % 5 == 0) {
-                    dddata.push_back(trans * rotate * scale);
+                    positions.emplace_back(
+                        glm::vec3{app->terrainData[i].x, app->terrainData[i].y, app->terrainData[i].z});
+                    degrees.emplace_back(glm::radians(dist_for_rotation(gen)));
+                    scales.emplace_back(glm::vec3{0.15f * dist(gen)});
                 }
             }
 
-            auto* ins = new Instance{dddata};
+            auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0}, degrees, scales};
             mModel->setInstanced(ins);
             mModel->mObjectInfo.instanceOffsetId = 0;
 
             wgpuQueueWriteBuffer(app->getRendererResource().queue,
-                                 app->mInstanceManager->getInstancingBuffer().getBuffer(), 0, dddata.data(),
-                                 sizeof(glm::mat4) * (dddata.size() - 1));
+                                 app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
+                                 ins->mInstanceBuffer.data(), sizeof(glm::mat4) * (ins->mInstanceBuffer.size() - 1));
         };
 };
 
@@ -374,5 +384,5 @@ USER_REGISTER_MODEL("sheep", SheepModel);
 USER_REGISTER_MODEL("water", WaterModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
 // USER_REGISTER_MODEL("house", HouseModel);
-// USER_REGISTER_MODEL("motor", Motor);
+USER_REGISTER_MODEL("motor", Motor);
 /*USER_REGISTER_MODEL("jet", JetModel);*/

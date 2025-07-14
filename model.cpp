@@ -100,10 +100,11 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
 void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
     for (uint32_t i = 0; i < node->mNumMeshes; i++) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        if (getName() == model_name) {
-            std::cout << "Number of meshes for Steampunk is " << node->mNumMeshes << " " << mesh->mMaterialIndex << " "
-                      << node->mName.C_Str() << std::endl;
-        }
+        // if (getName() == model_name) {
+        //     std::cout << "Number of meshes for Steampunk is " << node->mNumMeshes << " " << mesh->mMaterialIndex << "
+        //     "
+        //               << node->mName.C_Str() << std::endl;
+        // }
         processMesh(app, mesh, scene);
     }
     for (uint32_t i = 0; i < node->mNumChildren; i++) {
@@ -179,9 +180,9 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
             mMeshes[mesh->mMaterialIndex].mIndexData.push_back((uint32_t)face.mIndices[j] + index_offset);
         }
     }
-    if (getName() == model_name) {
-        std::cout << std::format(" -------------- Assimp - Succesfully loaded mesh at {}\n", mesh->mMaterialIndex);
-    }
+    // if (getName() == model_name) {
+    //     std::cout << std::format(" -------------- Assimp - Succesfully loaded mesh at {}\n", mesh->mMaterialIndex);
+    // }
 
     mObjectInfo.setFlag(MaterialProps::HasNormalMap, false);
     mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, false);
@@ -304,10 +305,10 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     } else {
         std::cout << std::format("Assimp - Succesfully loaded model {}\n", (const char*)path.c_str());
     }
-    if (getName() != model_name) {
-        processNode(app, scene->mRootNode, scene);
-        return *this;
-    }
+    // if (getName() != model_name) {
+    processNode(app, scene->mRootNode, scene);
+    return *this;
+    // }
 
     if (!reader.ParseFromFile(path.string().c_str(), reader_config)) {
         if (!reader.Error().empty()) {
@@ -610,10 +611,10 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
 
         wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                              wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
-        if (getName() != model_name) {
-            wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
-                                                wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
-        }
+        // if (getName() != model_name) {
+        wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
+                                            wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
+        // }
         wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
 
         wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
@@ -626,15 +627,16 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
                                               : mesh.mTextureBindGroup,
                                           0, nullptr);
 
-        if (getName() != model_name) {
-            /*std::cout << "Drawing mesh for steampiunk at id" << mat_id << std::endl;*/
-            wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(),
-                                             this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0,
-                                             0);
-        } else {
-            wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
-                                      this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0);
-        }
+        // if (getName() != model_name) {
+        /*std::cout << "Drawing mesh for steampiunk at id" << mat_id << std::endl;*/
+        wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(),
+                                         this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0, 0);
+        // }
+        // else {
+        //            wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
+        //                                      this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0,
+        //                                      0);
+        //        }
     }
 }
 

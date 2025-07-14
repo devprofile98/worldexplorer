@@ -13,7 +13,7 @@ class InstanceManager {
     public:
         explicit InstanceManager(Application* app, size_t bufferSize, size_t maxInstancePerModel);
 
-	size_t mBufferSize = 0;
+        size_t mBufferSize = 0;
         // Getter
         Buffer& getInstancingBuffer();
 
@@ -24,13 +24,18 @@ class InstanceManager {
 class Instance {
     public:
         explicit Instance(std::vector<glm::mat4>& instanceBuffer);
-	
-	//Getter
-	size_t getInstanceCount();
-	uint16_t getInstanceID();
+        explicit Instance(std::vector<glm::vec3> positions, glm::vec3 rotationAxis, std::vector<float> degree,
+                          std::vector<glm::vec3> scales);
+
+        // Getter
+        size_t getInstanceCount();
+        uint16_t getInstanceID();
+        std::vector<glm::vec3> mPositions;
+        std::vector<glm::vec3> mRotation;
+        std::vector<glm::vec3> mScale;
 
         std::vector<glm::mat4> mInstanceBuffer;
-	uint16_t mOffsetID = 0;
+        uint16_t mOffsetID = 0;
 };
 
 #endif  // WEBGPUTEST_INSTANCE_H
