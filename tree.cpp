@@ -2,6 +2,7 @@
 
 #include "application.h"
 #include "glm/fwd.hpp"
+#include "instance.h"
 #include "model.h"
 #include "model_registery.h"
 
@@ -40,14 +41,18 @@ struct TreeModel : public IModel {
                     scales.emplace_back(glm::vec3{0.9f * dist(gen)});
                 }
             }
-            // auto* ins = new Instance{dddata};
-            auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0}, degrees, scales};
+
+            // std::cout << mModel->getName() << positions[0];
+            positions[1] = mModel->getPosition();
+            auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0},     degrees,
+                                     scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
             mModel->setInstanced(ins);
             mModel->mObjectInfo.instanceOffsetId = 1;
 
             wgpuQueueWriteBuffer(app->getRendererResource().queue,
-                                 app->mInstanceManager->getInstancingBuffer().getBuffer(), 100000 * sizeof(glm::mat4),
-                                 ins->mInstanceBuffer.data(), sizeof(glm::mat4) * (ins->mInstanceBuffer.size() - 1));
+                                 app->mInstanceManager->getInstancingBuffer().getBuffer(),
+                                 100000 * sizeof(InstanceData), ins->mInstanceBuffer.data(),
+                                 sizeof(InstanceData) * (ins->mInstanceBuffer.size() - 1));
         };
 };
 
@@ -209,13 +214,15 @@ struct GrassModel : public IModel {
                 }
             }
 
-            auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0}, degrees, scales};
+            positions[1] = mModel->getPosition();
+            auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0},     degrees,
+                                     scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
             mModel->setInstanced(ins);
             mModel->mObjectInfo.instanceOffsetId = 0;
 
             wgpuQueueWriteBuffer(app->getRendererResource().queue,
                                  app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
-                                 ins->mInstanceBuffer.data(), sizeof(glm::mat4) * (ins->mInstanceBuffer.size() - 1));
+                                 ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size() - 1));
         };
 };
 
@@ -372,7 +379,7 @@ struct WaterModel : public IModel {
         };
 };
 
-USER_REGISTER_MODEL("tree", TreeModel);
+// USER_REGISTER_MODEL("tree", TreeModel);
 USER_REGISTER_MODEL("boat", BoatModel);
 USER_REGISTER_MODEL("car", CarModel);
 USER_REGISTER_MODEL("tower", TowerModel);
@@ -384,5 +391,5 @@ USER_REGISTER_MODEL("sheep", SheepModel);
 USER_REGISTER_MODEL("water", WaterModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
 // USER_REGISTER_MODEL("house", HouseModel);
-USER_REGISTER_MODEL("motor", Motor);
+// USER_REGISTER_MODEL("motor", Motor);
 /*USER_REGISTER_MODEL("jet", JetModel);*/

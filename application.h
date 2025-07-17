@@ -121,6 +121,7 @@ class Application {
 
         Editor mEditor;
         BaseModel* mSelectedModel = nullptr;
+        Buffer indirectDrawArgsBuffer;  // copy dst, map read
 
     private:
         size_t mWindowWidth = 1920;

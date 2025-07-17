@@ -77,6 +77,8 @@ struct Scene {
 
 struct OffsetData {
     transformation: mat4x4f, // Array of 10 offset vectors
+    minAABB: vec4f,
+    maxAABB: vec4f
 };
 
 
@@ -96,6 +98,7 @@ struct OffsetData {
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(14) var<uniform> numOfCascades: u32;
+@group(0) @binding(15) var<storage, read> visible_instances_indices: array<u32>;
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 

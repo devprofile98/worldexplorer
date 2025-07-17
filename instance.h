@@ -5,9 +5,16 @@
 #include <cstdint>
 #include <vector>
 
+#include "glm/ext/matrix_float4x4.hpp"
 #include "gpu_buffer.h"
 
 class Application;
+
+struct alignas(16) InstanceData {
+        glm::mat4 modelMatrix;
+        glm::vec4 minAABB;
+        glm::vec4 maxAABB;
+};
 
 class InstanceManager {
     public:
@@ -23,9 +30,9 @@ class InstanceManager {
 
 class Instance {
     public:
-        explicit Instance(std::vector<glm::mat4>& instanceBuffer);
+        // explicit Instance(std::vector<glm::mat4>& instanceBuffer);
         explicit Instance(std::vector<glm::vec3> positions, glm::vec3 rotationAxis, std::vector<float> degree,
-                          std::vector<glm::vec3> scales);
+                          std::vector<glm::vec3> scales, const glm::vec4&& minAABB, const glm::vec4&& maxAABB);
 
         // Getter
         size_t getInstanceCount();
@@ -34,7 +41,7 @@ class Instance {
         std::vector<glm::vec3> mRotation;
         std::vector<glm::vec3> mScale;
 
-        std::vector<glm::mat4> mInstanceBuffer;
+        std::vector<InstanceData> mInstanceBuffer;
         uint16_t mOffsetID = 0;
 };
 

@@ -21,6 +21,8 @@ struct VSOutput {
 
 struct OffsetData {
     transformation: mat4x4f, // Array of 10 offset vectors
+    minAABB: vec4f,
+    maxAABB: vec4f
 };
 
 

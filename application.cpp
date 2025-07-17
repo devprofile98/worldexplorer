@@ -37,6 +37,7 @@
 #include "utils.h"
 #include "water_pass.h"
 #include "webgpu.h"
+#include "webgpu/webgpu.h"
 #include "wgpu.h"
 #include "wgpu_utils.h"
 
@@ -57,6 +58,16 @@ double lastClickTime = 0.0;
 double lastClickX = 0.0;
 double lastClickY = 0.0;
 
+// Ensure 16-byte alignment for structs used in uniform/storage buffers
+// Use alignas(16) for structs
+struct alignas(16) FrustumPlane {
+        glm::vec4 N_D;  // (Nx, Ny, Nz, D)
+};
+
+struct alignas(16) FrustumPlanesUniform {
+        FrustumPlane planes[2];  // Left, Right, Bottom, Top, Near, Far
+};
+
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
     const auto inv = glm::inverse(proj * view);
 
@@ -71,6 +82,45 @@ std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const 
     }
 
     return frustumCorners;
+}
+
+std::vector<FrustumPlane> create2FrustumPlanes(const std::vector<glm::vec4>& corners) {
+    // for left plane
+    auto near_bottom_left = corners[0];
+    auto far_bottom_left = corners[1];
+    auto near_top_left = corners[2];
+    auto far_top_left = corners[3];
+    auto ab = glm::vec3(near_bottom_left - far_bottom_left);
+    auto ac = glm::vec3(near_bottom_left - near_top_left);
+    auto left_plane_normal = glm::normalize(glm::cross(ab, ac));
+    auto left_constant_sigend_distanc = -glm::dot(left_plane_normal, glm::vec3(far_top_left));
+
+    // for right plane
+    auto near_bottom_right = corners[4];
+    auto far_bottom_right = corners[5];
+    auto near_top_right = corners[6];
+    auto far_top_right = corners[7];
+    ab = glm::vec3(near_bottom_right - far_bottom_right);
+    ac = glm::vec3(near_bottom_right - near_top_right);
+    auto right_plane_normal = glm::normalize(glm::cross(ab, ac));
+    auto right_constant_sigend_distanc = -glm::dot(right_plane_normal, glm::vec3(far_top_right));
+
+    // auto [min, max] = model->getWorldSpaceAABB();
+    // auto dmin = glm::dot(left_plane_normal, min) + left_constant_sigend_distanc;
+    // auto dmax = glm::dot(left_plane_normal, max) + left_constant_sigend_distanc;
+    //
+    // auto drmin = glm::dot(right_plane_normal, min) + right_constant_sigend_distanc;
+    // auto drmax = glm::dot(right_plane_normal, max) + right_constant_sigend_distanc;
+    //
+    // auto ret = (drmax < 0.0 || drmin < 0.0) && (dmin > 0.0 || dmax > 0.0);
+
+    FrustumPlane fr{};
+    fr.N_D = {right_plane_normal.x, right_plane_normal.y, right_plane_normal.z, right_constant_sigend_distanc};
+
+    FrustumPlane fl{};
+    fl.N_D = {left_plane_normal.x, left_plane_normal.y, left_plane_normal.z, left_constant_sigend_distanc};
+
+    return {fl, fr};
 }
 
 bool isInFrustum(const std::vector<glm::vec4>& corners, BaseModel* model) {
@@ -110,28 +160,69 @@ bool isInFrustum(const std::vector<glm::vec4>& corners, BaseModel* model) {
     return ret;
 }
 
-Buffer inputBuffer;   // copy dst, storage
-Buffer resultBuffer;  // copy src, storage
-Buffer outputBuffer;  // copy dst, map read
-                      //
+Buffer inputBuffer;          // copy dst, storage
+Buffer visibleIndexBuffer;   // copy src, storage
+Buffer outputBuffer;         // copy dst, map read
+Buffer frustumPlanesBuffer;  // copy dst, map read
+size_t data_size_bytes = 0;  //
 WGPUBindGroup computeBindGroup;
 WGPUComputePipeline computePipeline;
 
 std::vector<uint32_t> input_values = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
 
-void setupComputePass(Application* app) {
-    size_t data_size_bytes = input_values.size() * sizeof(uint32_t);
+void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
+    data_size_bytes = input_values.size() * sizeof(uint32_t);
     auto& resources = app->getRendererResource();
 
     const char* shader_code = R"(
+
+	struct FrustumPlane {
+	    N_D: vec4f, // (Normal.xyz, D.w)
+	};
+	struct FrustumPlanesUniform {
+	    planes: array<FrustumPlane, 2>,
+	};
+
+	struct OffsetData {
+	    transformation: mat4x4f, // Array of 10 offset vectors
+	    minAABB: vec4f,
+	    maxAABB: vec4f
+	};
+
+	struct DrawIndexedIndirectArgs {
+	    indexCount: u32,
+	    instanceCount: atomic<u32>, // This is what we modify atomically
+	    firstIndex: u32,
+	    baseVertex: u32,
+	    firstInstance: u32,
+	};
+
         @group(0) @binding(0) var<storage, read> input_data: array<u32>;
-        @group(0) @binding(1) var<storage, read_write> output_data: array<u32>;
+        @group(0) @binding(1) var<storage, read_write> visible_instances_indices: array<u32>;
+	@group(0) @binding(2) var<storage, read> instanceData: array<OffsetData>;
+	@group(0) @binding(3) var<uniform> uFrustumPlanes: FrustumPlanesUniform;
+	@group(0) @binding(4) var<storage, read_write> indirect_draw_args: DrawIndexedIndirectArgs;
+
 
         @compute @workgroup_size(64)
         fn main(@builtin(global_invocation_id) global_id: vec3u) {
             let index = global_id.x;
-            if index < arrayLength(&input_data) {
-                output_data[index] = input_data[index] + 1u;
+            // if index < arrayLength(&input_data) {
+            if index < 12683 {
+
+	        let off_id: u32 = 0u * 100000u;
+		let transform = instanceData[index + off_id].transformation;
+		let minAABB = instanceData[index + off_id].minAABB;
+
+		let left = dot(uFrustumPlanes.planes[0].N_D.xyz, minAABB.xyz) + uFrustumPlanes.planes[0].N_D.w;
+		let right = dot(uFrustumPlanes.planes[1].N_D.xyz, minAABB.xyz) + uFrustumPlanes.planes[1].N_D.w;
+
+	        if (left >=0 && right  <= 0 ){
+		  let write_idx = atomicAdd(&indirect_draw_args.instanceCount, 1u);
+		  if (write_idx < arrayLength(&visible_instances_indices)) {
+		      visible_instances_indices[write_idx] = index; // Store the original global_id.x as the visible index
+	          }
+		}
             }
         }
     )";
@@ -145,11 +236,34 @@ void setupComputePass(Application* app) {
 
     wgpuQueueWriteBuffer(resources.queue, inputBuffer.getBuffer(), 0, input_values.data(), data_size_bytes);
     // one buffer for input, one for output
-    resultBuffer.setLabel("result buffer")
+    visibleIndexBuffer.setLabel("visible index buffer")
         .setUsage(WGPUBufferUsage_CopySrc | WGPUBufferUsage_Storage)
+        .setSize(sizeof(uint32_t) * 13000)
+        .setMappedAtCraetion()
+        .create(app);
+
+    outputBuffer.setLabel("output result buffer")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead)
         .setSize(data_size_bytes)
         .setMappedAtCraetion()
         .create(app);
+
+    frustumPlanesBuffer.setLabel("frustum planes buffer")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .setSize(sizeof(FrustumPlanesUniform))
+        .setMappedAtCraetion()
+        .create(app);
+
+    app->indirectDrawArgsBuffer.setLabel("indirect draw args buffer")
+        .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
+        .setSize(sizeof(DrawIndexedIndirectArgs))
+        .setMappedAtCraetion()
+        .create(app);
+
+    auto indirect = DrawIndexedIndirectArgs{12, 0, 0, 0, 0};
+    wgpuQueueWriteBuffer(resources.queue, app->indirectDrawArgsBuffer.getBuffer(), 0, &indirect,
+                         sizeof(DrawIndexedIndirectArgs));
+
     // create the compute pass, bind group and pipeline
     WGPUShaderModuleWGSLDescriptor shader_wgsl_desc = {};
     shader_wgsl_desc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
@@ -160,7 +274,7 @@ void setupComputePass(Application* app) {
     WGPUShaderModule shader_module = wgpuDeviceCreateShaderModule(resources.device, &shader_module_desc);
 
     // 4. Create Bind Group Layout
-    WGPUBindGroupLayoutEntry bind_group_layout_entries[2] = {};
+    WGPUBindGroupLayoutEntry bind_group_layout_entries[5] = {};
     // Binding 0: input_data (ReadOnlyStorage)
     bind_group_layout_entries[0].binding = 0;
     bind_group_layout_entries[0].visibility = WGPUShaderStage_Compute;  // Only visible to compute stage
@@ -170,9 +284,24 @@ void setupComputePass(Application* app) {
     bind_group_layout_entries[1].visibility = WGPUShaderStage_Compute;
     bind_group_layout_entries[1].buffer.type = WGPUBufferBindingType_Storage;  // Writable storage
 
+    bind_group_layout_entries[2].nextInChain = nullptr;
+    bind_group_layout_entries[2].binding = 2;
+    bind_group_layout_entries[2].visibility = WGPUShaderStage_Compute;
+    bind_group_layout_entries[2].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;  // Writable storage
+                                                                                       //
+    bind_group_layout_entries[3].nextInChain = nullptr;
+    bind_group_layout_entries[3].binding = 3;
+    bind_group_layout_entries[3].visibility = WGPUShaderStage_Compute;
+    bind_group_layout_entries[3].buffer.type = WGPUBufferBindingType_Uniform;  // Writable storage
+
+    bind_group_layout_entries[4].nextInChain = nullptr;
+    bind_group_layout_entries[4].binding = 4;
+    bind_group_layout_entries[4].visibility = WGPUShaderStage_Compute;
+    bind_group_layout_entries[4].buffer.type = WGPUBufferBindingType_Storage;  // Writable storage
+
     WGPUBindGroupLayoutDescriptor bind_group_layout_desc = {};
     bind_group_layout_desc.label = "Compute Bind Group Layout";
-    bind_group_layout_desc.entryCount = 2;
+    bind_group_layout_desc.entryCount = 5;
     bind_group_layout_desc.entries = bind_group_layout_entries;
     WGPUBindGroupLayout bind_group_layout = wgpuDeviceCreateBindGroupLayout(resources.device, &bind_group_layout_desc);
 
@@ -192,20 +321,36 @@ void setupComputePass(Application* app) {
     computePipeline = wgpuDeviceCreateComputePipeline(resources.device, &compute_pipeline_desc);
 
     // 7. Create Bind Group (linking actual buffers to shader bindings)
-    WGPUBindGroupEntry bind_group_entries[2] = {};
+    WGPUBindGroupEntry bind_group_entries[5] = {};
     bind_group_entries[0].binding = 0;
     bind_group_entries[0].buffer = inputBuffer.getBuffer();
     bind_group_entries[0].offset = 0;
     bind_group_entries[0].size = data_size_bytes;
+
     bind_group_entries[1].binding = 1;
-    bind_group_entries[1].buffer = resultBuffer.getBuffer();
+    bind_group_entries[1].buffer = visibleIndexBuffer.getBuffer();
     bind_group_entries[1].offset = 0;
-    bind_group_entries[1].size = data_size_bytes;
+    bind_group_entries[1].size = sizeof(uint32_t) * 13000;
+
+    bind_group_entries[2].binding = 2;
+    bind_group_entries[2].buffer = instanceDataBuffer;
+    bind_group_entries[2].offset = 0;
+    bind_group_entries[2].size = sizeof(InstanceData) * 100000 * 10;
+
+    bind_group_entries[3].binding = 3;
+    bind_group_entries[3].buffer = frustumPlanesBuffer.getBuffer();
+    bind_group_entries[3].offset = 0;
+    bind_group_entries[3].size = sizeof(FrustumPlanesUniform);
+
+    bind_group_entries[4].binding = 4;
+    bind_group_entries[4].buffer = app->indirectDrawArgsBuffer.getBuffer();
+    bind_group_entries[4].offset = 0;
+    bind_group_entries[4].size = sizeof(DrawIndexedIndirectArgs);
 
     WGPUBindGroupDescriptor bind_group_desc = {};
     bind_group_desc.label = "Compute Bind Group";
     bind_group_desc.layout = bind_group_layout;
-    bind_group_desc.entryCount = 2;
+    bind_group_desc.entryCount = 5;
     bind_group_desc.entries = bind_group_entries;
     computeBindGroup = wgpuDeviceCreateBindGroup(resources.device, &bind_group_desc);
 
@@ -331,13 +476,9 @@ void Application::initializePipeline() {
     mBindingGroup.addBuffer(14,  //
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float));
 
-    // mBindingGroup.addBuffer(15,  //
-    //                         BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
-    //                         sizeof(glm::mat4));
-
-    // mBindingGroup.addTexture(15,  //
-    //                          BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-    //                          TextureViewDimension::VIEW_2D);
+    mBindingGroup.addBuffer(15,  //
+                            BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+                            sizeof(uint32_t) * 13000);
 
     mDefaultTextureBindingGroup.addTexture(0,  //
                                            BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
@@ -598,12 +739,13 @@ void Application::initializePipeline() {
     mBindingData[14].offset = 0;
     mBindingData[14].size = sizeof(uint32_t);
     //
-    // mBindingData[15] = {};
-    // mBindingData[15].nextInChain = nullptr;
-    // mBindingData[15].buffer = mTimeBuffer.getBuffer();
-    // mBindingData[15].binding = 15;
-    // mBindingData[15].offset = 0;
-    // mBindingData[15].size = sizeof(uint32_t);
+    //
+    mBindingData[15] = {};
+    mBindingData[15].nextInChain = nullptr;
+    mBindingData[15].buffer = visibleIndexBuffer.getBuffer();
+    mBindingData[15].binding = 15;
+    mBindingData[15].offset = 0;
+    mBindingData[15].size = sizeof(uint32_t) * 13000;
 
     mBindingGroup.create(this, mBindingData);
     mDefaultTextureBindingGroup.create(this, mDefaultTextureBindingData);
@@ -638,15 +780,13 @@ void Application::initializePipeline() {
 
     bindGrouptrans = wgpuDeviceCreateBindGroup(mRendererResource.device, &mTrasBindGroupDesc);
     mSkybox = new SkyBox{this, RESOURCE_DIR "/skybox"};
-
-    setupComputePass(this);
 }
 
 // Initializing Vertex Buffers
 void Application::initializeBuffers() {
     // initialize The instancing buffer
     mLightManager = LightManager::init(this);
-    mInstanceManager = new InstanceManager{this, sizeof(glm::mat4) * 100000 * 15, 100000};
+    mInstanceManager = new InstanceManager{this, sizeof(InstanceData) * 100000 * 10, 100000};
 
     /*water.load("water", this, RESOURCE_DIR "/bluecube.obj", mBindGroupLayouts[1])*/
     /*    .moveTo(glm::vec3{-3.725, -7.640, -3.425})*/
@@ -719,6 +859,8 @@ void Application::initializeBuffers() {
                                    glm::cos(glm::radians(17.5f)));
 
     mLightManager->uploadToGpu(this, mBuffer1);
+
+    setupComputePass(this, mInstanceManager->getInstancingBuffer().getBuffer());
 }
 
 // We define a function that hides implementation-specific variants of device polling:
@@ -927,10 +1069,17 @@ void Application::mainLoop() {
     Frustum frustum{};
     /*frustum.extractPlanes(mCamera.getProjection() * mCamera.getView());*/
 
+    auto indirect = DrawIndexedIndirectArgs{12, 0, 0, 0, 0};
+    wgpuQueueWriteBuffer(mRendererResource.queue, indirectDrawArgsBuffer.getBuffer(), 0, &indirect,
+                         sizeof(DrawIndexedIndirectArgs));
     // ---------------- 1 - Preparing for shadow pass ---------------
     // The first pass is the shadow pass, only based on the opaque objects
     //
     auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
+    auto fp = create2FrustumPlanes(corners);
+    // std::cout << glm::to_string(fp[0].N_D) << std::endl;
+    wgpuQueueWriteBuffer(mRendererResource.queue, frustumPlanesBuffer.getBuffer(), 0, fp.data(),
+                         sizeof(FrustumPlanesUniform));
     if (!look_as_light && should_update_csm) {
         auto all_scenes = mShadowPass->createFrustumSplits(
             corners, {
@@ -970,12 +1119,13 @@ void Application::mainLoop() {
     // ----------------------------------------------------------------
     // WGPUCommandEncoderDescriptor encoder_desc = {};
     // encoder_desc.label = "Compute Command Encoder";
-    // WGPUCommandEncoder compute_encoder = wgpuDeviceCreateCommandEncoder(this->getRendererResource().device,
-    // &encoder_desc);
+    // WGPUCommandEncoder compute_encoder =
+    //     wgpuDeviceCreateCommandEncoder(this->getRendererResource().device, &encoder_desc);
 
     // 9. Begin Compute Pass
     WGPUComputePassDescriptor compute_pass_desc = {};
     compute_pass_desc.label = "Simple Compute Pass";
+    compute_pass_desc.nextInChain = nullptr;
     WGPUComputePassEncoder compute_pass_encoder = wgpuCommandEncoderBeginComputePass(encoder, &compute_pass_desc);
 
     // Set the pipeline and bind group for the compute pass
@@ -986,20 +1136,115 @@ void Application::mainLoop() {
     // Calculate dispatch dimensions
     // For a 1D array of `num_elements` and a @workgroup_size(64),
     // we need `ceil(num_elements / 64)` workgroups in the X dimension.
-    uint32_t num_elements = input_values.size();
+    // uint32_t num_elements = input_values.size();
     uint32_t workgroup_size_x = 64;  // Must match shader's @workgroup_size(64)
-    uint32_t num_workgroups_x = (num_elements + workgroup_size_x - 1) / workgroup_size_x;  // Ceil division
+    uint32_t num_workgroups_x = (12000 + workgroup_size_x - 1) / workgroup_size_x;  // Ceil division
 
     // Dispatch the compute shader workgroups
     wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, num_workgroups_x, 1, 1);
 
     // End the compute pass
     wgpuComputePassEncoderEnd(compute_pass_encoder);
+    wgpuComputePassEncoderRelease(compute_pass_encoder);
+    // wgpuCommandEncoderCopyBufferToBuffer(
+    //     encoder,                         // The command encoder
+    //     visibleIndexBuffer.getBuffer(),  // Source buffer (your compute shader's output)
+    //     0,                               // Source offset
+    //     outputBuffer.getBuffer(),        // Destination buffer (your mappable staging buffer)
+    //     0,                               // Destination offset
+    //     sizeof(uint32_t) * 13000                  // Size of data to copy
+    // );
+
     // -----------------------------------------------------------------
     // END - Compute Pass
     // ----------------------------------------------------------------
-    wgpuDevicePoll(mRendererResource.device, true, nullptr);
 
+    // wgpuBufferMapAsync(
+    //     outputBuffer.getBuffer(),  // The staging buffer to map
+    //     WGPUMapMode_Read,          // We want to read from it
+    //     0,                         // Offset into the buffer to map
+    //     data_size_bytes,           // Size of the region to map
+    //     [](WGPUBufferMapAsyncStatus status, void*) {
+    //         // ReadbackUserData* data = static_cast<ReadbackUserData*>(pUserData);
+    //
+    //         if (status == WGPUBufferMapAsyncStatus_Success) {
+    //             // 4. Access Mapped Data:
+    //             // Get a pointer to the mapped memory range.
+    //             // This pointer is only valid within this callback!
+    //             const uint32_t* result_data = static_cast<const uint32_t*>(
+    //                 wgpuBufferGetConstMappedRange(outputBuffer.getBuffer(), 0, data_size_bytes));
+    //             (void)result_data;
+    //
+    //             // --- PROCESS YOUR RESULTS HERE ---
+    //             // 'result_data' now points to the array of uint32_t results from your shader.
+    //             // You can iterate over it, print it, verify it, etc.
+    //             // std::cout << "Compute Shader Results:\n";
+    //             // for (size_t i = 0; i < 10; ++i) {
+    //             //     std::cout << "  Element " << i << ": " << result_data[i] << std::endl;
+    //             // }
+    //             // --- END PROCESSING ---
+    //
+    //             // 5. Unmap the Buffer:
+    //             // Crucial: Always unmap the buffer when you're done with it.
+    //             // This makes the CPU-side pointer invalid and returns control to the GPU.
+    //             wgpuBufferUnmap(outputBuffer.getBuffer());
+    //         } else {
+    //             std::cerr << "Error: Failed to map buffer asynchronously! Status: " << status << std::endl;
+    //         }
+    //
+    //         // 6. Release Resources:
+    //         // Release the staging buffer here, as its mapping operation is complete.
+    //         // Also delete your UserData if you allocated it with `new`.
+    //         // std::cerr << "Error: Failed to map buffer asynchronously! Status: " << status << std::endl;
+    //         // wgpuBufferRelease(outputBuffer.getBuffer());
+    //         // delete data;  // Don't forget to free the user_data
+    //     },
+    //     nullptr  // Pass your user data struct to the callback
+    // );
+
+    // wgpuBufferMapAsync(
+    //     indirectDrawArgsBuffer.getBuffer(),  // The staging buffer to map
+    //     WGPUMapMode_Read,          // We want to read from it
+    //     0,                         // Offset into the buffer to map
+    //     sizeof(DrawIndexedIndirectArgs),           // Size of the region to map
+    //     [](WGPUBufferMapAsyncStatus status, void*) {
+    //         // ReadbackUserData* data = static_cast<ReadbackUserData*>(pUserData);
+    //
+    //         if (status == WGPUBufferMapAsyncStatus_Success) {
+    //             // 4. Access Mapped Data:
+    //             // Get a pointer to the mapped memory range.
+    //             // This pointer is only valid within this callback!
+    //             const DrawIndexedIndirectArgs* result_data = static_cast<const DrawIndexedIndirectArgs*>(
+    //                 wgpuBufferGetConstMappedRange(indirectDrawArgsBuffer.getBuffer(), 0,
+    //                 sizeof(DrawIndexedIndirectArgs)));
+    //             (void)result_data;
+    //
+    //             // --- PROCESS YOUR RESULTS HERE ---
+    //             // 'result_data' now points to the array of uint32_t results from your shader.
+    //             // You can iterate over it, print it, verify it, etc.
+    //             std::cout << "Compute Shader Results:\n" << result_data->instanceCount;
+    //             // for (size_t i = 0; i < 10; ++i) {
+    //             //     std::cout << "  Element " << i << ": " << result_data[i] << std::endl;
+    //             // }
+    //             // --- END PROCESSING ---
+    //
+    //             // 5. Unmap the Buffer:
+    //             // Crucial: Always unmap the buffer when you're done with it.
+    //             // This makes the CPU-side pointer invalid and returns control to the GPU.
+    //             wgpuBufferUnmap(indirectDrawArgsBuffer.getBuffer());
+    //         } else {
+    //             std::cerr << "Error: Failed to map buffer asynchronously! Status: " << status << std::endl;
+    //         }
+    //
+    //         // 6. Release Resources:
+    //         // Release the staging buffer here, as its mapping operation is complete.
+    //         // Also delete your UserData if you allocated it with `new`.
+    //         // std::cerr << "Error: Failed to map buffer asynchronously! Status: " << status << std::endl;
+    //         // wgpuBufferRelease(outputBuffer.getBuffer());
+    //         // delete data;  // Don't forget to free the user_data
+    //     },
+    //     nullptr  // Pass your user data struct to the callback
+    // );
     // ---------------- 2 - begining of the opaque object color pass ---------------
 
     /*auto render_pass_descriptor = createRenderPassDescriptor(target_view, mDepthTextureView);*/
@@ -1212,7 +1457,7 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetStencilReference(render_pass_encoder, stencilReferenceValue);
 
     for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-        if (name == "water" || !isInFrustum(corners, model)) {
+        if (name == "water" ) {
             continue;
         }
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder,
@@ -1360,10 +1605,11 @@ void Application::mainLoop() {
     command_buffer_descriptor.nextInChain = nullptr;
     command_buffer_descriptor.label = "command buffer";
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &command_buffer_descriptor);
-    wgpuCommandEncoderRelease(encoder);
 
+    wgpuDevicePoll(mRendererResource.device, true, nullptr);  // This is good!
     wgpuQueueSubmit(mRendererResource.queue, 1, &command);
     wgpuCommandBufferRelease(command);
+    wgpuCommandEncoderRelease(encoder);
 
     wgpuTextureViewRelease(target_view);
 

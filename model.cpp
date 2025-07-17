@@ -25,6 +25,7 @@
 #include "imgui.h"
 #include "tinyobjloader/tiny_obj_loader.h"
 #include "webgpu.h"
+#include "webgpu/webgpu.h"
 
 const char* model_name = "cube1";
 
@@ -611,10 +612,8 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
 
         wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                              wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
-        // if (getName() != model_name) {
         wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
                                             wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
-        // }
         wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
 
         wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
@@ -627,16 +626,13 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
                                               : mesh.mTextureBindGroup,
                                           0, nullptr);
 
-        // if (getName() != model_name) {
-        /*std::cout << "Drawing mesh for steampiunk at id" << mat_id << std::endl;*/
-        wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(),
-                                         this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0, 0);
-        // }
-        // else {
-        //            wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
-        //                                      this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0,
-        //                                      0);
-        //        }
+        if (getName() == "grass") {
+		wgpuRenderPassEncoderDrawIndexedIndirect(encoder,app->indirectDrawArgsBuffer.getBuffer(), 0);
+        } else {
+            wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(),
+                                             this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0,
+                                             0);
+        }
     }
 }
 

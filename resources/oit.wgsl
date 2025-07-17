@@ -44,7 +44,9 @@ struct ObjectInfo {
 }
 
 struct OffsetData {
-    offsets: vec4f, // Array of 10 offset vectors
+    transformation: mat4x4f, // Array of 10 offset vectors
+    minAABB: vec4f,
+    maxAABB: vec4f
 };
 
 

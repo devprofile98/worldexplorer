@@ -79,6 +79,8 @@ struct Scene {
 
 struct OffsetData {
     transformation: mat4x4f, // Array of 10 offset vectors
+    minAABB: vec4f,
+    maxAABB: vec4f
 };
 
 
@@ -98,6 +100,7 @@ struct OffsetData {
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(14) var<uniform> numOfCascades: u32;
+@group(0) @binding(15) var<storage, read> visible_instances_indices: array<u32>;
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 
@@ -134,7 +137,8 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     //let is_primary = f32(instance_index == 0);
     var transform: mat4x4f;
     if instance_index != 0 {
-        transform = offsetInstance[instance_index + off_id].transformation;
+	    let original_instance_idx = visible_instances_indices[instance_index];
+        transform = offsetInstance[original_instance_idx + off_id].transformation;
     } else {
         transform = objectTranformation.transformations;
     }

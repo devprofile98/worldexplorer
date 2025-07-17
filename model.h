@@ -28,6 +28,14 @@
 // forward declaration
 class Application;
 
+struct alignas(4) DrawIndexedIndirectArgs {  // Align to 4 bytes for u32
+        uint32_t indexCount;                 // Total indices in one tree mesh (fixed, same as before)
+        uint32_t instanceCount;              // <--- THIS WILL BE UPDATED ATOMICALLY BY COMPUTE SHADER
+        uint32_t firstIndex;                 // Fixed, usually 0
+        uint32_t baseVertex;                 // Fixed, usually 0
+        uint32_t firstInstance;              // Fixed, usually 0
+};
+
 enum class MaterialProps : uint32_t {
     None = 0,                     // No flags set
     HasDiffuseMap = (1u << 0),    // Bit 0: Does the material have a diffuse texture map?
@@ -167,7 +175,7 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
         void selected(bool selected = false);
         bool isSelected() const;
         std::pair<glm::vec3, glm::vec3> getWorldMin();
-	std::pair<glm::vec3, glm::vec3> getWorldSpaceAABB();
+        std::pair<glm::vec3, glm::vec3> getWorldSpaceAABB();
 
     private:
         bool mIsTransparent = false;
