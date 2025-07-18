@@ -51,6 +51,7 @@ struct RendererResource {
         WGPUDevice device;
         WGPUSurface surface;
         GLFWwindow* window;
+        WGPUCommandEncoder commandEncoder;
 };
 
 /*
@@ -121,7 +122,8 @@ class Application {
 
         Editor mEditor;
         BaseModel* mSelectedModel = nullptr;
-        Buffer indirectDrawArgsBuffer;  // copy dst, map read
+        // Buffer indirectDrawArgsBuffer;  // copy dst, map read
+        Buffer mVisibleIndexBuffer;  // copy src, storage
 
     private:
         size_t mWindowWidth = 1920;

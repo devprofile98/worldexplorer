@@ -626,8 +626,8 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
                                               : mesh.mTextureBindGroup,
                                           0, nullptr);
 
-        if (getName() == "grass") {
-		wgpuRenderPassEncoderDrawIndexedIndirect(encoder,app->indirectDrawArgsBuffer.getBuffer(), 0);
+        if (this->instance != nullptr) {
+            wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
         } else {
             wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(),
                                              this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0,
@@ -636,7 +636,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
     }
 }
 
-size_t Model::getInstaceCount() { return this->instances; }
+// size_t Model::getInstaceCount() { return this->instances; }
 
 #ifdef DEVELOPMENT_BUILD
 void Model::userInterface() {
@@ -789,3 +789,5 @@ std::pair<glm::vec3, glm::vec3> BaseModel::getWorldMin() {
 const std::string& BaseModel::getName() { return mName; }
 
 Texture* BaseModel::getDiffuseTexture() { return mMeshes[0].mTexture; }
+
+WGPUBindGroup Model::getObjectInfoBindGroup() { return ggg; }

@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <random>
 
 #include "application.h"
@@ -34,7 +35,7 @@ struct TreeModel : public IModel {
             scales.reserve(5000);
 
             for (size_t i = 0; i < app->terrainData.size(); i++) {
-                if (i % 200 == 0) {
+                if (i % 40 == 0) {
                     positions.emplace_back(
                         glm::vec3(app->terrainData[i].x, app->terrainData[i].y, app->terrainData[i].z));
                     degrees.emplace_back(glm::radians(dist_for_rotation(gen)));
@@ -46,13 +47,42 @@ struct TreeModel : public IModel {
             positions[1] = mModel->getPosition();
             auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0},     degrees,
                                      scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
-            mModel->setInstanced(ins);
-            mModel->mObjectInfo.instanceOffsetId = 1;
 
             wgpuQueueWriteBuffer(app->getRendererResource().queue,
                                  app->mInstanceManager->getInstancingBuffer().getBuffer(),
                                  100000 * sizeof(InstanceData), ins->mInstanceBuffer.data(),
                                  sizeof(InstanceData) * (ins->mInstanceBuffer.size() - 1));
+
+            std::cout << "(((((((((((((((( in mesh " << mModel->mMeshes.size() << std::endl;
+
+            mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + mModel->getName()).c_str())
+                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+                          WGPUBufferUsage_CopyDst)
+                .setSize(sizeof(DrawIndexedIndirectArgs))
+                .setMappedAtCraetion()
+                .create(app);
+
+            auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
+                                 &indirect, sizeof(DrawIndexedIndirectArgs));
+
+            for (auto& [mat_id, mesh] : mModel->mMeshes) {
+                mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())
+                    .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
+                    .setSize(sizeof(DrawIndexedIndirectArgs))
+                    .setMappedAtCraetion()
+                    .create(app);
+
+                std::cout << ")))))))))))) For " << mModel->getName() << &mesh << " Index count is "
+                          << static_cast<uint32_t>(mesh.mIndexData.size()) << std::endl;
+                auto indirect = DrawIndexedIndirectArgs{static_cast<uint32_t>(mesh.mIndexData.size()), 0, 0, 0, 0};
+                wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0,
+                                     &indirect, sizeof(DrawIndexedIndirectArgs));
+            }
+
+            mModel->mObjectInfo.instanceOffsetId = 1;
+            mModel->setInstanced(ins);
+            std::cout << "--------------------Barrier reached -----------------\n";
         };
 };
 
@@ -217,12 +247,41 @@ struct GrassModel : public IModel {
             positions[1] = mModel->getPosition();
             auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0},     degrees,
                                      scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
-            mModel->setInstanced(ins);
-            mModel->mObjectInfo.instanceOffsetId = 0;
 
             wgpuQueueWriteBuffer(app->getRendererResource().queue,
                                  app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
                                  ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size() - 1));
+
+            std::cout << "(((((((((((((((( in mesh " << mModel->mMeshes.size() << std::endl;
+
+            mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + mModel->getName()).c_str())
+                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+                          WGPUBufferUsage_CopyDst)
+                .setSize(sizeof(DrawIndexedIndirectArgs))
+                .setMappedAtCraetion()
+                .create(app);
+
+            auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
+                                 &indirect, sizeof(DrawIndexedIndirectArgs));
+
+            for (auto& [mat_id, mesh] : mModel->mMeshes) {
+                mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())
+                    .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
+                    .setSize(sizeof(DrawIndexedIndirectArgs))
+                    .setMappedAtCraetion()
+                    .create(app);
+
+                std::cout << ")))))))))))) For " << mModel->getName() << &mesh << " Index count is "
+                          << static_cast<uint32_t>(mesh.mIndexData.size()) << std::endl;
+                auto indirect = DrawIndexedIndirectArgs{static_cast<uint32_t>(mesh.mIndexData.size()), 0, 0, 0, 0};
+                wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0,
+                                     &indirect, sizeof(DrawIndexedIndirectArgs));
+            }
+
+            mModel->mObjectInfo.instanceOffsetId = 0;
+            mModel->setInstanced(ins);
+            std::cout << "--------------------Barrier reached -----------------\n";
         };
 };
 
@@ -271,7 +330,7 @@ struct Steampunk : public IModel {
 
             mModel->load("steampunk", app, RESOURCE_DIR "/steampunk.obj", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{-1.45, -3.239, -0.810})
-                .scale(glm::vec3{0.01f});
+                .scale(glm::vec3{0.002f});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
@@ -379,7 +438,7 @@ struct WaterModel : public IModel {
         };
 };
 
-// USER_REGISTER_MODEL("tree", TreeModel);
+USER_REGISTER_MODEL("tree", TreeModel);
 USER_REGISTER_MODEL("boat", BoatModel);
 USER_REGISTER_MODEL("car", CarModel);
 USER_REGISTER_MODEL("tower", TowerModel);

@@ -28,12 +28,12 @@
 // forward declaration
 class Application;
 
-struct alignas(4) DrawIndexedIndirectArgs {  // Align to 4 bytes for u32
-        uint32_t indexCount;                 // Total indices in one tree mesh (fixed, same as before)
-        uint32_t instanceCount;              // <--- THIS WILL BE UPDATED ATOMICALLY BY COMPUTE SHADER
-        uint32_t firstIndex;                 // Fixed, usually 0
-        uint32_t baseVertex;                 // Fixed, usually 0
-        uint32_t firstInstance;              // Fixed, usually 0
+struct alignas(4) DrawIndexedIndirectArgs {
+        uint32_t indexCount;
+        uint32_t instanceCount;
+        uint32_t firstIndex;
+        uint32_t baseVertex;
+        uint32_t firstInstance;
 };
 
 enum class MaterialProps : uint32_t {
@@ -197,7 +197,9 @@ class Model : public BaseModel {
 
         // Getters
         void createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData);
-        size_t getInstaceCount();
+        // size_t getInstaceCount();
+        WGPUBindGroup getObjectInfoBindGroup();
+        Buffer mIndirectDrawArgsBuffer;  // copy dst, map read
 
 #ifdef DEVELOPMENT_BUILD
         // Common User-Interface to interact with Object in the Development state

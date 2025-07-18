@@ -42,10 +42,12 @@ struct ObjectInfo {
 @group(0) @binding(1) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(2) var<uniform> objectTranformation: ObjectInfo;
 @group(0) @binding(3) var textureSampler: sampler;
+@group(0) @binding(4) var<storage, read> visible_instances_indices: array<u32>;
 
 @group(1) @binding(0) var diffuseMap: texture_2d<f32>;
 @group(1) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
 @group(1) @binding(2) var normal_map: texture_2d<f32>;
+
 
 @vertex
 fn vs_main(vertex: Vertex) -> VSOutput {
@@ -55,7 +57,9 @@ fn vs_main(vertex: Vertex) -> VSOutput {
     if vertex.instance_index == 0 {
         world_position = objectTranformation.transformations * vec4f(vertex.position, 1.0);
     } else {
-        world_position = offsetInstance[vertex.instance_index + off_id].transformation * vec4f(vertex.position, 1.0);
+	    let original_instance_idx = visible_instances_indices[off_id + vertex.instance_index];
+        // transform = offsetInstance[original_instance_idx + off_id].transformation;
+        world_position = offsetInstance[original_instance_idx + off_id].transformation * vec4f(vertex.position, 1.0);
     }
     var vsOut: VSOutput;
     vsOut.position = scene.projection * scene.view * world_position;

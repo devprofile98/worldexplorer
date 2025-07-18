@@ -137,7 +137,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     //let is_primary = f32(instance_index == 0);
     var transform: mat4x4f;
     if instance_index != 0 {
-	    let original_instance_idx = visible_instances_indices[instance_index];
+	let original_instance_idx = visible_instances_indices[off_id + instance_index];
         transform = offsetInstance[original_instance_idx + off_id].transformation;
     } else {
         transform = objectTranformation.transformations;

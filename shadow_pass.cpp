@@ -58,11 +58,6 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
         mSubFrustums.push_back(
             new ShadowFrustum{mApp, mRenderTarget->getTextureView(), mShadowDepthTexture->createViewDepthOnly2(c, 1)});
     }
-    /*mNearFrustum =*/
-    /*    new ShadowFrustum{mApp, mRenderTarget->getTextureView(), mShadowDepthTexture->createViewDepthOnly2(0, 1)};*/
-    /*mFarFrustum =*/
-    /*    new ShadowFrustum{mApp, mRenderTarget->getTextureView(), mShadowDepthTexture->createViewDepthOnly2(1, 1)};*/
-
     // for projection
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(Scene));
     mBindingGroup.addBuffer(1,  //
@@ -74,6 +69,10 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
 
     mBindingGroup.addSampler(3,  //
                              BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
+
+    mBindingGroup.addBuffer(4,  //
+                            BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+                            sizeof(uint32_t) * 100'000 * 10);
 
     mTextureBindingGroup.addTexture(0,  //
                                     BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
@@ -137,6 +136,13 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     mBindingData[3] = {};
     mBindingData[3].binding = 3;
     mBindingData[3].sampler = mApp->getDefaultSampler();
+
+    mBindingData[4] = {};
+    mBindingData[4].nextInChain = nullptr;
+    mBindingData[4].buffer = mApp->mVisibleIndexBuffer.getBuffer();
+    mBindingData[4].binding = 4;
+    mBindingData[4].offset = 0;
+    mBindingData[4].size = sizeof(uint32_t) * 100'000 * 10;
 
     mTextureBindingData[0] = {};
     mTextureBindingData[0].nextInChain = nullptr;
@@ -312,13 +318,12 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
                                                   : mesh.mTextureBindGroup,
                                               0, nullptr);
 
-            if (model->getName() != model_name) {
+            if (model->instance == nullptr) {
                 wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(),
                                                  model->instance == nullptr ? 1 : model->instance->getInstanceCount(),
                                                  0, 0, 0);
             } else {
-                wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(),
-                                          model->instance == nullptr ? 1 : model->instance->getInstanceCount(), 0, 0);
+                wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
             }
 
             wgpuBufferRelease(modelUniformBuffer.getBuffer());

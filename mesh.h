@@ -34,6 +34,7 @@ class Mesh {
         bool isTransparent = false;
         WGPUBindGroup mTextureBindGroup = {};
         std::vector<WGPUBindGroupEntry> binding_data{2};
+        Buffer mIndirectDrawArgsBuffer;  // copy dst, map read
 };
 
 #endif  //! WEBGPUTEST_MESH_H
