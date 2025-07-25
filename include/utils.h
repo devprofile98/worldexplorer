@@ -8,13 +8,13 @@
 #include <string>
 #include <vector>
 
+#include "../webgpu/webgpu.h"
+#include "../webgpu/wgpu.h"
 #include "camera.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "model.h"
 #include "model_registery.h"
-#include "webgpu/webgpu.h"
-#include "webgpu/wgpu.h"
 
 namespace fs = std::filesystem;
 
@@ -96,8 +96,9 @@ BaseModel* testIntersection2(Camera& camera, size_t width, size_t height, std::p
 float rayDotVector(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
                    const glm::vec3& vec);
 
-std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
-                                   const glm::vec3& min, const glm::vec3& max);
+std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width, size_t height,
+                                                   std::pair<size_t, size_t> mouseCoord, const glm::vec3& min,
+                                                   const glm::vec3& max);
 // Terrain generateTerrainVertices(size_t gridSize);
 
 #endif  //  TEST_WGPU_UTILS_H

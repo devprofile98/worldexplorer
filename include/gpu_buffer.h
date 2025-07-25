@@ -1,10 +1,10 @@
 #ifndef WEBGPUTEST_GPU_BUFFER_H
 #define WEBGPUTEST_GPU_BUFFER_H
 
+#include "../webgpu/webgpu.h"
+#include "../webgpu/wgpu.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
-#include "webgpu/webgpu.h"
-#include "webgpu/wgpu.h"
 
 class Application;
 

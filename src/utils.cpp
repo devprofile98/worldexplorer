@@ -20,7 +20,7 @@
 #pragma GCC diagnostic pop
 
 #define TINYOBJLOADER_IMPLEMENTATION  // add this to exactly 1 of your C++ files
-#include "tinyobjloader/tiny_obj_loader.h"
+#include "../tinyobjloader/tiny_obj_loader.h"
 
 bool loadGeometry(const fs::path& path, std::vector<float>& pointData, std::vector<uint16_t>& indexData,
                   size_t dimensions) {
@@ -666,8 +666,9 @@ BaseModel* testIntersection(Camera& camera, size_t width, size_t height, std::pa
     return nullptr;
 }
 
-std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
-                             const glm::vec3& min, const glm::vec3& max) {
+std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width, size_t height,
+                                                   std::pair<size_t, size_t> mouseCoord, const glm::vec3& min,
+                                                   const glm::vec3& max) {
     auto [xpos, ypos] = mouseCoord;
     double xndc = 2.0 * xpos / (float)width - 1.0;
     double yndc = 1.0 - (2.0 * ypos) / (float)height;

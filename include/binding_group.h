@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "webgpu/webgpu.h"
+#include "../webgpu/webgpu.h"
 
 class Application;
 

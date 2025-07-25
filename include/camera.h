@@ -3,11 +3,11 @@
 
 #include <GLFW/glfw3.h>
 
+#include "../webgpu/webgpu.h"
+#include "../webgpu/wgpu.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "model.h"
-#include "webgpu/webgpu.h"
-#include "webgpu/wgpu.h"
 
 struct CameraState {
         // angles.x is the rotation of the camera around the global vertical axis, affected by mouse.x
@@ -47,7 +47,7 @@ class Camera {
         Camera& setTarget(glm::vec3 target);
         void setProjection(glm::mat4 mat);
         Camera& setPosition(glm::vec3 position);
-	Camera& updateCamera();
+        Camera& updateCamera();
 
         // Getter
         glm::mat4 getProjection() const;
@@ -64,7 +64,7 @@ class Camera {
         void processMouse(int x, int y);
         void processScroll(double value);
         void updateCursor(int x, int y);
-	void lookAtAABB(BaseModel* model);
+        void lookAtAABB(BaseModel* model);
 
         CameraState mCameraState;
         DragState mDragState;

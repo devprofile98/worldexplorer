@@ -3,11 +3,11 @@
 
 #include <vector>
 
+#include "../webgpu/webgpu.h"
 #include "binding_group.h"
 #include "gpu_buffer.h"
 #include "model.h"
 #include "pipeline.h"
-#include "webgpu/webgpu.h"
 
 class Application;
 
@@ -22,7 +22,7 @@ class CompositionPass {
         Pipeline* getPipeline();
         WGPURenderPassDepthStencilAttachment mRenderPassDepthStencilAttachment;
         WGPURenderPassColorAttachment mRenderPassColorAttachment;
-	void setSSBOBuffers(WGPUBuffer headBuffer, WGPUBuffer linkedlistBuffer);
+        void setSSBOBuffers(WGPUBuffer headBuffer, WGPUBuffer linkedlistBuffer);
 
     private:
         Application* mApp;

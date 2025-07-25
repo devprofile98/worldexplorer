@@ -8,9 +8,9 @@
 #include <thread>
 #include <vector>
 
+#include "../webgpu/webgpu.h"
+#include "../webgpu/wgpu.h"
 #include "application.h"
-#include "webgpu/webgpu.h"
-#include "webgpu/wgpu.h"
 #include "wgpu_utils.h"
 
 int main(int, char**) {

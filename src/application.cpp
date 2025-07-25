@@ -1,6 +1,7 @@
 #include "application.h"
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -9,6 +10,11 @@
 #include <random>
 #include <vector>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include "../imgui/backends/imgui_impl_glfw.h"
+#include "../imgui/backends/imgui_impl_wgpu.h"
+#include "../imgui/imgui.h"
+#include "../webgpu/webgpu.h"
 #include "GLFW/glfw3.h"
 #include "composition_pass.h"
 #include "editor.h"
@@ -22,9 +28,6 @@
 #include "glm/trigonometric.hpp"
 #include "gpu_buffer.h"
 #include "imgui.h"
-#include "imgui/backends/imgui_impl_glfw.h"
-#include "imgui/backends/imgui_impl_wgpu.h"
-#include "imgui/imgui.h"
 #include "input_manager.h"
 #include "instance.h"
 #include "model.h"
@@ -39,7 +42,6 @@
 #include "utils.h"
 #include "water_pass.h"
 #include "webgpu.h"
-#include "webgpu/webgpu.h"
 #include "wgpu.h"
 #include "wgpu_utils.h"
 
@@ -47,6 +49,7 @@
 
 static bool look_as_light = false;
 static bool cull_frustum = true;
+static int ccounter = 0;
 
 static float fov = 60.0f;
 static float znear = 0.01f;
@@ -56,6 +59,7 @@ static float middle_plane_length = 15.0f;
 static float far_plane_length = 50.0f;
 static float ddistance = 2.0f;
 static float dd = 5.0f;
+static std::atomic_bool should_cull = true;
 bool should_update_csm = true;
 
 double lastClickTime = 0.0;
@@ -106,17 +110,8 @@ std::vector<FrustumPlane> create2FrustumPlanes(const std::vector<glm::vec4>& cor
     auto far_top_right = corners[7];
     ab = glm::vec3(near_bottom_right - far_bottom_right);
     ac = glm::vec3(near_bottom_right - near_top_right);
-    auto right_plane_normal = glm::normalize(glm::cross(ab, ac));
+    auto right_plane_normal = glm::normalize(glm::cross(ac, ab));
     auto right_constant_sigend_distanc = -glm::dot(right_plane_normal, glm::vec3(far_top_right));
-
-    // auto [min, max] = model->getWorldSpaceAABB();
-    // auto dmin = glm::dot(left_plane_normal, min) + left_constant_sigend_distanc;
-    // auto dmax = glm::dot(left_plane_normal, max) + left_constant_sigend_distanc;
-    //
-    // auto drmin = glm::dot(right_plane_normal, min) + right_constant_sigend_distanc;
-    // auto drmax = glm::dot(right_plane_normal, max) + right_constant_sigend_distanc;
-    //
-    // auto ret = (drmax < 0.0 || drmin < 0.0) && (dmin > 0.0 || dmax > 0.0);
 
     FrustumPlane fr{};
     fr.N_D = {right_plane_normal.x, right_plane_normal.y, right_plane_normal.z, right_constant_sigend_distanc};
@@ -222,22 +217,26 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
 	@group(1) @binding(1) var<storage, read_write> indirect_draw_args: DrawIndexedIndirectArgs;
 
 
-        @compute @workgroup_size(64)
+        @compute @workgroup_size(32)
         fn main(@builtin(global_invocation_id) global_id: vec3u) {
             let index = global_id.x;
 
 	        let off_id: u32 = objectTranformation.offsetId * 100000u;
 		let transform = instanceData[index + off_id].transformation;
 		let minAABB = instanceData[index + off_id].minAABB;
+		let maxAABB = instanceData[index + off_id].maxAABB;
 
-		let left = dot(uFrustumPlanes.planes[0].N_D.xyz, minAABB.xyz) + uFrustumPlanes.planes[0].N_D.w;
-		let right = dot(uFrustumPlanes.planes[1].N_D.xyz, minAABB.xyz) + uFrustumPlanes.planes[1].N_D.w;
+		let left = dot(normalize(uFrustumPlanes.planes[0].N_D.xyz), minAABB.xyz) + uFrustumPlanes.planes[0].N_D.w;
+		let right = dot(normalize(uFrustumPlanes.planes[1].N_D.xyz), minAABB.xyz) + uFrustumPlanes.planes[1].N_D.w;
 
-	        if (left >=0 && right  <= 0 ){
+		let max_left = dot(normalize(uFrustumPlanes.planes[0].N_D.xyz),  maxAABB.xyz) + uFrustumPlanes.planes[0].N_D.w;
+		let max_right = dot(normalize(uFrustumPlanes.planes[1].N_D.xyz), maxAABB.xyz) + uFrustumPlanes.planes[1].N_D.w;
+
+	        if (left >= -1.0 && max_left > -1.0 && right >= -1.0 && max_right >= -1.0){
 		  let write_idx = atomicAdd(&indirect_draw_args.instanceCount, 1u);
-		  if (write_idx < arrayLength(&visible_instances_indices)) {
+		  //if (write_idx < arrayLength(&visible_instances_indices)) {
 		      visible_instances_indices[off_id + write_idx] = index; // Store the original global_id.x as the visible index
-	          }
+	          //}
 		}
         }
     )";
@@ -1131,9 +1130,14 @@ void Application::mainLoop() {
 
     auto& objs = ModelRegistry::instance().getLoadedModel(Visibility_User);
     // auto grass = objs.find("grass");
+    if (ccounter++ == 60) {
+        should_cull = true;
+        ccounter = 0;
+    }
     for (auto& [name, model] : objs) {
         if (model->instance == nullptr) continue;
-        if (cull_frustum && model->instance != nullptr) {
+        if (cull_frustum && model->instance != nullptr && should_cull) {
+            should_cull = false;
             auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
             wgpuQueueWriteBuffer(mRendererResource.queue, model->mIndirectDrawArgsBuffer.getBuffer(), 0, &indirect,
                                  sizeof(DrawIndexedIndirectArgs));
@@ -1152,7 +1156,7 @@ void Application::mainLoop() {
                                                                          model->mIndirectDrawArgsBuffer.getBuffer());
             wgpuComputePassEncoderSetBindGroup(compute_pass_encoder, 1, objectinfo_bg, 0, nullptr);
 
-            uint32_t workgroup_size_x = 64;  // Must match shader's @workgroup_size(64)
+            uint32_t workgroup_size_x = 32;  // Must match shader's @workgroup_size(32)
             uint32_t num_workgroups_x =
                 (model->instance->getInstanceCount() + workgroup_size_x - 1) / workgroup_size_x;  // Ceil division
 

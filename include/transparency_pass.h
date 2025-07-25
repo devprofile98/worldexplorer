@@ -4,14 +4,14 @@
 #include <utility>
 #include <vector>
 
+#include "../webgpu/webgpu.h"
+#include "../webgpu/wgpu.h"
 #include "binding_group.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "gpu_buffer.h"
 #include "model.h"
 #include "pipeline.h"
-#include "webgpu/webgpu.h"
-#include "webgpu/wgpu.h"
 
 class Application;
 
@@ -51,13 +51,12 @@ class TransparencyPass {
         Buffer mUniformBuffer;
         Buffer mHeadsBuffer;
         Buffer mLinkedlistBuffer;
-	WGPUSampler mSampler;
+        WGPUSampler mSampler;
         // textures and views
         WGPUTextureView mDepthTextureView;
         WGPUTextureView mShadowDepthTextureView;
         WGPUTexture mDepthTexture;
         WGPUTexture mShadowDepthTexture;
-
 };
 
 #endif  // !WEBGPUTEST_TRANSPARENCY_PASS_H

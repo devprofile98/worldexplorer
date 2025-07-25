@@ -3,6 +3,8 @@
 
 #include <vector>
 
+#include "../webgpu/webgpu.h"
+#include "../webgpu/wgpu.h"
 #include "binding_group.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
@@ -11,8 +13,6 @@
 #include "pipeline.h"
 #include "renderpass.h"
 #include "texture.h"
-#include "webgpu/webgpu.h"
-#include "webgpu/wgpu.h"
 
 class Application;
 class ShadowFrustum;
@@ -63,7 +63,7 @@ class ShadowPass : public RenderPass {
         // pipeline
         Pipeline* mRenderPipeline;
         // render pass
-	size_t mNumOfCascades;
+        size_t mNumOfCascades;
 
         // bindings
         BindingGroup mBindingGroup;

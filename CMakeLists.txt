@@ -14,7 +14,6 @@ set(CMAKE_CXX_EXTENSIONS OFF) #
 add_subdirectory(imgui)
 add_subdirectory(webgpu)
 
-# include_directories()
 # target_link_libraries(App PRIVATE webgpu)
 
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
@@ -26,42 +25,40 @@ add_subdirectory(webgpu)
 add_executable(
     App 
 
-    main.cpp
-    wgpu_utils.cpp
-    application.cpp
-    utils.cpp
-    texture.cpp
-    binding_group.cpp
-    camera.cpp
-    model.cpp
-    point_light.cpp
-    pipeline.cpp
-    skybox.cpp
-    shadow_pass.cpp
-    gpu_buffer.cpp
-    shapes.cpp
-    transparency_pass.cpp
-    composition_pass.cpp
-    mesh.cpp
-    instance.cpp
-    frustum_culling.cpp
-    terrain_pass.cpp
-    model_registery.cpp
-    renderpass.cpp
-    water_pass.cpp
+    src/main.cpp
+    src/wgpu_utils.cpp
+    src/application.cpp
+    src/utils.cpp
+    src/texture.cpp
+    src/binding_group.cpp
+    src/camera.cpp
+    src/model.cpp
+    src/point_light.cpp
+    src/pipeline.cpp
+    src/skybox.cpp
+    src/shadow_pass.cpp
+    src/gpu_buffer.cpp
+    src/shapes.cpp
+    src/transparency_pass.cpp
+    src/composition_pass.cpp
+    src/mesh.cpp
+    src/instance.cpp
+    src/frustum_culling.cpp
+    src/terrain_pass.cpp
+    src/model_registery.cpp
+    src/renderpass.cpp
+    src/water_pass.cpp
 
-    editor.cpp
-    input_manager.cpp
+    src/editor.cpp
+    src/input_manager.cpp
 
-
-
-    tree.cpp
+    src/tree.cpp
 )
 
 target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")
 # target_compile_definitions(App PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
 
-target_include_directories(App PUBLIC "${CMAKE_SOURCE_DIR}/webgpu")
+target_include_directories(App PUBLIC  "imgui/" "include" "${CMAKE_SOURCE_DIR}/webgpu")
 # target_link_libraries(App PRIVATE wgpu_native_static)
 
 set_target_properties(App PROPERTIES

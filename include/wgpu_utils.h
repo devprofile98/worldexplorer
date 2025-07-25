@@ -1,8 +1,8 @@
 #ifndef WEBGPU_UTILS_H
 #define WEBGPU_UTILS_H
 
-#include "webgpu/webgpu.h"
-#include "webgpu/wgpu.h"
+#include "../webgpu/webgpu.h"
+#include "../webgpu/wgpu.h"
 
 // request webgpu adapter
 WGPUAdapter requestAdapterSync(WGPUInstance instance, WGPUSurface surface);

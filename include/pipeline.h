@@ -3,9 +3,9 @@
 
 #include <vector>
 
+#include "../webgpu/webgpu.h"
+#include "../webgpu/wgpu.h"
 #include "utils.h"
-#include "webgpu/webgpu.h"
-#include "webgpu/wgpu.h"
 
 class Application;
 

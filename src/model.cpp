@@ -13,6 +13,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include "../tinyobjloader/tiny_obj_loader.h"
+#include "../webgpu/webgpu.h"
 #include "application.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/quaternion_trigonometric.hpp"
@@ -23,9 +26,7 @@
 #include "glm/gtx/string_cast.hpp"
 #include "glm/trigonometric.hpp"
 #include "imgui.h"
-#include "tinyobjloader/tiny_obj_loader.h"
 #include "webgpu.h"
-#include "webgpu/webgpu.h"
 
 const char* model_name = "cube1";
 

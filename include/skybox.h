@@ -3,11 +3,11 @@
 
 #include <filesystem>
 
+#include "../webgpu/webgpu.h"
+#include "../webgpu/wgpu.h"
 #include "binding_group.h"
 #include "gpu_buffer.h"
 #include "pipeline.h"
-#include "webgpu/webgpu.h"
-#include "webgpu/wgpu.h"
 
 class Application;
 
@@ -16,12 +16,13 @@ class SkyBox {
         SkyBox(Application* app, const std::filesystem::path& cubeTexturePath);
 
         Pipeline* getPipeline();
-	void setReflectedCameraMatrix();
+        void setReflectedCameraMatrix();
         void draw(Application* app, WGPURenderPassEncoder encoder, const glm::mat4& proj);
 
         BindingGroup mBindingGroup;
         BindingGroup mReflectedBindingGroup;
-	Buffer mReflectedCameraMatrix;
+        Buffer mReflectedCameraMatrix;
+
     private:
         Pipeline* mRenderPipeline;
 

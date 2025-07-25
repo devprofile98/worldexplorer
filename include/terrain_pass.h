@@ -4,6 +4,8 @@
 
 #include <vector>
 
+#include "../webgpu/webgpu.h"
+#include "../webgpu/wgpu.h"
 #include "binding_group.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
@@ -11,8 +13,6 @@
 #include "pipeline.h"
 #include "renderpass.h"
 #include "shadow_pass.h"
-#include "webgpu/webgpu.h"
-#include "webgpu/wgpu.h"
 
 class Application;
 
@@ -31,21 +31,19 @@ class TerrainPass : public RenderPass {
 class OutlinePass : public RenderPass {
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 
-
     public:
         explicit OutlinePass(Application* app);
         BindingGroup mDepthTextureBindgroup;
         WGPUBindGroupLayout mLayerThree;
-	WGPUTextureView mTextureView;
+        WGPUTextureView mTextureView;
         std::vector<WGPUBindGroupEntry> mOutlineSpecificBindingData{1};
-	void createSomeBinding();
+        void createSomeBinding();
 
         Pipeline* create(WGPUTextureFormat textureFormat, WGPUTextureView textureview);
 
     private:
         Application* mApp;
 };
-
 
 class ViewPort3DPass : public RenderPass {
         void createRenderPass(WGPUTextureFormat textureFormat) override;

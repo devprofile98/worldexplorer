@@ -7,6 +7,7 @@
 #include "model.h"
 #include "model_registery.h"
 
+
 struct TreeModel : public IModel {
         TreeModel(Application* app) {
             mModel = new Model{};
@@ -239,14 +240,27 @@ struct GrassModel : public IModel {
                 if (i % 5 == 0) {
                     positions.emplace_back(
                         glm::vec3{app->terrainData[i].x, app->terrainData[i].y, app->terrainData[i].z});
-                    degrees.emplace_back(glm::radians(dist_for_rotation(gen)));
+                    degrees.emplace_back(0.0 /*glm::radians(dist_for_rotation(gen))*/);
                     scales.emplace_back(glm::vec3{0.15f * dist(gen)});
                 }
             }
 
+            positions[1000] = mModel->getPosition();
+            positions[1000].z += 1.0;
             positions[1] = mModel->getPosition();
+
+            // std::vector<glm::vec3> tmppositions;
+            // std::vector<float> tmpdegrees;
+            // std::vector<glm::vec3> tmpscales;
+            // for (size_t i = 0; i < 1000; i++) {
+            //     tmppositions.push_back(positions[i + 3000]);
+            //     tmpscales.push_back(scales[i +       3000]);
+            //     tmpdegrees.push_back(degrees[i +     3000]);
+            // }
             auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0},     degrees,
                                      scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
+            // auto* ins = new Instance{tmppositions, glm::vec3{0.0, 0.0, 1.0},     tmpdegrees,
+            //                          tmpscales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
 
             wgpuQueueWriteBuffer(app->getRendererResource().queue,
                                  app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
@@ -438,7 +452,7 @@ struct WaterModel : public IModel {
         };
 };
 
-USER_REGISTER_MODEL("tree", TreeModel);
+// USER_REGISTER_MODEL("tree", TreeModel);
 USER_REGISTER_MODEL("boat", BoatModel);
 USER_REGISTER_MODEL("car", CarModel);
 USER_REGISTER_MODEL("tower", TowerModel);

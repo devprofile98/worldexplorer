@@ -1,12 +1,12 @@
 #ifndef WEBGPUTEST_SHAPE_H
 #define WEBGPUTEST_SHAPE_H
 
+#include "../webgpu/webgpu.h"
 #include "binding_group.h"
 #include "gpu_buffer.h"
 #include "mesh.h"
 #include "model.h"
 #include "pipeline.h"
-#include "webgpu/webgpu.h"
 
 class Application;
 
@@ -36,7 +36,7 @@ class Plane : public Cube {
 
 class Line : public BaseModel {
     public:
-        Line(Application* app, glm::vec3 start, glm::vec3 end, float width,  glm::vec3 color);
+        Line(Application* app, glm::vec3 start, glm::vec3 end, float width, glm::vec3 color);
 
         virtual void draw(Application* app, WGPURenderPassEncoder encoder,
                           std::vector<WGPUBindGroupEntry>& bindingData) override;

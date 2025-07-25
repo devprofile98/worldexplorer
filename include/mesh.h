@@ -5,12 +5,12 @@
 #include <format>
 #include <iostream>
 
+#include "../tinyobjloader/tiny_obj_loader.h"
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "gpu_buffer.h"
 #include "imgui.h"
 #include "texture.h"
-#include "tinyobjloader/tiny_obj_loader.h"
 
 // Shader-equivalant struct for vertex data
 struct VertexAttributes {
