@@ -4,6 +4,8 @@
 #include <cstring>
 #include <format>
 #define GLM_ENABLE_EXPERIMENTAL
+#include <webgpu/webgpu.h>
+
 #include "application.h"
 #include "glm/ext.hpp"
 #include "glm/fwd.hpp"
@@ -12,7 +14,6 @@
 #include "gpu_buffer.h"
 #include "model.h"
 #include "renderpass.h"
-#include "webgpu.h"
 
 float sunlength = 5.0;
 
@@ -101,7 +102,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     static WGPUFragmentState mFragmentState = {};
     mFragmentState.nextInChain = nullptr;
     mFragmentState.module = nullptr;
-    mFragmentState.entryPoint = nullptr;
+    mFragmentState.entryPoint = WGPUStringView{nullptr, 0};
     mFragmentState.constants = nullptr;
     mFragmentState.constantCount = 0;
     mFragmentState.targetCount = 0;

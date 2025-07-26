@@ -1,8 +1,9 @@
 
 #include "water_pass.h"
 
+#include <webgpu/webgpu.h>
+
 #include "application.h"
-#include "webgpu.h"
 
 WaterReflectionPass::WaterReflectionPass(Application* app) : mApp(app) {
     // create render target
@@ -92,7 +93,7 @@ void WaterReflectionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     setDefault(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->getDepthStencilState().format = WGPUTextureFormat_Depth24PlusStencil8;
-    mRenderPipeline->getDepthStencilState().depthWriteEnabled = true;
+    mRenderPipeline->getDepthStencilState().depthWriteEnabled = WGPUOptionalBool_True;
     mRenderPipeline->getDepthStencilState().depthCompare = WGPUCompareFunction_Less;
     mRenderPipeline->setPrimitiveState(WGPUFrontFace_CW, WGPUCullMode_Back);
 
@@ -163,7 +164,7 @@ void WaterRefractionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     setDefault(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->getDepthStencilState().format = WGPUTextureFormat_Depth24PlusStencil8;
-    mRenderPipeline->getDepthStencilState().depthWriteEnabled = true;
+    mRenderPipeline->getDepthStencilState().depthWriteEnabled = WGPUOptionalBool_True;
     mRenderPipeline->getDepthStencilState().depthCompare = WGPUCompareFunction_Less;
     mRenderPipeline->setPrimitiveState(WGPUFrontFace_CW, WGPUCullMode_Back);
 

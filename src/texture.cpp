@@ -1,12 +1,13 @@
 #include "texture.h"
 
+#include <webgpu/webgpu.h>
+
 #include <cstdint>
 #include <filesystem>
 #include <format>
 #include <string>
 
 #include "glm/exponential.hpp"
-#include "webgpu.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -98,11 +99,10 @@ WGPUTextureView Texture::createViewArray(uint32_t base, uint32_t count) {
 }
 
 Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
-                 WGPUTextureUsageFlags flags, WGPUTextureFormat textureFormat, uint32_t extent,
-                 std::string textureLabel) {
+                 WGPUTextureUsage flags, WGPUTextureFormat textureFormat, uint32_t extent, std::string textureLabel) {
     mLabel = textureLabel;
     mDescriptor = {};
-    mDescriptor.label = mLabel.c_str();
+    mDescriptor.label = {mLabel.c_str(), mLabel.size()};
     mDescriptor.nextInChain = nullptr;
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(dimension);
     mDescriptor.format = textureFormat;
@@ -130,7 +130,7 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
 
     mDescriptor = {};
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
-    mDescriptor.label = path.c_str();
+    mDescriptor.label = {path.c_str(), path.string().size()};
     // by convention for bmp, png and jpg file. Be careful with other formats.
     mDescriptor.format = textureFormat;
     mDescriptor.mipLevelCount = glm::log2((float)width);
@@ -175,14 +175,14 @@ Texture& Texture::setBufferData(std::vector<uint8_t>& data) {
 bool Texture::isTransparent() { return mHasAlphaChannel; }
 
 void Texture::uploadToGPU(WGPUQueue deviceQueue) {
-    WGPUImageCopyTexture destination;
+    WGPUTexelCopyTextureInfo destination;
     destination.texture = mTexture;
     destination.mipLevel = 0;
     destination.origin = {0, 0, 0};              // equivalent of the offset argument of Queue::writeBuffer
     destination.aspect = WGPUTextureAspect_All;  // only relevant for depth/Stencil textures
 
     // Arguments telling how the C++ side pixel memory is laid out
-    WGPUTextureDataLayout source;
+    WGPUTexelCopyBufferLayout source{};
     source.offset = 0;
 
     // upload the level zero: aka original texture

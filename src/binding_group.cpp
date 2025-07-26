@@ -1,7 +1,9 @@
 #include "binding_group.h"
 
+#include <webgpu/webgpu.h>
+
 #include "application.h"
-#include "webgpu.h"
+#include "wgpu_utils.h"
 
 static void setDefaultValue(WGPUBindGroupLayoutEntry& bindingLayout) {
     bindingLayout = {};
@@ -99,8 +101,8 @@ WGPUSamplerBindingType sampleTypeFrom(SampleType type) {
     return ret;
 }
 
-WGPUShaderStageFlags visibilityFrom(BindGroupEntryVisibility visibleTo) {
-    WGPUShaderStageFlags visible_to = WGPUShaderStage_None;
+WGPUShaderStage visibilityFrom(BindGroupEntryVisibility visibleTo) {
+    WGPUShaderStage visible_to = WGPUShaderStage_None;
     if (visibleTo == BindGroupEntryVisibility::FRAGMENT) {
         visible_to = WGPUShaderStage_Fragment;
     } else if (visibleTo == BindGroupEntryVisibility::VERTEX) {
@@ -154,7 +156,7 @@ void BindingGroup::addSampler(uint32_t bindingNumber, BindGroupEntryVisibility v
 WGPUBindGroupLayout BindingGroup::createLayout(Application* app, const char* label) {
     mBindGroupLayoutDesc = {};
     mBindGroupLayoutDesc.nextInChain = nullptr;
-    mBindGroupLayoutDesc.label = label;
+    mBindGroupLayoutDesc.label = createStringView(label);
     mBindGroupLayoutDesc.entryCount = this->getEntryCount();
     mBindGroupLayoutDesc.entries = this->getEntryData();
 

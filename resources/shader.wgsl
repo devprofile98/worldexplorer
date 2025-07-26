@@ -132,9 +132,7 @@ fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
-    //var world_position: vec4f;
     let off_id: u32 = objectTranformation.offsetId * 100000;
-    //let is_primary = f32(instance_index == 0);
     var transform: mat4x4f;
     if instance_index != 0 {
 	let original_instance_idx = visible_instances_indices[off_id + instance_index];
@@ -159,7 +157,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 
     out.tangent = T;
     out.biTangent = B;
-    out.aNormal = out.normal;
+    out.aNormal = normalize(out.normal);
 
     var index: u32 = 0u;
     for (var i: u32 = 0u; i < numOfCascades; i = i + 1u) {
@@ -257,7 +255,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //let d = in.worldPos.z + 3.5;
     let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
     if d > 0.0 {
-		discard;
+	discard;
     }
 
     var frag_ambient = textureSample(diffuse_map, textureSampler, in.uv).rgba;
@@ -281,7 +279,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let V = normalize(in.viewDirection);
 
     if (in.materialProps & (1u << 1u)) != 2u {
-        N = in.normal;
+        N = in.aNormal;
     }
 
     if (in.materialProps & (1u << 3u)) != 8u {
@@ -356,101 +354,3 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     color = pow(color, vec3(1.1));
     return vec4f(color, 1.0);
 }
-
-@fragment
-fn fs_main2(in: VertexOutput) -> @location(0) vec4f {
-    //let face_normal = normalize(in.normal);
-    var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
-    normal = normal * 2.0 - 1.0;
-    let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
-    normal = normalize(TBN * normal);
-    //normal = normalize(mix(in.normal, normal, 0.1));
-
-    //let normal = normalize(in.normal);
-
-    let view_direction = normalize(in.viewDirection);
-    let metallic_roughness = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
-    let metallic_factor = metallic_roughness.g;
-
-    var shading = vec3f(0.0);
-    // first, put directional light here
-    var color = lightingInfos.colors[0].rgb;
-    let direction = normalize(lightingInfos.directions[0].xyz);
-    let reflection = reflect(-direction, normal);
-        // The closer the cosine is to 1.0, the closer V is to R
-    let RoV = max(0.0, dot(reflection, view_direction));
-    let hardness = 32.0;
-    let intensity = dot(direction, normal);
-    var specular = pow(RoV, hardness) * intensity * color * metallic_factor ;
-    var min_intensity = 0.6;
-    //if objectTranformation.isFoliage == 1 {
-    //    min_intensity = 0.3;
-    //}
-    let diffuse = max(min_intensity, intensity) * color;
-    shading += diffuse + vec3f(0.1, 0.1, 0.15) ;
-    if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
-        //shading += specular;
-    }
-
-
-    var point_light_color = vec3f(0.0f);
-    for (var i: i32 = 0; i < lightCount ; i++) {
-        let curr_light = pointLight[i];
-        let dir = curr_light.position.xyz - in.worldPos;
-
-        if curr_light.ftype == 3 {
-            point_light_color += calculatePointLight(curr_light, normal, dir);
-        } else if curr_light.ftype == 2 {
-            point_light_color += calculateSpotLight(curr_light, normal, dir);
-        }
-    }
-
-    let fragment_color = textureSample(diffuse_map, textureSampler, in.uv).rgba;
-	// specular = mix(vec3f(0.04), fragment_color.rgb, metallic_factor);	
-        {
-        var base_diffuse = fragment_color.rgb;
-        let color2 = shading * base_diffuse;
-        //let ambient = pow(color2, vec3f(2.2));
-        let ambient = color2;
-        //let ambient = linear_color;
-        let diffuse = point_light_color * color * point_light_color;
-
-        if objectTranformation.useTexture != 0 {
-            color = vec4f(ambient + diffuse, 1.0).rgb;
-
-            if fragment_color.a < 0.1 {
-			discard;
-            }
-        } else {
-            // color = pow(in.color.rgb, vec3f(2.2));
-            color = in.color.rgb;
-        }
-    }
-
-    let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
-
-    let ambient = (color * (1 - shadow * (0.75))) + specular;
-    let diffuse_final = point_light_color;
-
-    var col = (diffuse_final + ambient);
-
-    if objectTranformation.isHovered == 1 {
-        let variation = abs(sin(1.0 * 2.0));
-        col = col * (vec3f(1.0 + variation * 2.0, 0.0, 0.0));
-    }
-    //if in.shadowIdx == 0 {
-    //    // let c = textureSample(depth_texture, textureSampler, in.uv, 0);
-    //    return vec4f(vec3f(1.0,0.0, 0.0) * (1 - shadow * (0.75)), 1.0);
-    //} else if in.shadowIdx == 1 {
-    //    return vec4f(vec3f(0.0,1.0,0.0) * (1 - shadow * (0.75)), 1.0);
-    //}
-    // else if in.shadowIdx == 2 {
-    //    return vec4f(vec3f(0.0,0.0,1.0) * (1 - shadow * (0.75)), 1.0);
-    //}
-
-    col = col / (col + vec3f(1.0));
-    // col = pow(col, vec3f(1.0/2.2));
-    col = pow(col, vec3f(2.2));
-    return vec4f(in.normal, 1.0);
-}
-

@@ -1,8 +1,11 @@
 #include "composition_pass.h"
+
+#include <webgpu/webgpu.h>
+
 #include <cstdint>
 
 #include "application.h"
-#include "webgpu.h"
+#include "wgpu_utils.h"
 
 CompositionPass::CompositionPass(Application* app) : mApp(app) {
     // 1 - create buffers
@@ -40,7 +43,7 @@ void CompositionPass::initializePass() {
 
     mRenderPassDesc = {};
     mRenderPassDesc.nextInChain = nullptr;
-    mRenderPassDesc.label = "composition pass descriptor";
+    mRenderPassDesc.label = createStringView("composition pass descriptor");
     mRenderPassDesc.colorAttachmentCount = 1;
     mRenderPassDesc.colorAttachments = nullptr;
 

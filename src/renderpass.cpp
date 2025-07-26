@@ -1,6 +1,8 @@
 
 #include "renderpass.h"
 
+#include "wgpu_utils.h"
+
 WGPULoadOp from(LoadOp op) { return static_cast<WGPULoadOp>(op); }
 WGPUStoreOp from(StoreOp op) { return static_cast<WGPUStoreOp>(op); }
 
@@ -55,7 +57,7 @@ RenderPass& RenderPass::setDepthStencilAttachment(const DepthStencilAttachment& 
 }
 
 WGPURenderPassDescriptor* RenderPass::init() {
-    mRenderPassDesc.label = "what is it";
+    mRenderPassDesc.label = createStringView("what is it");
     mRenderPassDesc.nextInChain = nullptr;
     mRenderPassDesc.colorAttachmentCount = 1;
     mRenderPassDesc.colorAttachments = mColorAttachment.get();

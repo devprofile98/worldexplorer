@@ -4,11 +4,12 @@
 #include <format>
 
 #define GLM_ENABLE_EXPERIMENTAL
+#include <webgpu/webgpu.h>
+
 #include "application.h"
 #include "glm/fwd.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "utils.h"
-#include "webgpu.h"
 
 LightManager::LightManager(Application* app) {
     mApp = app;

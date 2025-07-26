@@ -1,9 +1,10 @@
 #include "skybox.h"
 
+#include <webgpu/webgpu.h>
+
 #include "application.h"
 #include "glm/fwd.hpp"
 #include "stb_image.h"
-#include "webgpu.h"
 
 float cubeVertexData[] = {
 
@@ -61,7 +62,7 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
     const char* sides_index[] = {"right", "left", "top", "bottom", "front", "back"};
     for (uint32_t i = 0; i < 6; i++) {
         // load each side first
-        WGPUImageCopyTexture copy_texture = {};
+        WGPUTexelCopyTextureInfo copy_texture = {};
         copy_texture.texture = cubeMapTetxure;
         copy_texture.origin = {0, 0, i};
 
@@ -76,7 +77,7 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
         // If data is null, loading failed.
         if (nullptr == pixel_data) return;
 
-        WGPUTextureDataLayout texture_data_layout = {};
+        WGPUTexelCopyBufferLayout texture_data_layout = {};
         texture_data_layout.offset = 0;
         texture_data_layout.bytesPerRow = 2048 * 4;
         texture_data_layout.rowsPerImage = 2048;
@@ -202,7 +203,6 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
     mCubeIndexDataBuffer = wgpuDeviceCreateBuffer(app->getRendererResource().device, &index_buffer);
     wgpuQueueWriteBuffer(app->getRendererResource().queue, mCubeIndexDataBuffer, 0, cubeIndexData,
                          sizeof(cubeIndexData));
-
 }
 
 void SkyBox::draw(Application* app, WGPURenderPassEncoder encoder, const glm::mat4& mvp) {

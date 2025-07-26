@@ -1,11 +1,12 @@
 
 #include "terrain_pass.h"
 
+#include <webgpu/webgpu.h>
+
 #include <cstdint>
 
 #include "application.h"
 #include "utils.h"
-#include "webgpu.h"
 
 // ifdef WEBGPU_BACKEND
 

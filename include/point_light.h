@@ -1,13 +1,14 @@
 #ifndef TEST_WGPU_POINT_LIGHT
 #define TEST_WGPU_POINT_LIGHT
 
+#include <webgpu/webgpu.h>
+
 #include <cstdint>
 #include <vector>
 
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "gpu_buffer.h"
-#include "webgpu.h"
 
 class Application;
 

@@ -3,9 +3,10 @@
 #ifndef WORLD_EXPLORER_WATER_PASS_H
 #define WORLD_EXPLORER_WATER_PASS_H
 
+#include <webgpu/webgpu.h>
+
 #include "gpu_buffer.h"
 #include "renderpass.h"
-#include "webgpu.h"
 
 class Application;
 

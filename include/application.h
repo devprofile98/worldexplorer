@@ -150,7 +150,7 @@ class Application {
         WaterRefractionPass* mWaterRefractionPass;
         WaterPass* mWaterRenderPass;
         WGPUSampler mDefaultSampler;
-        WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
+        WGPULimits GetRequiredLimits(WGPUAdapter adapter) const;
         WGPUTextureView getNextSurfaceTextureView();
 
         void initializePipeline();

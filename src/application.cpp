@@ -8,9 +8,13 @@
 #include <future>
 #include <iostream>
 #include <random>
+#include <string>
 #include <vector>
 
 #define GLM_ENABLE_EXPERIMENTAL
+#include <webgpu/webgpu.h>
+#include <webgpu/wgpu.h>
+
 #include "../imgui/backends/imgui_impl_glfw.h"
 #include "../imgui/backends/imgui_impl_wgpu.h"
 #include "../imgui/imgui.h"
@@ -41,8 +45,6 @@
 #include "transparency_pass.h"
 #include "utils.h"
 #include "water_pass.h"
-#include "webgpu.h"
-#include "wgpu.h"
 #include "wgpu_utils.h"
 
 // #define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
@@ -279,12 +281,13 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     //                      sizeof(DrawIndexedIndirectArgs));
 
     // create the compute pass, bind group and pipeline
-    WGPUShaderModuleWGSLDescriptor shader_wgsl_desc = {};
-    shader_wgsl_desc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
-    shader_wgsl_desc.code = shader_code;
+    WGPUShaderSourceWGSL shader_wgsl_desc = {};
+    shader_wgsl_desc.chain.sType = WGPUSType_ShaderSourceWGSL;
+    shader_wgsl_desc.code = createStringView(shader_code);
     WGPUShaderModuleDescriptor shader_module_desc = {};
     shader_module_desc.nextInChain = &shader_wgsl_desc.chain;
-    shader_module_desc.label = "Simple Compute Shader Module";
+    std::string label = "Simple Compute Shader Module";
+    shader_module_desc.label = createStringView(label);
     WGPUShaderModule shader_module = wgpuDeviceCreateShaderModule(resources.device, &shader_module_desc);
 
     // 4. Create Bind Group Layout
@@ -309,7 +312,7 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     bind_group_layout_entries[3].buffer.type = WGPUBufferBindingType_Uniform;  // Writable storage
 
     WGPUBindGroupLayoutDescriptor bind_group_layout_desc = {};
-    bind_group_layout_desc.label = "Compute Bind Group Layout";
+    bind_group_layout_desc.label = createStringView("Compute Bind Group Layout");
     bind_group_layout_desc.entryCount = 4;
     bind_group_layout_desc.entries = bind_group_layout_entries;
     WGPUBindGroupLayout bind_group_layout = wgpuDeviceCreateBindGroupLayout(resources.device, &bind_group_layout_desc);
@@ -328,7 +331,7 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     object_info_bg_entries[1].buffer.type = WGPUBufferBindingType_Storage;  // Writable storage
 
     WGPUBindGroupLayoutDescriptor objectinfo_bg_layout_desc = {};
-    objectinfo_bg_layout_desc.label = "Compute Bind Group Layout For Objectinfo";
+    objectinfo_bg_layout_desc.label = createStringView("Compute Bind Group Layout For Objectinfo");
     objectinfo_bg_layout_desc.entryCount = 2;
     objectinfo_bg_layout_desc.entries = object_info_bg_entries;
     objectinfo_bg_layout = wgpuDeviceCreateBindGroupLayout(resources.device, &objectinfo_bg_layout_desc);
@@ -336,17 +339,17 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     // 5. Create Pipeline Layout
     WGPUBindGroupLayout bind_group_layouts[] = {bind_group_layout, objectinfo_bg_layout};
     WGPUPipelineLayoutDescriptor pipeline_layout_desc = {};
-    pipeline_layout_desc.label = "Compute Pipeline Layout";
+    pipeline_layout_desc.label = createStringView("Compute Pipeline Layout");
     pipeline_layout_desc.bindGroupLayoutCount = 2;
     pipeline_layout_desc.bindGroupLayouts = bind_group_layouts;
     WGPUPipelineLayout pipeline_layout = wgpuDeviceCreatePipelineLayout(resources.device, &pipeline_layout_desc);
 
     // 6. Create Compute Pipeline
     WGPUComputePipelineDescriptor compute_pipeline_desc = {};
-    compute_pipeline_desc.label = "Simple Compute Pipeline";
+    compute_pipeline_desc.label = createStringView("Simple Compute Pipeline");
     compute_pipeline_desc.layout = pipeline_layout;
     compute_pipeline_desc.compute.module = shader_module;
-    compute_pipeline_desc.compute.entryPoint = "main";  // Matches `fn main` in WGSL
+    compute_pipeline_desc.compute.entryPoint = createStringView("main");  // Matches `fn main` in WGSL
     computePipeline = wgpuDeviceCreateComputePipeline(resources.device, &compute_pipeline_desc);
 
     // 7. Create Bind Group (linking actual buffers to shader bindings)
@@ -372,7 +375,7 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     bind_group_entries[3].size = sizeof(FrustumPlanesUniform);
 
     WGPUBindGroupDescriptor bind_group_desc = {};
-    bind_group_desc.label = "Compute Bind Group";
+    bind_group_desc.label = createStringView("Compute Bind Group");
     bind_group_desc.layout = bind_group_layout;
     bind_group_desc.entryCount = 4;
     bind_group_desc.entries = bind_group_entries;
@@ -398,7 +401,7 @@ WGPUBindGroup createObjectInfoBindGroupForComputePass(Application* app, WGPUBuff
     objectinfo_bg_entries[1].size = sizeof(DrawIndexedIndirectArgs);
 
     WGPUBindGroupDescriptor objectinfo_bg_desc = {};
-    objectinfo_bg_desc.label = "Object info Compute Bind Group";
+    objectinfo_bg_desc.label = createStringView("Object info Compute Bind Group");
     objectinfo_bg_desc.layout = objectinfo_bg_layout;
     objectinfo_bg_desc.entryCount = 2;
     objectinfo_bg_desc.entries = objectinfo_bg_entries;
@@ -563,7 +566,7 @@ void Application::initializePipeline() {
 
     WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor1 = {};
     bind_group_layout_descriptor1.nextInChain = nullptr;
-    bind_group_layout_descriptor1.label = "Object Tranformation Matrix uniform";
+    bind_group_layout_descriptor1.label = createStringView("Object Tranformation Matrix uniform");
     bind_group_layout_descriptor1.entryCount = 1;
     bind_group_layout_descriptor1.entries = &object_transformation;
 
@@ -802,7 +805,7 @@ void Application::initializePipeline() {
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
-    buffer_descriptor.label = "ahgmadasdsad f";
+    buffer_descriptor.label = createStringView("ahgmadasdsad f");
 
     // Create Uniform buffers
     buffer_descriptor.size = sizeof(ObjectInfo);
@@ -821,7 +824,7 @@ void Application::initializePipeline() {
     mTrasBindGroupDesc.nextInChain = nullptr;
     mTrasBindGroupDesc.entries = &mBindGroupEntry;
     mTrasBindGroupDesc.entryCount = 1;
-    mTrasBindGroupDesc.label = "translation bind group";
+    mTrasBindGroupDesc.label = createStringView("translation bind group");
     mTrasBindGroupDesc.layout = mBindGroupLayouts[1];
 
     bindGrouptrans = wgpuDeviceCreateBindGroup(mRendererResource.device, &mTrasBindGroupDesc);
@@ -869,7 +872,7 @@ void Application::initializeBuffers() {
     WGPUBufferDescriptor lighting_buffer_descriptor = {};
     lighting_buffer_descriptor.nextInChain = nullptr;
     // Create Uniform buffers
-    lighting_buffer_descriptor.label = ":::::";
+    lighting_buffer_descriptor.label = createStringView(":::::");
     lighting_buffer_descriptor.size = sizeof(LightingUniforms);
     lighting_buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     lighting_buffer_descriptor.mappedAtCreation = false;
@@ -888,7 +891,7 @@ void Application::initializeBuffers() {
 
     WGPUBufferDescriptor pointligth_buffer_descriptor = {};
     pointligth_buffer_descriptor.nextInChain = nullptr;
-    pointligth_buffer_descriptor.label = ":::::";
+    pointligth_buffer_descriptor.label = createStringView(":::::");
     pointligth_buffer_descriptor.size = sizeof(Light) * 10;
     pointligth_buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     pointligth_buffer_descriptor.mappedAtCreation = false;
@@ -994,8 +997,9 @@ bool Application::initialize() {
     }
 
     //   UserData user_data;
-    WGPUSurface provided_surface;
-    provided_surface = glfwGetWGPUSurface(instance, provided_window);
+    WGPUSurface provided_surface{};
+    std::cout << glfwGetPlatform() << std::endl;
+    provided_surface = glfwCreateWindowWGPUSurface(instance, provided_window);
 
     auto adapter = requestAdapterSync(instance, provided_surface);
     std::cout << std::format("WGPU instance: {:p} {:p} {:p}", (void*)instance, (void*)adapter, (void*)provided_surface)
@@ -1106,7 +1110,7 @@ void Application::mainLoop() {
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
     encoder_descriptor.nextInChain = nullptr;
-    encoder_descriptor.label = "command encoder descriptor";
+    encoder_descriptor.label = createStringView("command encoder descriptor");
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, &encoder_descriptor);
     mRendererResource.commandEncoder = encoder;
 
@@ -1143,7 +1147,7 @@ void Application::mainLoop() {
                                  sizeof(DrawIndexedIndirectArgs));
 
             WGPUComputePassDescriptor compute_pass_desc = {};
-            compute_pass_desc.label = "Simple Compute Pass";
+            compute_pass_desc.label = createStringView("Simple Compute Pass");
             compute_pass_desc.nextInChain = nullptr;
             WGPUComputePassEncoder compute_pass_encoder =
                 wgpuCommandEncoderBeginComputePass(encoder, &compute_pass_desc);
@@ -1594,7 +1598,7 @@ void Application::mainLoop() {
 
     WGPUCommandBufferDescriptor command_buffer_descriptor = {};
     command_buffer_descriptor.nextInChain = nullptr;
-    command_buffer_descriptor.label = "command buffer";
+    command_buffer_descriptor.label = createStringView("command buffer");
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &command_buffer_descriptor);
 
     wgpuDevicePoll(mRendererResource.device, true, nullptr);  // This is good!
@@ -1633,13 +1637,14 @@ bool Application::isRunning() { return !glfwWindowShouldClose(mRendererResource.
 WGPUTextureView Application::getNextSurfaceTextureView() {
     WGPUSurfaceTexture surface_texture = {};
     wgpuSurfaceGetCurrentTexture(mRendererResource.surface, &surface_texture);
-    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_Success) {
+    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal ||
+        surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal) {
         return nullptr;
     }
 
     WGPUTextureViewDescriptor descriptor = {};
     descriptor.nextInChain = nullptr;
-    descriptor.label = "surface texture view ";
+    descriptor.label = createStringView("surface texture view");
     descriptor.format = wgpuTextureGetFormat(surface_texture.texture);
     descriptor.dimension = WGPUTextureViewDimension_2D;
     descriptor.baseMipLevel = 0;
@@ -1650,30 +1655,30 @@ WGPUTextureView Application::getNextSurfaceTextureView() {
     return wgpuTextureCreateView(surface_texture.texture, &descriptor);
 }
 
-WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
-    WGPUSupportedLimits supported_limits = {};
+WGPULimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
+    WGPULimits supported_limits = {};
     supported_limits.nextInChain = nullptr;
     wgpuAdapterGetLimits(adapter, &supported_limits);
 
-    WGPURequiredLimits required_limits = {};
-    setDefault(required_limits.limits);
+    WGPULimits required_limits = {};
+    setDefault(required_limits);
 
-    required_limits.limits.maxVertexAttributes = 6;
-    required_limits.limits.maxVertexBuffers = 1;
-    required_limits.limits.maxBufferSize = 134217728;  // 1000000 * sizeof(VertexAttributes);
-    required_limits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
-    required_limits.limits.maxSampledTexturesPerShaderStage = 8;
-    required_limits.limits.maxInterStageShaderComponents = 116;
+    required_limits.maxVertexAttributes = 6;
+    required_limits.maxVertexBuffers = 1;
+    required_limits.maxBufferSize = 134217728;  // 1000000 * sizeof(VertexAttributes);
+    required_limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
+    required_limits.maxSampledTexturesPerShaderStage = 8;
+    // required_limits.maxInterStageShaderComponents = 116;
 
     // Binding groups
-    required_limits.limits.maxBindGroups = 5;
-    required_limits.limits.maxUniformBuffersPerShaderStage = 6;
-    required_limits.limits.maxUniformBufferBindingSize = 2048 * 2;  // 16 * 4 * sizeof(float);
+    required_limits.maxBindGroups = 5;
+    required_limits.maxUniformBuffersPerShaderStage = 6;
+    required_limits.maxUniformBufferBindingSize = 2048 * 2;  // 16 * 4 * sizeof(float);
 
-    required_limits.limits.maxTextureDimension1D = 4096;
-    required_limits.limits.maxTextureDimension2D = 4096;
-    required_limits.limits.maxTextureArrayLayers = 6;
-    required_limits.limits.maxSamplersPerShaderStage = 2;
+    required_limits.maxTextureDimension1D = 4096;
+    required_limits.maxTextureDimension2D = 4096;
+    required_limits.maxTextureArrayLayers = 6;
+    required_limits.maxSamplersPerShaderStage = 2;
 
     return required_limits;
 }
@@ -1730,8 +1735,8 @@ bool Application::initDepthBuffer() {
     depthViewDesc.mipLevelCount = 1;
     depthViewDesc.baseArrayLayer = 0;
     depthViewDesc.arrayLayerCount = 1;
-    depthViewDesc.aspect = WGPUTextureAspect_DepthOnly;  // <-- CRITICAL: Specify Depth Only
-    depthViewDesc.label = "Depth-Only View";             // Label for debugging
+    depthViewDesc.aspect = WGPUTextureAspect_DepthOnly;         // <-- CRITICAL: Specify Depth Only
+    depthViewDesc.label = createStringView("Depth-Only View");  // Label for debugging
 
     mDepthTextureViewDepthOnly = wgpuTextureCreateView(mDepthTexture->getTexture(), &depthViewDesc);
 

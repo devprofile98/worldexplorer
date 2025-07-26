@@ -4,13 +4,15 @@
 
 #include "application.h"
 #define GLM_ENABLE_EXPERIMENTAL
+#include <webgpu/webgpu.h>
+
 #include "glm/detail/qualifier.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "imgui.h"
 #include "model.h"
-#include "webgpu.h"
+#include "wgpu_utils.h"
 
 /*static float triangleVertexData[] = {*/
 /*    1.0, 0.5, 4.0, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,  //*/
@@ -140,7 +142,7 @@ WGPUBindGroupDescriptor createBindGroup(Application* app, WGPUBuffer buffer, siz
     mTrasBindGroupDesc.nextInChain = nullptr;
     mTrasBindGroupDesc.entries = &mBindGroupEntry;
     mTrasBindGroupDesc.entryCount = 1;
-    mTrasBindGroupDesc.label = "translation bind group";
+    mTrasBindGroupDesc.label = createStringView("translation bind group");
     mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
 
     return mTrasBindGroupDesc;

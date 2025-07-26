@@ -1,6 +1,8 @@
 #ifndef WEBGPUTEST_GPU_BUFFER_H
 #define WEBGPUTEST_GPU_BUFFER_H
 
+#include <string>
+
 #include "../webgpu/webgpu.h"
 #include "../webgpu/wgpu.h"
 #include "glm/ext.hpp"
@@ -15,9 +17,9 @@ class Buffer {
         Buffer();
 
         // Setters
-        Buffer& setUsage(WGPUBufferUsageFlags usage);
+        Buffer& setUsage(WGPUBufferUsage usage);
         Buffer& setMappedAtCraetion(bool mappedAtCreation = false);
-        Buffer& setLabel(const char* label);
+        Buffer& setLabel(const std::string& label);
         Buffer& setSize(uint64_t size);
         WGPUBuffer create(Application* app);
 
@@ -27,6 +29,7 @@ class Buffer {
     private:
         WGPUBufferDescriptor mBufferDescriptor;
         WGPUBuffer mBuffer;
+        std::string mName;
 };
 
 #endif  // !WEBGPUTEST_GPU_BUFFER_H

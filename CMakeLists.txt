@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0...3.25)
+cmake_minimum_required(VERSION 3.10...3.25)
 
 
 project(
@@ -11,15 +11,30 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF) #
 
-add_subdirectory(imgui)
 add_subdirectory(webgpu)
-
-# target_link_libraries(App PRIVATE webgpu)
 
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
  # set(CMAKE_BUILD_TYPE Release)
  set(CMAKE_BUILD_TYPE Debug)
+
+
+
+ # configuring imgui
+set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/imgui")
+set(IMGUI_BACKENDS_DIR "${IMGUI_DIR}/backends") # Assuming backends are inside imgui/backends
+
+file(GLOB IMGUI_SOURCES
+    "${IMGUI_DIR}/imgui.cpp"
+    "${IMGUI_DIR}/imgui_draw.cpp"
+    "${IMGUI_DIR}/imgui_widgets.cpp"
+    "${IMGUI_DIR}/imgui_tables.cpp"
+)
+
+file(GLOB IMGUI_BACKEND_SOURCES
+    "${IMGUI_BACKENDS_DIR}/imgui_impl_glfw.cpp"
+    "${IMGUI_BACKENDS_DIR}/imgui_impl_wgpu.cpp" # Or imgui_impl_vulkan.cpp, imgui_impl_dx11.cpp, etc.
+)
 
 
 add_executable(
@@ -53,19 +68,35 @@ add_executable(
     src/input_manager.cpp
 
     src/tree.cpp
+    
+    ${IMGUI_SOURCES}
+    ${IMGUI_BACKEND_SOURCES}
+    "${CMAKE_CURRENT_SOURCE_DIR}/extern/glfw3webgpu/glfw3webgpu.c"
 )
 
-target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")
-# target_compile_definitions(App PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
+target_compile_definitions(App PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
+# Adding ImGui include directories
+target_include_directories(App PRIVATE
+    "${IMGUI_DIR}"
+    "${IMGUI_DIR}/backends" # Include backends if headers are there
+)
 
-target_include_directories(App PUBLIC  "imgui/" "include" "${CMAKE_SOURCE_DIR}/webgpu")
-# target_link_libraries(App PRIVATE wgpu_native_static)
+# set(WEBGPU_DIR "${CMAKE_CURRENT_SOURCE_DIR}/webgpu")
+
+target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")
+
+target_include_directories(App PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}"
+                                       "extern/imgui"
+                                       "extern/glfw3webgpu"
+                                       "include"
+                                       
+                                   )
 
 set_target_properties(App PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
-    COMPILE_WARNING_AS_ERROR ON
+    COMPILE_WARNING_AS_ERROR OFF
 )
 
 if (MSVC)
@@ -75,8 +106,8 @@ else()
 endif()
 
 # target_copy_webgpu_binaries(App)
-target_link_libraries(App /home/ahmad/Documents/project/cpp/wgputest/webgpu/libwgpu_native.so glfw glfw3webgpu)
-target_link_libraries(App imgui assimp)
+target_link_libraries(App /home/ahmad/Documents/project/cpp/wgputest/webgpu/libwgpu_native.so glfw)
+target_link_libraries(App assimp)
 
 
 if (EMSCRIPTEN)
@@ -84,14 +115,10 @@ set_target_properties(App PROPERTIES SUFFIX ".html")
 endif()
 
 if (NOT EMSCRIPTEN)
-add_subdirectory(glfw)
+    add_subdirectory(extern/glfw)
 else()
 # Emscripten has built-in support for GLFW but requires the `-sUSE_GLFW=3` link option:
-add_library(glfw INTERFACE)
-target_link_options(glfw INTERFACE -sUSE_GLFW=3)
+    add_library(glfw INTERFACE)
+    target_link_options(glfw INTERFACE -sUSE_GLFW=3)
 endif()
-# target_copy_webgpu_binaries(App)
-
-add_subdirectory(glfw3webgpu)
-
-# target_link_libraries(App PRIVATE webgpu )
+# add_subdirectory(extern/glfw3webgpu)

@@ -1,12 +1,14 @@
 #include "transparency_pass.h"
 
+#include <webgpu/webgpu.h>
+
 #include <cstdint>
 
 #include "application.h"
 #include "binding_group.h"
 #include "glm/fwd.hpp"
 #include "model.h"
-#include "webgpu.h"
+#include "wgpu_utils.h"
 
 TransparencyPass::TransparencyPass(Application* app) : mApp(app) {
     // creating bindings for the pass
@@ -42,7 +44,7 @@ void TransparencyPass::initializePass() {
     // create the render pass for transparency
     mRenderPassDesc = {};
     mRenderPassDesc.nextInChain = nullptr;
-    mRenderPassDesc.label = "transparency render pass descriptor";
+    mRenderPassDesc.label = createStringView("transparency render pass descriptor");
     mRenderPassDesc.colorAttachmentCount = 0;
     mRenderPassDesc.colorAttachments = nullptr;
 

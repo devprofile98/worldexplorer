@@ -13,7 +13,11 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "wgpu_utils.h"
+
 #define GLM_ENABLE_EXPERIMENTAL
+#include <webgpu/webgpu.h>
+
 #include "../tinyobjloader/tiny_obj_loader.h"
 #include "../webgpu/webgpu.h"
 #include "application.h"
@@ -26,7 +30,6 @@
 #include "glm/gtx/string_cast.hpp"
 #include "glm/trigonometric.hpp"
 #include "imgui.h"
-#include "webgpu.h"
 
 const char* model_name = "cube1";
 
@@ -562,7 +565,7 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     mTrasBindGroupDesc.nextInChain = nullptr;
     mTrasBindGroupDesc.entries = &mBindGroupEntry;
     mTrasBindGroupDesc.entryCount = 1;
-    mTrasBindGroupDesc.label = "translation bind group";
+    mTrasBindGroupDesc.label = createStringView("translation bind group");
     mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
 
     ggg = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);

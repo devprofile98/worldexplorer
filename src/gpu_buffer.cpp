@@ -5,7 +5,7 @@
 Buffer::Buffer() : mBufferDescriptor({}) {}
 
 // Setters
-Buffer& Buffer::setUsage(WGPUBufferUsageFlags usage) {
+Buffer& Buffer::setUsage(WGPUBufferUsage usage) {
     mBufferDescriptor.usage = usage;
     return *this;
 }
@@ -15,9 +15,9 @@ Buffer& Buffer::setMappedAtCraetion(bool mappedAtCreation) {
     return *this;
 }
 
-Buffer& Buffer::setLabel(const char* label) {
-    mBufferDescriptor.label = label;
-
+Buffer& Buffer::setLabel(const std::string& label) {
+    mName = label;
+    mBufferDescriptor.label = {label.c_str(), label.size()};
     return *this;
 }
 

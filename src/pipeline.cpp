@@ -1,7 +1,9 @@
 #include "pipeline.h"
 
+#include <webgpu/webgpu.h>
+
 #include "application.h"
-#include "webgpu.h"
+#include "wgpu_utils.h"
 
 WGPURenderPassDescriptor createRenderPassDescriptor(WGPUTextureView colorAttachment, WGPUTextureView depthTextureView) {
     WGPURenderPassDescriptor render_pass_descriptor = {};
@@ -40,7 +42,7 @@ Pipeline::Pipeline(Application* app, std::vector<WGPUBindGroupLayout> bindGroupL
 
 Pipeline& Pipeline::createPipeline(Application* app) {
     WGPUPipelineLayoutDescriptor pipeline_layout_descriptor = {};
-    pipeline_layout_descriptor.label = mPipelineName.c_str();
+    pipeline_layout_descriptor.label = createStringView(mPipelineName);
     pipeline_layout_descriptor.nextInChain = nullptr;
     pipeline_layout_descriptor.bindGroupLayoutCount = mBindGroupLayouts.size();
     pipeline_layout_descriptor.bindGroupLayouts = mBindGroupLayouts.data();
@@ -55,7 +57,7 @@ Pipeline& Pipeline::createPipeline(Application* app) {
     // std::cout << mDescriptor.depthStencil->depthBiasSlopeScale << std::endl;
     // std::cout << mDescriptor.depthStencil->stencilWriteMask << std::endl;
 
-    mDescriptor.label = mPipelineName.c_str();
+    mDescriptor.label = createStringView(mPipelineName);
     mPipeline = wgpuDeviceCreateRenderPipeline(app->getRendererResource().device, &mDescriptor);
     return *this;
 }
@@ -82,13 +84,13 @@ Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat sur
     // 1 - vertex state
     mlVertexBufferLayout = getDefaultVertexBufferLayout();
     mDescriptor.nextInChain = nullptr;
-    mDescriptor.label = "default pipeline layout";
+    mDescriptor.label = createStringView("default pipeline layout");
 
     WGPUVertexState vertex_state = {};
     vertex_state.bufferCount = 1;
     vertex_state.buffers = &mlVertexBufferLayout;
     vertex_state.module = mShaderModule;
-    vertex_state.entryPoint = "vs_main";
+    vertex_state.entryPoint = createStringView("vs_main");
     vertex_state.constantCount = 0;
     vertex_state.constants = nullptr;
     (void)vertex_state;
@@ -108,7 +110,7 @@ Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat sur
     setDefault(mDepthStencilState);
 
     mDepthStencilState.depthCompare = WGPUCompareFunction_Less;
-    mDepthStencilState.depthWriteEnabled = true;
+    mDepthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
 
     // WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24Plus;
     mDepthStencilState.format = depthTexture;
@@ -135,7 +137,7 @@ Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat sur
     // 2 - Fragment state
     // WGPUFragmentState fragment_state = {};
     mFragmentState.module = mShaderModule;
-    mFragmentState.entryPoint = "fs_main";
+    mFragmentState.entryPoint = createStringView("fs_main");
     mFragmentState.constants = nullptr;
     mFragmentState.constantCount = 0;
     mFragmentState.targetCount = 1;
@@ -174,7 +176,7 @@ Pipeline& Pipeline::setVertexState(size_t bufferCount, const char* entryPoint,
     vertex_state.bufferCount = bufferCount;
     vertex_state.buffers = &mlVertexBufferLayout;
     vertex_state.module = mShaderModule;
-    vertex_state.entryPoint = entryPoint;
+    vertex_state.entryPoint = createStringView(entryPoint);
     vertex_state.constantCount = constants.size();
     vertex_state.constants = constants.data();
     mDescriptor.vertex = vertex_state;
@@ -197,7 +199,7 @@ Pipeline& Pipeline::setDepthStencilState(bool depthWriteEnabled, uint32_t stenci
     setDefault(mDepthStencilState);
 
     mDepthStencilState.depthCompare = WGPUCompareFunction_Less;
-    mDepthStencilState.depthWriteEnabled = depthWriteEnabled;
+    mDepthStencilState.depthWriteEnabled = depthWriteEnabled ? WGPUOptionalBool_True : WGPUOptionalBool_False;
 
     mDepthStencilState.format = depthTextureFormat;
     // mDepthStencilState.stencilFront = {};
@@ -252,7 +254,7 @@ Pipeline& Pipeline::setColorTargetState(WGPUColorTargetState colorTargetState) {
 
 Pipeline& Pipeline::setFragmentState() {
     mFragmentState.module = mShaderModule;
-    mFragmentState.entryPoint = "fs_main";
+    mFragmentState.entryPoint = createStringView("fs_main");
     mFragmentState.constants = nullptr;
     mFragmentState.constantCount = 0;
     mFragmentState.targetCount = 1;

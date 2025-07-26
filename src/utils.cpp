@@ -1,5 +1,7 @@
 #include "utils.h"
 
+#include <webgpu/webgpu.h>
+
 #include <format>
 #include <iostream>
 #include <numeric>
@@ -10,7 +12,7 @@
 #include "glm/fwd.hpp"
 #include "model.h"
 #include "stb_image.h"
-#include "webgpu.h"
+#include "wgpu_utils.h"
 
 #define STBI_MSC_SECURE_CRT
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -86,15 +88,15 @@ WGPUShaderModule loadShader(const fs::path& path, WGPUDevice device) {
     file.seekg(0);
     file.read(shader_code.data(), file_size);
 
-    static WGPUShaderModuleWGSLDescriptor module_descriptor = {};
+    static WGPUShaderSourceWGSL module_descriptor = {};
     module_descriptor.chain.next = nullptr;
-    module_descriptor.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
-    module_descriptor.code = shader_code.c_str();
+    module_descriptor.chain.sType = WGPUSType_ShaderSourceWGSL;
+    module_descriptor.code = {shader_code.c_str(), shader_code.size()};
 
     static WGPUShaderModuleDescriptor shader_descriptor = {};
     shader_descriptor.nextInChain = nullptr;
-    shader_descriptor.hintCount = 0;
-    shader_descriptor.hints = nullptr;
+    // shader_descriptor.hintCount = 0;
+    // shader_descriptor.hints = nullptr;
     shader_descriptor.nextInChain = &module_descriptor.chain;
     return wgpuDeviceCreateShaderModule(device, &shader_descriptor);
 }
@@ -110,7 +112,7 @@ void setDefault(WGPUDepthStencilState& depthStencilState) {
     setDefault(depthStencilState.stencilFront);
     setDefault(depthStencilState.stencilBack);
     depthStencilState.format = WGPUTextureFormat_Undefined;
-    depthStencilState.depthWriteEnabled = false;
+    depthStencilState.depthWriteEnabled = WGPUOptionalBool_False;
     depthStencilState.depthCompare = WGPUCompareFunction_Always;
     depthStencilState.stencilReadMask = 0;
     depthStencilState.stencilWriteMask = 0x00;
@@ -123,7 +125,7 @@ void setDefaultActiveStencil(WGPUDepthStencilState& depthStencilState) {
     setDefault(depthStencilState.stencilFront);
     setDefault(depthStencilState.stencilBack);
     depthStencilState.format = WGPUTextureFormat_Depth24PlusStencil8;
-    depthStencilState.depthWriteEnabled = true;
+    depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
     depthStencilState.depthCompare = WGPUCompareFunction_Less;
     depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
     depthStencilState.stencilFront.passOp = WGPUStencilOperation_Replace;
@@ -142,7 +144,7 @@ void setDefaultActiveStencil2(WGPUDepthStencilState& depthStencilState) {
     setDefault(depthStencilState.stencilFront);
     setDefault(depthStencilState.stencilBack);
     depthStencilState.format = WGPUTextureFormat_Depth24PlusStencil8;
-    depthStencilState.depthWriteEnabled = true;
+    depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
     depthStencilState.depthCompare = WGPUCompareFunction_Less;
     depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
     depthStencilState.stencilFront.passOp = WGPUStencilOperation_Keep;
@@ -161,7 +163,7 @@ void setDefaultUseStencil(WGPUDepthStencilState& depthStencilState) {
     setDefault(depthStencilState.stencilFront);
     setDefault(depthStencilState.stencilBack);
     depthStencilState.format = WGPUTextureFormat_Depth24PlusStencil8;
-    depthStencilState.depthWriteEnabled = false;
+    depthStencilState.depthWriteEnabled = WGPUOptionalBool_False;
     depthStencilState.depthCompare = WGPUCompareFunction_Always;
     depthStencilState.stencilFront.compare = WGPUCompareFunction_NotEqual;
     depthStencilState.stencilBack.compare = WGPUCompareFunction_NotEqual;
@@ -195,7 +197,7 @@ void setDefault(WGPULimits& limits) {
     limits.maxBufferSize = WGPU_LIMIT_U64_UNDEFINED;
     limits.maxVertexAttributes = WGPU_LIMIT_U32_UNDEFINED;
     limits.maxVertexBufferArrayStride = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxInterStageShaderComponents = WGPU_LIMIT_U32_UNDEFINED;
+    // limits.maxInterStageShaderComponents = WGPU_LIMIT_U32_UNDEFINED;
     limits.maxInterStageShaderVariables = WGPU_LIMIT_U32_UNDEFINED;
     limits.maxColorAttachments = WGPU_LIMIT_U32_UNDEFINED;
     limits.maxColorAttachmentBytesPerSample = WGPU_LIMIT_U32_UNDEFINED;
@@ -487,7 +489,7 @@ Terrain& Terrain::uploadToGpu(Application* app) {
     WGPUTextureDescriptor texture_desc = {};
     texture_desc.dimension = WGPUTextureDimension_2D;
     texture_desc.format = WGPUTextureFormat_R8Unorm;
-    texture_desc.label = "Noise Texture";
+    texture_desc.label = {"Noise Texture", 14};
     texture_desc.mipLevelCount = 1;
     texture_desc.nextInChain = nullptr;
     texture_desc.sampleCount = 1;
@@ -512,14 +514,14 @@ Terrain& Terrain::uploadToGpu(Application* app) {
     // create texture view
     mTextureView = wgpuTextureCreateView(mTexture, &view_desc);
 
-    WGPUImageCopyTexture destination;
+    WGPUTexelCopyTextureInfo destination;
     destination.texture = mTexture;
     destination.mipLevel = 0;
     destination.origin = {0, 0, 0};              // equivalent of the offset argument of Queue::writeBuffer
     destination.aspect = WGPUTextureAspect_All;  // only relevant for depth/Stencil textures
 
-    WGPUTextureDataLayout source;
-    source.nextInChain = nullptr;
+    WGPUTexelCopyBufferLayout source;
+    // source.nextInChain = nullptr;
     source.offset = 0;
     // upload the level zero: aka original texture
     source.bytesPerRow = mGridSize;
@@ -545,7 +547,7 @@ void Terrain::createSomeBinding(Application* app) {
     mTrasBindGroupDesc.nextInChain = nullptr;
     mTrasBindGroupDesc.entries = &mBindGroupEntry;
     mTrasBindGroupDesc.entryCount = 1;
-    mTrasBindGroupDesc.label = "translation bind group";
+    mTrasBindGroupDesc.label = createStringView("translation bind group");
     mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
 
     ggg = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);
