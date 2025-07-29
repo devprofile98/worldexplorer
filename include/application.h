@@ -103,7 +103,7 @@ class Application {
         WGPUBindGroup bindGrouptrans = {};
         glm::mat4 mtransmodel{1.0};
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
-        std::array<WGPUBindGroupLayout, 5> mBindGroupLayouts;
+        std::array<WGPUBindGroupLayout, 6> mBindGroupLayouts;
         Camera& getCamera();
         WGPUTextureFormat getTextureFormat();
         WGPUSampler getDefaultSampler();
@@ -119,11 +119,14 @@ class Application {
         BindingGroup mDefaultTextureBindingGroup = {};
         BindingGroup mDefaultCameraIndexBindgroup = {};
         BindingGroup mDefaultClipPlaneBG = {};
+        BindingGroup mDefaultVisibleBuffer = {};
 
         Editor mEditor;
         BaseModel* mSelectedModel = nullptr;
         // Buffer indirectDrawArgsBuffer;  // copy dst, map read
-        Buffer mVisibleIndexBuffer;  // copy src, storage
+        Buffer mVisibleIndexBuffer;   // copy src, storage
+        Buffer mVisibleIndexBuffer2;  // copy src, storage
+        int ccounter = 0;
 
     private:
         size_t mWindowWidth = 1920;
@@ -165,6 +168,7 @@ class Application {
         std::vector<WGPUBindGroupEntry> mDefaultTextureBindingData{3};
         std::vector<WGPUBindGroupEntry> mDefaultCameraIndexBindingData{1};
         std::vector<WGPUBindGroupEntry> mDefaultClipPlaneBGData{1};
+        std::vector<WGPUBindGroupEntry> mDefaultVisibleBGData{1};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
         // WGPUBindGroup mBindGroup;
         WGPUBuffer mUniformBuffer;

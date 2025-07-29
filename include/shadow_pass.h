@@ -53,9 +53,6 @@ class ShadowPass : public RenderPass {
         DepthStencilAttachment mRenderPassDepthStencil2;
         DepthStencilAttachment mRenderPassDepthStencil;
         float MinZ = 0.0f;
-        // sub frustums
-        /*ShadowFrustum* mNearFrustum;*/
-        /*ShadowFrustum* mFarFrustum;*/
         std::vector<ShadowFrustum*> mSubFrustums;
 
     private:
@@ -70,6 +67,7 @@ class ShadowPass : public RenderPass {
         std::vector<WGPUBindGroupEntry> mBindingData;
         BindingGroup mTextureBindingGroup;
         std::vector<WGPUBindGroupEntry> mTextureBindingData{3};
+        BindingGroup mVisibleBindingGroup;
 
         // textures and views
         WGPUTextureView mDepthTextureView;

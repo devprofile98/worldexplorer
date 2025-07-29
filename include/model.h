@@ -199,7 +199,8 @@ class Model : public BaseModel {
         void createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData);
         // size_t getInstaceCount();
         WGPUBindGroup getObjectInfoBindGroup();
-        Buffer mIndirectDrawArgsBuffer;  // copy dst, map read
+        Buffer mIndirectDrawArgsBuffer;   // copy dst, map read
+        Buffer mIndirectDrawArgsBuffer2;  // copy dst, map read
 
 #ifdef DEVELOPMENT_BUILD
         // Common User-Interface to interact with Object in the Development state

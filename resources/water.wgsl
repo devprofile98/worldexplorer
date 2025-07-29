@@ -104,7 +104,6 @@ struct OffsetData {
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(14) var<uniform> numOfCascades: u32;
-@group(0) @binding(15) var<storage, read> visible_instances_indices: array<u32>;
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 
@@ -116,6 +115,8 @@ struct OffsetData {
 
 @group(4) @binding(0) var water_reflection_texture: texture_2d<f32>;
 @group(4) @binding(1) var water_refraction_texture: texture_2d<f32>;
+
+@group(5) @binding(0) var<storage, read> visible_instances_indices: array<u32>;
 
 const PI: f32 = 3.141592653589793;
 

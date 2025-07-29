@@ -71,10 +71,6 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     mBindingGroup.addSampler(3,  //
                              BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
 
-    mBindingGroup.addBuffer(4,  //
-                            BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
-                            sizeof(uint32_t) * 100'000 * 10);
-
     mTextureBindingGroup.addTexture(0,  //
                                     BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                                     TextureViewDimension::VIEW_2D);
@@ -86,10 +82,18 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
                                     BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
                                     TextureViewDimension::VIEW_2D);
 
+    mVisibleBindingGroup.addBuffer(0,  //
+                                   BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+                                   sizeof(uint32_t) * 100'000 * 5);
+
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
     auto texture_bind_group_layout = mTextureBindingGroup.createLayout(mApp, "shadow pass pipeline");
+    auto visible_bind_group_layout = mVisibleBindingGroup.createLayout(mApp, "visible indices pipeline");
 
-    mRenderPipeline = new Pipeline{mApp, {bind_group_layout, texture_bind_group_layout}, "shadow pass pipeline layout"};
+    mRenderPipeline = new Pipeline{mApp,
+                                   {bind_group_layout, texture_bind_group_layout, mApp->getBindGroupLayouts()[5]},
+                                   "shadow pass pipeline layout"};
+
     WGPUVertexBufferLayout d = mRenderPipeline->mVertexBufferLayout
                                    .addAttribute(0, 0, WGPUVertexFormat_Float32x3)  // for position
                                    .addAttribute(3 * sizeof(float), 1, WGPUVertexFormat_Float32x3)
@@ -143,7 +147,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     mBindingData[4].buffer = mApp->mVisibleIndexBuffer.getBuffer();
     mBindingData[4].binding = 4;
     mBindingData[4].offset = 0;
-    mBindingData[4].size = sizeof(uint32_t) * 100'000 * 10;
+    mBindingData[4].size = sizeof(uint32_t) * 100'000 * 5;
 
     mTextureBindingData[0] = {};
     mTextureBindingData[0].nextInChain = nullptr;
@@ -318,6 +322,8 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
                                                   ? mApp->mDefaultTextureBindingGroup.getBindGroup()
                                                   : mesh.mTextureBindGroup,
                                               0, nullptr);
+
+            wgpuRenderPassEncoderSetBindGroup(encoder, 2, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
 
             if (model->instance == nullptr) {
                 wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(),
