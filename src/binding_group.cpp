@@ -8,26 +8,26 @@
 static void setDefaultValue(WGPUBindGroupLayoutEntry& bindingLayout) {
     bindingLayout = {};
     bindingLayout.buffer.nextInChain = nullptr;
-    bindingLayout.buffer.type = WGPUBufferBindingType_Undefined;
+    bindingLayout.buffer.type = WGPUBufferBindingType_BindingNotUsed;
     bindingLayout.buffer.hasDynamicOffset = false;
     bindingLayout.buffer.minBindingSize = 100;
 
     bindingLayout.sampler.nextInChain = nullptr;
-    bindingLayout.sampler.type = WGPUSamplerBindingType_Undefined;
+    bindingLayout.sampler.type = WGPUSamplerBindingType_BindingNotUsed;
 
     bindingLayout.storageTexture.nextInChain = nullptr;
-    bindingLayout.storageTexture.access = WGPUStorageTextureAccess_Undefined;
+    bindingLayout.storageTexture.access = WGPUStorageTextureAccess_BindingNotUsed;
     bindingLayout.storageTexture.format = WGPUTextureFormat_Undefined;
     bindingLayout.storageTexture.viewDimension = WGPUTextureViewDimension_Undefined;
 
     bindingLayout.texture.nextInChain = nullptr;
     bindingLayout.texture.multisampled = false;
-    bindingLayout.texture.sampleType = WGPUTextureSampleType_Undefined;
+    bindingLayout.texture.sampleType = WGPUTextureSampleType_BindingNotUsed;
     bindingLayout.texture.viewDimension = WGPUTextureViewDimension_Undefined;
 }
 
 WGPUTextureSampleType sampleTypeFrom(TextureSampleType type) {
-    WGPUTextureSampleType ret = WGPUTextureSampleType_Undefined;
+    WGPUTextureSampleType ret = WGPUTextureSampleType_BindingNotUsed;
     switch (type) {
         case TextureSampleType::FLAOT:
             /* code */
@@ -49,7 +49,6 @@ WGPUTextureViewDimension viewDimensionFrom(TextureViewDimension dim) {
     WGPUTextureViewDimension ret = WGPUTextureViewDimension_Undefined;
     switch (dim) {
         case TextureViewDimension::VIEW_2D:
-            /* code */
             ret = WGPUTextureViewDimension_2D;
             break;
         case TextureViewDimension::CUBE:
@@ -116,7 +115,7 @@ WGPUShaderStage visibilityFrom(BindGroupEntryVisibility visibleTo) {
     return visible_to;
 }
 
-BindingGroup::BindingGroup(/* args */) { mEntries.reserve(3); }
+BindingGroup::BindingGroup(/* args */) { mEntries.reserve(20); }
 
 BindingGroup::~BindingGroup() {}
 
@@ -130,6 +129,7 @@ void BindingGroup::addTexture(uint32_t bindingNumber, BindGroupEntryVisibility v
     entry_layout.visibility = visibilityFrom(visibleTo);
     entry_layout.texture.sampleType = sampleTypeFrom(sampleType);
     entry_layout.texture.viewDimension = viewDimensionFrom(viewDim);
+    std::cout << "binding at " << bindingNumber << " " << entry_layout.buffer.type << std::endl;
     this->add(entry_layout);
 }
 
@@ -156,7 +156,7 @@ void BindingGroup::addSampler(uint32_t bindingNumber, BindGroupEntryVisibility v
 WGPUBindGroupLayout BindingGroup::createLayout(Application* app, const char* label) {
     mBindGroupLayoutDesc = {};
     mBindGroupLayoutDesc.nextInChain = nullptr;
-    mBindGroupLayoutDesc.label = createStringView(label);
+    mBindGroupLayoutDesc.label = {"test test", WGPU_STRLEN};
     mBindGroupLayoutDesc.entryCount = this->getEntryCount();
     mBindGroupLayoutDesc.entries = this->getEntryData();
 

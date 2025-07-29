@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10...3.25)
 
+set(CMAKE_POLICY_VERSION_MINIMUM "3.5")
 
 project(
 	WorldExplorer
@@ -35,6 +36,18 @@ file(GLOB IMGUI_BACKEND_SOURCES
     "${IMGUI_BACKENDS_DIR}/imgui_impl_glfw.cpp"
     "${IMGUI_BACKENDS_DIR}/imgui_impl_wgpu.cpp" # Or imgui_impl_vulkan.cpp, imgui_impl_dx11.cpp, etc.
 )
+
+
+# Fetch Glm
+include(FetchContent)
+
+FetchContent_Declare(
+	glm
+	GIT_REPOSITORY	https://github.com/g-truc/glm.git
+	GIT_TAG 	bf71a834948186f4097caa076cd2663c69a10e1e #refs/tags/1.0.1
+)
+
+FetchContent_MakeAvailable(glm)
 
 
 add_executable(
@@ -106,8 +119,8 @@ else()
 endif()
 
 # target_copy_webgpu_binaries(App)
-target_link_libraries(App /home/ahmad/Documents/project/cpp/wgputest/webgpu/libwgpu_native.so glfw)
-target_link_libraries(App assimp)
+target_link_libraries(App /home/ahmad/Documents/project/cpp/wgputest/webgpu/libwgpu_native.so glfw assimp glm::glm)
+target_link_libraries(App )
 
 
 if (EMSCRIPTEN)

@@ -22,5 +22,6 @@ void inspectAdapter(WGPUAdapter adapter);
 void inspectDevice(WGPUDevice device);
 
 WGPUStringView createStringView(const std::string& str);
+WGPUStringView createStringViewC(const char* str);
 
 #endif  // WEBGPU_UTILS_H

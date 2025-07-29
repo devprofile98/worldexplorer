@@ -6,7 +6,6 @@
 
 #include <array>
 
-#include "../webgpu/webgpu.h"
 #include "binding_group.h"
 #include "camera.h"
 #include "composition_pass.h"
@@ -25,6 +24,7 @@
 #include "transparency_pass.h"
 #include "utils.h"
 #include "water_pass.h"
+#include "webgpu/webgpu.h"
 
 class ShadowPass;
 

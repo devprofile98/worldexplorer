@@ -17,13 +17,13 @@
 #include <numeric>
 #include <vector>
 
-#include "../webgpu/webgpu.h"
-#include "../webgpu/wgpu.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "instance.h"
 #include "mesh.h"
 #include "texture.h"
+#include "webgpu/webgpu.h"
+#include "webgpu/wgpu.h"
 
 // forward declaration
 class Application;

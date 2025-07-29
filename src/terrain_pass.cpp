@@ -18,7 +18,6 @@ void TerrainPass::createRenderPass(WGPUTextureFormat textureFormat) {
         new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4]}, "Terrain pipeline"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
     mRenderPipeline->setShader(RESOURCE_DIR "/terrain.wgsl");
-    /*setDefaultUseStencil(mRenderPipeline->getDepthStencilState());*/
     setDefaultActiveStencil2(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_Back);

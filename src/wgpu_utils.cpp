@@ -4,15 +4,19 @@
 #include <webgpu/wgpu.h>
 
 #include <cassert>
+#include <cstring>
 #include <format>
 #include <iostream>
 
 WGPUStringView createStringView(const std::string &str) {
-    std::cout << "String receive is " << str << " with size " << str.size() << std::endl;
-
+    // std::cout << "String receive is " << str << " with size " << str.size() << std::endl;
     return WGPUStringView{str.c_str(), str.size() + 1};
 }
 
+WGPUStringView createStringViewC(const char *str) {
+    // std::cout << "String receive is " << str << " with size " << strlen(str) << std::endl;
+    return WGPUStringView{str, WGPU_STRLEN};
+}
 // request webgpu adapter
 WGPUAdapter requestAdapterSync(WGPUInstance instance, WGPUSurface surface) {
     WGPURequestAdapterOptions options = {};

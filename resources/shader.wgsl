@@ -93,7 +93,6 @@ struct OffsetData {
 @group(0) @binding(6) var grass_ground_texture: texture_2d<f32>;
 @group(0) @binding(7) var rock_mountain_texture: texture_2d<f32>;
 @group(0) @binding(8) var sand_lake_texture: texture_2d<f32>;
-@group(0) @binding(15) var grass_normal_texture: texture_2d<f32>;
 @group(0) @binding(9) var snow_mountain_texture: texture_2d<f32>;
 @group(0) @binding(10) var depth_texture: texture_depth_2d_array;
 @group(0) @binding(11) var<uniform> lightSpaceTrans: array<Scene, 5>;

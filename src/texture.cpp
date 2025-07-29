@@ -122,11 +122,9 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     width = height = channels = 0;
     unsigned char* pixel_data = stbi_load(path.string().c_str(), &width, &height, &channels, 0);
 
-    // If data is null, loading failed.
-    /*std::cout << std::format("Loading texture at {}({}*{}) at address {} because {}",*/
-    /*                         std::filesystem::absolute(path).c_str(), width, height, static_cast<void*>(pixel_data),*/
-    /*                         stbi_failure_reason());*/
-    if (nullptr == pixel_data) return;
+    if (nullptr == pixel_data) {
+        return;
+    };
 
     mDescriptor = {};
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
@@ -189,7 +187,7 @@ void Texture::uploadToGPU(WGPUQueue deviceQueue) {
     source.bytesPerRow = 4 * mDescriptor.size.width;
 
     source.rowsPerImage = mDescriptor.size.height;
-    /*std::cout << "Data is .... " << mDescriptor.size.width << " " << mBufferData.size() << std::endl;*/
+
     wgpuQueueWriteTexture(deviceQueue, &destination, mBufferData.data(), mBufferData.size(), &source,
                           &mDescriptor.size);
 

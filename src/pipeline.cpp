@@ -51,12 +51,6 @@ Pipeline& Pipeline::createPipeline(Application* app) {
     mPipelineLayout = wgpuDeviceCreatePipelineLayout(app->getRendererResource().device, &pipeline_layout_descriptor);
 
     mDescriptor.layout = mPipelineLayout;
-    // std::cout << mPipelineName << std::endl;
-    // std::cout << mDescriptor.depthStencil->depthWriteEnabled << std::endl;
-    // std::cout << mDescriptor.depthStencil->depthCompare << std::endl;
-    // std::cout << mDescriptor.depthStencil->depthBiasSlopeScale << std::endl;
-    // std::cout << mDescriptor.depthStencil->stencilWriteMask << std::endl;
-
     mDescriptor.label = createStringView(mPipelineName);
     mPipeline = wgpuDeviceCreateRenderPipeline(app->getRendererResource().device, &mDescriptor);
     return *this;
@@ -84,13 +78,13 @@ Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat sur
     // 1 - vertex state
     mlVertexBufferLayout = getDefaultVertexBufferLayout();
     mDescriptor.nextInChain = nullptr;
-    mDescriptor.label = createStringView("default pipeline layout");
+    mDescriptor.label = createStringViewC("default pipeline layout");
 
     WGPUVertexState vertex_state = {};
     vertex_state.bufferCount = 1;
     vertex_state.buffers = &mlVertexBufferLayout;
     vertex_state.module = mShaderModule;
-    vertex_state.entryPoint = createStringView("vs_main");
+    vertex_state.entryPoint = createStringViewC("vs_main");
     vertex_state.constantCount = 0;
     vertex_state.constants = nullptr;
     (void)vertex_state;
@@ -137,7 +131,7 @@ Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat sur
     // 2 - Fragment state
     // WGPUFragmentState fragment_state = {};
     mFragmentState.module = mShaderModule;
-    mFragmentState.entryPoint = createStringView("fs_main");
+    mFragmentState.entryPoint = createStringViewC("fs_main");
     mFragmentState.constants = nullptr;
     mFragmentState.constantCount = 0;
     mFragmentState.targetCount = 1;
@@ -176,7 +170,7 @@ Pipeline& Pipeline::setVertexState(size_t bufferCount, const char* entryPoint,
     vertex_state.bufferCount = bufferCount;
     vertex_state.buffers = &mlVertexBufferLayout;
     vertex_state.module = mShaderModule;
-    vertex_state.entryPoint = createStringView(entryPoint);
+    vertex_state.entryPoint = createStringViewC(entryPoint);
     vertex_state.constantCount = constants.size();
     vertex_state.constants = constants.data();
     mDescriptor.vertex = vertex_state;
@@ -254,7 +248,7 @@ Pipeline& Pipeline::setColorTargetState(WGPUColorTargetState colorTargetState) {
 
 Pipeline& Pipeline::setFragmentState() {
     mFragmentState.module = mShaderModule;
-    mFragmentState.entryPoint = createStringView("fs_main");
+    mFragmentState.entryPoint = createStringViewC("fs_main");
     mFragmentState.constants = nullptr;
     mFragmentState.constantCount = 0;
     mFragmentState.targetCount = 1;

@@ -212,20 +212,21 @@ void setDefault(WGPULimits& limits) {
 void setDefault(WGPUBindGroupLayoutEntry& bindingLayout) {
     bindingLayout = {};
     bindingLayout.buffer.nextInChain = nullptr;
-    bindingLayout.buffer.type = WGPUBufferBindingType_Undefined;
+    bindingLayout.buffer.type = WGPUBufferBindingType_BindingNotUsed;
     bindingLayout.buffer.hasDynamicOffset = false;
+    bindingLayout.buffer.minBindingSize = 100;
 
     bindingLayout.sampler.nextInChain = nullptr;
-    bindingLayout.sampler.type = WGPUSamplerBindingType_Undefined;
+    bindingLayout.sampler.type = WGPUSamplerBindingType_BindingNotUsed;
 
     bindingLayout.storageTexture.nextInChain = nullptr;
-    bindingLayout.storageTexture.access = WGPUStorageTextureAccess_Undefined;
+    bindingLayout.storageTexture.access = WGPUStorageTextureAccess_BindingNotUsed;
     bindingLayout.storageTexture.format = WGPUTextureFormat_Undefined;
     bindingLayout.storageTexture.viewDimension = WGPUTextureViewDimension_Undefined;
 
     bindingLayout.texture.nextInChain = nullptr;
     bindingLayout.texture.multisampled = false;
-    bindingLayout.texture.sampleType = WGPUTextureSampleType_Undefined;
+    bindingLayout.texture.sampleType = WGPUTextureSampleType_BindingNotUsed;
     bindingLayout.texture.viewDimension = WGPUTextureViewDimension_Undefined;
 }
 

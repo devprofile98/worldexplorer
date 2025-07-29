@@ -24,8 +24,8 @@ struct Scene {
 
 enum class LoadOp {
     Undefined = 0x0,
-    Clear = 0x01,
-    Load = 0x02,
+    Load = 0x01,
+    Clear = 0x02,
 };
 
 enum class StoreOp {

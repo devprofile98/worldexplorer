@@ -7,9 +7,9 @@
 
 class Application;
 
-enum class BindGroupEntryVisibility { FRAGMENT = 0, VERTEX, VERTEX_FRAGMENT, COMPUTE };
+enum class BindGroupEntryVisibility { UNDEFINED = 0, VERTEX, FRAGMENT, VERTEX_FRAGMENT, COMPUTE };
 enum class TextureSampleType { FLAOT = 0, DEPTH };
-enum class TextureViewDimension { VIEW_2D = 0, CUBE, ARRAY_2D };
+enum class TextureViewDimension { UNDEFINED = 0, VIEW_2D = 0x2, ARRAY_2D = 0x3, CUBE = 0x4 };
 enum class BufferBindingType { UNIFORM = 0, STORAGE, STORAGE_READONLY };
 enum class SampleType { Filtering = 0, Compare };
 
@@ -31,7 +31,7 @@ class BindingGroup {
         WGPUBindGroup& getBindGroup();
         WGPUBindGroupDescriptor& getDescriptor();
 
-        std::vector<WGPUBindGroupLayoutEntry> mEntries = {};
+        std::vector<WGPUBindGroupLayoutEntry> mEntries{};
         WGPUBindGroupLayout createLayout(Application* app, const char* label);
         void create(Application* app, std::vector<WGPUBindGroupEntry>& bindingData);
         WGPUBindGroup createNew(Application* app, std::vector<WGPUBindGroupEntry>& bindingData);

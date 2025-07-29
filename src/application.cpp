@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <format>
 #include <future>
 #include <iostream>
@@ -12,13 +13,12 @@
 #include <vector>
 
 #define GLM_ENABLE_EXPERIMENTAL
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_wgpu.h>
 #include <webgpu/webgpu.h>
 #include <webgpu/wgpu.h>
 
-#include "../imgui/backends/imgui_impl_glfw.h"
-#include "../imgui/backends/imgui_impl_wgpu.h"
-#include "../imgui/imgui.h"
-#include "../webgpu/webgpu.h"
 #include "GLFW/glfw3.h"
 #include "composition_pass.h"
 #include "editor.h"
@@ -31,7 +31,6 @@
 #include "glm/gtx/string_cast.hpp"
 #include "glm/trigonometric.hpp"
 #include "gpu_buffer.h"
-#include "imgui.h"
 #include "input_manager.h"
 #include "instance.h"
 #include "model.h"
@@ -45,6 +44,7 @@
 #include "transparency_pass.h"
 #include "utils.h"
 #include "water_pass.h"
+#include "webgpu/webgpu.h"
 #include "wgpu_utils.h"
 
 // #define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
@@ -282,8 +282,9 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
 
     // create the compute pass, bind group and pipeline
     WGPUShaderSourceWGSL shader_wgsl_desc = {};
+    shader_wgsl_desc.chain.next = nullptr;
     shader_wgsl_desc.chain.sType = WGPUSType_ShaderSourceWGSL;
-    shader_wgsl_desc.code = createStringView(shader_code);
+    shader_wgsl_desc.code = {shader_code, strlen(shader_code)};
     WGPUShaderModuleDescriptor shader_module_desc = {};
     shader_module_desc.nextInChain = &shader_wgsl_desc.chain;
     std::string label = "Simple Compute Shader Module";
@@ -346,10 +347,10 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
 
     // 6. Create Compute Pipeline
     WGPUComputePipelineDescriptor compute_pipeline_desc = {};
-    compute_pipeline_desc.label = createStringView("Simple Compute Pipeline");
+    compute_pipeline_desc.label = createStringViewC("Simple Compute Pipeline");
     compute_pipeline_desc.layout = pipeline_layout;
     compute_pipeline_desc.compute.module = shader_module;
-    compute_pipeline_desc.compute.entryPoint = createStringView("main");  // Matches `fn main` in WGSL
+    compute_pipeline_desc.compute.entryPoint = createStringViewC("main");  // Matches `fn main` in WGSL
     computePipeline = wgpuDeviceCreateComputePipeline(resources.device, &compute_pipeline_desc);
 
     // 7. Create Bind Group (linking actual buffers to shader bindings)
@@ -566,7 +567,7 @@ void Application::initializePipeline() {
 
     WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor1 = {};
     bind_group_layout_descriptor1.nextInChain = nullptr;
-    bind_group_layout_descriptor1.label = createStringView("Object Tranformation Matrix uniform");
+    bind_group_layout_descriptor1.label = createStringViewC("Object Tranformation Matrix uniform");
     bind_group_layout_descriptor1.entryCount = 1;
     bind_group_layout_descriptor1.entries = &object_transformation;
 
@@ -1110,7 +1111,7 @@ void Application::mainLoop() {
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
     encoder_descriptor.nextInChain = nullptr;
-    encoder_descriptor.label = createStringView("command encoder descriptor");
+    encoder_descriptor.label = createStringViewC("command encoder descriptor");
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, &encoder_descriptor);
     mRendererResource.commandEncoder = encoder;
 
@@ -1147,7 +1148,7 @@ void Application::mainLoop() {
                                  sizeof(DrawIndexedIndirectArgs));
 
             WGPUComputePassDescriptor compute_pass_desc = {};
-            compute_pass_desc.label = createStringView("Simple Compute Pass");
+            compute_pass_desc.label = createStringViewC("Simple Compute Pass");
             compute_pass_desc.nextInChain = nullptr;
             WGPUComputePassEncoder compute_pass_encoder =
                 wgpuCommandEncoderBeginComputePass(encoder, &compute_pass_desc);
@@ -1372,7 +1373,7 @@ void Application::mainLoop() {
         mTerrainPass->setColorAttachment(
             {mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
         mTerrainPass->setDepthStencilAttachment({mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Load, false,
-                                                 StoreOp::Undefined, LoadOp::Undefined, true});
+                                                 StoreOp::Undefined, LoadOp::Undefined, false});
         mTerrainPass->init();
 
         WGPURenderPassEncoder terrain_pass_encoder =
@@ -1422,7 +1423,7 @@ void Application::mainLoop() {
         mTerrainPass->setColorAttachment({mWaterRefractionPass->mRenderTargetView, nullptr,
                                           WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
         mTerrainPass->setDepthStencilAttachment({mWaterRefractionPass->mDepthTextureView, StoreOp::Store, LoadOp::Load,
-                                                 false, StoreOp::Undefined, LoadOp::Undefined, true});
+                                                 false, StoreOp::Undefined, LoadOp::Undefined, false});
         mTerrainPass->init();
 
         WGPURenderPassEncoder terrain_pass_encoder =
@@ -1500,7 +1501,7 @@ void Application::mainLoop() {
     mTerrainPass->setColorAttachment(
         {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
     mTerrainPass->setDepthStencilAttachment(
-        {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined, true});
+        {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined, false});
     mTerrainPass->init();
 
     WGPURenderPassEncoder terrain_pass_encoder =
@@ -1521,35 +1522,37 @@ void Application::mainLoop() {
     // ---------------------------------------------------------------------
 
     // outline pass
-    mOutlinePass->setColorAttachment(
-        {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    mOutlinePass->setDepthStencilAttachment({mDepthTextureView, StoreOp::Undefined, LoadOp::Undefined, true,
-                                             StoreOp::Undefined, LoadOp::Undefined, true, 0.0});
-    mOutlinePass->init();
-
-    WGPURenderPassEncoder outline_pass_encoder =
-        wgpuCommandEncoderBeginRenderPass(encoder, mOutlinePass->getRenderPassDescriptor());
-    wgpuRenderPassEncoderSetStencilReference(outline_pass_encoder, stencilReferenceValue);
-
-    wgpuRenderPassEncoderSetBindGroup(outline_pass_encoder, 3, mOutlinePass->mDepthTextureBindgroup.getBindGroup(), 0,
-                                      nullptr);
-    wgpuRenderPassEncoderSetBindGroup(outline_pass_encoder, 4, mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
-
-    for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-        if (model->isSelected()) {
-            wgpuRenderPassEncoderSetPipeline(outline_pass_encoder, mOutlinePass->getPipeline()->getPipeline());
-            model->draw(this, outline_pass_encoder, mBindingData);
-        }
-    }
-
-    wgpuRenderPassEncoderEnd(outline_pass_encoder);
-    wgpuRenderPassEncoderRelease(outline_pass_encoder);
+    // mOutlinePass->setColorAttachment(
+    //     {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    // mOutlinePass->setDepthStencilAttachment({mDepthTextureView, StoreOp::Undefined, LoadOp::Undefined, false,
+    //                                          StoreOp::Undefined, LoadOp::Undefined, true, 0.0});
+    // mOutlinePass->init();
+    //
+    // WGPURenderPassEncoder outline_pass_encoder =
+    //     wgpuCommandEncoderBeginRenderPass(encoder, mOutlinePass->getRenderPassDescriptor());
+    // wgpuRenderPassEncoderSetStencilReference(outline_pass_encoder, stencilReferenceValue);
+    //
+    // wgpuRenderPassEncoderSetBindGroup(outline_pass_encoder, 3, mOutlinePass->mDepthTextureBindgroup.getBindGroup(),
+    // 0,
+    //                                   nullptr);
+    // wgpuRenderPassEncoderSetBindGroup(outline_pass_encoder, 4, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
+    // nullptr);
+    //
+    // for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+    //     if (model->isSelected()) {
+    //         wgpuRenderPassEncoderSetPipeline(outline_pass_encoder, mOutlinePass->getPipeline()->getPipeline());
+    //         model->draw(this, outline_pass_encoder, mBindingData);
+    //     }
+    // }
+    //
+    // wgpuRenderPassEncoderEnd(outline_pass_encoder);
+    // wgpuRenderPassEncoderRelease(outline_pass_encoder);
 
     // 3D editor elements pass
     m3DviewportPass->setColorAttachment(
         {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    m3DviewportPass->setDepthStencilAttachment({mDepthTextureView, StoreOp::Undefined, LoadOp::Undefined, true,
-                                                StoreOp::Undefined, LoadOp::Undefined, true, 0.0});
+    m3DviewportPass->setDepthStencilAttachment({mDepthTextureView, StoreOp::Undefined, LoadOp::Undefined, false,
+                                                StoreOp::Undefined, LoadOp::Undefined, false, 0.0});
     m3DviewportPass->init();
 
     WGPURenderPassEncoder viewport_3d_pass_encoder =
@@ -1637,14 +1640,14 @@ bool Application::isRunning() { return !glfwWindowShouldClose(mRendererResource.
 WGPUTextureView Application::getNextSurfaceTextureView() {
     WGPUSurfaceTexture surface_texture = {};
     wgpuSurfaceGetCurrentTexture(mRendererResource.surface, &surface_texture);
-    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal ||
+    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal &&
         surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal) {
         return nullptr;
     }
 
     WGPUTextureViewDescriptor descriptor = {};
     descriptor.nextInChain = nullptr;
-    descriptor.label = createStringView("surface texture view");
+    descriptor.label = createStringViewC("surface texture view");
     descriptor.format = wgpuTextureGetFormat(surface_texture.texture);
     descriptor.dimension = WGPUTextureViewDimension_2D;
     descriptor.baseMipLevel = 0;

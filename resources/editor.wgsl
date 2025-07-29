@@ -154,7 +154,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     out.worldPos = world_position.xyz;
     out.viewDirection = uMyUniform[0].cameraWorldPosition - world_position.xyz;
     out.color = in.color;
-    mix(out.color, vec4f(1.0, 1.0, 0.0, 1.0), objectTranformation.isHovered);
+    mix(out.color, vec3f(1.0, 1.0, 0.0), f32(objectTranformation.isHovered));
     out.uv = in.uv;
     out.isHovered = objectTranformation.isHovered;
 

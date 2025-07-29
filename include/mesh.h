@@ -1,6 +1,8 @@
 #ifndef WEBGPUTEST_MESH_H
 #define WEBGPUTEST_MESH_H
 
+#include <stdalign.h>
+
 #include <cstdint>
 #include <format>
 #include <iostream>
@@ -13,7 +15,7 @@
 #include "texture.h"
 
 // Shader-equivalant struct for vertex data
-struct VertexAttributes {
+struct alignas(16) VertexAttributes {
         glm::vec3 position;
         glm::vec3 normal;
         glm::vec3 color;

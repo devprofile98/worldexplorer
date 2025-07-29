@@ -10,7 +10,7 @@
 
 #include "../webgpu/webgpu.h"
 
-enum class TextureDimension { TEX_1D, TEX_2D, TEX_3D };
+enum class TextureDimension { TEX_UNDEFINED, TEX_1D, TEX_2D, TEX_3D };
 
 class Texture {
     public:

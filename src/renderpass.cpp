@@ -9,6 +9,7 @@ WGPUStoreOp from(StoreOp op) { return static_cast<WGPUStoreOp>(op); }
 ColorAttachment::ColorAttachment(WGPUTextureView target, WGPUTextureView resolve, WGPUColor clearColor, StoreOp storeOp,
                                  LoadOp loadOp) {
     mAttachment = {};
+    mAttachment.nextInChain = nullptr;
     mAttachment.view = target;
     mAttachment.resolveTarget = resolve;
     mAttachment.loadOp = from(loadOp);
@@ -57,7 +58,7 @@ RenderPass& RenderPass::setDepthStencilAttachment(const DepthStencilAttachment& 
 }
 
 WGPURenderPassDescriptor* RenderPass::init() {
-    mRenderPassDesc.label = createStringView("what is it");
+    mRenderPassDesc.label = createStringViewC("what is it");
     mRenderPassDesc.nextInChain = nullptr;
     mRenderPassDesc.colorAttachmentCount = 1;
     mRenderPassDesc.colorAttachments = mColorAttachment.get();
