@@ -165,7 +165,7 @@ Buffer outputBuffer;         // copy dst, map read
 Buffer frustumPlanesBuffer;  // copy dst, map read
 size_t data_size_bytes = 0;  //
 WGPUBindGroup computeBindGroup;
-WGPUBindGroup computeBindGroup2;
+// WGPUBindGroup computeBindGroup2;
 WGPUComputePipeline computePipeline;
 WGPUBindGroupLayout objectinfo_bg_layout;
 
@@ -388,20 +388,20 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     bind_group_desc.entries = bind_group_entries;
     computeBindGroup = wgpuDeviceCreateBindGroup(resources.device, &bind_group_desc);
 
-    WGPUBindGroupEntry bind_group_entries2[] = {bind_group_entries[0], bind_group_entries[1], bind_group_entries[2],
-                                                bind_group_entries[3]};
+    // WGPUBindGroupEntry bind_group_entries2[] = {bind_group_entries[0], bind_group_entries[1], bind_group_entries[2],
+    //                                             bind_group_entries[3]};
+    //
+    // bind_group_entries2[1].binding = 1;
+    // bind_group_entries2[1].buffer = app->mVisibleIndexBuffer2.getBuffer();
+    // bind_group_entries2[1].offset = 0;
+    // bind_group_entries2[1].size = sizeof(uint32_t) * 100000 * 5;
 
-    bind_group_entries2[1].binding = 1;
-    bind_group_entries2[1].buffer = app->mVisibleIndexBuffer2.getBuffer();
-    bind_group_entries2[1].offset = 0;
-    bind_group_entries2[1].size = sizeof(uint32_t) * 100000 * 5;
-
-    WGPUBindGroupDescriptor bind_group_desc2 = {};
-    bind_group_desc2.label = createStringViewC("Compute Bind Group2");
-    bind_group_desc2.layout = bind_group_layout;
-    bind_group_desc2.entryCount = 4;
-    bind_group_desc2.entries = bind_group_entries2;
-    computeBindGroup2 = wgpuDeviceCreateBindGroup(resources.device, &bind_group_desc2);
+    // WGPUBindGroupDescriptor bind_group_desc2 = {};
+    // bind_group_desc2.label = createStringViewC("Compute Bind Group2");
+    // bind_group_desc2.layout = bind_group_layout;
+    // bind_group_desc2.entryCount = 4;
+    // bind_group_desc2.entries = bind_group_entries2;
+    // computeBindGroup2 = wgpuDeviceCreateBindGroup(resources.device, &bind_group_desc2);
 };
 
 WGPUBindGroup createObjectInfoBindGroupForComputePass(Application* app, WGPUBuffer objetcInfoBuffer,
@@ -564,9 +564,9 @@ void Application::initializePipeline() {
                                     BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                                     sizeof(uint32_t) * 13000);
 
-    mDefaultVisibleBuffer2.addBuffer(0,  //
-                                     BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
-                                     sizeof(uint32_t) * 13000);
+    // mDefaultVisibleBuffer2.addBuffer(0,  //
+    //                                  BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+    //                                  sizeof(uint32_t) * 13000);
 
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
     WGPUBindGroupLayout texture_bind_group_layout =
@@ -580,8 +580,8 @@ void Application::initializePipeline() {
 
     WGPUBindGroupLayout visible_bind_group_layout =
         mDefaultVisibleBuffer.createLayout(this, "default visible index layout");
-    WGPUBindGroupLayout visible_bind_group_layout2 =
-        mDefaultVisibleBuffer2.createLayout(this, "default2 visible index layout");
+    // WGPUBindGroupLayout visible_bind_group_layout2 =
+    //     mDefaultVisibleBuffer2.createLayout(this, "default2 visible index layout");
 
     WGPUBindGroupLayoutEntry object_transformation = {};
     setDefault(object_transformation);
@@ -835,7 +835,7 @@ void Application::initializePipeline() {
     mDefaultCameraIndexBindgroup.create(this, mDefaultCameraIndexBindingData);
     mDefaultClipPlaneBG.create(this, mDefaultClipPlaneBGData);
     mDefaultVisibleBuffer.create(this, mDefaultVisibleBGData);
-    mDefaultVisibleBuffer2.create(this, mDefaultVisibleBGData2);
+    // mDefaultVisibleBuffer2.create(this, mDefaultVisibleBGData2);
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -1171,11 +1171,11 @@ void Application::mainLoop() {
     // ccounter++;
 
     for (auto& [name, model] : objs) {
-        Buffer* buffers[] = {&model->mIndirectDrawArgsBuffer, &model->mIndirectDrawArgsBuffer2};
+        // Buffer* buffers[] = {&model->mIndirectDrawArgsBuffer};
         if (model->instance == nullptr) continue;
         if (cull_frustum && model->instance != nullptr && should_cull) {
             auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
-            wgpuQueueWriteBuffer(mRendererResource.queue, (*buffers[ccounter % 2]).getBuffer(), 0, &indirect,
+            wgpuQueueWriteBuffer(mRendererResource.queue, model->mIndirectDrawArgsBuffer.getBuffer(), 0, &indirect,
                                  sizeof(DrawIndexedIndirectArgs));
 
             WGPUComputePassDescriptor compute_pass_desc = {};
@@ -1186,11 +1186,10 @@ void Application::mainLoop() {
 
             // Set the pipeline and bind group for the compute pass
             wgpuComputePassEncoderSetPipeline(compute_pass_encoder, computePipeline);
-            wgpuComputePassEncoderSetBindGroup(compute_pass_encoder, 0,
-                                               ccounter % 2 == 0 ? computeBindGroup : computeBindGroup2, 0,
+            wgpuComputePassEncoderSetBindGroup(compute_pass_encoder, 0, computeBindGroup, 0,
                                                nullptr);  // Group 0, no dynamic offsets
             auto objectinfo_bg = createObjectInfoBindGroupForComputePass(this, model->getUniformBuffer().getBuffer(),
-                                                                         (*buffers[ccounter % 2]).getBuffer());
+                                                                         model->mIndirectDrawArgsBuffer.getBuffer());
             wgpuComputePassEncoderSetBindGroup(compute_pass_encoder, 1, objectinfo_bg, 0, nullptr);
 
             uint32_t workgroup_size_x = 32;  // Must match shader's @workgroup_size(32)
@@ -1209,9 +1208,9 @@ void Application::mainLoop() {
         if (model->instance != nullptr) {
             for (auto& [mat_id, mesh] : model->mMeshes) {
                 wgpuCommandEncoderCopyBufferToBuffer(
-                    encoder, (*buffers[ccounter % 2]).getBuffer(), offsetof(DrawIndexedIndirectArgs, instanceCount),
-                    mesh.mIndirectDrawArgsBuffer.getBuffer(), offsetof(DrawIndexedIndirectArgs, instanceCount),
-                    sizeof(uint32_t));
+                    encoder, model->mIndirectDrawArgsBuffer.getBuffer(),
+                    offsetof(DrawIndexedIndirectArgs, instanceCount), mesh.mIndirectDrawArgsBuffer.getBuffer(),
+                    offsetof(DrawIndexedIndirectArgs, instanceCount), sizeof(uint32_t));
             }
         }
     }
@@ -1353,7 +1352,7 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderRelease(render_pass_encoder);
     }
 
-    auto& active_visible = ccounter % 2 == 0 ? mDefaultVisibleBuffer : mDefaultVisibleBuffer2;
+    auto& active_visible = mDefaultVisibleBuffer;
     // water pass
     mWaterPass->setColorAttachment(
         {mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});

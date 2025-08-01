@@ -62,19 +62,20 @@ struct TreeModel : public IModel {
                 .setMappedAtCraetion()
                 .create(app);
 
-            mModel->mIndirectDrawArgsBuffer2.setLabel(("indirect draw args buffer2 for " + mModel->getName()).c_str())
-                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
-                          WGPUBufferUsage_CopyDst)
-                .setSize(sizeof(DrawIndexedIndirectArgs))
-                .setMappedAtCraetion()
-                .create(app);
+            // mModel->mIndirectDrawArgsBuffer2.setLabel(("indirect draw args buffer2 for " +
+            // mModel->getName()).c_str())
+            //     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+            //               WGPUBufferUsage_CopyDst)
+            //     .setSize(sizeof(DrawIndexedIndirectArgs))
+            //     .setMappedAtCraetion()
+            //     .create(app);
 
             auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
                                  &indirect, sizeof(DrawIndexedIndirectArgs));
 
-            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer2.getBuffer(), 0,
-                                 &indirect, sizeof(DrawIndexedIndirectArgs));
+            // wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer2.getBuffer(), 0,
+            //                      &indirect, sizeof(DrawIndexedIndirectArgs));
 
             for (auto& [mat_id, mesh] : mModel->mMeshes) {
                 mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())
@@ -284,18 +285,19 @@ struct GrassModel : public IModel {
                 .setMappedAtCraetion()
                 .create(app);
 
-            mModel->mIndirectDrawArgsBuffer2.setLabel(("indirect draw args buffer2 for " + mModel->getName()).c_str())
-                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
-                          WGPUBufferUsage_CopyDst)
-                .setSize(sizeof(DrawIndexedIndirectArgs))
-                .setMappedAtCraetion()
-                .create(app);
+            // mModel->mIndirectDrawArgsBuffer2.setLabel(("indirect draw args buffer2 for " +
+            // mModel->getName()).c_str())
+            //     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+            //               WGPUBufferUsage_CopyDst)
+            //     .setSize(sizeof(DrawIndexedIndirectArgs))
+            //     .setMappedAtCraetion()
+            //     .create(app);
 
             auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
                                  &indirect, sizeof(DrawIndexedIndirectArgs));
-            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer2.getBuffer(), 0,
-                                 &indirect, sizeof(DrawIndexedIndirectArgs));
+            // wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer2.getBuffer(), 0,
+            //                      &indirect, sizeof(DrawIndexedIndirectArgs));
 
             for (auto& [mat_id, mesh] : mModel->mMeshes) {
                 mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())

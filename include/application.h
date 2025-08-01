@@ -120,7 +120,7 @@ class Application {
         BindingGroup mDefaultCameraIndexBindgroup = {};
         BindingGroup mDefaultClipPlaneBG = {};
         BindingGroup mDefaultVisibleBuffer = {};
-        BindingGroup mDefaultVisibleBuffer2 = {};
+        // BindingGroup mDefaultVisibleBuffer2 = {};
 
         Editor mEditor;
         BaseModel* mSelectedModel = nullptr;
