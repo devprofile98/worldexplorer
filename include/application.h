@@ -120,6 +120,7 @@ class Application {
         BindingGroup mDefaultCameraIndexBindgroup = {};
         BindingGroup mDefaultClipPlaneBG = {};
         BindingGroup mDefaultVisibleBuffer = {};
+        BindingGroup mDefaultVisibleBuffer2 = {};
 
         Editor mEditor;
         BaseModel* mSelectedModel = nullptr;
@@ -169,6 +170,7 @@ class Application {
         std::vector<WGPUBindGroupEntry> mDefaultCameraIndexBindingData{1};
         std::vector<WGPUBindGroupEntry> mDefaultClipPlaneBGData{1};
         std::vector<WGPUBindGroupEntry> mDefaultVisibleBGData{1};
+        std::vector<WGPUBindGroupEntry> mDefaultVisibleBGData2{1};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
         // WGPUBindGroup mBindGroup;
         WGPUBuffer mUniformBuffer;

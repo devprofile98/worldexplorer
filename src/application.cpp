@@ -382,7 +382,7 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     bind_group_entries[3].size = sizeof(FrustumPlanesUniform);
 
     WGPUBindGroupDescriptor bind_group_desc = {};
-    bind_group_desc.label = createStringView("Compute Bind Group");
+    bind_group_desc.label = createStringViewC("Compute Bind Group");
     bind_group_desc.layout = bind_group_layout;
     bind_group_desc.entryCount = 4;
     bind_group_desc.entries = bind_group_entries;
@@ -397,11 +397,11 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     bind_group_entries2[1].size = sizeof(uint32_t) * 100000 * 5;
 
     WGPUBindGroupDescriptor bind_group_desc2 = {};
-    bind_group_desc2.label = createStringView("Compute Bind Group2");
+    bind_group_desc2.label = createStringViewC("Compute Bind Group2");
     bind_group_desc2.layout = bind_group_layout;
     bind_group_desc2.entryCount = 4;
     bind_group_desc2.entries = bind_group_entries2;
-    computeBindGroup2 = wgpuDeviceCreateBindGroup(resources.device, &bind_group_desc);
+    computeBindGroup2 = wgpuDeviceCreateBindGroup(resources.device, &bind_group_desc2);
 };
 
 WGPUBindGroup createObjectInfoBindGroupForComputePass(Application* app, WGPUBuffer objetcInfoBuffer,
@@ -564,6 +564,10 @@ void Application::initializePipeline() {
                                     BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                                     sizeof(uint32_t) * 13000);
 
+    mDefaultVisibleBuffer2.addBuffer(0,  //
+                                     BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+                                     sizeof(uint32_t) * 13000);
+
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
     WGPUBindGroupLayout texture_bind_group_layout =
         mDefaultTextureBindingGroup.createLayout(this, "default texture bindgroup layout");
@@ -576,6 +580,8 @@ void Application::initializePipeline() {
 
     WGPUBindGroupLayout visible_bind_group_layout =
         mDefaultVisibleBuffer.createLayout(this, "default visible index layout");
+    WGPUBindGroupLayout visible_bind_group_layout2 =
+        mDefaultVisibleBuffer2.createLayout(this, "default2 visible index layout");
 
     WGPUBindGroupLayoutEntry object_transformation = {};
     setDefault(object_transformation);
@@ -817,11 +823,19 @@ void Application::initializePipeline() {
     mDefaultVisibleBGData[0].offset = 0;
     mDefaultVisibleBGData[0].size = sizeof(uint32_t) * 100000 * 5;
 
+    mDefaultVisibleBGData2[0] = {};
+    mDefaultVisibleBGData2[0].nextInChain = nullptr;
+    mDefaultVisibleBGData2[0].buffer = mVisibleIndexBuffer2.getBuffer();
+    mDefaultVisibleBGData2[0].binding = 0;
+    mDefaultVisibleBGData2[0].offset = 0;
+    mDefaultVisibleBGData2[0].size = sizeof(uint32_t) * 100000 * 5;
+
     mBindingGroup.create(this, mBindingData);
     mDefaultTextureBindingGroup.create(this, mDefaultTextureBindingData);
     mDefaultCameraIndexBindgroup.create(this, mDefaultCameraIndexBindingData);
     mDefaultClipPlaneBG.create(this, mDefaultClipPlaneBGData);
     mDefaultVisibleBuffer.create(this, mDefaultVisibleBGData);
+    mDefaultVisibleBuffer2.create(this, mDefaultVisibleBGData2);
 
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
@@ -1154,7 +1168,7 @@ void Application::mainLoop() {
     auto& objs = ModelRegistry::instance().getLoadedModel(Visibility_User);
     // auto grass = objs.find("grass");
     should_cull = true;
-    ccounter++;
+    // ccounter++;
 
     for (auto& [name, model] : objs) {
         Buffer* buffers[] = {&model->mIndirectDrawArgsBuffer, &model->mIndirectDrawArgsBuffer2};
@@ -1339,6 +1353,7 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderRelease(render_pass_encoder);
     }
 
+    auto& active_visible = ccounter % 2 == 0 ? mDefaultVisibleBuffer : mDefaultVisibleBuffer2;
     // water pass
     mWaterPass->setColorAttachment(
         {mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
@@ -1354,7 +1369,7 @@ void Application::mainLoop() {
                                       nullptr);
     wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
                                       nullptr);
-    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, active_visible.getBindGroup(), 0, nullptr);
 
     {
         for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
@@ -1381,7 +1396,7 @@ void Application::mainLoop() {
 
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
                                           nullptr);
-        wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, active_visible.getBindGroup(), 0, nullptr);
         terrain.draw(this, terrain_pass_encoder, mBindingData);
 
         // updateGui(terrain_pass_encoder);
@@ -1406,7 +1421,7 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 4,
                                       mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
-    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, active_visible.getBindGroup(), 0, nullptr);
     for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
         if (name == "water") {
             continue;
@@ -1451,17 +1466,15 @@ void Application::mainLoop() {
     int32_t stencilReferenceValue = 240;
     wgpuRenderPassEncoderSetStencilReference(render_pass_encoder, stencilReferenceValue);
 
+    wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, active_visible.getBindGroup(), 0, nullptr);
     for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
         if (name == "water") {
             continue;
         }
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder,
                                          (model->isSelected() ? mPipeline : mStenctilEnabledPipeline)->getPipeline());
-
-        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
-                                          nullptr);
-        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
         if (!model->isTransparent()) {
             model->draw(this, render_pass_encoder, mBindingData);
         }
@@ -1606,6 +1619,18 @@ void Application::mainLoop() {
 
     wgpuDevicePoll(mRendererResource.device, true, nullptr);  // This is good!
     wgpuQueueSubmit(mRendererResource.queue, 1, &command);
+    static WGPUQueueWorkDoneCallbackInfo cbinfo{};
+    cbinfo.nextInChain = nullptr;
+    cbinfo.callback = [](WGPUQueueWorkDoneStatus status, void* userdata1, void* userdata2) {
+        Application* app = (Application*)userdata1;
+        if (status == WGPUQueueWorkDoneStatus_Success) {
+            app->ccounter++;
+        }
+    };
+
+    cbinfo.userdata1 = this;
+
+    wgpuQueueOnSubmittedWorkDone(mRendererResource.queue, cbinfo);
     wgpuCommandBufferRelease(command);
     wgpuCommandEncoderRelease(encoder);
 
