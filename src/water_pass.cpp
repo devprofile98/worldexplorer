@@ -215,7 +215,7 @@ void WaterPass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     setDefault(mRenderPipeline->getDepthStencilState());
 
-    mRenderPipeline->setShader(RESOURCE_DIR "/water.wgsl")
+    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/water.wgsl")
         .setVertexBufferLayout(d)
         .setVertexState()
         .setPrimitiveState(WGPUFrontFace_CW, WGPUCullMode_Back)

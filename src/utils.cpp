@@ -5,6 +5,7 @@
 #include <format>
 #include <iostream>
 #include <numeric>
+#include <string>
 #include <vector>
 
 #include "application.h"
@@ -73,32 +74,6 @@ bool loadGeometry(const fs::path& path, std::vector<float>& pointData, std::vect
         }
     }
     return true;
-}
-
-WGPUShaderModule loadShader(const fs::path& path, WGPUDevice device) {
-    std::ifstream file{path};
-    if (!file.is_open()) {
-        std::cout << "Failed to open shader at " << path.c_str() << std::endl;
-        return nullptr;
-    }
-
-    file.seekg(0, std::ios::end);
-    size_t file_size = file.tellg();
-    std::string shader_code(file_size, ' ');  // what the fuck!
-    file.seekg(0);
-    file.read(shader_code.data(), file_size);
-
-    static WGPUShaderSourceWGSL module_descriptor = {};
-    module_descriptor.chain.next = nullptr;
-    module_descriptor.chain.sType = WGPUSType_ShaderSourceWGSL;
-    module_descriptor.code = {shader_code.c_str(), shader_code.size()};
-
-    static WGPUShaderModuleDescriptor shader_descriptor = {};
-    shader_descriptor.nextInChain = nullptr;
-    // shader_descriptor.hintCount = 0;
-    // shader_descriptor.hints = nullptr;
-    shader_descriptor.nextInChain = &module_descriptor.chain;
-    return wgpuDeviceCreateShaderModule(device, &shader_descriptor);
 }
 
 void setDefault(WGPUStencilFaceState& stencilFaceState) {

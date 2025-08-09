@@ -76,6 +76,7 @@ add_executable(
     src/model_registery.cpp
     src/renderpass.cpp
     src/water_pass.cpp
+    src/shader.cpp
 
     src/editor.cpp
     src/input_manager.cpp
@@ -119,7 +120,7 @@ else()
 endif()
 
 # target_copy_webgpu_binaries(App)
-target_link_libraries(App /home/ahmad/Documents/project/cpp/wgputest/webgpu/libwgpu_native.so glfw assimp glm::glm)
+target_link_libraries(App "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/libwgpu_native.so" glfw assimp glm::glm)
 target_link_libraries(App )
 
 

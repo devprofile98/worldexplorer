@@ -1,5 +1,6 @@
 #include "model.h"
 
+#include <assimp/anim.h>
 #include <assimp/material.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
@@ -103,6 +104,25 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
 }
 
 void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
+    if (scene->mAnimations != nullptr) {
+        std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ There are animations " << getName() << " "
+                  << scene->mNumAnimations << std::endl;
+        for (size_t i = 0; i < scene->mNumAnimations; i++) {
+            const aiAnimation* anim = scene->mAnimations[i];
+            std::cout << "@@@@@@@@@@@@@@@@@@@@@ " << anim->mName.C_Str() << std::endl;
+            for (size_t j = 0; j < anim->mNumChannels; j++) {
+                const aiNodeAnim* nodeAnim = anim->mChannels[j];
+                std::cout << "::::::::::::::: " << nodeAnim->mNodeName.C_Str() << " " << nodeAnim->mNumPositionKeys
+                          << " " << nodeAnim->mNumRotationKeys << " " << nodeAnim->mNumScalingKeys << std::endl;
+                for (size_t k = 0; k < nodeAnim->mNumPositionKeys; k++) {
+                    std::cout << std::format("at: {} ({} {} {})\n",
+                                             nodeAnim->mPositionKeys[k].mTime / anim->mTicksPerSecond,
+                                             nodeAnim->mPositionKeys[k].mValue.x, nodeAnim->mPositionKeys[k].mValue.y,
+                                             nodeAnim->mPositionKeys[k].mValue.z);
+                }
+            }
+        }
+    }
     for (uint32_t i = 0; i < node->mNumMeshes; i++) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
         // if (getName() == model_name) {

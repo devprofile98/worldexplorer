@@ -250,7 +250,7 @@ struct GrassModel : public IModel {
                 if (i % 5 == 0) {
                     positions.emplace_back(
                         glm::vec3{app->terrainData[i].x, app->terrainData[i].y, app->terrainData[i].z});
-                    degrees.emplace_back(0.0 /*glm::radians(dist_for_rotation(gen))*/);
+                    degrees.emplace_back(glm::radians(dist_for_rotation(gen)));
                     scales.emplace_back(glm::vec3{0.15f * dist(gen)});
                 }
             }
@@ -343,7 +343,7 @@ struct SphereModel : public IModel {
         SphereModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("sphere", app, RESOURCE_DIR "/sphere.obj", app->getObjectBindGroupLayout())
+            mModel->load("sphere", app, RESOURCE_DIR "/sphere.gltf", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{0.0, 0.0, 0.0})
                 .scale(glm::vec3{1.0f});
             mModel->uploadToGPU(app);
@@ -472,7 +472,7 @@ struct WaterModel : public IModel {
         };
 };
 
-// USER_REGISTER_MODEL("tree", TreeModel);
+USER_REGISTER_MODEL("tree", TreeModel);
 USER_REGISTER_MODEL("boat", BoatModel);
 USER_REGISTER_MODEL("car", CarModel);
 USER_REGISTER_MODEL("tower", TowerModel);
@@ -482,6 +482,7 @@ USER_REGISTER_MODEL("grass", GrassModel);
 USER_REGISTER_MODEL("steampunk", Steampunk);
 USER_REGISTER_MODEL("sheep", SheepModel);
 USER_REGISTER_MODEL("water", WaterModel);
+USER_REGISTER_MODEL("sphere", SphereModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
 // USER_REGISTER_MODEL("house", HouseModel);
 // USER_REGISTER_MODEL("motor", Motor);

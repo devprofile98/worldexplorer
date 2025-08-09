@@ -115,7 +115,7 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
     mRenderPipeline = new Pipeline{app, {bind_group_layout}, "skybox pipeline"};
     WGPUVertexBufferLayout d = mRenderPipeline->mVertexBufferLayout.addAttribute(0, 0, WGPUVertexFormat_Float32x3)
                                    .configure(sizeof(glm::vec3), VertexStepMode::VERTEX);
-    mRenderPipeline->setShader(RESOURCE_DIR "/skybox.wgsl")
+    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/skybox.wgsl")
         .setVertexBufferLayout(d)
         .setVertexState(
 

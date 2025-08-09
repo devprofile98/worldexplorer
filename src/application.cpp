@@ -1352,7 +1352,7 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderRelease(render_pass_encoder);
     }
 
-    auto& active_visible = mDefaultVisibleBuffer;
+    // auto& active_visible = ;
     // water pass
     mWaterPass->setColorAttachment(
         {mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
@@ -1368,7 +1368,7 @@ void Application::mainLoop() {
                                       nullptr);
     wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
                                       nullptr);
-    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, active_visible.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
 
     {
         for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
@@ -1395,7 +1395,7 @@ void Application::mainLoop() {
 
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
                                           nullptr);
-        wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, active_visible.getBindGroup(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
         terrain.draw(this, terrain_pass_encoder, mBindingData);
 
         // updateGui(terrain_pass_encoder);
@@ -1420,7 +1420,7 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 4,
                                       mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
-    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, active_visible.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
     for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
         if (name == "water") {
             continue;
@@ -1467,7 +1467,7 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
-    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, active_visible.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
     for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
         if (name == "water") {
             continue;

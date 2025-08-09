@@ -66,8 +66,6 @@ struct Terrain {
 bool loadGeometry(const fs::path& path, std::vector<float>& pointData, std::vector<uint16_t>& indexData,
                   size_t dimensions);
 
-WGPUShaderModule loadShader(const fs::path& path, WGPUDevice device);
-
 enum class VertexStepMode {
     VERTEX = 0,
     INSTANCE,

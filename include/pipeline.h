@@ -16,7 +16,7 @@ class Pipeline {
 
         Pipeline& defaultConfiguration(Application* app, WGPUTextureFormat surfaceTexture,
                                        WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus,
-                                       const char* shaderPath = "./resources/shader.wgsl");
+                                       const char* shaderPath = "./resources/shaders/shader.wgsl");
         Pipeline& createPipeline(Application* app);
 
         // Getters

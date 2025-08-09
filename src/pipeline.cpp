@@ -3,6 +3,7 @@
 #include <webgpu/webgpu.h>
 
 #include "application.h"
+#include "shader.h"
 #include "wgpu_utils.h"
 
 WGPURenderPassDescriptor createRenderPassDescriptor(WGPUTextureView colorAttachment, WGPUTextureView depthTextureView) {

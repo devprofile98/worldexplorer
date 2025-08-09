@@ -159,7 +159,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     mTextureBindingData[1].binding = 1;
     mTextureBindingData[1].textureView = nullptr;
 
-    mRenderPipeline->setShader(RESOURCE_DIR "/shadow.wgsl")
+    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/shadow.wgsl")
         .setVertexBufferLayout(d)
         .setVertexState()
         .setPrimitiveState()

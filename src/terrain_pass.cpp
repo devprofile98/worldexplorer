@@ -17,7 +17,7 @@ void TerrainPass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline =
         new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4]}, "Terrain pipeline"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
-    mRenderPipeline->setShader(RESOURCE_DIR "/terrain.wgsl");
+    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/terrain.wgsl");
     setDefaultActiveStencil2(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_Back);
@@ -45,7 +45,7 @@ void OutlinePass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline =
         new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], mLayerThree, layouts[3], layouts[5]}, "Outline Pass"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
-    mRenderPipeline->setShader(RESOURCE_DIR "/outline.wgsl");
+    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/outline.wgsl");
     setDefaultUseStencil(mRenderPipeline->getDepthStencilState());
     /*setDefaultActiveStencil(mRenderPipeline->getDepthStencilState());*/
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
@@ -85,7 +85,7 @@ void ViewPort3DPass::createRenderPass(WGPUTextureFormat textureFormat) {
     auto* layouts = mApp->getBindGroupLayouts();
     mRenderPipeline = new Pipeline{mApp, {layouts[0], layouts[1], layouts[2] /*, mLayerThree*/}, "3D ViewPort Pass"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
-    mRenderPipeline->setShader(RESOURCE_DIR "/editor.wgsl");
+    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/editor.wgsl");
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     setDefault(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->getDepthStencilState().format = WGPUTextureFormat_Depth24PlusStencil8;
