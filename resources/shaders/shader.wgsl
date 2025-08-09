@@ -1,109 +1,4 @@
-
-struct VertexOutput {
-    @builtin(position) position: vec4f,
-    @location(5) shadowPos: vec4f,
-    @location(0) color: vec3f,
-    @location(1) normal: vec3f,
-    @location(2) uv: vec2f,
-    @location(3) viewDirection: vec3f,
-    @location(4) worldPos: vec3f,
-    @location(6) viewSpacePos: vec4f,
-    @location(7) tangent: vec3f,
-    @location(8) biTangent: vec3f,
-    @location(9) aNormal: vec3f,
-    @location(10) @interpolate(flat) shadowIdx: u32,
-    @location(11) @interpolate(flat) materialProps: u32,
-    @location(12) @interpolate(flat) userSpecular: f32,
-};
-
-struct VertexInput {
-    @location(0) position: vec3f,
-    @location(1) normal: vec3f,
-    @location(2) color: vec3f,
-    @location(3) tangent: vec3f,
-    @location(4) biTangent: vec3f,
-    @location(5) uv: vec2f,
-};
-
-
-struct MyUniform {
-    projectionMatrix: mat4x4f,
-    viewMatrix: mat4x4f,
-    modelMatrix: mat4x4f,
-    color: vec4f,    
-    cameraWorldPosition: vec3f,
-    time: f32,
-};
-
-struct LightingUniforms {
-    directions: array<vec4f, 2>,
-    colors: array<vec4f, 2>,
-}
-
-struct ObjectInfo {
-    transformations: mat4x4f,
-    isFlat: i32,
-    useTexture: i32,
-    isFoliage: i32,
-    offsetId: u32,
-    isHovered: u32,
-    materialProps: u32,
-    metallicness: f32,
-    offset3: u32
-}
-
-
-struct PointLight {
-    position: vec4f,
-    direction: vec4f,
-    ambient: vec4f,
-    diffuse: vec4f,
-    specular: vec4f,
-
-    constant: f32,
-    linear: f32,
-    quadratic: f32,
-    ftype: i32,
-    cutOff: f32,
-    outerCutOff: f32
-}
-
-struct Scene {
-    projection: mat4x4f,
-    model: mat4x4f,
-    view: mat4x4f,
-    farZ: f32,
-    pad1: f32,
-    pad2: f32,
-    pad3: f32,
-};
-
-//struct OffsetData {
-//    transformation: mat4x4f, // Array of 10 offset vectors
-//};
-struct OffsetData {
-    transformation: mat4x4f, // Array of 10 offset vectors
-    minAABB: vec4f,
-    maxAABB: vec4f
-};
-
-
-@group(0) @binding(0) var<uniform> uMyUniform: array<MyUniform, 10>;
-@group(0) @binding(1) var<uniform> lightCount: i32;
-@group(0) @binding(2) var textureSampler: sampler;
-@group(0) @binding(3) var<uniform> lightingInfos: LightingUniforms;
-@group(0) @binding(4) var<uniform> pointLight: array<PointLight,10>;
-@group(0) @binding(5) var near_depth_texture: texture_2d<f32>;
-@group(0) @binding(6) var grass_ground_texture: texture_2d<f32>;
-@group(0) @binding(7) var rock_mountain_texture: texture_2d<f32>;
-@group(0) @binding(8) var sand_lake_texture: texture_2d<f32>;
-@group(0) @binding(15) var grass_normal_texture: texture_2d<f32>;
-@group(0) @binding(9) var snow_mountain_texture: texture_2d<f32>;
-@group(0) @binding(10) var depth_texture: texture_depth_2d_array;
-@group(0) @binding(11) var<uniform> lightSpaceTrans: array<Scene, 5>;
-@group(0) @binding(12) var shadowMapSampler: sampler_comparison;
-@group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
-@group(0) @binding(14) var<uniform> numOfCascades: u32;
+#include "common.wgsl"
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 
@@ -113,8 +8,7 @@ struct OffsetData {
 
 @group(3) @binding(0) var<uniform> myuniformindex: u32;
 
-@group(4) @binding(0) var water_reflection_texture: texture_2d<f32>;
-@group(4) @binding(1) var water_refraction_texture: texture_2d<f32>;
+@group(4) @binding(0) var<uniform> clipping_plane: vec4f;
 
 @group(5) @binding(0) var<storage, read> visible_instances_indices: array<u32>;
 
@@ -135,6 +29,50 @@ fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
     return default_color;
 }
 
+@vertex
+fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
+    var out: VertexOutput;
+    let off_id: u32 = objectTranformation.offsetId * 100000;
+    var transform: mat4x4f;
+    if instance_index != 0 {
+	let original_instance_idx = visible_instances_indices[off_id + instance_index];
+        transform = offsetInstance[original_instance_idx + off_id].transformation;
+    } else {
+        transform = objectTranformation.transformations;
+    }
+
+    let world_position = transform * vec4f(in.position, 1.0);
+    out.normal = (transform * vec4f(in.normal, 0.0)).xyz;
+
+    out.viewSpacePos = uMyUniform[myuniformindex].viewMatrix * world_position;
+    out.position = uMyUniform[myuniformindex].projectionMatrix * out.viewSpacePos;
+    out.worldPos = world_position.xyz;
+    out.viewDirection = uMyUniform[myuniformindex].cameraWorldPosition - world_position.xyz;
+    out.color = in.color;
+    out.uv = in.uv;
+
+    let T = normalize(vec3f((transform * vec4(in.tangent, 0.0)).xyz));
+    let B = normalize(vec3f((transform * vec4(in.biTangent, 0.0)).xyz));
+    let N = normalize(vec3f((transform * vec4(in.normal, 0.0)).xyz));
+
+    out.tangent = T;
+    out.biTangent = B;
+    out.aNormal = normalize(out.normal);
+
+    var index: u32 = 0u;
+    for (var i: u32 = 0u; i < numOfCascades; i = i + 1u) {
+        if abs(out.viewSpacePos.z) < lightSpaceTrans[i].farZ {
+            index = i;
+        	break;
+        }
+    }
+    // if length(out.viewSpacePos) > ElapsedTime { index = 1;}
+    out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
+    out.shadowIdx = index;
+    out.materialProps = objectTranformation.materialProps;
+    out.userSpecular = objectTranformation.metallicness;
+    return out;
+}
 
 fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, cascadeIdx: u32) -> f32 {
 
@@ -211,79 +149,15 @@ fn geometrySmith(N: vec3f, V: vec3f, L: vec3f, roughness: f32) -> f32 {
     return ggx2 * ggx1;
 }
 
-
-@vertex
-fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
-    var out: VertexOutput;
-    //var world_position: vec4f;
-    let off_id: u32 = objectTranformation.offsetId * 100000;
-    //let is_primary = f32(instance_index == 0);
-    var transform: mat4x4f;
-    if instance_index != 0 {
-        transform = offsetInstance[instance_index + off_id].transformation;
-    } else {
-        transform = objectTranformation.transformations;
-    }
-
-    let world_position = transform * vec4f(in.position, 1.0);
-    out.normal = (transform * vec4f(in.normal, 0.0)).xyz;
-
-    out.viewSpacePos = uMyUniform[myuniformindex].viewMatrix * world_position;
-    out.position = uMyUniform[myuniformindex].projectionMatrix * out.viewSpacePos;
-    out.worldPos = world_position.xyz;
-    out.viewDirection = uMyUniform[myuniformindex].cameraWorldPosition - world_position.xyz;
-    out.color = in.color;
-    out.uv = in.uv;
-    // out.uv = vec2f(in.uv.x, 1 - in.uv.y);
-
-    let T = normalize(vec3f((transform * vec4(in.tangent, 0.0)).xyz));
-    let B = normalize(vec3f((transform * vec4(in.biTangent, 0.0)).xyz));
-    let N = normalize(vec3f((transform * vec4(in.normal, 0.0)).xyz));
-
-    out.tangent = T;
-    out.biTangent = B;
-    out.aNormal = out.normal;
-
-    var index: u32 = 0u;
-    for (var i: u32 = 0u; i < numOfCascades; i = i + 1u) {
-        if abs(out.viewSpacePos.z) < lightSpaceTrans[i].farZ {
-            index = i;
-        	break;
-        }
-    }
-    // if length(out.viewSpacePos) > ElapsedTime { index = 1;}
-    out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
-    out.shadowIdx = index;
-    out.materialProps = objectTranformation.materialProps;
-    out.userSpecular = objectTranformation.metallicness;
-    return out;
-}
-
-
-
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-	// transform world position of the water fragment to reflection camera clip-space
-    let reflected_clip_pos = uMyUniform[1].projectionMatrix * uMyUniform[1].viewMatrix * vec4f(in.worldPos, 1.0);
-	// perform projection deviding to find ndc
-    let ndc_pos = reflected_clip_pos.xyz / reflected_clip_pos.w;
-	// ndc to uv 
-    let uv_for_reflection = vec2f((ndc_pos.x + 1.0) * 0.5, (ndc_pos.y + 1.0) * 0.5);
 
-    let final_uv = vec2f(uv_for_reflection.x, 1.0 - uv_for_reflection.y);
-    let F0 = pow((1.0 - 1.33) / (1.0 + 1.33), 2.0);
-    let cos_theta = saturate(dot(normalize(in.viewDirection), normalize(in.normal)));
-    let fresnel_co = F0 + (1.0 - F0) * pow(1.0 - cos_theta, 5.0) ;
+    //let d = in.worldPos.z + 3.5;
+    let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
+    if d > 0.0 {
+	discard;
+    }
 
-
-    let reflection = textureSample(water_reflection_texture, textureSampler, final_uv).rgba;
-    let refraction = textureSample(water_refraction_texture, textureSampler, uv_for_reflection).rgba;
-    let greenish_blue = vec4f(0.0, 0.3, 0.2, 1.0);
-    return mix(mix(reflection, refraction, 1.0 - fresnel_co), greenish_blue, 0.2);
-}
-
-@fragment
-fn fs_main3(in: VertexOutput) -> @location(0) vec4f {
     var frag_ambient = textureSample(diffuse_map, textureSampler, in.uv).rgba;
     if (in.materialProps & (1u << 0u)) != 1u {
         frag_ambient = vec4f(in.color.rgb, 1.0);
@@ -305,7 +179,7 @@ fn fs_main3(in: VertexOutput) -> @location(0) vec4f {
     let V = normalize(in.viewDirection);
 
     if (in.materialProps & (1u << 1u)) != 2u {
-        N = in.normal;
+        N = in.aNormal;
     }
 
     if (in.materialProps & (1u << 3u)) != 8u {
@@ -380,4 +254,3 @@ fn fs_main3(in: VertexOutput) -> @location(0) vec4f {
     color = pow(color, vec3(1.1));
     return vec4f(color, 1.0);
 }
-
