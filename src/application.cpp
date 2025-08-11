@@ -1371,6 +1371,16 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
 
     {
+        auto& iter = ModelRegistry::instance().getLoadedModel(Visibility_User);
+        auto boat = iter.find("tower");
+        auto arrow = iter.find("arrow");
+        if (boat != iter.end() && arrow != iter.end()) {
+            boat->second->mTransformMatrix = arrow->second->mTransformMatrix * boat->second->mTransformMatrix;
+            boat->second->mObjectInfo.transformation = boat->second->mTransformMatrix;
+        }
+    }
+
+    {
         for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
             model->draw(this, water_pass_encoder, mBindingData);
         }
