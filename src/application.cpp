@@ -511,10 +511,8 @@ void Application::initializePipeline() {
     mBindingGroup.addBuffer(4,  //
                             BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(Light) * 10);
 
-    mBindingGroup.addTexture(5,  //
-                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
-                             TextureViewDimension::VIEW_2D);
-
+    mBindingGroup.addBuffer(5,  //
+                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float));
     mBindingGroup.addTexture(6,  //
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                              TextureViewDimension::VIEW_2D);
@@ -539,9 +537,6 @@ void Application::initializePipeline() {
                             BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                             mInstanceManager->mBufferSize);
 
-    mBindingGroup.addBuffer(14,  //
-                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float));
-
     mDefaultTextureBindingGroup.addTexture(0,  //
                                            BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                                            TextureViewDimension::VIEW_2D);
@@ -564,10 +559,6 @@ void Application::initializePipeline() {
                                     BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                                     sizeof(uint32_t) * 13000);
 
-    // mDefaultVisibleBuffer2.addBuffer(0,  //
-    //                                  BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
-    //                                  sizeof(uint32_t) * 13000);
-
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
     WGPUBindGroupLayout texture_bind_group_layout =
         mDefaultTextureBindingGroup.createLayout(this, "default texture bindgroup layout");
@@ -580,8 +571,6 @@ void Application::initializePipeline() {
 
     WGPUBindGroupLayout visible_bind_group_layout =
         mDefaultVisibleBuffer.createLayout(this, "default visible index layout");
-    // WGPUBindGroupLayout visible_bind_group_layout2 =
-    //     mDefaultVisibleBuffer2.createLayout(this, "default2 visible index layout");
 
     WGPUBindGroupLayoutEntry object_transformation = {};
     setDefault(object_transformation);
@@ -729,13 +718,18 @@ void Application::initializePipeline() {
     mBindingData[4].offset = 0;
     mBindingData[4].size = sizeof(Light) * 10;
 
-    /*mDepthTextureViewDepthOnly = mDepthTexture->createViewDepthOnly();*/
+    mTimeBuffer.setLabel("number of cascades buffer")
+        .setSize(sizeof(uint32_t))
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .setMappedAtCraetion(false)
+        .create(this);
 
     mBindingData[5] = {};
     mBindingData[5].nextInChain = nullptr;
+    mBindingData[5].buffer = mTimeBuffer.getBuffer();
     mBindingData[5].binding = 5;
-    // mBindingData[5].textureView = nullptr;
-    mBindingData[5].textureView = mDepthTextureViewDepthOnly;
+    mBindingData[5].offset = 0;
+    mBindingData[5].size = sizeof(uint32_t);
 
     mBindingData[6] = {};
     mBindingData[6].nextInChain = nullptr;
@@ -802,18 +796,6 @@ void Application::initializePipeline() {
     mBindingData[13].offset = 0;
     mBindingData[13].size = mInstanceManager->mBufferSize;
 
-    mTimeBuffer.setLabel("number of cascades buffer")
-        .setSize(sizeof(uint32_t))
-        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-        .setMappedAtCraetion(false)
-        .create(this);
-
-    mBindingData[14] = {};
-    mBindingData[14].nextInChain = nullptr;
-    mBindingData[14].buffer = mTimeBuffer.getBuffer();
-    mBindingData[14].binding = 14;
-    mBindingData[14].offset = 0;
-    mBindingData[14].size = sizeof(uint32_t);
     //
     //
     mDefaultVisibleBGData[0] = {};
@@ -1034,6 +1016,14 @@ bool Application::initialize() {
     WGPUSurface provided_surface{};
     std::cout << glfwGetPlatform() << std::endl;
     provided_surface = glfwCreateWindowWGPUSurface(instance, provided_window);
+
+    {
+        int width, height;
+        // Use glfwGetFramebufferSize to get the dimensions of the window's framebuffer.
+        glfwGetFramebufferSize(provided_window, &width, &height);
+        std::cout << std::format("width: {} heigth: {}\n", width, height);
+        setWindowSize(width, height);
+    }
 
     auto adapter = requestAdapterSync(instance, provided_surface);
     std::cout << std::format("WGPU instance: {:p} {:p} {:p}", (void*)instance, (void*)adapter, (void*)provided_surface)
@@ -1530,8 +1520,7 @@ void Application::mainLoop() {
         wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());
     wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());
 
-    wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
-                                      nullptr);
+    wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
 
     wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
     terrain.draw(this, terrain_pass_encoder, mBindingData);

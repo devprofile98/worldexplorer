@@ -89,7 +89,8 @@ struct OffsetData {
 @group(0) @binding(2) var textureSampler: sampler;
 @group(0) @binding(3) var<uniform> lightingInfos: LightingUniforms;
 @group(0) @binding(4) var<uniform> pointLight: array<PointLight,10>;
-@group(0) @binding(5) var near_depth_texture: texture_2d<f32>;
+// @group(0) @binding(5) var near_depth_texture: texture_2d<f32>;
+@group(0) @binding(5) var<uniform> numOfCascades: u32;
 @group(0) @binding(6) var grass_ground_texture: texture_2d<f32>;
 @group(0) @binding(7) var rock_mountain_texture: texture_2d<f32>;
 @group(0) @binding(8) var sand_lake_texture: texture_2d<f32>;
@@ -98,4 +99,3 @@ struct OffsetData {
 @group(0) @binding(11) var<uniform> lightSpaceTrans: array<Scene, 5>;
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
-@group(0) @binding(14) var<uniform> numOfCascades: u32;
