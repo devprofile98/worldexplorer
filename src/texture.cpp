@@ -129,7 +129,8 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
 
     mDescriptor = {};
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
-    mDescriptor.label = WGPUStringView{path.string().c_str(), path.string().size()};
+    std::string path_str = path.string();
+    mDescriptor.label = WGPUStringView{path_str.c_str(), path_str.size()};
     // by convention for bmp, png and jpg file. Be careful with other formats.
     mDescriptor.format = textureFormat;
     mDescriptor.mipLevelCount = glm::log2((float)width);

@@ -53,12 +53,12 @@ void Drawable::draw(Application* app, WGPURenderPassEncoder encoder, std::vector
 Buffer& Drawable::getUniformBuffer() { return mUniformBuffer; }
 
 Model::Model() : BaseModel() {
-    mScaleMatrix = glm::scale(mScaleMatrix, mScale);
-    mTransformMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
-    mObjectInfo.transformation = mTransformMatrix;
-    mObjectInfo.isFlat = 0;
-    mObjectInfo.useTexture = 1;
-    mObjectInfo.isFoliage = 0;
+    mTransform.mScaleMatrix = glm::scale(mTransform.mScaleMatrix, mTransform.mScale);
+    mTransform.mTransformMatrix = mTransform.mRotationMatrix * mTransform.mTranslationMatrix * mTransform.mScaleMatrix;
+    mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
+    mTransform.mObjectInfo.isFlat = 0;
+    mTransform.mObjectInfo.useTexture = 1;
+    mTransform.mObjectInfo.isFoliage = 0;
 }
 
 glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
@@ -209,15 +209,15 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
     //     std::cout << std::format(" -------------- Assimp - Succesfully loaded mesh at {}\n", mesh->mMaterialIndex);
     // }
 
-    mObjectInfo.setFlag(MaterialProps::HasNormalMap, false);
-    mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, false);
-    mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, false);
+    mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, false);
+    mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, false);
+    mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, false);
 
     auto& render_resource = app->getRendererResource();
     auto& mmesh = mMeshes[mesh->mMaterialIndex];
     if (mmesh.mTexture == nullptr) {
         for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); i++) {
-            mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, true);
+            mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, true);
             aiString str;
             material->GetTexture(aiTextureType_DIFFUSE, i, &str);
             /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
@@ -234,7 +234,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
     }
     if (mmesh.mSpecularTexture == nullptr) {
         for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_SPECULAR); i++) {
-            mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, true);
+            mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, true);
             aiString str;
             material->GetTexture(aiTextureType_SPECULAR, i, &str);
             /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
@@ -251,7 +251,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
     }
     if (mmesh.mNormalMapTexture == nullptr) {
         for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_HEIGHT); i++) {
-            mObjectInfo.setFlag(MaterialProps::HasNormalMap, true);
+            mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, true);
             aiString str;
             material->GetTexture(aiTextureType_HEIGHT, i, &str);
             /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
@@ -323,7 +323,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     Assimp::Importer import;
     const aiScene* scene =
         import.ReadFile(path.string().c_str(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace |
-                                           aiProcess_JoinIdenticalVertices);
+                                                   aiProcess_JoinIdenticalVertices);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         // std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << std::endl;
         std::cout << std::format("Assimp - Error while loading model {} : {}\n", (const char*)path.c_str(),
@@ -429,7 +429,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         }
     }
     if (getName() == "jet") {
-        mObjectInfo.isFlat = false;
+        mTransform.mObjectInfo.isFlat = false;
     }
 
     for (const auto& material : materials) {
@@ -439,7 +439,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         }
         auto& mesh = mMeshes[material_id];
         if (!material.diffuse_texname.empty()) {
-            mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, true);
+            mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, true);
             std::string texture_path = RESOURCE_DIR;
             texture_path += "/";
             texture_path += material.diffuse_texname;
@@ -453,7 +453,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
         // Load and upload specular texture
         if (!materials[material_id].specular_texname.empty()) {
-            mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, true);
+            mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, true);
             std::string texture_path = RESOURCE_DIR;
             texture_path += "/";
             texture_path += materials[material_id].specular_texname;
@@ -466,7 +466,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
         // Load and upload normal texture
         if (!materials[material_id].bump_texname.empty()) {
-            mObjectInfo.setFlag(MaterialProps::HasNormalMap, true);
+            mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, true);
             /*if (!materials[0].normal_texname.empty()) {*/
             std::string texture_path = RESOURCE_DIR;
             texture_path += "/";
@@ -503,12 +503,12 @@ void BaseModel::setInstanced(Instance* instance) {
 }
 
 Model& Model::setFoliage() {
-    this->mObjectInfo.isFoliage = 1;
+    mTransform.mObjectInfo.isFoliage = 1;
     return *this;
 }
 
 Model& Model::useTexture(bool use) {
-    this->mObjectInfo.useTexture = use ? 1 : 0;
+    mTransform.mObjectInfo.useTexture = use ? 1 : 0;
     return *this;
 }
 
@@ -571,8 +571,8 @@ void BaseModel::setTransparent(bool value) {
 
 bool BaseModel::isTransparent() { return mIsTransparent; }
 
-void BaseModel::selected(bool selected) { mObjectInfo.isSelected = selected; }
-bool BaseModel::isSelected() const { return mObjectInfo.isSelected; }
+void BaseModel::selected(bool selected) { mTransform.mObjectInfo.isSelected = selected; }
+bool BaseModel::isSelected() const { return mTransform.mObjectInfo.isSelected; }
 
 void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData) {
     WGPUBindGroupEntry mBindGroupEntry = {};
@@ -641,8 +641,8 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
                                             wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
         wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
 
-        wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
-                             sizeof(ObjectInfo));
+        wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0,
+                             &mTransform.mObjectInfo, sizeof(ObjectInfo));
 
         wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(encoder, 2,
@@ -679,55 +679,55 @@ void Model::userInterface() {
     if (ImGui::CollapsingHeader("Transformations",
                                 ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
         ImGui::Text("Position:");
-        ImGui::DragFloat3("Position", glm::value_ptr(mPosition), drag_speed);
+        ImGui::DragFloat3("Position", glm::value_ptr(mTransform.mPosition), drag_speed);
 
-        if (ImGui::DragFloat("Scale x", &mScale.x, 0.01)) {
+        if (ImGui::DragFloat("Scale x", &mTransform.mScale.x, 0.01)) {
             if (lock_scale) {
-                mScale = glm::vec3{mScale.x};
+                mTransform.mScale = glm::vec3{mTransform.mScale.x};
             }
         }
-        if (ImGui::DragFloat("Scale y", &mScale.y, 0.01)) {
+        if (ImGui::DragFloat("Scale y", &mTransform.mScale.y, 0.01)) {
             if (lock_scale) {
-                mScale = glm::vec3{mScale.y};
+                mTransform.mScale = glm::vec3{mTransform.mScale.y};
             }
         }
-        if (ImGui::DragFloat("Scale z", &mScale.z, 0.01)) {
+        if (ImGui::DragFloat("Scale z", &mTransform.mScale.z, 0.01)) {
             if (lock_scale) {
-                mScale = glm::vec3{mScale.z};
+                mTransform.mScale = glm::vec3{mTransform.mScale.z};
             }
         }
 
-        if (ImGui::DragFloat3("Rotation", glm::value_ptr(mEulerRotation), drag_speed, 360.0f)) {
-            glm::vec3 euler_radians = glm::radians(mEulerRotation);
-            this->mRotationMatrix = glm::toMat4(glm::quat(euler_radians));
+        if (ImGui::DragFloat3("Rotation", glm::value_ptr(mTransform.mEulerRotation), drag_speed, 360.0f)) {
+            glm::vec3 euler_radians = glm::radians(mTransform.mEulerRotation);
+            mTransform.mRotationMatrix = glm::toMat4(glm::quat(euler_radians));
 
-            if (mEulerRotation.x < 0) mEulerRotation.x += 360.0f;
-            if (mEulerRotation.y < 0) mEulerRotation.y += 360.0f;
-            if (mEulerRotation.z < 0) mEulerRotation.z += 360.0f;
-            if (mEulerRotation.x > 360.0) mEulerRotation.x -= 360.0f;
-            if (mEulerRotation.y > 360.0) mEulerRotation.y -= 360.0f;
-            if (mEulerRotation.z > 360.0) mEulerRotation.z -= 360.0f;
+            if (mTransform.mEulerRotation.x < 0) mTransform.mEulerRotation.x += 360.0f;
+            if (mTransform.mEulerRotation.y < 0) mTransform.mEulerRotation.y += 360.0f;
+            if (mTransform.mEulerRotation.z < 0) mTransform.mEulerRotation.z += 360.0f;
+            if (mTransform.mEulerRotation.x > 360.0) mTransform.mEulerRotation.x -= 360.0f;
+            if (mTransform.mEulerRotation.y > 360.0) mTransform.mEulerRotation.y -= 360.0f;
+            if (mTransform.mEulerRotation.z > 360.0) mTransform.mEulerRotation.z -= 360.0f;
         }
 
-        moveTo(this->mPosition);
-        scale(mScale);
-        getTranformMatrix();
+        mTransform.moveTo(mTransform.mPosition);
+        mTransform.scale(mTransform.mScale);
+        mTransform.getTranformMatrix();
     }
     if (ImGui::CollapsingHeader("Materials",
                                 ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
-        bool has_normal = mObjectInfo.hasFlag(MaterialProps::HasNormalMap);
+        bool has_normal = mTransform.mObjectInfo.hasFlag(MaterialProps::HasNormalMap);
         if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
-            this->mObjectInfo.setFlag(MaterialProps::HasNormalMap, has_normal);
+            mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, has_normal);
         }
-        bool has_specular = mObjectInfo.hasFlag(MaterialProps::HasRoughnessMap);
+        bool has_specular = mTransform.mObjectInfo.hasFlag(MaterialProps::HasRoughnessMap);
         if (ImGui::Checkbox("Has Specular Map", &has_specular)) {
-            this->mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, has_specular);
+            mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, has_specular);
         }
-        bool has_diffuse = mObjectInfo.hasFlag(MaterialProps::HasDiffuseMap);
+        bool has_diffuse = mTransform.mObjectInfo.hasFlag(MaterialProps::HasDiffuseMap);
         if (ImGui::Checkbox("Has Diffuse Map", &has_diffuse)) {
-            this->mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, has_diffuse);
+            mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, has_diffuse);
         }
-        if (ImGui::SliderFloat("Diffuse Value", &mObjectInfo.roughness, 0.0f, 1.0f)) {
+        if (ImGui::SliderFloat("Diffuse Value", &mTransform.mObjectInfo.roughness, 0.0f, 1.0f)) {
         }
     }
 }
@@ -791,7 +791,7 @@ std::pair<glm::vec3, glm::vec3> BaseModel::getWorldSpaceAABB() {
 
     // 3. Transform each corner and update worldMin/worldMax
     for (int i = 0; i < 8; ++i) {
-        glm::vec4 transformedCorner = this->getTranformMatrix() * glm::vec4(corners[i], 1.0f);
+        glm::vec4 transformedCorner = mTransform.getTranformMatrix() * glm::vec4(corners[i], 1.0f);
 
         worldMin.x = glm::min(worldMin.x, transformedCorner.x);
         worldMin.y = glm::min(worldMin.y, transformedCorner.y);
@@ -806,8 +806,8 @@ std::pair<glm::vec3, glm::vec3> BaseModel::getWorldSpaceAABB() {
 }
 
 std::pair<glm::vec3, glm::vec3> BaseModel::getWorldMin() {
-    auto min = this->getTranformMatrix() * glm::vec4(this->min, 1.0);
-    auto max = this->getTranformMatrix() * glm::vec4(this->max, 1.0);
+    auto min = mTransform.getTranformMatrix() * glm::vec4(this->min, 1.0);
+    auto max = mTransform.getTranformMatrix() * glm::vec4(this->max, 1.0);
     return {min, max};
 }
 

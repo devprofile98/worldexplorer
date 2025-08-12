@@ -214,7 +214,7 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
             }
 
             wgpuQueueWriteBuffer(mApp->getRendererResource().queue, object_info_buffer.getBuffer(), 0,
-                                 &model->getTranformMatrix(), sizeof(glm::mat4));
+                                 &model->mTransform.getTranformMatrix(), sizeof(glm::mat4));
             auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
             wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                                  wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));

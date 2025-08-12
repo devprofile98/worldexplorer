@@ -19,9 +19,9 @@ int main(int, char**) {
     Application app;
     if (app.initialize()) {
         while (app.isRunning()) {
-            std::cout << "What the fuck!" << std::endl;
             app.mainLoop();
         }
+        std::cout << "What the fuck!" << std::endl;
 
         app.terminate();
         return 0;

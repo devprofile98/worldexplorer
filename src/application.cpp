@@ -866,11 +866,11 @@ void Application::initializeBuffers() {
     std::cout << "Generate is " << terrainData.size() << '\n';
 
     shapes = new Cube{this};
-    shapes->moveTo(glm::vec3{10.0f, 1.0f, 4.0f});
+    shapes->mTransform.moveTo(glm::vec3{10.0f, 1.0f, 4.0f});
 
     plane = new Plane{this};
     plane->mName = "Plane";
-    plane->moveTo(glm::vec3{3.0f, 1.0f, 4.0f}).scale(glm::vec3{0.01, 1.0, 1.0});
+    plane->mTransform.moveTo(glm::vec3{3.0f, 1.0f, 4.0f}).scale(glm::vec3{0.01, 1.0, 1.0});
     plane->setTransparent(false);
 
     WGPUBufferDescriptor buffer_descriptor = {};
@@ -1285,7 +1285,7 @@ void Application::mainLoop() {
         static Camera camera = getCamera();
         camera = getCamera();
         static MyUniform muniform = mUniforms;
-        float diff = 2 * (camera.getPos().z - water_plane->second->getPosition().z);
+        float diff = 2 * (camera.getPos().z - water_plane->second->mTransform.getPosition().z);
         auto new_pos = camera.getPos();
         new_pos.z -= diff;
         camera.setPosition(new_pos);
@@ -1369,8 +1369,9 @@ void Application::mainLoop() {
         auto boat = iter.find("tower");
         auto arrow = iter.find("arrow");
         if (boat != iter.end() && arrow != iter.end()) {
-            boat->second->mTransformMatrix = arrow->second->mTransformMatrix * boat->second->mTransformMatrix;
-            boat->second->mObjectInfo.transformation = boat->second->mTransformMatrix;
+            boat->second->mTransform.mTransformMatrix =
+                arrow->second->mTransform.mTransformMatrix * boat->second->mTransform.mTransformMatrix;
+            boat->second->mTransform.mObjectInfo.transformation = boat->second->mTransform.mTransformMatrix;
         }
     }
 

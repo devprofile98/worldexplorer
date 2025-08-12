@@ -16,10 +16,11 @@ BaseModel* GizmoElement::testSelection(Camera& camera, size_t width, size_t heig
 }
 
 void GizmoElement::moveTo(const glm::vec3 position) {
-    center->moveTo(position);
-    x->moveTo(position);
-    y->moveTo(position);
-    z->moveTo(position);
+    center->mTransform.moveTo(position);
+
+    x->mTransform.moveTo(position);
+    y->mTransform.moveTo(position);
+    z->mTransform.moveTo(position);
 }
 
 void GizmoElement::onMouseClick(MouseEvent event) {
@@ -80,27 +81,27 @@ void GizmoElement::onMouseMove(MouseEvent event) {
         glm::vec3 intersection_box_max;
         float scalar = 100.0f;
         if (GizmoElement::mSelectedPart == GizmoElement::x) {
-            intersection_box_min = {-scalar, that->mSelectedModel->getPosition().y, -scalar};
-            intersection_box_max = {scalar, that->mSelectedModel->getPosition().y + 1.0, scalar};
+            intersection_box_min = {-scalar, that->mSelectedModel->mTransform.getPosition().y, -scalar};
+            intersection_box_max = {scalar, that->mSelectedModel->mTransform.getPosition().y + 1.0, scalar};
             auto [res, data] = testIntersectionWithBox(that->getCamera(), width, height, {move.xPos, move.yPos},
                                                        intersection_box_min, intersection_box_max);
-            that->mSelectedModel->moveTo(
-                {data.x, that->mSelectedModel->getPosition().y, that->mSelectedModel->getPosition().z});
+            that->mSelectedModel->mTransform.moveTo({data.x, that->mSelectedModel->mTransform.getPosition().y,
+                                                     that->mSelectedModel->mTransform.getPosition().z});
         } else if (GizmoElement::mSelectedPart == GizmoElement::y) {
             // std::cout << "the Result for box intersection is "<< std::endl;
-            intersection_box_min = {that->mSelectedModel->getPosition().x, -scalar, -scalar};
-            intersection_box_max = {that->mSelectedModel->getPosition().x + 1, scalar, scalar};
+            intersection_box_min = {that->mSelectedModel->mTransform.getPosition().x, -scalar, -scalar};
+            intersection_box_max = {that->mSelectedModel->mTransform.getPosition().x + 1, scalar, scalar};
             auto [res, data] = testIntersectionWithBox(that->getCamera(), width, height, {move.xPos, move.yPos},
                                                        intersection_box_min, intersection_box_max);
-            that->mSelectedModel->moveTo(
-                {that->mSelectedModel->getPosition().x, data.y, that->mSelectedModel->getPosition().z});
+            that->mSelectedModel->mTransform.moveTo({that->mSelectedModel->mTransform.getPosition().x, data.y,
+                                                     that->mSelectedModel->mTransform.getPosition().z});
         } else if (GizmoElement::mSelectedPart == GizmoElement::z) {
-            intersection_box_min = {-scalar, that->mSelectedModel->getPosition().y, -scalar};
-            intersection_box_max = {scalar, that->mSelectedModel->getPosition().y + 1.0, scalar};
+            intersection_box_min = {-scalar, that->mSelectedModel->mTransform.getPosition().y, -scalar};
+            intersection_box_max = {scalar, that->mSelectedModel->mTransform.getPosition().y + 1.0, scalar};
             auto [res, data] = testIntersectionWithBox(that->getCamera(), width, height, {move.xPos, move.yPos},
                                                        intersection_box_min, intersection_box_max);
-            that->mSelectedModel->moveTo(
-                {that->mSelectedModel->getPosition().x, that->mSelectedModel->getPosition().y, data.z});
+            that->mSelectedModel->mTransform.moveTo({that->mSelectedModel->mTransform.getPosition().x,
+                                                     that->mSelectedModel->mTransform.getPosition().y, data.z});
         }
 
         auto [min, max] = that->mSelectedModel->getWorldSpaceAABB();
@@ -113,12 +114,13 @@ struct GizmoModel : public IModel {
             mModel = new Model{};
 
             mModel->load("gizmo", app, RESOURCE_DIR "/gizmo/gizmo_up.glb", app->getObjectBindGroupLayout())
+                .mTransform
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
                 //
                 .scale(glm::vec3{0.1f});
-            mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
+            mModel->mTransform.rotate({90.0f, 0.0, 180.0f}, 0.0f);
             mModel->uploadToGPU(app);
-            mModel->getTranformMatrix();
+            mModel->mTransform.getTranformMatrix();
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
@@ -138,12 +140,13 @@ struct GizmoModelY : public IModel {
             mModel = new Model{};
 
             mModel->load("gizmo_y", app, RESOURCE_DIR "/gizmo/gizmo_y.glb", app->getObjectBindGroupLayout())
+                .mTransform
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
                 //
                 .scale(glm::vec3{0.1f});
-            mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
+            mModel->mTransform.rotate({90.0f, 0.0, 180.0f}, 0.0f);
             mModel->uploadToGPU(app);
-            mModel->getTranformMatrix();
+            mModel->mTransform.getTranformMatrix();
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
@@ -163,12 +166,13 @@ struct GizmoModelX : public IModel {
             mModel = new Model{};
 
             mModel->load("gizmo_x", app, RESOURCE_DIR "/gizmo/gizmo_x.glb", app->getObjectBindGroupLayout())
+                .mTransform
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
                 //
                 .scale(glm::vec3{0.1f});
-            mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
+            mModel->mTransform.rotate({90.0f, 0.0, 180.0f}, 0.0f);
             mModel->uploadToGPU(app);
-            mModel->getTranformMatrix();
+            mModel->mTransform.getTranformMatrix();
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
@@ -188,12 +192,13 @@ struct GizmoModelCenter : public IModel {
             mModel = new Model{};
 
             mModel->load("gizmo_center", app, RESOURCE_DIR "/gizmo/gizmo_center.glb", app->getObjectBindGroupLayout())
+                .mTransform
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
                 //
                 .scale(glm::vec3{0.1f});
-            mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
+            mModel->mTransform.rotate({90.0f, 0.0, 180.0f}, 0.0f);
             mModel->uploadToGPU(app);
-            mModel->getTranformMatrix();
+            mModel->mTransform.getTranformMatrix();
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
@@ -329,11 +334,11 @@ void Screen::onKey(KeyEvent event) {
         // that->mLightManager->nextLight();
     } else if (GLFW_KEY_KP_3 == key.key && key.action == GLFW_PRESS) {
         auto water_plane = ModelRegistry::instance().getLoadedModel(Visibility_User).find("water")->second;
-        float diff = 2 * (mApp->getCamera().getPos().z - water_plane->getPosition().z);
-	auto new_pos = mApp->getCamera().getPos();
-	new_pos.z -= diff;
+        float diff = 2 * (mApp->getCamera().getPos().z - water_plane->mTransform.getPosition().z);
+        auto new_pos = mApp->getCamera().getPos();
+        new_pos.z -= diff;
         mApp->getCamera().setPosition(new_pos);
-	mApp->getCamera().mPitch *= -1.0;
-	mApp->getCamera().updateCamera();
+        mApp->getCamera().mPitch *= -1.0;
+        mApp->getCamera().updateCamera();
     }
 }

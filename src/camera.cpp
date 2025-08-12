@@ -119,14 +119,14 @@ void Camera::updateCursor(int x, int y) {
 }
 void Camera::lookAtAABB(BaseModel* model) {
     if (model) {
-        glm::vec3 temp_pos = model->getPosition();
+        glm::vec3 temp_pos = model->mTransform.getPosition();
         glm::vec3 temp_aabb_size = model->getAABBSize();
         float temp_smallest_size = std::min(temp_aabb_size.x, std::min(temp_aabb_size.y, temp_aabb_size.z));
         temp_pos.z += temp_smallest_size;
         temp_pos.x += temp_smallest_size;
         temp_pos.y += temp_smallest_size;
         this->setPosition(temp_pos);
-        this->setTarget(model->getPosition() - temp_pos);
+        this->setTarget(model->mTransform.getPosition() - temp_pos);
         std::cout << "volume calculation result for " << model->getName() << " is: " << model->calculateVolume()
                   << std::endl;
     }

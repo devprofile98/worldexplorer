@@ -152,11 +152,11 @@ struct AABB {
         glm::vec3 getAABBSize();
 };
 
-class BaseModel : public Transform, public Drawable, public AABB, public DebugUI {
+class BaseModel : public Drawable, public AABB, public DebugUI {
     public:
         BaseModel()
-            : Transform({}, {glm::vec3{0.0}}, glm::vec3{1.0}, glm::vec3{0.0}, glm::mat4{1.0}, glm::mat4{1.0},
-                        glm::mat4{1.0}, glm::mat4{1.0}, glm::vec3{0.0, 0.0, 1.0}) {};
+            : mTransform({}, {glm::vec3{0.0}}, glm::vec3{1.0}, glm::vec3{0.0}, glm::mat4{1.0}, glm::mat4{1.0},
+                         glm::mat4{1.0}, glm::mat4{1.0}, glm::vec3{0.0, 0.0, 1.0}) {};
 
         std::string mName;
         const std::string& getName();
@@ -176,6 +176,8 @@ class BaseModel : public Transform, public Drawable, public AABB, public DebugUI
         bool isSelected() const;
         std::pair<glm::vec3, glm::vec3> getWorldMin();
         std::pair<glm::vec3, glm::vec3> getWorldSpaceAABB();
+
+        Transform mTransform;
 
     private:
         bool mIsTransparent = false;

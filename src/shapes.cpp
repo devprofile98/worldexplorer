@@ -115,17 +115,17 @@ Cube::Cube(Application* app) : BaseModel() {
                          sizeof(glm::vec4) * 10);
 }
 
-Plane::Plane(Application* app) : Cube(app) { mScale = {0.0, 1.0, 1.0}; }
+Plane::Plane(Application* app) : Cube(app) { mTransform.mScale = {0.0, 1.0, 1.0}; }
 
 size_t Cube::getVertexCount() const { return sizeof(cubeVertexData) / (11 * sizeof(float)); }
 
 #ifdef DEVELOPMENT_BUILD
 void Cube::userInterface() {
-    ImGui::SliderFloat3("Position", glm::value_ptr(mPosition), 0.0f, 10.0f);
-    ImGui::SliderFloat3("Scale", glm::value_ptr(mScale), 0.0f, 10.0f);
-    mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
-    scale(mScale);
-    getTranformMatrix();
+    ImGui::SliderFloat3("Position", glm::value_ptr(mTransform.mPosition), 0.0f, 10.0f);
+    ImGui::SliderFloat3("Scale", glm::value_ptr(mTransform.mScale), 0.0f, 10.0f);
+    mTransform.mTranslationMatrix = glm::translate(glm::mat4{1.0}, mTransform.mPosition);
+    mTransform.scale(mTransform.mScale);
+    mTransform.getTranformMatrix();
 }
 
 #endif  // DEVELOPMENT_BUILD
@@ -152,9 +152,9 @@ void Cube::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGP
     (void)bindingData;
     auto& render_resource = app->getRendererResource();
 
-    mObjectInfo.transformation = mTransformMatrix;
-    mObjectInfo.isFlat = false;
-    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
+    mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
+    mTransform.mObjectInfo.isFlat = false;
+    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
                          sizeof(ObjectInfo));
 
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mMeshes[0].mVertexBuffer.getBuffer(), 0,
@@ -303,9 +303,9 @@ void Line::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGP
     (void)bindingData;
     auto& render_resource = app->getRendererResource();
 
-    mObjectInfo.transformation = glm::mat4{1.0f};  // mTransformMatrix;
-    mObjectInfo.isFlat = false;
-    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mObjectInfo,
+    mTransform.mObjectInfo.transformation = glm::mat4{1.0f};  // mTransformMatrix;
+    mTransform.mObjectInfo.isFlat = false;
+    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
                          sizeof(ObjectInfo));
 
     wgpuRenderPassEncoderSetIndexBuffer(encoder, mIndexDataBuffer.getBuffer(), WGPUIndexFormat_Uint16, 0,
@@ -319,7 +319,8 @@ void Line::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGP
     auto bindgroup0 = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup0, 0, nullptr);
 
-    auto bindgroup_desc = createBindGroup(app, Drawable::getUniformBuffer().getBuffer(), sizeof(mObjectInfo));
+    auto bindgroup_desc =
+        createBindGroup(app, Drawable::getUniformBuffer().getBuffer(), sizeof(mTransform.mObjectInfo));
     WGPUBindGroup bindgroup_object = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &bindgroup_desc);
 
     wgpuRenderPassEncoderSetBindGroup(encoder, 1, bindgroup_object, 0, nullptr);
