@@ -123,12 +123,13 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     unsigned char* pixel_data = stbi_load(path.string().c_str(), &width, &height, &channels, 0);
 
     if (nullptr == pixel_data) {
+        std::cout << "failed to find file at " << path.string().c_str() << std::endl;
         return;
     };
 
     mDescriptor = {};
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
-    mDescriptor.label = {path.c_str(), path.string().size()};
+    mDescriptor.label = WGPUStringView{path.string().c_str(), path.string().size()};
     // by convention for bmp, png and jpg file. Be careful with other formats.
     mDescriptor.format = textureFormat;
     mDescriptor.mipLevelCount = glm::log2((float)width);
@@ -192,6 +193,7 @@ void Texture::uploadToGPU(WGPUQueue deviceQueue) {
                           &mDescriptor.size);
 
     // generate and upload other levels
+    std::cout << mDescriptor.size.width << "*****************" << mDescriptor.size.height << std::endl;
     WGPUExtent3D mip_level_size = mDescriptor.size;
     // WGPUExtent3D prev_mip_level_size;
     std::vector<uint8_t> previous_level_pixels = mBufferData;

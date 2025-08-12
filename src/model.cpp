@@ -321,8 +321,9 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     reader_config.mtl_search_path = "/home/ahmad/Documents/project/cpp/wgputest/resources";
 
     Assimp::Importer import;
-    const aiScene* scene = import.ReadFile(
-        path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices);
+    const aiScene* scene =
+        import.ReadFile(path.string().c_str(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace |
+                                           aiProcess_JoinIdenticalVertices);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         // std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << std::endl;
         std::cout << std::format("Assimp - Error while loading model {} : {}\n", (const char*)path.c_str(),

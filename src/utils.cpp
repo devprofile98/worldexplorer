@@ -29,7 +29,7 @@ bool loadGeometry(const fs::path& path, std::vector<float>& pointData, std::vect
                   size_t dimensions) {
     std::ifstream file{path};
     if (!file.is_open()) {
-        std::cout << "Failed to open file at " << path.c_str() << std::endl;
+        std::cout << "Failed to open file at " << path << std::endl;
         return false;
     }
 

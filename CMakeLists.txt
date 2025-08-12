@@ -13,6 +13,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF) #
 
 add_subdirectory(webgpu)
+add_subdirectory(extern/assmip)
 
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -113,14 +114,61 @@ set_target_properties(App PROPERTIES
     COMPILE_WARNING_AS_ERROR OFF
 )
 
+add_library(wgpu_native SHARED IMPORTED)
 if (MSVC)
     target_compile_options(App PRIVATE /W4)
+    # target_link_libraries(App "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/wgpu_native.dll" glfw assimp glm::glm)
+    set_target_properties(wgpu_native PROPERTIES
+        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/wgpu_native.dll"
+        IMPORTED_IMPLIB "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/wgpu_native.lib"
+    )
+
+    # target_link_libraries(App PRIVATE
+    #     wgpu_native
+    #     glfw
+    #     assimp
+    #     glm::glm
+    #
+    #     # --- Add all the required Windows system libraries here ---
+    #     # Networking
+    #     ws2_32.lib
+    #
+    #     # Graphics (OpenGL/WGL, D3D)
+    #     opengl32.lib
+    #     d3dcompiler.lib
+    #
+    #     # Core Windows APIs and filesystem access
+    #     user32.lib           # For User Profile Dir
+    #     advapi32.lib         # For advanced APIs like registry
+    #     kernel32.lib         # For core kernel functions
+    #     shell32.lib          # For shell functions
+    #     userenv.lib
+    #     ntdll.lib
+    #     ole32.lib
+    #
+    #     # COM and WinRT APIs
+    #     ole32.lib
+    #     oleaut32.lib
+    #     runtimeobject.lib
+    #
+    #     # These are often implicit but can be useful to include
+    #     gdi32.lib            # For GDI functions
+    #     Wininet.lib          # For internet functions
+    # ) 
+    add_definitions(-DGLFW_EXPOSE_NATIVE_WIN32)
+    set(OS_LIBRARIES d3dcompiler ws2_32 userenv bcrypt ntdll opengl32 Propsys RuntimeObject)
+    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm ${OS_LIBRARIES})
+
 else()
     target_compile_options(App PRIVATE -Wall -Wextra -pedantic)
+    # target_link_libraries(App "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/libwgpu_native.so" glfw assimp glm::glm)
+    set_target_properties(wgpu_native PROPERTIES
+        IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/libwgpu_native.so"
+    )
+    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm )
 endif()
 
 # target_copy_webgpu_binaries(App)
-target_link_libraries(App "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/libwgpu_native.so" glfw assimp glm::glm)
 target_link_libraries(App )
 
 

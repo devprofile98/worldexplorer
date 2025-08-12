@@ -29,7 +29,7 @@ static std::map<std::string, std::string> sShaderStorage;
 std::string readFile(const fs::path& path) {
     std::ifstream file{path};
     if (!file.is_open()) {
-        std::cout << "Failed to open shader at " << path.c_str() << std::endl;
+        std::cout << "Failed to open shader at " << path << std::endl;
         return nullptr;
     }
 

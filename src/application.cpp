@@ -455,9 +455,11 @@ void Application::initializePipeline() {
     };
     mLightViewSceneTexture->createView();
 
+    std::cout << "::::::::::::::::::::::::::::::::::::::\n";
     Texture grass_texture = Texture{mRendererResource.device, RESOURCE_DIR "/forrest_ground_diff.jpg"};
     grass_texture.createView();
     grass_texture.uploadToGPU(mRendererResource.queue);
+    std::cout << "::::::::::::::::::::::::::::::::::::::\n";
 
     Texture rock_texture = Texture{mRendererResource.device, RESOURCE_DIR "/rock.jpg"};
     rock_texture.createView();
@@ -874,6 +876,7 @@ void Application::initializeBuffers() {
     WGPUBufferDescriptor buffer_descriptor = {};
     buffer_descriptor.nextInChain = nullptr;
     // Create Uniform buffers
+    buffer_descriptor.label = {"uniform buffer", WGPU_STRLEN};
     buffer_descriptor.size = sizeof(MyUniform) * 10;
     buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     buffer_descriptor.mappedAtCreation = false;
@@ -894,6 +897,7 @@ void Application::initializeBuffers() {
     lighting_buffer_descriptor.mappedAtCreation = false;
     mDirectionalLightBuffer = wgpuDeviceCreateBuffer(mRendererResource.device, &lighting_buffer_descriptor);
 
+    std::cout << "Generate is " << terrainData.size() << '\n';
     mLightSpaceTransformation.setLabel("Light space transform buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setSize(sizeof(Scene) * 5)
@@ -1395,7 +1399,7 @@ void Application::mainLoop() {
 
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
                                           nullptr);
-        wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
         terrain.draw(this, terrain_pass_encoder, mBindingData);
 
         // updateGui(terrain_pass_encoder);
@@ -1420,7 +1424,8 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 4,
                                       mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
-    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0,
+                                      nullptr);
     for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
         if (name == "water") {
             continue;

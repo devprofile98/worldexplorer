@@ -1,5 +1,5 @@
-[submodule "extern/assmip"]
-	path = extern/assmip
+[submodule "extern/assimp"]
+	path = extern/assimp
 	url = git@github.com:assimp/assimp.git
 [submodule "extern/glfw3webgpu"]
 	path = extern/glfw3webgpu
