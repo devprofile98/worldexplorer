@@ -176,6 +176,8 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         bool isSelected() const;
         std::pair<glm::vec3, glm::vec3> getWorldMin();
         std::pair<glm::vec3, glm::vec3> getWorldSpaceAABB();
+        std::vector<BaseModel*> mChildrens{};
+        void addChildren(BaseModel* child);
 
         Transform mTransform;
 

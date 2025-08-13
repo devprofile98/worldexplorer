@@ -428,9 +428,6 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
             }
         }
     }
-    if (getName() == "jet") {
-        mTransform.mObjectInfo.isFlat = false;
-    }
 
     for (const auto& material : materials) {
         size_t material_id = &material - &materials[0];
@@ -500,6 +497,20 @@ void BaseModel::setInstanced(Instance* instance) {
     /*this->instances = instances;*/
     this->instance = instance;
     /*return *this;*/
+}
+void BaseModel::addChildren(BaseModel* child) {
+    auto new_transform = glm::inverse(mTransform.mTransformMatrix) * child->mTransform.mTransformMatrix;
+    glm::vec3 position = glm::vec3(new_transform[3]);
+    child->mTransform.mPosition = position;
+
+    glm::vec3 scale;
+    scale.x = glm::length(glm::vec3(new_transform[0]));
+    scale.y = glm::length(glm::vec3(new_transform[1]));
+    scale.z = glm::length(glm::vec3(new_transform[2]));
+    child->mTransform.mScale = scale;
+    child->mTransform.getTranformMatrix();
+
+    mChildrens.push_back(child);
 }
 
 Model& Model::setFoliage() {

@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include "glm/matrix.hpp"
+
 #define GLM_ENABLE_EXPERIMENTAL
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -1364,14 +1366,31 @@ void Application::mainLoop() {
                                       nullptr);
     wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
 
+    static bool reparenting = true;
     {
         auto& iter = ModelRegistry::instance().getLoadedModel(Visibility_User);
         auto boat = iter.find("tower");
         auto arrow = iter.find("arrow");
-        if (boat != iter.end() && arrow != iter.end()) {
-            boat->second->mTransform.mTransformMatrix =
-                arrow->second->mTransform.mTransformMatrix * boat->second->mTransform.mTransformMatrix;
-            boat->second->mTransform.mObjectInfo.transformation = boat->second->mTransform.mTransformMatrix;
+        auto desk = iter.find("desk");
+        if (boat != iter.end() && arrow != iter.end() && desk != iter.end()) {
+            if (reparenting) {
+                reparenting = false;
+                // boat->second->mTransform.mTransformMatrix = new_transform;
+
+                boat->second->addChildren(static_cast<BaseModel*>(desk->second));
+                arrow->second->addChildren(static_cast<BaseModel*>(boat->second));
+            }
+
+            for (auto* child : arrow->second->mChildrens) {
+                child->mTransform.mObjectInfo.transformation =
+                    arrow->second->mTransform.mTransformMatrix * child->mTransform.mTransformMatrix;
+                for (auto* childof : child->mChildrens) {
+                    childof->mTransform.mObjectInfo.transformation =
+                        child->mTransform.mTransformMatrix * childof->mTransform.mTransformMatrix;
+                }
+            }
+
+            // boat->second->mTransform.mObjectInfo.transformation = boat->second->mTransform.mTransformMatrix;
         }
     }
 

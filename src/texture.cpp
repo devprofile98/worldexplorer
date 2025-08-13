@@ -194,7 +194,6 @@ void Texture::uploadToGPU(WGPUQueue deviceQueue) {
                           &mDescriptor.size);
 
     // generate and upload other levels
-    std::cout << mDescriptor.size.width << "*****************" << mDescriptor.size.height << std::endl;
     WGPUExtent3D mip_level_size = mDescriptor.size;
     // WGPUExtent3D prev_mip_level_size;
     std::vector<uint8_t> previous_level_pixels = mBufferData;
