@@ -5,6 +5,24 @@
 
 #include "camera.h"
 #include "glm/fwd.hpp"
+#include "gpu_buffer.h"
+
+// Ensure 16-byte alignment for structs used in uniform/storage buffers
+// Use alignas(16) for structs
+struct alignas(16) FrustumPlane {
+        glm::vec4 N_D;  // (Nx, Ny, Nz, D)
+};
+
+struct alignas(16) FrustumPlanesUniform {
+        FrustumPlane planes[2];  // Left, Right, Bottom, Top, Near, Far
+};
+
+void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer);
+WGPUBindGroup createObjectInfoBindGroupForComputePass(Application* app, WGPUBuffer objetcInfoBuffer,
+                                                      WGPUBuffer indirectDrawArgsBuffer);
+void runFrustumCullingTask(Application* app, WGPUCommandEncoder encoder);
+
+Buffer& getFrustumPlaneBuffer();
 
 namespace frustum {
 

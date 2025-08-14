@@ -80,7 +80,6 @@ class Application {
         bool initDepthBuffer();
         void terminateSwapChain();
         void terminateDepthBuffer();
-        void updateViewMatrix();
 
         InputManager* mInputManager;
         InstanceManager* mInstanceManager;
