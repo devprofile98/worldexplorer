@@ -120,7 +120,7 @@ struct GizmoModel : public IModel {
                 .scale(glm::vec3{0.1f});
             mModel->mTransform.rotate({90.0f, 0.0, 180.0f}, 0.0f);
             mModel->uploadToGPU(app);
-            mModel->mTransform.getTranformMatrix();
+            mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
@@ -146,7 +146,7 @@ struct GizmoModelY : public IModel {
                 .scale(glm::vec3{0.1f});
             mModel->mTransform.rotate({90.0f, 0.0, 180.0f}, 0.0f);
             mModel->uploadToGPU(app);
-            mModel->mTransform.getTranformMatrix();
+            mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
@@ -172,7 +172,7 @@ struct GizmoModelX : public IModel {
                 .scale(glm::vec3{0.1f});
             mModel->mTransform.rotate({90.0f, 0.0, 180.0f}, 0.0f);
             mModel->uploadToGPU(app);
-            mModel->mTransform.getTranformMatrix();
+            mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
@@ -198,7 +198,7 @@ struct GizmoModelCenter : public IModel {
                 .scale(glm::vec3{0.1f});
             mModel->mTransform.rotate({90.0f, 0.0, 180.0f}, 0.0f);
             mModel->uploadToGPU(app);
-            mModel->mTransform.getTranformMatrix();
+            mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }

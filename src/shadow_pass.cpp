@@ -299,7 +299,7 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
                 continue;
             };
 
-            mScenes[which].model = model->mTransform.getTranformMatrix();
+            mScenes[which].model = model->mTransform.getLocalTransform();
             mBindingData[0].buffer = modelUniformBuffer.getBuffer();
             mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
             mBindingData[2].buffer = model->getUniformBuffer().getBuffer();

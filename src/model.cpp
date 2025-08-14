@@ -499,16 +499,20 @@ void BaseModel::setInstanced(Instance* instance) {
     /*return *this;*/
 }
 void BaseModel::addChildren(BaseModel* child) {
-    auto new_transform = glm::inverse(mTransform.mTransformMatrix) * child->mTransform.mTransformMatrix;
-    glm::vec3 position = glm::vec3(new_transform[3]);
-    child->mTransform.mPosition = position;
+    auto new_local_transform = glm::inverse(getGlobalTransform()) * child->mTransform.mTransformMatrix;
+
+    glm::vec3 position = glm::vec3(new_local_transform[3]);
+    // child->mTransform.mPosition = position;
+    child->mTransform.moveTo(position);
 
     glm::vec3 scale;
-    scale.x = glm::length(glm::vec3(new_transform[0]));
-    scale.y = glm::length(glm::vec3(new_transform[1]));
-    scale.z = glm::length(glm::vec3(new_transform[2]));
-    child->mTransform.mScale = scale;
-    child->mTransform.getTranformMatrix();
+    scale.x = glm::length(glm::vec3(new_local_transform[0]));
+    scale.y = glm::length(glm::vec3(new_local_transform[1]));
+    scale.z = glm::length(glm::vec3(new_local_transform[2]));
+    // child->mTransform.mScale = scale;
+    child->mParent = this;
+    child->mTransform.scale(scale);
+    child->mTransform.getLocalTransform();
 
     mChildrens.push_back(child);
 }
@@ -528,14 +532,14 @@ Transform& Transform::moveBy(const glm::vec3& translationVec) {
     // (void)translationVec;
     mPosition += translationVec;
     mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
-    getTranformMatrix();
+    getLocalTransform();
     return *this;
 }
 
 Transform& Transform::moveTo(const glm::vec3& moveVec) {
     mPosition = moveVec;
     mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
-    getTranformMatrix();
+    getLocalTransform();
     return *this;
 }
 
@@ -722,7 +726,7 @@ void Model::userInterface() {
 
         mTransform.moveTo(mTransform.mPosition);
         mTransform.scale(mTransform.mScale);
-        mTransform.getTranformMatrix();
+        mTransform.getLocalTransform();
     }
     if (ImGui::CollapsingHeader("Materials",
                                 ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
@@ -747,7 +751,7 @@ void Model::userInterface() {
 Transform& Transform::scale(const glm::vec3& s) {
     mScale = s;
     mScaleMatrix = glm::scale(glm::mat4{1.0}, s);
-    getTranformMatrix();
+    getLocalTransform();
     return *this;
 }
 
@@ -763,10 +767,18 @@ glm::vec3& Transform::getPosition() { return mPosition; }
 
 glm::vec3& Transform::getScale() { return mScale; }
 
-glm::mat4& Transform::getTranformMatrix() {
+glm::mat4& Transform::getLocalTransform() {
     mTransformMatrix = mTranslationMatrix * mRotationMatrix * mScaleMatrix;
     mObjectInfo.transformation = mTransformMatrix;
     return mTransformMatrix;
+}
+
+glm::mat4 Transform::getGlobalTransform(BaseModel* parent) {
+    if (parent == nullptr) {
+        return getLocalTransform();
+    } else {
+        return parent->getGlobalTransform() * getLocalTransform();
+    }
 }
 
 float AABB::calculateVolume() {
@@ -802,7 +814,7 @@ std::pair<glm::vec3, glm::vec3> BaseModel::getWorldSpaceAABB() {
 
     // 3. Transform each corner and update worldMin/worldMax
     for (int i = 0; i < 8; ++i) {
-        glm::vec4 transformedCorner = mTransform.getTranformMatrix() * glm::vec4(corners[i], 1.0f);
+        glm::vec4 transformedCorner = mTransform.getLocalTransform() * glm::vec4(corners[i], 1.0f);
 
         worldMin.x = glm::min(worldMin.x, transformedCorner.x);
         worldMin.y = glm::min(worldMin.y, transformedCorner.y);
@@ -817,13 +829,22 @@ std::pair<glm::vec3, glm::vec3> BaseModel::getWorldSpaceAABB() {
 }
 
 std::pair<glm::vec3, glm::vec3> BaseModel::getWorldMin() {
-    auto min = mTransform.getTranformMatrix() * glm::vec4(this->min, 1.0);
-    auto max = mTransform.getTranformMatrix() * glm::vec4(this->max, 1.0);
+    auto min = mTransform.getLocalTransform() * glm::vec4(this->min, 1.0);
+    auto max = mTransform.getLocalTransform() * glm::vec4(this->max, 1.0);
     return {min, max};
 }
 
 const std::string& BaseModel::getName() { return mName; }
 
 Texture* BaseModel::getDiffuseTexture() { return mMeshes[0].mTexture; }
+
+glm::mat4 BaseModel::getGlobalTransform() { return mTransform.getGlobalTransform(mParent); }
+
+void BaseModel::update() {
+    for (auto* child : mChildrens) {
+        child->update();
+        child->mTransform.mObjectInfo.transformation = getGlobalTransform() * child->mTransform.mTransformMatrix;
+    }
+}
 
 WGPUBindGroup Model::getObjectInfoBindGroup() { return ggg; }

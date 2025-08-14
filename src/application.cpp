@@ -1371,26 +1371,17 @@ void Application::mainLoop() {
         auto& iter = ModelRegistry::instance().getLoadedModel(Visibility_User);
         auto boat = iter.find("tower");
         auto arrow = iter.find("arrow");
-        auto desk = iter.find("desk");
+        auto desk = iter.find("boat");
         if (boat != iter.end() && arrow != iter.end() && desk != iter.end()) {
             if (reparenting) {
                 reparenting = false;
                 // boat->second->mTransform.mTransformMatrix = new_transform;
 
-                boat->second->addChildren(static_cast<BaseModel*>(desk->second));
                 arrow->second->addChildren(static_cast<BaseModel*>(boat->second));
+                boat->second->addChildren(static_cast<BaseModel*>(desk->second));
             }
 
-            for (auto* child : arrow->second->mChildrens) {
-                child->mTransform.mObjectInfo.transformation =
-                    arrow->second->mTransform.mTransformMatrix * child->mTransform.mTransformMatrix;
-                for (auto* childof : child->mChildrens) {
-                    childof->mTransform.mObjectInfo.transformation =
-                        child->mTransform.mTransformMatrix * childof->mTransform.mTransformMatrix;
-                }
-            }
-
-            // boat->second->mTransform.mObjectInfo.transformation = boat->second->mTransform.mTransformMatrix;
+            arrow->second->update();
         }
     }
 

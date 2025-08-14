@@ -125,7 +125,7 @@ void Cube::userInterface() {
     ImGui::SliderFloat3("Scale", glm::value_ptr(mTransform.mScale), 0.0f, 10.0f);
     mTransform.mTranslationMatrix = glm::translate(glm::mat4{1.0}, mTransform.mPosition);
     mTransform.scale(mTransform.mScale);
-    mTransform.getTranformMatrix();
+    mTransform.getLocalTransform();
 }
 
 #endif  // DEVELOPMENT_BUILD

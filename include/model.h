@@ -27,6 +27,7 @@
 
 // forward declaration
 class Application;
+class BaseModel;
 
 struct alignas(4) DrawIndexedIndirectArgs {
         uint32_t indexCount;
@@ -100,6 +101,8 @@ struct ObjectInfo {
 
 // Hold the properties and needed object to represents the object transformation
 class Transform {
+        friend class BaseModel;
+
     public:
         Transform& moveBy(const glm::vec3& m);
         Transform& moveTo(const glm::vec3& m);
@@ -108,7 +111,7 @@ class Transform {
 
         glm::vec3& getPosition();
         glm::vec3& getScale();
-        glm::mat4& getTranformMatrix();
+        glm::mat4& getLocalTransform();
 
         ObjectInfo mObjectInfo;
 
@@ -122,6 +125,9 @@ class Transform {
 
         glm::mat4 mTransformMatrix;
         glm::quat mOrientation;
+
+    private:
+        glm::mat4 getGlobalTransform(BaseModel* parent);
 };
 
 class Drawable {
@@ -177,9 +183,13 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         std::pair<glm::vec3, glm::vec3> getWorldMin();
         std::pair<glm::vec3, glm::vec3> getWorldSpaceAABB();
         std::vector<BaseModel*> mChildrens{};
-        void addChildren(BaseModel* child);
 
+        /* Scene graph related property */
+        BaseModel* mParent = nullptr;
+        void addChildren(BaseModel* child);
         Transform mTransform;
+        glm::mat4 getGlobalTransform();
+        void update();
 
     private:
         bool mIsTransparent = false;
