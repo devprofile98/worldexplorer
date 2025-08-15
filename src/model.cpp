@@ -6,14 +6,19 @@
 #include <assimp/scene.h>
 
 #include <assimp/Importer.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <format>
 #include <iostream>
+#include <map>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
+#include "assimp/mesh.h"
 #include "wgpu_utils.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -103,26 +108,103 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
     return glm::mat3x3(tangent, bitangent, cnormal);
 }
 
-void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
+void printMeshBoneData(aiMesh* mesh) {
+    std::cout << "has bone " << mesh->HasBones() << " and " << mesh->mNumBones << std::endl;
+
+    for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
+        auto bone = mesh->mBones[i];
+        std::cout << bone->mName.C_Str() << std::endl;
+        // for (size_t j = 0; j < bone->mNumWeights; ++j) {
+        //     std::cout << "------- " << bone->mWeights[j].mVertexId << ": " << bone->mWeights[j].mWeight << std::endl;
+        // }
+    }
+}
+
+void printAnimationInfos(const std::string& name, const aiScene* scene) {
     if (scene->mAnimations != nullptr) {
-        std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ There are animations " << getName() << " "
-                  << scene->mNumAnimations << std::endl;
+        std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ There are animations " << name << " " << scene->mNumAnimations
+                  << std::endl;
         for (size_t i = 0; i < scene->mNumAnimations; i++) {
             const aiAnimation* anim = scene->mAnimations[i];
-            std::cout << "@@@@@@@@@@@@@@@@@@@@@ " << anim->mName.C_Str() << std::endl;
-            for (size_t j = 0; j < anim->mNumChannels; j++) {
-                const aiNodeAnim* nodeAnim = anim->mChannels[j];
-                std::cout << "::::::::::::::: " << nodeAnim->mNodeName.C_Str() << " " << nodeAnim->mNumPositionKeys
-                          << " " << nodeAnim->mNumRotationKeys << " " << nodeAnim->mNumScalingKeys << std::endl;
-                for (size_t k = 0; k < nodeAnim->mNumPositionKeys; k++) {
-                    std::cout << std::format("at: {} ({} {} {})\n",
-                                             nodeAnim->mPositionKeys[k].mTime / anim->mTicksPerSecond,
-                                             nodeAnim->mPositionKeys[k].mValue.x, nodeAnim->mPositionKeys[k].mValue.y,
-                                             nodeAnim->mPositionKeys[k].mValue.z);
-                }
-            }
+            std::cout << "@@@@@@@@@@@@@@@@@@@@@ " << anim->mName.C_Str() << " " << anim->mNumChannels << std::endl;
+            // for (size_t j = 0; j < anim->mNumChannels; j++) {
+            //     const aiNodeAnim* nodeAnim = anim->mChannels[j];
+            //     std::cout << "::::::::::::::: " << nodeAnim->mNodeName.C_Str() << " " << nodeAnim->mNumPositionKeys
+            //               << " " << nodeAnim->mNumRotationKeys << " " << nodeAnim->mNumScalingKeys << std::endl;
+            //     for (size_t k = 0; k < nodeAnim->mNumPositionKeys; k++) {
+            //         std::cout << std::format("at: {} ({} {} {})\n",
+            //                                  nodeAnim->mPositionKeys[k].mTime / anim->mTicksPerSecond,
+            //                                  nodeAnim->mPositionKeys[k].mValue.x,
+            //                                  nodeAnim->mPositionKeys[k].mValue.y,
+            //                                  nodeAnim->mPositionKeys[k].mValue.z);
+            //     }
+            // }
         }
     }
+}
+
+void Model::buildNodeCache(aiNode* node) {
+    if (node == nullptr) {
+        return;
+    } else {
+        mNodeCache[node->mName.C_Str()] = node;
+        for (size_t i = 0; i < node->mNumChildren; ++i) {
+            buildNodeCache(node->mChildren[i]);
+        }
+    }
+}
+
+aiMatrix4x4 GetGlobalTransform(aiNode* node) {
+    aiMatrix4x4 transform = node->mTransformation;
+    aiNode* parent = node->mParent;
+    while (parent != nullptr) {
+        transform =
+            parent->mTransformation * transform;  // Note: Assimp matrices are row-major, multiplication order matters
+        parent = parent->mParent;
+    }
+    return transform;
+}
+glm::mat4 AiToGlm(const aiMatrix4x4& aiMat) {
+    return glm::mat4(aiMat.a1, aiMat.b1, aiMat.c1, aiMat.d1, aiMat.a2, aiMat.b2, aiMat.c2, aiMat.d2, aiMat.a3, aiMat.b3,
+                     aiMat.c3, aiMat.d3, aiMat.a4, aiMat.b4, aiMat.c4, aiMat.d4);
+}
+
+void Model::ExtractBonePositions(const aiScene* scene) {
+    buildNodeCache(scene->mRootNode);  // Cache nodes for fast lookup
+
+    std::unordered_set<std::string> uniqueBones;  // Avoid duplicate spheres if bones are shared
+
+    for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
+        aiMesh* mesh = scene->mMeshes[m];
+        for (unsigned int b = 0; b < mesh->mNumBones; ++b) {
+            aiBone* bone = mesh->mBones[b];
+            std::string boneName = bone->mName.C_Str();
+
+            if (uniqueBones.find(boneName) != uniqueBones.end()) continue;
+            uniqueBones.insert(boneName);
+
+            // Find node (use cache for speed)
+            auto it = mNodeCache.find(boneName);
+            if (it == mNodeCache.end()) continue;  // Rare, but skip if no matching node
+            aiNode* node = it->second;
+
+            // Compute global transform
+            aiMatrix4x4 globalTransform = GetGlobalTransform(node);
+
+            // Extract position (translation part)
+            glm::mat4 glmGlobal = AiToGlm(globalTransform);
+            glm::vec3 position = glm::vec3(glmGlobal[3]);  // Column 3 is translation in GLM
+
+            // Create model matrix: just translate (scale/rotate if needed for oriented spheres)
+            // glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), position);
+            // Optional: glm::scale(modelMatrix, glm::vec3(0.1f));  // Small sphere size
+
+            mBonePosition.push_back(position);
+        }
+    }
+}
+
+void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
     for (uint32_t i = 0; i < node->mNumMeshes; i++) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
         // if (getName() == model_name) {
@@ -130,6 +212,7 @@ void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
         //     "
         //               << node->mName.C_Str() << std::endl;
         // }
+        // printMeshBoneData(mesh);
         processMesh(app, mesh, scene);
     }
     for (uint32_t i = 0; i < node->mNumChildren; i++) {
@@ -137,12 +220,39 @@ void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
     }
 }
 
+std::map<size_t, std::vector<std::pair<size_t, float>>> bonemap;
+std::map<std::string, size_t> boneToIdx;
+size_t boneIdx = 0;
+
 void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
     (void)scene;
 
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
     size_t index_offset = mMeshes[mesh->mMaterialIndex].mVertexData.size();
+    if (mesh->HasBones()) {
+        std::cout << " ))))))))))))))))) has bone " << mesh->HasBones() << " and " << mesh->mNumBones << std::endl;
+
+        for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
+            auto bone = mesh->mBones[i];
+            std::cout << bone->mName.C_Str() << " " << bone->mNumWeights << std::endl;
+            std::cout << "------- " << bone->mWeights[bone->mNumWeights - 1].mVertexId << ": "
+                      << bone->mWeights[bone->mNumWeights - 1].mWeight << " " << mesh->mNumVertices << std::endl;
+            for (size_t j = 0; j < bone->mNumWeights; ++j) {
+                // std::cout << "------- " << bone->mWeights[j].mVertexId << ": " << bone->mWeights[j].mWeight << " "
+                //           << mesh->mNumVertices << std::endl;
+
+                if (boneToIdx.count(bone->mName.C_Str()) == 0) {
+                    boneToIdx[bone->mName.C_Str()] = boneIdx++;
+                }
+                if (bonemap.count(bone->mWeights[j].mVertexId) == 0) {
+                    bonemap[bone->mWeights[j].mVertexId] = {};
+                }
+                bonemap[bone->mWeights[j].mVertexId].push_back(
+                    {boneToIdx[bone->mName.C_Str()], bone->mWeights[j].mWeight});
+            }
+        }
+    }
     for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
         VertexAttributes vertex;
         glm::vec3 vector;
@@ -332,7 +442,25 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         std::cout << std::format("Assimp - Succesfully loaded model {}\n", (const char*)path.c_str());
     }
     // if (getName() != model_name) {
+    printAnimationInfos(getName(), scene);
+    ExtractBonePositions(scene);
     processNode(app, scene->mRootNode, scene);
+    // if (getName() == "human") {
+    //     std::ofstream boneFile("bonemap_contents.txt");
+    //     if (boneFile.is_open()) {
+    //         for (const auto& entry : bonemap) {
+    //             // Assuming the map is <int, std::vector<...> >
+    //             boneFile << "Vertex ID: " << entry.first << " is affected by " << entry.second.size() << " bones ";
+    //             for (const auto& affected : entry.second) {
+    //                 boneFile << " " << affected.first << ": " << affected.second;
+    //             }
+    //             boneFile << std::endl;
+    //         }
+    //         boneFile.close();
+    //         std::cout << "Map contents written to bonemap_contents.txt" << std::endl;
+    //     }  // }
+    //     std::cout << "vertex affected by animation are" << bonemap.size() << std::endl;
+    // }
     return *this;
     // }
 

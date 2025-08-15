@@ -259,14 +259,6 @@ struct GrassModel : public IModel {
             positions[1000].z += 1.0;
             positions[1] = mModel->mTransform.getPosition();
 
-            // std::vector<glm::vec3> tmppositions;
-            // std::vector<float> tmpdegrees;
-            // std::vector<glm::vec3> tmpscales;
-            // for (size_t i = 0; i < 1000; i++) {
-            //     tmppositions.push_back(positions[i + 3000]);
-            //     tmpscales.push_back(scales[i +       3000]);
-            //     tmpdegrees.push_back(degrees[i +     3000]);
-            // }
             auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0},     degrees,
                                      scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
             // auto* ins = new Instance{tmppositions, glm::vec3{0.0, 0.0, 1.0},     tmpdegrees,
@@ -285,19 +277,9 @@ struct GrassModel : public IModel {
                 .setMappedAtCraetion()
                 .create(app);
 
-            // mModel->mIndirectDrawArgsBuffer2.setLabel(("indirect draw args buffer2 for " +
-            // mModel->getName()).c_str())
-            //     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
-            //               WGPUBufferUsage_CopyDst)
-            //     .setSize(sizeof(DrawIndexedIndirectArgs))
-            //     .setMappedAtCraetion()
-            //     .create(app);
-
             auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
                                  &indirect, sizeof(DrawIndexedIndirectArgs));
-            // wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer2.getBuffer(), 0,
-            //                      &indirect, sizeof(DrawIndexedIndirectArgs));
 
             for (auto& [mat_id, mesh] : mModel->mMeshes) {
                 mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())
@@ -343,18 +325,88 @@ struct SphereModel : public IModel {
         SphereModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("sphere", app, RESOURCE_DIR "/sphere.gltf", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{0.0, 0.0, 0.0})
-                .scale(glm::vec3{1.0f});
+            mModel->load("sphere", app, RESOURCE_DIR "/sphere.glb", app->getObjectBindGroupLayout())
+                .mTransform.moveTo(glm::vec3{2.187, 9.227, 0.0})
+                .scale(glm::vec3{0.1f});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
 
         Model* getModel() override { return mModel; }
+
         void onLoad(Application* app, void* params) override {
             (void)params;
             (void)app;
+
+            // std::vector<glm::mat4> dddata = {};
+
+            // std::vector<glm::vec3> positions;
+            // std::vector<float> degrees;
+            // std::vector<glm::vec3> scales;
+            // positions.reserve(10);
+            // degrees.reserve(10);
+            // scales.reserve(10);
+            //
+            // for (const auto& m : mModel->mBonePosition) {
+            //     positions.emplace_back(m);
+            //     degrees.emplace_back(0.0);
+            //     scales.emplace_back(glm::vec3{0.1f});
+            // }
+            // // positions.emplace_back(glm::vec3{4.187, 9.227, 0.0});
+            // // degrees.emplace_back(0.0);
+            // // scales.emplace_back(glm::vec3{0.1f});
+            // //
+            // // positions.emplace_back(glm::vec3{5.187, 9.227, 0.0});
+            // // degrees.emplace_back(0.0);
+            // // scales.emplace_back(glm::vec3{0.1f});
+            // //
+            // // positions.emplace_back(glm::vec3{6.187, 9.227, 0.0});
+            // // degrees.emplace_back(0.0);
+            // // scales.emplace_back(glm::vec3{0.1f});
+            // //
+            // // positions.emplace_back(glm::vec3{7.187, 9.227, 0.0});
+            // // degrees.emplace_back(0.0);
+            // // scales.emplace_back(glm::vec3{0.1f});
+            // //
+            // // positions.emplace_back(glm::vec3{8.187, 9.227, 0.0});
+            // // degrees.emplace_back(0.0);
+            // // scales.emplace_back(glm::vec3{0.1f});
+            //
+            // auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0},     degrees,
+            //                          scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
+            //
+            // wgpuQueueWriteBuffer(app->getRendererResource().queue,
+            //                      app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
+            //                      ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size() -
+            //                      1));
+            //
+            // mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + mModel->getName()).c_str())
+            //     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+            //               WGPUBufferUsage_CopyDst)
+            //     .setSize(sizeof(DrawIndexedIndirectArgs))
+            //     .setMappedAtCraetion()
+            //     .create(app);
+            //
+            // auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
+            // wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
+            //                      &indirect, sizeof(DrawIndexedIndirectArgs));
+            //
+            // for (auto& [mat_id, mesh] : mModel->mMeshes) {
+            //     mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())
+            //         .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
+            //         .setSize(sizeof(DrawIndexedIndirectArgs))
+            //         .setMappedAtCraetion()
+            //         .create(app);
+            //
+            //     auto indirect = DrawIndexedIndirectArgs{static_cast<uint32_t>(mesh.mIndexData.size()), 0, 0, 0, 0};
+            //     wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0,
+            //                          &indirect, sizeof(DrawIndexedIndirectArgs));
+            // }
+            //
+            // mModel->mTransform.mObjectInfo.instanceOffsetId = 0;
+            // mModel->setInstanced(ins);
+            // std::cout << positions.size() << " --------------------Barrier reached -----------------\n";
         };
 };
 
@@ -472,17 +524,39 @@ struct WaterModel : public IModel {
         };
 };
 
-USER_REGISTER_MODEL("tree", TreeModel);
+struct HumanModel : public IModel {
+        HumanModel(Application* app) {
+            mModel = new Model{};
+
+            mModel->load("human", app, RESOURCE_DIR "/model.dae", app->getObjectBindGroupLayout())
+                .mTransform.moveTo(glm::vec3{0.0, 9.0, -3.7})
+                .scale(glm::vec3{1.0})
+                .rotate(glm::vec3{90.0, 0.0, 0.0}, 0.);
+            mModel->uploadToGPU(app);
+            mModel->setTransparent(false);
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+        }
+
+        Model* getModel() override { return mModel; }
+
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
+};
+
+// USER_REGISTER_MODEL("tree", TreeModel);
 USER_REGISTER_MODEL("boat", BoatModel);
-USER_REGISTER_MODEL("car", CarModel);
-USER_REGISTER_MODEL("tower", TowerModel);
-USER_REGISTER_MODEL("desk", DeskModel);
-USER_REGISTER_MODEL("arrow", ArrowModel);
-USER_REGISTER_MODEL("grass", GrassModel);
-USER_REGISTER_MODEL("steampunk", Steampunk);
-USER_REGISTER_MODEL("sheep", SheepModel);
+// USER_REGISTER_MODEL("car", CarModel);
+// USER_REGISTER_MODEL("tower", TowerModel);
+// USER_REGISTER_MODEL("desk", DeskModel);
+// USER_REGISTER_MODEL("arrow", ArrowModel);
+// USER_REGISTER_MODEL("grass", GrassModel);
+// USER_REGISTER_MODEL("steampunk", Steampunk);
+// USER_REGISTER_MODEL("sheep", SheepModel);
 USER_REGISTER_MODEL("water", WaterModel);
 USER_REGISTER_MODEL("sphere", SphereModel);
+USER_REGISTER_MODEL("human", HumanModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
 // USER_REGISTER_MODEL("house", HouseModel);
 // USER_REGISTER_MODEL("motor", Motor);

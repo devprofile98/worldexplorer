@@ -68,6 +68,73 @@ double lastClickTime = 0.0;
 double lastClickX = 0.0;
 double lastClickY = 0.0;
 
+void loadSphereAtHumanBones(Application* app, Model* human, Model* sphere) {
+    std::vector<glm::vec3> positions;
+    std::vector<float> degrees;
+    std::vector<glm::vec3> scales;
+    positions.reserve(10);
+    degrees.reserve(10);
+    scales.reserve(10);
+
+    for (const auto& m : human->mBonePosition) {
+        positions.emplace_back(m);
+        degrees.emplace_back(90.0);
+        scales.emplace_back(glm::vec3{0.1f});
+    }
+    std::cout << positions.size() << " --------------------Barrier reached -----------------\n";
+    // positions.emplace_back(glm::vec3{4.187, 9.227, 0.0});
+    // degrees.emplace_back(0.0);
+    // scales.emplace_back(glm::vec3{0.1f});
+    //
+    // positions.emplace_back(glm::vec3{5.187, 9.227, 0.0});
+    // degrees.emplace_back(0.0);
+    // scales.emplace_back(glm::vec3{0.1f});
+    //
+    // positions.emplace_back(glm::vec3{6.187, 9.227, 0.0});
+    // degrees.emplace_back(0.0);
+    // scales.emplace_back(glm::vec3{0.1f});
+    //
+    // positions.emplace_back(glm::vec3{7.187, 9.227, 0.0});
+    // degrees.emplace_back(0.0);
+    // scales.emplace_back(glm::vec3{0.1f});
+    //
+    // positions.emplace_back(glm::vec3{8.187, 9.227, 0.0});
+    // degrees.emplace_back(0.0);
+    // scales.emplace_back(glm::vec3{0.1f});
+
+    auto* ins = new Instance{positions, glm::vec3{0.1, 0.0, 0.0},     degrees,
+                             scales,    glm::vec4{sphere->min, 1.0f}, glm::vec4{sphere->max, 1.0f}};
+
+    wgpuQueueWriteBuffer(app->getRendererResource().queue, app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
+                         ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
+
+    sphere->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + sphere->getName()).c_str())
+        .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+                  WGPUBufferUsage_CopyDst)
+        .setSize(sizeof(DrawIndexedIndirectArgs))
+        .setMappedAtCraetion()
+        .create(app);
+
+    auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
+    wgpuQueueWriteBuffer(app->getRendererResource().queue, sphere->mIndirectDrawArgsBuffer.getBuffer(), 0, &indirect,
+                         sizeof(DrawIndexedIndirectArgs));
+
+    for (auto& [mat_id, mesh] : sphere->mMeshes) {
+        mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + sphere->getName()).c_str())
+            .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
+            .setSize(sizeof(DrawIndexedIndirectArgs))
+            .setMappedAtCraetion()
+            .create(app);
+
+        auto indirect = DrawIndexedIndirectArgs{static_cast<uint32_t>(mesh.mIndexData.size()), 0, 0, 0, 0};
+        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0, &indirect,
+                             sizeof(DrawIndexedIndirectArgs));
+    }
+
+    sphere->mTransform.mObjectInfo.instanceOffsetId = 0;
+    sphere->setInstanced(ins);
+}
+
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
     const auto inv = glm::inverse(proj * view);
 
@@ -1009,19 +1076,27 @@ void Application::mainLoop() {
     static bool reparenting = true;
     {
         auto& iter = ModelRegistry::instance().getLoadedModel(Visibility_User);
-        auto boat = iter.find("tower");
-        auto arrow = iter.find("arrow");
-        auto desk = iter.find("boat");
-        if (boat != iter.end() && arrow != iter.end() && desk != iter.end()) {
+        // auto boat = iter.find("tower");
+        // auto arrow = iter.find("arrow");
+        // auto desk = iter.find("boat");
+        // if (boat != iter.end() && arrow != iter.end() && desk != iter.end()) {
+        //     if (reparenting) {
+        //         reparenting = false;
+        //         // boat->second->mTransform.mTransformMatrix = new_transform;
+        //
+        //         arrow->second->addChildren(static_cast<BaseModel*>(boat->second));
+        //         boat->second->addChildren(static_cast<BaseModel*>(desk->second));
+        //     }
+        //
+        //     arrow->second->update();
+        // }
+        auto human = iter.find("human");
+        auto sphere = iter.find("sphere");
+        if (human != iter.end() && sphere != iter.end()) {
             if (reparenting) {
                 reparenting = false;
-                // boat->second->mTransform.mTransformMatrix = new_transform;
-
-                arrow->second->addChildren(static_cast<BaseModel*>(boat->second));
-                boat->second->addChildren(static_cast<BaseModel*>(desk->second));
+                loadSphereAtHumanBones(this, human->second, sphere->second);
             }
-
-            arrow->second->update();
         }
     }
 

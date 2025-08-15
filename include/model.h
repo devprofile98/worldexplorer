@@ -4,6 +4,7 @@
 #include <assimp/scene.h>
 
 #include <limits>
+#include <unordered_map>
 
 #include "glm/fwd.hpp"
 #include "gpu_buffer.h"
@@ -161,7 +162,7 @@ struct AABB {
 class BaseModel : public Drawable, public AABB, public DebugUI {
     public:
         BaseModel()
-            : mTransform({}, {glm::vec3{0.0}}, glm::vec3{1.0}, glm::vec3{0.0}, glm::mat4{1.0}, glm::mat4{1.0},
+            : mTransform({}, {glm::vec3{0.0}}, glm::vec3{0.0}, glm::vec3{0.0}, glm::mat4{1.0}, glm::mat4{1.0},
                          glm::mat4{1.0}, glm::mat4{1.0}, glm::vec3{0.0, 0.0, 1.0}) {};
 
         std::string mName;
@@ -215,6 +216,11 @@ class Model : public BaseModel {
         WGPUBindGroup getObjectInfoBindGroup();
         Buffer mIndirectDrawArgsBuffer;  // copy dst, map read
                                          // Buffer mIndirectDrawArgsBuffer2;  // copy dst, map read
+                                         //
+        std::unordered_map<std::string, aiNode*> mNodeCache;
+        void ExtractBonePositions(const aiScene* scene);
+        void buildNodeCache(aiNode* node);
+        std::vector<glm::vec3> mBonePosition;
 
 #ifdef DEVELOPMENT_BUILD
         // Common User-Interface to interact with Object in the Development state
