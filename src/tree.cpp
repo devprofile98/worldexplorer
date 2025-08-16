@@ -529,7 +529,7 @@ struct HumanModel : public IModel {
             mModel = new Model{};
 
             mModel->load("human", app, RESOURCE_DIR "/model.dae", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{0.0, 9.0, -3.7})
+                .mTransform  //.moveTo(glm::vec3{0.0, 9.0, -3.7})
                 .scale(glm::vec3{1.0})
                 .rotate(glm::vec3{90.0, 0.0, 0.0}, 0.);
             mModel->uploadToGPU(app);

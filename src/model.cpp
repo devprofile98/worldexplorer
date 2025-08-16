@@ -18,7 +18,10 @@
 #include <utility>
 #include <vector>
 
+#include "assimp/matrix4x4.h"
 #include "assimp/mesh.h"
+#include "assimp/quaternion.h"
+#include "assimp/vector3.h"
 #include "wgpu_utils.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -143,6 +146,59 @@ void printAnimationInfos(const std::string& name, const aiScene* scene) {
     }
 }
 
+size_t findPositionKey(double time, const aiNodeAnim* channel) {
+    for (size_t i = 0; i < channel->mNumPositionKeys; ++i) {
+        if (time < channel->mPositionKeys[i].mTime) {
+            return i;
+        }
+    }
+    return channel->mNumPositionKeys - 1;
+}
+
+size_t findRotationKey(double time, const aiNodeAnim* channel) {
+    for (size_t i = 0; i < channel->mNumRotationKeys; ++i) {
+        if (time < channel->mRotationKeys[i].mTime) {
+            return i;
+        }
+    }
+    return channel->mNumRotationKeys - 1;
+}
+
+aiVector3D calculateInterpolatedPosition(double time, const aiNodeAnim* channel) {
+    if (channel->mNumPositionKeys == 1) {
+        return channel->mPositionKeys[0].mValue;
+    }
+
+    size_t pose_idx = findPositionKey(time, channel);
+    if (pose_idx == channel->mNumPositionKeys - 1) {
+        return channel->mPositionKeys[pose_idx].mValue;
+    }
+
+    double deltatime = channel->mPositionKeys[pose_idx + 1].mTime - channel->mPositionKeys[pose_idx].mTime;
+    double factor = (time - channel->mPositionKeys[pose_idx].mTime) / deltatime;
+    const aiVector3D& start = channel->mPositionKeys[pose_idx].mValue;
+    const aiVector3D& end = channel->mPositionKeys[pose_idx + 1].mValue;
+    return start + (float)-factor * (end - start);
+}
+
+aiQuaternion CalcInterpolatedRotation(double time, const aiNodeAnim* channel) {
+    if (channel->mNumRotationKeys == 1) {
+        return channel->mRotationKeys[0].mValue;
+    }
+
+    unsigned int idx = findRotationKey(time, channel);
+    if (idx == channel->mNumRotationKeys - 1) {
+        return channel->mRotationKeys[idx].mValue;
+    }
+
+    double deltaTime = channel->mRotationKeys[idx + 1].mTime - channel->mRotationKeys[idx].mTime;
+    double factor = (time - channel->mRotationKeys[idx].mTime) / deltaTime;
+    aiQuaternion out;
+    aiQuaternion::Interpolate(out, channel->mRotationKeys[idx].mValue, channel->mRotationKeys[idx + 1].mValue, -factor);
+    out = out.Normalize();
+    return out;
+}
+
 void Model::buildNodeCache(aiNode* node) {
     if (node == nullptr) {
         return;
@@ -169,39 +225,105 @@ glm::mat4 AiToGlm(const aiMatrix4x4& aiMat) {
                      aiMat.c3, aiMat.d3, aiMat.a4, aiMat.b4, aiMat.c4, aiMat.d4);
 }
 
-void Model::ExtractBonePositions(const aiScene* scene) {
-    buildNodeCache(scene->mRootNode);  // Cache nodes for fast lookup
+aiMatrix4x4 GetLocalTransformAtTime(const aiNode* node, double time,
+                                    const std::map<std::string, aiNodeAnim*>& channelMap, size_t index) {
+    auto it = channelMap.find(node->mName.C_Str());
+    if (it != channelMap.end()) {
+        // find a pose and use it
+        aiNodeAnim* channel = it->second;
+        // aiVector3D pos = channel->mPositionKeys[index].mValue;
+        size_t idx = findPositionKey(time, channel);
+        aiVector3D pos = calculateInterpolatedPosition(time, channel);
+        aiMatrix4x4 rotationMat = aiMatrix4x4(CalcInterpolatedRotation(time, channel).GetMatrix());
+        // aiMatrix4x4 rotationMat = aiMatrix4x4(channel->mRotationKeys[idx].mValue.GetMatrix());
+        aiVector3D scale = channel->mScalingKeys[idx].mValue;
+        std::cout << "Time for this is " << channel->mScalingKeys[idx].mTime << std::endl;
+
+        aiMatrix4x4 translationMat;
+        aiMatrix4x4::Translation(pos, translationMat);
+        aiMatrix4x4 scalingMat;
+        aiMatrix4x4::Scaling(scale, scalingMat);
+
+        // Compose: translation * rotation * scaling
+        return translationMat * rotationMat * scalingMat;
+    }
+    return node->mTransformation;
+}
+
+void ComputeGlobalTransforms(const aiNode* node, const aiMatrix4x4& parentGlobal, double time,
+                             const std::map<std::string, aiNodeAnim*>& channelMap,
+                             std::map<std::string, aiMatrix4x4>& outGlobalMap, size_t index) {
+    aiMatrix4x4 local = GetLocalTransformAtTime(node, time, channelMap, index);
+    aiMatrix4x4 global = parentGlobal * local;
+    outGlobalMap[node->mName.C_Str()] = global;
+
+    for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+        ComputeGlobalTransforms(node->mChildren[i], global, time, channelMap, outGlobalMap, index);
+    }
+}
+
+void Model::ExtractBonePositions() {
+    if (getName() == "human") {
+        std::cout << "pointer at ------------ : " << mScene << " " << mAnimationSecond << std::endl;
+    }
+    mBonePosition.clear();
 
     std::unordered_set<std::string> uniqueBones;  // Avoid duplicate spheres if bones are shared
-
-    for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
-        aiMesh* mesh = scene->mMeshes[m];
+    std::map<std::string, aiNodeAnim*> channelMap;
+    //
+    for (unsigned int m = 0; m < mScene->mNumMeshes; ++m) {
+        aiMesh* mesh = mScene->mMeshes[m];
         for (unsigned int b = 0; b < mesh->mNumBones; ++b) {
             aiBone* bone = mesh->mBones[b];
             std::string boneName = bone->mName.C_Str();
 
             if (uniqueBones.find(boneName) != uniqueBones.end()) continue;
             uniqueBones.insert(boneName);
-
-            // Find node (use cache for speed)
-            auto it = mNodeCache.find(boneName);
-            if (it == mNodeCache.end()) continue;  // Rare, but skip if no matching node
-            aiNode* node = it->second;
-
-            // Compute global transform
-            aiMatrix4x4 globalTransform = GetGlobalTransform(node);
-
-            // Extract position (translation part)
-            glm::mat4 glmGlobal = AiToGlm(globalTransform);
-            glm::vec3 position = glm::vec3(glmGlobal[3]);  // Column 3 is translation in GLM
-
-            // Create model matrix: just translate (scale/rotate if needed for oriented spheres)
-            // glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), position);
-            // Optional: glm::scale(modelMatrix, glm::vec3(0.1f));  // Small sphere size
-
-            mBonePosition.push_back(position);
+            // mUniqueBoneNames.push_back(boneName);
         }
     }
+
+    if (mScene->HasAnimations()) {
+        aiAnimation* anim = mScene->mAnimations[0];
+        for (size_t i = 0; i < anim->mNumChannels; i++) {
+            aiNodeAnim* channel = anim->mChannels[i];
+            channelMap[channel->mNodeName.C_Str()] = channel;
+        }
+    }
+
+    if (mScene->mAnimations) {
+        // Animated globals
+        auto channel = mScene->mAnimations[0]->mChannels[0];
+        for (size_t i = 0; i < channel->mNumPositionKeys; ++i) {
+            std::cout << channel->mPositionKeys[i].mTime << ", ";
+        }
+        std::cout << std::endl;
+
+        ComputeGlobalTransforms(mScene->mRootNode, aiMatrix4x4(), mAnimationSecond, channelMap, globalMap,
+                                mAnimationPoseCounter);
+    } else {
+        // Bind-pose fallback
+        for (const std::string& boneName : uniqueBones) {
+            auto it = mNodeCache.find(boneName);
+            if (it == mNodeCache.end()) continue;
+            aiNode* node = it->second;
+            aiMatrix4x4 globalTransform = GetGlobalTransform(node);
+            glm::mat4 glmGlobal = AiToGlm(globalTransform);
+            glm::vec3 position = glm::vec3(glmGlobal[3]);
+            mBonePosition.push_back(position);
+        }
+        return;
+    }
+
+    // Extract positions from animated globals
+    for (const std::string& boneName : uniqueBones) {
+        auto it = globalMap.find(boneName);
+        if (it == globalMap.end()) continue;
+        aiMatrix4x4 globalTransform = it->second;
+        glm::mat4 glmGlobal = AiToGlm(globalTransform);
+        glm::vec3 position = glm::vec3(glmGlobal[3]);
+        mBonePosition.push_back(position);
+    }  // Load one of the keyframe positions
 }
 
 void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
@@ -430,195 +552,182 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     reader_config.triangulate = true;
     reader_config.mtl_search_path = "/home/ahmad/Documents/project/cpp/wgputest/resources";
 
-    Assimp::Importer import;
-    const aiScene* scene =
-        import.ReadFile(path.string().c_str(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace |
-                                                   aiProcess_JoinIdenticalVertices);
+    const aiScene* const scene =
+        mImport.ReadFile(path.string().c_str(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace |
+                                                    aiProcess_JoinIdenticalVertices);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        // std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << std::endl;
         std::cout << std::format("Assimp - Error while loading model {} : {}\n", (const char*)path.c_str(),
-                                 import.GetErrorString());
+                                 mImport.GetErrorString());
     } else {
         std::cout << std::format("Assimp - Succesfully loaded model {}\n", (const char*)path.c_str());
     }
-    // if (getName() != model_name) {
+    mScene = scene;
     printAnimationInfos(getName(), scene);
-    ExtractBonePositions(scene);
+    mNodeCache.clear();
+    buildNodeCache(mScene->mRootNode);
+    ExtractBonePositions();
     processNode(app, scene->mRootNode, scene);
-    // if (getName() == "human") {
-    //     std::ofstream boneFile("bonemap_contents.txt");
-    //     if (boneFile.is_open()) {
-    //         for (const auto& entry : bonemap) {
-    //             // Assuming the map is <int, std::vector<...> >
-    //             boneFile << "Vertex ID: " << entry.first << " is affected by " << entry.second.size() << " bones ";
-    //             for (const auto& affected : entry.second) {
-    //                 boneFile << " " << affected.first << ": " << affected.second;
+
+    return *this;
+    // }
+
+    // if (!reader.ParseFromFile(path.string().c_str(), reader_config)) {
+    //     if (!reader.Error().empty()) {
+    //         std::cerr << "TinyObjReader: " << reader.Error();
+    //     }
+    //     exit(1);
+    // }
+    //
+    // if (!reader.Warning().empty()) {
+    //     std::cout << "TinyObjReader: " << reader.Warning() << '\n';
+    // }
+    //
+    // auto& attrib = reader.GetAttrib();
+    // auto& shapes = reader.GetShapes();
+    // auto& materials = reader.GetMaterials();
+    //
+    // // Load and upload diffuse texture
+    // auto& render_resource = app->getRendererResource();
+    //
+    // if (!warn.empty()) {
+    //     std::cout << warn << std::endl;
+    // }
+    //
+    // if (!err.empty()) {
+    //     std::cerr << err << std::endl;
+    // }
+    //
+    // std::cout << getName() << " has " << materials.size() << " Tiny Object " << materials[0].bump_texname << " --
+    // \n";
+    //
+    // // Fill in vertexData here
+    //
+    // for (const auto& shape : shapes) {
+    //     // Iterate through faces
+    //     for (size_t faceIdx = 0; faceIdx < shape.mesh.num_face_vertices.size(); ++faceIdx) {
+    //         int materialId = shape.mesh.material_ids[faceIdx];        // Material ID for this face
+    //         int numVertices = shape.mesh.num_face_vertices[faceIdx];  // Number of vertices in this face
+    //
+    //         // Iterate through vertices in the face
+    //         for (int v = 0; v < numVertices; ++v) {
+    //             tinyobj::index_t idx = shape.mesh.indices[faceIdx * 3 + v];  // Vertex index
+    //             VertexAttributes vertex;
+    //
+    //             vertex.position[0] = attrib.vertices[3 * idx.vertex_index + 0];
+    //             vertex.position[2] = attrib.vertices[3 * idx.vertex_index + 1];
+    //             vertex.position[1] = attrib.vertices[3 * idx.vertex_index + 2];
+    //             /**/
+    //             // calculating Tangent and biTangent
+    //
+    //             /**/
+    //             min.x = std::min(min.x, vertex.position.x);
+    //             min.y = std::min(min.y, vertex.position.y);
+    //             min.z = std::min(min.z, vertex.position.z);
+    //             /**/
+    //             max.x = std::max(max.x, vertex.position.x);
+    //             max.y = std::max(max.y, vertex.position.y);
+    //             max.z = std::max(max.z, vertex.position.z);
+    //             /**/
+    //             vertex.normal = {attrib.normals[3 * idx.normal_index + 0], -attrib.normals[3 * idx.normal_index + 2],
+    //                              attrib.normals[3 * idx.normal_index + 1]};
+    //
+    //             glm::vec3 materialColor = {1.0f, 1.0f, 1.0f};  // Default color (white)
+    //             if (materialId >= 0 && materialId < (int)materials.size()) {
+    //                 materialColor = {materials[materialId].diffuse[0], materials[materialId].diffuse[1],
+    //                                  materials[materialId].diffuse[2]};
+    //                 /*mObjectInfo.useTexture = 1;*/
     //             }
-    //             boneFile << std::endl;
+    //             vertex.color = materialColor;
+    //
+    //             if (attrib.texcoords.empty()) {
+    //                 vertex.uv = {0.0, 0.0};
+    //             } else {
+    //                 vertex.uv = {attrib.texcoords[2 * idx.texcoord_index + 0],
+    //                              1 - attrib.texcoords[2 * idx.texcoord_index + 1]};
+    //             }
+    //             mMeshes[materialId].mVertexData.push_back(vertex);
     //         }
-    //         boneFile.close();
-    //         std::cout << "Map contents written to bonemap_contents.txt" << std::endl;
-    //     }  // }
-    //     std::cout << "vertex affected by animation are" << bonemap.size() << std::endl;
+    //     }
     // }
-    return *this;
+    //
+    // for (auto& pair : mMeshes) {  // Iterate through each mesh (by materialId)
+    //     int materialId = pair.first;
+    //     /*Mesh& currentMesh = pair.second;  // Get a reference to the actual Mesh object*/
+    //
+    //     for (size_t i = 0; i < mMeshes[materialId].mVertexData.size(); i += 3) {
+    //         for (size_t k = 0; k < 3; k++) {
+    //             VertexAttributes* v = &mMeshes[materialId].mVertexData[i];
+    //             auto tbn = computeTBN(v, v[k].normal);
+    //             v[k].tangent = tbn[0];
+    //             v[k].biTangent = tbn[1];
+    //             v[k].normal = tbn[2];
+    //         }
+    //     }
     // }
-
-    if (!reader.ParseFromFile(path.string().c_str(), reader_config)) {
-        if (!reader.Error().empty()) {
-            std::cerr << "TinyObjReader: " << reader.Error();
-        }
-        exit(1);
-    }
-
-    if (!reader.Warning().empty()) {
-        std::cout << "TinyObjReader: " << reader.Warning() << '\n';
-    }
-
-    auto& attrib = reader.GetAttrib();
-    auto& shapes = reader.GetShapes();
-    auto& materials = reader.GetMaterials();
-
-    // Load and upload diffuse texture
-    auto& render_resource = app->getRendererResource();
-
-    if (!warn.empty()) {
-        std::cout << warn << std::endl;
-    }
-
-    if (!err.empty()) {
-        std::cerr << err << std::endl;
-    }
-
-    std::cout << getName() << " has " << materials.size() << " Tiny Object " << materials[0].bump_texname << " -- \n";
-
-    // Fill in vertexData here
-
-    for (const auto& shape : shapes) {
-        // Iterate through faces
-        for (size_t faceIdx = 0; faceIdx < shape.mesh.num_face_vertices.size(); ++faceIdx) {
-            int materialId = shape.mesh.material_ids[faceIdx];        // Material ID for this face
-            int numVertices = shape.mesh.num_face_vertices[faceIdx];  // Number of vertices in this face
-
-            // Iterate through vertices in the face
-            for (int v = 0; v < numVertices; ++v) {
-                tinyobj::index_t idx = shape.mesh.indices[faceIdx * 3 + v];  // Vertex index
-                VertexAttributes vertex;
-
-                vertex.position[0] = attrib.vertices[3 * idx.vertex_index + 0];
-                vertex.position[2] = attrib.vertices[3 * idx.vertex_index + 1];
-                vertex.position[1] = attrib.vertices[3 * idx.vertex_index + 2];
-                /**/
-                // calculating Tangent and biTangent
-
-                /**/
-                min.x = std::min(min.x, vertex.position.x);
-                min.y = std::min(min.y, vertex.position.y);
-                min.z = std::min(min.z, vertex.position.z);
-                /**/
-                max.x = std::max(max.x, vertex.position.x);
-                max.y = std::max(max.y, vertex.position.y);
-                max.z = std::max(max.z, vertex.position.z);
-                /**/
-                vertex.normal = {attrib.normals[3 * idx.normal_index + 0], -attrib.normals[3 * idx.normal_index + 2],
-                                 attrib.normals[3 * idx.normal_index + 1]};
-
-                glm::vec3 materialColor = {1.0f, 1.0f, 1.0f};  // Default color (white)
-                if (materialId >= 0 && materialId < (int)materials.size()) {
-                    materialColor = {materials[materialId].diffuse[0], materials[materialId].diffuse[1],
-                                     materials[materialId].diffuse[2]};
-                    /*mObjectInfo.useTexture = 1;*/
-                }
-                vertex.color = materialColor;
-
-                if (attrib.texcoords.empty()) {
-                    vertex.uv = {0.0, 0.0};
-                } else {
-                    vertex.uv = {attrib.texcoords[2 * idx.texcoord_index + 0],
-                                 1 - attrib.texcoords[2 * idx.texcoord_index + 1]};
-                }
-                mMeshes[materialId].mVertexData.push_back(vertex);
-            }
-        }
-    }
-
-    for (auto& pair : mMeshes) {  // Iterate through each mesh (by materialId)
-        int materialId = pair.first;
-        /*Mesh& currentMesh = pair.second;  // Get a reference to the actual Mesh object*/
-
-        for (size_t i = 0; i < mMeshes[materialId].mVertexData.size(); i += 3) {
-            for (size_t k = 0; k < 3; k++) {
-                VertexAttributes* v = &mMeshes[materialId].mVertexData[i];
-                auto tbn = computeTBN(v, v[k].normal);
-                v[k].tangent = tbn[0];
-                v[k].biTangent = tbn[1];
-                v[k].normal = tbn[2];
-            }
-        }
-    }
-
-    for (const auto& material : materials) {
-        size_t material_id = &material - &materials[0];
-        if (material_id > mMeshes.size() - 1) {
-            break;
-        }
-        auto& mesh = mMeshes[material_id];
-        if (!material.diffuse_texname.empty()) {
-            mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, true);
-            std::string texture_path = RESOURCE_DIR;
-            texture_path += "/";
-            texture_path += material.diffuse_texname;
-            mesh.mTexture = new Texture{render_resource.device, texture_path};
-            if (mesh.mTexture->createView() == nullptr) {
-                std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName, texture_path);
-            }
-            mesh.mTexture->uploadToGPU(render_resource.queue);
-            mesh.isTransparent = mesh.mTexture->isTransparent();
-        }
-
-        // Load and upload specular texture
-        if (!materials[material_id].specular_texname.empty()) {
-            mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, true);
-            std::string texture_path = RESOURCE_DIR;
-            texture_path += "/";
-            texture_path += materials[material_id].specular_texname;
-            mesh.mSpecularTexture = new Texture{render_resource.device, texture_path};
-            if (mesh.mSpecularTexture->createView() == nullptr) {
-                std::cout << std::format("Failed to create Specular Texture view for {}\n", mName);
-            }
-            mesh.mSpecularTexture->uploadToGPU(render_resource.queue);
-        }
-
-        // Load and upload normal texture
-        if (!materials[material_id].bump_texname.empty()) {
-            mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, true);
-            /*if (!materials[0].normal_texname.empty()) {*/
-            std::string texture_path = RESOURCE_DIR;
-            texture_path += "/";
-            texture_path += materials[material_id].bump_texname;
-            mesh.mNormalMapTexture = new Texture{render_resource.device, texture_path};
-            if (mesh.mNormalMapTexture->createView() == nullptr) {
-                std::cout << std::format("Failed to create normal Texture view for {} at {}\n", mName, texture_path);
-            }
-            mesh.mNormalMapTexture->uploadToGPU(render_resource.queue);
-            /*}*/
-        }
-    }
-
-    offset_buffer.setSize(sizeof(glm::vec4) * 10)
-        .setLabel("offset buffer")
-        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-        .setMappedAtCraetion()
-        .create(app);
-
-    std::array<glm::vec4, 10> dddata = {};
-    for (size_t i = 0; i < 10; i++) {
-        dddata[i] = glm::vec4{0.0, i * 2, 0.0, 0.0};
-    }
-    wgpuQueueWriteBuffer(app->getRendererResource().queue, offset_buffer.getBuffer(), 0, &dddata,
-                         sizeof(glm::vec4) * 10);
-    /*(void)layout;*/
-    return *this;
+    //
+    // for (const auto& material : materials) {
+    //     size_t material_id = &material - &materials[0];
+    //     if (material_id > mMeshes.size() - 1) {
+    //         break;
+    //     }
+    //     auto& mesh = mMeshes[material_id];
+    //     if (!material.diffuse_texname.empty()) {
+    //         mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, true);
+    //         std::string texture_path = RESOURCE_DIR;
+    //         texture_path += "/";
+    //         texture_path += material.diffuse_texname;
+    //         mesh.mTexture = new Texture{render_resource.device, texture_path};
+    //         if (mesh.mTexture->createView() == nullptr) {
+    //             std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName,
+    //             texture_path);
+    //         }
+    //         mesh.mTexture->uploadToGPU(render_resource.queue);
+    //         mesh.isTransparent = mesh.mTexture->isTransparent();
+    //     }
+    //
+    //     // Load and upload specular texture
+    //     if (!materials[material_id].specular_texname.empty()) {
+    //         mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, true);
+    //         std::string texture_path = RESOURCE_DIR;
+    //         texture_path += "/";
+    //         texture_path += materials[material_id].specular_texname;
+    //         mesh.mSpecularTexture = new Texture{render_resource.device, texture_path};
+    //         if (mesh.mSpecularTexture->createView() == nullptr) {
+    //             std::cout << std::format("Failed to create Specular Texture view for {}\n", mName);
+    //         }
+    //         mesh.mSpecularTexture->uploadToGPU(render_resource.queue);
+    //     }
+    //
+    //     // Load and upload normal texture
+    //     if (!materials[material_id].bump_texname.empty()) {
+    //         mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, true);
+    //         /*if (!materials[0].normal_texname.empty()) {*/
+    //         std::string texture_path = RESOURCE_DIR;
+    //         texture_path += "/";
+    //         texture_path += materials[material_id].bump_texname;
+    //         mesh.mNormalMapTexture = new Texture{render_resource.device, texture_path};
+    //         if (mesh.mNormalMapTexture->createView() == nullptr) {
+    //             std::cout << std::format("Failed to create normal Texture view for {} at {}\n", mName, texture_path);
+    //         }
+    //         mesh.mNormalMapTexture->uploadToGPU(render_resource.queue);
+    //         /*}*/
+    //     }
+    // }
+    //
+    // offset_buffer.setSize(sizeof(glm::vec4) * 10)
+    //     .setLabel("offset buffer")
+    //     .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+    //     .setMappedAtCraetion()
+    //     .create(app);
+    //
+    // std::array<glm::vec4, 10> dddata = {};
+    // for (size_t i = 0; i < 10; i++) {
+    //     dddata[i] = glm::vec4{0.0, i * 2, 0.0, 0.0};
+    // }
+    // wgpuQueueWriteBuffer(app->getRendererResource().queue, offset_buffer.getBuffer(), 0, &dddata,
+    //                      sizeof(glm::vec4) * 10);
+    // /*(void)layout;*/
+    // return *this;
 }
 
 void BaseModel::setInstanced(Instance* instance) {

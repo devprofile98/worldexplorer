@@ -5,6 +5,7 @@
 #include <glfw3webgpu.h>
 
 #include <array>
+#include <vector>
 
 #include "binding_group.h"
 #include "camera.h"
@@ -127,6 +128,7 @@ class Application {
         Buffer mVisibleIndexBuffer;   // copy src, storage
         Buffer mVisibleIndexBuffer2;  // copy src, storage
         int ccounter = 0;
+        std::vector<Line*> mLines;
 
     private:
         size_t mWindowWidth = 1920;

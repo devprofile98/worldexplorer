@@ -72,38 +72,22 @@ void loadSphereAtHumanBones(Application* app, Model* human, Model* sphere) {
     std::vector<glm::vec3> positions;
     std::vector<float> degrees;
     std::vector<glm::vec3> scales;
-    positions.reserve(10);
-    degrees.reserve(10);
-    scales.reserve(10);
+    positions.reserve(20);
+    degrees.reserve(20);
+    scales.reserve(20);
 
-    for (const auto& m : human->mBonePosition) {
+    for (auto& m : human->mBonePosition) {
+        // positions.emplace_back(glm::vec3(human->mTransform.mTransformMatrix * glm::vec4{m, 1.0}));
         positions.emplace_back(m);
         degrees.emplace_back(90.0);
         scales.emplace_back(glm::vec3{0.1f});
     }
-    std::cout << positions.size() << " --------------------Barrier reached -----------------\n";
-    // positions.emplace_back(glm::vec3{4.187, 9.227, 0.0});
-    // degrees.emplace_back(0.0);
-    // scales.emplace_back(glm::vec3{0.1f});
-    //
-    // positions.emplace_back(glm::vec3{5.187, 9.227, 0.0});
-    // degrees.emplace_back(0.0);
-    // scales.emplace_back(glm::vec3{0.1f});
-    //
-    // positions.emplace_back(glm::vec3{6.187, 9.227, 0.0});
-    // degrees.emplace_back(0.0);
-    // scales.emplace_back(glm::vec3{0.1f});
-    //
-    // positions.emplace_back(glm::vec3{7.187, 9.227, 0.0});
-    // degrees.emplace_back(0.0);
-    // scales.emplace_back(glm::vec3{0.1f});
-    //
-    // positions.emplace_back(glm::vec3{8.187, 9.227, 0.0});
-    // degrees.emplace_back(0.0);
-    // scales.emplace_back(glm::vec3{0.1f});
+
+    sphere->mTransform.moveTo(positions[0]);
 
     auto* ins = new Instance{positions, glm::vec3{0.1, 0.0, 0.0},     degrees,
                              scales,    glm::vec4{sphere->min, 1.0f}, glm::vec4{sphere->max, 1.0f}};
+    std::cout << ins->mInstanceBuffer.size() << " --------------------Barrier reached -----------------\n";
 
     wgpuQueueWriteBuffer(app->getRendererResource().queue, app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
                          ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
@@ -1207,6 +1191,10 @@ void Application::mainLoop() {
         }
     }
 
+    for (const auto& model : mLines) {
+        model->draw(this, render_pass_encoder, mBindingData);
+    }
+
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
     // end of color render pass
@@ -1654,26 +1642,45 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     ImGui::InputFloat3("End", glm::value_ptr(end));
 
     ImGui::ColorPicker3("lines color", glm::value_ptr(color));
-    if (ImGui::Button("Create", ImVec2(100, 30))) {
-        /*color2 = color;*/
-        /*color2.x += color.z;*/
-        /*color2.z += color.x;*/
-        /*std::vector<glm::vec2> lines = {{0, 1}, {2, 3}, {6, 7}, {4, 5}, {0, 4}, {2, 6},*/
-        /*                                {0, 2}, {4, 6}, {1, 5}, {1, 3}, {5, 7}, {3, 7}};*/
-        /*for (const auto& l : lines) {*/
-        /*    Line* line = new Line{this, mShadowPass->mFar[l.x], mShadowPass->mFar[l.y], 0.5, color};*/
-        /*    line->setTransparent(false);*/
-        /*    mLoadedModel.push_back(line);*/
-        /*    Line* line2 = new Line{this, mShadowPass->mNear[l.x], mShadowPass->mNear[l.y], 0.5, color2};*/
-        /*    line2->setTransparent(false);*/
-        /*    mLoadedModel.push_back(line2);*/
-        /*}*/
-        /*should = !should;*/
-        /*loadTree(this);*/
-        /*for (auto [key, func] : ModelRegistry::instance().factories) {*/
-        /*    futures.push_back(std::async(std::launch::async, func, this));*/
-        /*}*/
+    // if (ImGui::Button("Create", ImVec2(100, 30))) {
+    auto& iter = ModelRegistry::instance().getLoadedModel(Visibility_User);
+    auto human = iter.find("human");
+    auto sphere = iter.find("sphere");
+    if (human != iter.end() && sphere != iter.end()) {
+        static float value = 0.0;
+        if (ImGui::DragFloat("Animation Timestamp", &value)) {
+            if (human->second->mAnimationSecond > 832) {
+                // human->second->mAnimationSecond = 0;
+            }
+            // std::cout << "value is " << value << std::endl;
+            human->second->mAnimationSecond = value;
+            // human->second->mAnimationSecond += 5.0;
+
+            human->second->ExtractBonePositions();
+            loadSphereAtHumanBones(this, human->second, sphere->second);
+        }
     }
+    /*color2 = color;*/
+    /*color2.x += color.z;*/
+    /*color2.z += color.x;*/
+    // std::vector<glm::vec2> lines = {{0, 1}, {2, 3}, {6, 7}, {4, 5}, {0, 4}, {2, 6},
+    //                                 {0, 2}, {4, 6}, {1, 5}, {1, 3}, {5, 7}, {3, 7}};
+    // for (const auto& l : lines) {
+    // Line* line = new Line{this, glm::vec3{1.0}, glm::vec3{10.0}, 0.5, glm::vec3{1.0, 1.0, 1.0}};
+    // line->setTransparent(false);
+    // // mLoadedModel.push_back(line);
+    // Line* line2 = new Line{this, glm::vec3{10.0}, glm::vec3{1.0}, 0.5, glm::vec3{1.0, 1.0, 1.0}};
+    // line2->setTransparent(false);
+    // mLines.push_back(line);
+    // mLines.push_back(line2);
+    // mLoadedModel.push_back(line2);
+    // }
+    /*should = !should;*/
+    /*loadTree(this);*/
+    /*for (auto [key, func] : ModelRegistry::instance().factories) {*/
+    /*    futures.push_back(std::async(std::launch::async, func, this));*/
+    /*}*/
+    // }
     if (ImGui::Button("remove frustum", ImVec2(100, 30))) {
         // for (int i = 0; i < 24; i++) {
         //     mLoadedModel.pop_back();
