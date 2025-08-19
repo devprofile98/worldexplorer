@@ -22,6 +22,7 @@
 #include "assimp/mesh.h"
 #include "assimp/quaternion.h"
 #include "assimp/vector3.h"
+#include "glm/ext/matrix_common.hpp"
 #include "wgpu_utils.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -130,26 +131,32 @@ void printAnimationInfos(const std::string& name, const aiScene* scene) {
         for (size_t i = 0; i < scene->mNumAnimations; i++) {
             const aiAnimation* anim = scene->mAnimations[i];
             std::cout << "@@@@@@@@@@@@@@@@@@@@@ " << anim->mName.C_Str() << " " << anim->mNumChannels << std::endl;
-            // for (size_t j = 0; j < anim->mNumChannels; j++) {
-            //     const aiNodeAnim* nodeAnim = anim->mChannels[j];
-            //     std::cout << "::::::::::::::: " << nodeAnim->mNodeName.C_Str() << " " << nodeAnim->mNumPositionKeys
-            //               << " " << nodeAnim->mNumRotationKeys << " " << nodeAnim->mNumScalingKeys << std::endl;
-            //     for (size_t k = 0; k < nodeAnim->mNumPositionKeys; k++) {
-            //         std::cout << std::format("at: {} ({} {} {})\n",
-            //                                  nodeAnim->mPositionKeys[k].mTime / anim->mTicksPerSecond,
-            //                                  nodeAnim->mPositionKeys[k].mValue.x,
-            //                                  nodeAnim->mPositionKeys[k].mValue.y,
-            //                                  nodeAnim->mPositionKeys[k].mValue.z);
-            //     }
-            // }
+            for (size_t j = 0; j < anim->mNumChannels; j++) {
+                const aiNodeAnim* nodeAnim = anim->mChannels[j];
+                for (size_t k = 0; k < nodeAnim->mNumPositionKeys; k++) {
+                    std::cout << std::format("at: {}\n", nodeAnim->mPositionKeys[k].mTime / anim->mTicksPerSecond);
+                }
+            }
         }
     }
 }
 
+inline glm::vec3 assimpToGlmVec3(aiVector3D vec) { return glm::vec3(vec.x, vec.y, vec.z); }
+
+inline glm::quat assimpToGlmQuat(aiQuaternion quat) {
+    glm::quat q;
+    q.x = quat.x;
+    q.y = quat.y;
+    q.z = quat.z;
+    q.w = quat.w;
+
+    return q;
+}
+
 size_t findPositionKey(double time, const aiNodeAnim* channel) {
-    for (size_t i = 0; i < channel->mNumPositionKeys; ++i) {
+    for (size_t i = 0; i < channel->mNumPositionKeys; i++) {
         if (time < channel->mPositionKeys[i].mTime) {
-            return i;
+            return i - 1;
         }
     }
     return channel->mNumPositionKeys - 1;
@@ -158,44 +165,46 @@ size_t findPositionKey(double time, const aiNodeAnim* channel) {
 size_t findRotationKey(double time, const aiNodeAnim* channel) {
     for (size_t i = 0; i < channel->mNumRotationKeys; ++i) {
         if (time < channel->mRotationKeys[i].mTime) {
-            return i;
+            return i - 1;
         }
     }
     return channel->mNumRotationKeys - 1;
 }
 
-aiVector3D calculateInterpolatedPosition(double time, const aiNodeAnim* channel) {
+glm::vec3 calculateInterpolatedPosition(double time, const aiNodeAnim* channel) {
     if (channel->mNumPositionKeys == 1) {
-        return channel->mPositionKeys[0].mValue;
+        return assimpToGlmVec3(channel->mPositionKeys[0].mValue);
     }
 
     size_t pose_idx = findPositionKey(time, channel);
     if (pose_idx == channel->mNumPositionKeys - 1) {
-        return channel->mPositionKeys[pose_idx].mValue;
+        return assimpToGlmVec3(channel->mPositionKeys[pose_idx].mValue);
     }
 
     double deltatime = channel->mPositionKeys[pose_idx + 1].mTime - channel->mPositionKeys[pose_idx].mTime;
     double factor = (time - channel->mPositionKeys[pose_idx].mTime) / deltatime;
-    const aiVector3D& start = channel->mPositionKeys[pose_idx].mValue;
-    const aiVector3D& end = channel->mPositionKeys[pose_idx + 1].mValue;
-    return start + (float)-factor * (end - start);
+    const glm::vec3& start = assimpToGlmVec3(channel->mPositionKeys[pose_idx].mValue);
+    const glm::vec3& end = assimpToGlmVec3(channel->mPositionKeys[pose_idx + 1].mValue);
+    std::cout << "the fatcor is " << factor << std::endl;
+    return glm::mix(start, end, factor);
 }
 
-aiQuaternion CalcInterpolatedRotation(double time, const aiNodeAnim* channel) {
+glm::quat CalcInterpolatedRotation(double time, const aiNodeAnim* channel) {
     if (channel->mNumRotationKeys == 1) {
-        return channel->mRotationKeys[0].mValue;
+        return assimpToGlmQuat(channel->mRotationKeys[0].mValue);
     }
 
     unsigned int idx = findRotationKey(time, channel);
     if (idx == channel->mNumRotationKeys - 1) {
-        return channel->mRotationKeys[idx].mValue;
+        return assimpToGlmQuat(channel->mRotationKeys[idx].mValue);
     }
 
     double deltaTime = channel->mRotationKeys[idx + 1].mTime - channel->mRotationKeys[idx].mTime;
     double factor = (time - channel->mRotationKeys[idx].mTime) / deltaTime;
-    aiQuaternion out;
-    aiQuaternion::Interpolate(out, channel->mRotationKeys[idx].mValue, channel->mRotationKeys[idx + 1].mValue, -factor);
-    out = out.Normalize();
+    auto start = assimpToGlmQuat(channel->mRotationKeys[idx].mValue);
+    auto end = assimpToGlmQuat(channel->mRotationKeys[idx + 1].mValue);
+    glm::quat out = glm::slerp(start, end, (float)factor);
+
     return out;
 }
 
@@ -220,41 +229,40 @@ aiMatrix4x4 GetGlobalTransform(aiNode* node) {
     }
     return transform;
 }
+
 glm::mat4 AiToGlm(const aiMatrix4x4& aiMat) {
     return glm::mat4(aiMat.a1, aiMat.b1, aiMat.c1, aiMat.d1, aiMat.a2, aiMat.b2, aiMat.c2, aiMat.d2, aiMat.a3, aiMat.b3,
                      aiMat.c3, aiMat.d3, aiMat.a4, aiMat.b4, aiMat.c4, aiMat.d4);
 }
 
-aiMatrix4x4 GetLocalTransformAtTime(const aiNode* node, double time,
-                                    const std::map<std::string, aiNodeAnim*>& channelMap, size_t index) {
+glm::mat4 GetLocalTransformAtTime(const aiNode* node, double time, const std::map<std::string, aiNodeAnim*>& channelMap,
+                                  size_t index) {
     auto it = channelMap.find(node->mName.C_Str());
     if (it != channelMap.end()) {
         // find a pose and use it
         aiNodeAnim* channel = it->second;
         // aiVector3D pos = channel->mPositionKeys[index].mValue;
         size_t idx = findPositionKey(time, channel);
-        aiVector3D pos = calculateInterpolatedPosition(time, channel);
-        aiMatrix4x4 rotationMat = aiMatrix4x4(CalcInterpolatedRotation(time, channel).GetMatrix());
+        glm::vec3 pos = calculateInterpolatedPosition(time, channel);
+        glm::quat rotation = CalcInterpolatedRotation(time, channel);
         // aiMatrix4x4 rotationMat = aiMatrix4x4(channel->mRotationKeys[idx].mValue.GetMatrix());
-        aiVector3D scale = channel->mScalingKeys[idx].mValue;
-        std::cout << "Time for this is " << channel->mScalingKeys[idx].mTime << std::endl;
+        glm::vec3 scale = assimpToGlmVec3(channel->mScalingKeys[idx].mValue);
+        std::cout << "Time for this is " << channel->mScalingKeys[idx].mTime << " " << idx << std::endl;
 
-        aiMatrix4x4 translationMat;
-        aiMatrix4x4::Translation(pos, translationMat);
-        aiMatrix4x4 scalingMat;
-        aiMatrix4x4::Scaling(scale, scalingMat);
+        glm::mat4 translation_mat = glm::translate(glm::mat4(1.0f), pos);
+        glm::mat4 rotation_mat = glm::mat4(rotation);
+        glm::mat4 scale_mat = glm::scale(glm::mat4(1.0f), scale);
 
-        // Compose: translation * rotation * scaling
-        return translationMat * rotationMat * scalingMat;
+        return translation_mat * rotation_mat * scale_mat;
     }
-    return node->mTransformation;
+    return AiToGlm(node->mTransformation);
 }
 
-void ComputeGlobalTransforms(const aiNode* node, const aiMatrix4x4& parentGlobal, double time,
+void ComputeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, double time,
                              const std::map<std::string, aiNodeAnim*>& channelMap,
-                             std::map<std::string, aiMatrix4x4>& outGlobalMap, size_t index) {
-    aiMatrix4x4 local = GetLocalTransformAtTime(node, time, channelMap, index);
-    aiMatrix4x4 global = parentGlobal * local;
+                             std::map<std::string, glm::mat4>& outGlobalMap, size_t index) {
+    glm::mat4 local = GetLocalTransformAtTime(node, time, channelMap, index);
+    glm::mat4 global = parentGlobal * local;
     outGlobalMap[node->mName.C_Str()] = global;
 
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
@@ -264,7 +272,15 @@ void ComputeGlobalTransforms(const aiNode* node, const aiMatrix4x4& parentGlobal
 
 void Model::ExtractBonePositions() {
     if (getName() == "human") {
-        std::cout << "pointer at ------------ : " << mScene << " " << mAnimationSecond << std::endl;
+        const aiAnimation* anim = mScene->mAnimations[0];
+
+        std::cout << "pointer at ------------ : " << mScene << " " << mAnimationSecond << " "
+                  << 833.33 / anim->mTicksPerSecond << std::endl;
+        const aiNodeAnim* channel = anim->mChannels[0];
+        for (size_t i = 0; i < channel->mNumPositionKeys; i++) {
+            std::cout << channel->mPositionKeys[i].mTime << ", ";
+        }
+        std::cout << std::endl;
     }
     mBonePosition.clear();
 
@@ -285,7 +301,7 @@ void Model::ExtractBonePositions() {
 
     if (mScene->HasAnimations()) {
         aiAnimation* anim = mScene->mAnimations[0];
-        for (size_t i = 0; i < anim->mNumChannels; i++) {
+        for (size_t i = 0; i < anim->mNumChannels; ++i) {
             aiNodeAnim* channel = anim->mChannels[i];
             channelMap[channel->mNodeName.C_Str()] = channel;
         }
@@ -293,13 +309,10 @@ void Model::ExtractBonePositions() {
 
     if (mScene->mAnimations) {
         // Animated globals
-        auto channel = mScene->mAnimations[0]->mChannels[0];
-        for (size_t i = 0; i < channel->mNumPositionKeys; ++i) {
-            std::cout << channel->mPositionKeys[i].mTime << ", ";
-        }
-        std::cout << std::endl;
+        auto num_channel = mScene->mAnimations[0]->mChannels[0]->mNumPositionKeys;
+        std::cout << " number of channels are  " << num_channel << std::endl;
 
-        ComputeGlobalTransforms(mScene->mRootNode, aiMatrix4x4(), mAnimationSecond, channelMap, globalMap,
+        ComputeGlobalTransforms(mScene->mRootNode, glm::mat4{1.0}, mAnimationSecond, channelMap, globalMap,
                                 mAnimationPoseCounter);
     } else {
         // Bind-pose fallback
@@ -309,6 +322,7 @@ void Model::ExtractBonePositions() {
             aiNode* node = it->second;
             aiMatrix4x4 globalTransform = GetGlobalTransform(node);
             glm::mat4 glmGlobal = AiToGlm(globalTransform);
+            // mBonePosition.push_back(glmGlobal);
             glm::vec3 position = glm::vec3(glmGlobal[3]);
             mBonePosition.push_back(position);
         }
@@ -319,9 +333,10 @@ void Model::ExtractBonePositions() {
     for (const std::string& boneName : uniqueBones) {
         auto it = globalMap.find(boneName);
         if (it == globalMap.end()) continue;
-        aiMatrix4x4 globalTransform = it->second;
-        glm::mat4 glmGlobal = AiToGlm(globalTransform);
-        glm::vec3 position = glm::vec3(glmGlobal[3]);
+        glm::mat4 globalTransform = it->second;
+        // glm::mat4 glmGlobal = AiToGlm(globalTransform);
+        glm::vec3 position = glm::vec3(globalTransform[3]);
+        // mBonePosition.push_back(globalTransform);
         mBonePosition.push_back(position);
     }  // Load one of the keyframe positions
 }
@@ -329,12 +344,6 @@ void Model::ExtractBonePositions() {
 void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
     for (uint32_t i = 0; i < node->mNumMeshes; i++) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        // if (getName() == model_name) {
-        //     std::cout << "Number of meshes for Steampunk is " << node->mNumMeshes << " " << mesh->mMaterialIndex << "
-        //     "
-        //               << node->mName.C_Str() << std::endl;
-        // }
-        // printMeshBoneData(mesh);
         processMesh(app, mesh, scene);
     }
     for (uint32_t i = 0; i < node->mNumChildren; i++) {
@@ -562,7 +571,9 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         std::cout << std::format("Assimp - Succesfully loaded model {}\n", (const char*)path.c_str());
     }
     mScene = scene;
-    printAnimationInfos(getName(), scene);
+    if (getName() == "human") {
+        // printAnimationInfos(getName(), scene);
+    }
     mNodeCache.clear();
     buildNodeCache(mScene->mRootNode);
     ExtractBonePositions();

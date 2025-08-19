@@ -90,7 +90,7 @@ class Application {
         bool initGui();
         void terminateGui();
 
-        void updateGui(WGPURenderPassEncoder renderPass);
+        void updateGui(WGPURenderPassEncoder renderPass, double time);
 
         // Getters
         RendererResource& getRendererResource();

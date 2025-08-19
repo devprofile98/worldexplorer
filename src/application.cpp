@@ -2,6 +2,7 @@
 
 #include <array>
 #include <atomic>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -77,10 +78,10 @@ void loadSphereAtHumanBones(Application* app, Model* human, Model* sphere) {
     scales.reserve(20);
 
     for (auto& m : human->mBonePosition) {
-        // positions.emplace_back(glm::vec3(human->mTransform.mTransformMatrix * glm::vec4{m, 1.0}));
-        positions.emplace_back(m);
+        positions.emplace_back(glm::vec3(human->mTransform.mTransformMatrix * glm::vec4{m, 0.0}));
+        // positions.emplace_back(glm::vec3{1.0});
         degrees.emplace_back(90.0);
-        scales.emplace_back(glm::vec3{0.1f});
+        scales.emplace_back(glm::vec3{0.2f});
     }
 
     sphere->mTransform.moveTo(positions[0]);
@@ -89,6 +90,11 @@ void loadSphereAtHumanBones(Application* app, Model* human, Model* sphere) {
                              scales,    glm::vec4{sphere->min, 1.0f}, glm::vec4{sphere->max, 1.0f}};
     std::cout << ins->mInstanceBuffer.size() << " --------------------Barrier reached -----------------\n";
 
+    // ins->mInstanceBuffer.clear();
+    // for (auto& m : human->mBonePosition) {
+    //     std::cout << human->mBonePosition.size() << std::endl;
+    // ins->mInstanceBuffer.push_back({m, m * glm::vec4{sphere->min, 1.0f}, m * glm::vec4{sphere->max, 1.0f}});
+    // }
     wgpuQueueWriteBuffer(app->getRendererResource().queue, app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
                          ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
 
@@ -876,6 +882,7 @@ bool Application::initialize() {
 void Application::mainLoop() {
     glfwPollEvents();
 
+    double time = glfwGetTime();
     WGPUTextureView target_view = getNextSurfaceTextureView();
     if (target_view == nullptr) {
         return;
@@ -1241,7 +1248,7 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
     terrain.draw(this, terrain_pass_encoder, mBindingData);
 
-    updateGui(terrain_pass_encoder);
+    updateGui(terrain_pass_encoder, time);
 
     wgpuRenderPassEncoderEnd(terrain_pass_encoder);
     wgpuRenderPassEncoderRelease(terrain_pass_encoder);
@@ -1525,7 +1532,7 @@ void Application::terminateGui() {
     ImGui_ImplWGPU_Shutdown();
 }  // called in onFinish
 
-void Application::updateGui(WGPURenderPassEncoder renderPass) {
+void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
     // Start the Dear ImGui frame
     ImGui_ImplWGPU_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -1648,16 +1655,15 @@ void Application::updateGui(WGPURenderPassEncoder renderPass) {
     auto sphere = iter.find("sphere");
     if (human != iter.end() && sphere != iter.end()) {
         static float value = 0.0;
+        human->second->mAnimationSecond = std::fmod(time, 0.8333) * 1000.0f;
+        human->second->ExtractBonePositions();
+        loadSphereAtHumanBones(this, human->second, sphere->second);
         if (ImGui::DragFloat("Animation Timestamp", &value)) {
-            if (human->second->mAnimationSecond > 832) {
-                // human->second->mAnimationSecond = 0;
-            }
+            // if (human->second->mAnimationSecond > 832) {
+            // human->second->mAnimationSecond = 0;
+            // }
             // std::cout << "value is " << value << std::endl;
-            human->second->mAnimationSecond = value;
             // human->second->mAnimationSecond += 5.0;
-
-            human->second->ExtractBonePositions();
-            loadSphereAtHumanBones(this, human->second, sphere->second);
         }
     }
     /*color2 = color;*/

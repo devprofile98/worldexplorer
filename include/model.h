@@ -223,7 +223,7 @@ class Model : public BaseModel {
         std::vector<glm::vec3> mBonePosition;
         const aiScene* mScene;
         Assimp::Importer mImport;
-        std::map<std::string, aiMatrix4x4> globalMap;
+        std::map<std::string, glm::mat4> globalMap;
         size_t mAnimationPoseCounter = 0;
         double mAnimationSecond = 0.0;
 
