@@ -69,6 +69,8 @@ double lastClickTime = 0.0;
 double lastClickX = 0.0;
 double lastClickY = 0.0;
 
+float rotrot = 0.f;
+
 void loadSphereAtHumanBones(Application* app, Model* human, Model* sphere) {
     std::vector<glm::vec3> positions;
     std::vector<float> degrees;
@@ -80,15 +82,15 @@ void loadSphereAtHumanBones(Application* app, Model* human, Model* sphere) {
     for (auto& m : human->mBonePosition) {
         positions.emplace_back(glm::vec3(human->mTransform.mTransformMatrix * glm::vec4{m, 0.0}));
         // positions.emplace_back(glm::vec3{1.0});
-        degrees.emplace_back(90.0);
+        degrees.emplace_back(rotrot);
         scales.emplace_back(glm::vec3{0.2f});
     }
 
     sphere->mTransform.moveTo(positions[0]);
 
-    auto* ins = new Instance{positions, glm::vec3{0.1, 0.0, 0.0},     degrees,
+    auto* ins = new Instance{positions, glm::vec3{1.0, 0.0, 0.0},     degrees,
                              scales,    glm::vec4{sphere->min, 1.0f}, glm::vec4{sphere->max, 1.0f}};
-    std::cout << ins->mInstanceBuffer.size() << " --------------------Barrier reached -----------------\n";
+    // std::cout << ins->mInstanceBuffer.size() << " --------------------Barrier reached -----------------\n";
 
     // ins->mInstanceBuffer.clear();
     // for (auto& m : human->mBonePosition) {
@@ -1658,7 +1660,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
         human->second->mAnimationSecond = std::fmod(time, 0.8333) * 1000.0f;
         human->second->ExtractBonePositions();
         loadSphereAtHumanBones(this, human->second, sphere->second);
-        if (ImGui::DragFloat("Animation Timestamp", &value)) {
+        if (ImGui::DragFloat("Animation Timestamp", &rotrot)) {
             // if (human->second->mAnimationSecond > 832) {
             // human->second->mAnimationSecond = 0;
             // }

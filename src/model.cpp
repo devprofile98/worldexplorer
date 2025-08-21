@@ -185,7 +185,25 @@ glm::vec3 calculateInterpolatedPosition(double time, const aiNodeAnim* channel) 
     double factor = (time - channel->mPositionKeys[pose_idx].mTime) / deltatime;
     const glm::vec3& start = assimpToGlmVec3(channel->mPositionKeys[pose_idx].mValue);
     const glm::vec3& end = assimpToGlmVec3(channel->mPositionKeys[pose_idx + 1].mValue);
-    std::cout << "the fatcor is " << factor << std::endl;
+    // std::cout << "the fatcor is " << factor << std::endl;
+    return glm::mix(start, end, factor);
+}
+
+glm::vec3 calculateInterpolatedScale(double time, const aiNodeAnim* channel) {
+    if (channel->mNumScalingKeys == 1) {
+        return assimpToGlmVec3(channel->mScalingKeys[0].mValue);
+    }
+
+    size_t pose_idx = findPositionKey(time, channel);
+    if (pose_idx == channel->mNumScalingKeys - 1) {
+        return assimpToGlmVec3(channel->mScalingKeys[pose_idx].mValue);
+    }
+
+    double deltatime = channel->mScalingKeys[pose_idx + 1].mTime - channel->mScalingKeys[pose_idx].mTime;
+    double factor = (time - channel->mScalingKeys[pose_idx].mTime) / deltatime;
+    const glm::vec3& start = assimpToGlmVec3(channel->mScalingKeys[pose_idx].mValue);
+    const glm::vec3& end = assimpToGlmVec3(channel->mScalingKeys[pose_idx + 1].mValue);
+    // std::cout << "the fatcor is " << factor << std::endl;
     return glm::mix(start, end, factor);
 }
 
@@ -241,13 +259,10 @@ glm::mat4 GetLocalTransformAtTime(const aiNode* node, double time, const std::ma
     if (it != channelMap.end()) {
         // find a pose and use it
         aiNodeAnim* channel = it->second;
-        // aiVector3D pos = channel->mPositionKeys[index].mValue;
-        size_t idx = findPositionKey(time, channel);
+
         glm::vec3 pos = calculateInterpolatedPosition(time, channel);
         glm::quat rotation = CalcInterpolatedRotation(time, channel);
-        // aiMatrix4x4 rotationMat = aiMatrix4x4(channel->mRotationKeys[idx].mValue.GetMatrix());
-        glm::vec3 scale = assimpToGlmVec3(channel->mScalingKeys[idx].mValue);
-        std::cout << "Time for this is " << channel->mScalingKeys[idx].mTime << " " << idx << std::endl;
+        glm::vec3 scale = calculateInterpolatedScale(time, channel);
 
         glm::mat4 translation_mat = glm::translate(glm::mat4(1.0f), pos);
         glm::mat4 rotation_mat = glm::mat4(rotation);
@@ -272,15 +287,15 @@ void ComputeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, 
 
 void Model::ExtractBonePositions() {
     if (getName() == "human") {
-        const aiAnimation* anim = mScene->mAnimations[0];
+        // const aiAnimation* anim = mScene->mAnimations[0];
 
-        std::cout << "pointer at ------------ : " << mScene << " " << mAnimationSecond << " "
-                  << 833.33 / anim->mTicksPerSecond << std::endl;
-        const aiNodeAnim* channel = anim->mChannels[0];
-        for (size_t i = 0; i < channel->mNumPositionKeys; i++) {
-            std::cout << channel->mPositionKeys[i].mTime << ", ";
-        }
-        std::cout << std::endl;
+        // std::cout << "pointer at ------------ : " << mScene << " " << mAnimationSecond << " "
+        //           << 833.33 / anim->mTicksPerSecond << std::endl;
+        // const aiNodeAnim* channel = anim->mChannels[0];
+        // for (size_t i = 0; i < channel->mNumPositionKeys; i++) {
+        // std::cout << channel->mPositionKeys[i].mTime << ", ";
+        // }
+        // std::cout << std::endl;
     }
     mBonePosition.clear();
 
@@ -309,10 +324,12 @@ void Model::ExtractBonePositions() {
 
     if (mScene->mAnimations) {
         // Animated globals
-        auto num_channel = mScene->mAnimations[0]->mChannels[0]->mNumPositionKeys;
-        std::cout << " number of channels are  " << num_channel << std::endl;
+        // auto num_channel = mScene->mAnimations[0]->mChannels[0]->mNumPositionKeys;
+        // std::cout << " number of channels are  " << num_channel << std::endl;
 
-        ComputeGlobalTransforms(mScene->mRootNode, glm::mat4{1.0}, mAnimationSecond, channelMap, globalMap,
+        auto trans = glm::mat4{1.0};
+        auto trans2 = glm::rotate(trans, glm::radians(180.0f), glm::vec3{0.0, 1.0, 0.0});
+        ComputeGlobalTransforms(mScene->mRootNode, trans2, mAnimationSecond, channelMap, globalMap,
                                 mAnimationPoseCounter);
     } else {
         // Bind-pose fallback

@@ -326,7 +326,7 @@ struct SphereModel : public IModel {
             mModel = new Model{};
 
             mModel->load("sphere", app, RESOURCE_DIR "/sphere.glb", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{2.187, 9.227, 0.0})
+                .mTransform  //.moveTo(glm::vec3{2.187, 9.227, 0.0})
                 .scale(glm::vec3{0.1f});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
