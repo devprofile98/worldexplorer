@@ -24,6 +24,8 @@ struct VertexInput {
     @location(3) tangent: vec3f,
     @location(4) biTangent: vec3f,
     @location(5) uv: vec2f,
+    @location(6) boneIds: vec4i,
+    @location(7) boneWeights: vec4f,
 };
 
 

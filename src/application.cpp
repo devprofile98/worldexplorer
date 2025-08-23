@@ -1414,7 +1414,7 @@ WGPULimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     WGPULimits required_limits = {};
     setDefault(required_limits);
 
-    required_limits.maxVertexAttributes = 6;
+    required_limits.maxVertexAttributes = 10;
     required_limits.maxVertexBuffers = 1;
     required_limits.maxBufferSize = 134217728;  // 1000000 * sizeof(VertexAttributes);
     required_limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);

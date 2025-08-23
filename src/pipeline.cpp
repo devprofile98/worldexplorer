@@ -64,6 +64,8 @@ WGPUVertexBufferLayout Pipeline::getDefaultVertexBufferLayout() {
         .addAttribute(12 * sizeof(float), 3, WGPUVertexFormat_Float32x3)
         .addAttribute(16 * sizeof(float), 4, WGPUVertexFormat_Float32x3)
         .addAttribute(offsetof(VertexAttributes, uv), 5, WGPUVertexFormat_Float32x2)
+        .addAttribute(offsetof(VertexAttributes, boneIds), 6, WGPUVertexFormat_Sint32x4)
+        .addAttribute(offsetof(VertexAttributes, weights), 7, WGPUVertexFormat_Float32x4)
         .configure(sizeof(VertexAttributes), VertexStepMode::VERTEX);
 }
 

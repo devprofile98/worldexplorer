@@ -401,6 +401,19 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
             }
         }
     }
+
+    if (getName() == "human") {
+        size_t max_count = 0;
+        size_t idx = 0;
+        for (const auto& [vid, vec] : bonemap) {
+            if (vec.size() > max_count) {
+                max_count = vec.size();
+                idx = vid;
+            }
+        }
+        std::cout << "\n\n\n" << "maximum number of affecting bones is " << max_count << "\n\n\n\n" << idx << std::endl;
+    }
+
     for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
         VertexAttributes vertex;
         glm::vec3 vector;
@@ -408,6 +421,14 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
         vector.x = mesh->mVertices[i].x;
         vector.y = mesh->mVertices[i].z;
         vector.z = mesh->mVertices[i].y;
+
+        size_t bid_cnt = 0;
+        for (const auto& [bid, bwg] : bonemap[i]) {
+            std::cout << "bid is " << bid << " and bwg is " << bwg << std::endl;
+            vertex.boneIds[bid_cnt] = bid;
+            vertex.weights[bid_cnt] = bwg;
+            ++bid_cnt;
+        }
 
         min.x = std::min(min.x, vector.x);
         min.y = std::min(min.y, vector.y);
@@ -452,7 +473,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
             vertex.uv = glm::vec2{0.0f, 0.0f};
         }
 
-        /*vertices.push_back(vertex);*/
         mMeshes[mesh->mMaterialIndex].mVertexData.push_back(vertex);
     }
 
@@ -463,9 +483,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
             mMeshes[mesh->mMaterialIndex].mIndexData.push_back((uint32_t)face.mIndices[j] + index_offset);
         }
     }
-    // if (getName() == model_name) {
-    //     std::cout << std::format(" -------------- Assimp - Succesfully loaded mesh at {}\n", mesh->mMaterialIndex);
-    // }
 
     mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, false);
     mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, false);
@@ -524,44 +541,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
             mmesh.isTransparent = mmesh.mNormalMapTexture->isTransparent();
         }
     }
-    /*for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); i++) {*/
-    /*    aiString str;*/
-    /*    material->GetTexture(aiTextureType_DIFFUSE, i, &str);*/
-    /*    std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
-    /*}*/
-    /*for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); i++) {*/
-    /*    aiString str;*/
-    /*    material->GetTexture(aiTextureType_DIFFUSE, i, &str);*/
-    /*    std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
-    /*}*/
-
-    /*std::vector<Texture_INT> diffuseMap = loadMaterialTexture(material, aiTextureType_DIFFUSE,
-     * "texture_diffuse");*/
-    /*textures.insert(textures.end(), diffuseMap.begin(), diffuseMap.end());*/
-    /**/
-    /*std::vector<Texture_INT> specularMap = loadMaterialTexture(material, aiTextureType_SPECULAR,
-     * "texture_specular");*/
-    /*textures.insert(textures.end(), specularMap.begin(), specularMap.end());*/
-    /*if (!specularMap.empty()) {*/
-    /*    this->material.hasSpecular = true;*/
-    /*}*/
-    /*// 3. normal maps*/
-    /*std::vector<Texture_INT> normalMaps = loadMaterialTexture(material, aiTextureType_HEIGHT, "texture_normal");*/
-    /*textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());*/
-    /*if (!normalMaps.empty()) {*/
-    /*    this->material.hasBumpMap = true;*/
-    /*}*/
-    /*// 4. height maps*/
-    /*std::vector<Texture_INT> heightMaps = loadMaterialTexture(material, aiTextureType_AMBIENT,
-     * "texture_height");*/
-    /*textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());*/
-    /**/
-    /*if (textures.size() <= 0) {*/
-    /*    mat.should_draw = true;*/
-    /*}*/
-
-    // return a mesh object created from the extracted mesh data
-    /*return Mesh(vertices, indices, textures, mat);*/
 }
 
 Model& Model::load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout) {
@@ -597,172 +576,10 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     processNode(app, scene->mRootNode, scene);
 
     return *this;
-    // }
-
-    // if (!reader.ParseFromFile(path.string().c_str(), reader_config)) {
-    //     if (!reader.Error().empty()) {
-    //         std::cerr << "TinyObjReader: " << reader.Error();
-    //     }
-    //     exit(1);
-    // }
-    //
-    // if (!reader.Warning().empty()) {
-    //     std::cout << "TinyObjReader: " << reader.Warning() << '\n';
-    // }
-    //
-    // auto& attrib = reader.GetAttrib();
-    // auto& shapes = reader.GetShapes();
-    // auto& materials = reader.GetMaterials();
-    //
-    // // Load and upload diffuse texture
-    // auto& render_resource = app->getRendererResource();
-    //
-    // if (!warn.empty()) {
-    //     std::cout << warn << std::endl;
-    // }
-    //
-    // if (!err.empty()) {
-    //     std::cerr << err << std::endl;
-    // }
-    //
-    // std::cout << getName() << " has " << materials.size() << " Tiny Object " << materials[0].bump_texname << " --
-    // \n";
-    //
-    // // Fill in vertexData here
-    //
-    // for (const auto& shape : shapes) {
-    //     // Iterate through faces
-    //     for (size_t faceIdx = 0; faceIdx < shape.mesh.num_face_vertices.size(); ++faceIdx) {
-    //         int materialId = shape.mesh.material_ids[faceIdx];        // Material ID for this face
-    //         int numVertices = shape.mesh.num_face_vertices[faceIdx];  // Number of vertices in this face
-    //
-    //         // Iterate through vertices in the face
-    //         for (int v = 0; v < numVertices; ++v) {
-    //             tinyobj::index_t idx = shape.mesh.indices[faceIdx * 3 + v];  // Vertex index
-    //             VertexAttributes vertex;
-    //
-    //             vertex.position[0] = attrib.vertices[3 * idx.vertex_index + 0];
-    //             vertex.position[2] = attrib.vertices[3 * idx.vertex_index + 1];
-    //             vertex.position[1] = attrib.vertices[3 * idx.vertex_index + 2];
-    //             /**/
-    //             // calculating Tangent and biTangent
-    //
-    //             /**/
-    //             min.x = std::min(min.x, vertex.position.x);
-    //             min.y = std::min(min.y, vertex.position.y);
-    //             min.z = std::min(min.z, vertex.position.z);
-    //             /**/
-    //             max.x = std::max(max.x, vertex.position.x);
-    //             max.y = std::max(max.y, vertex.position.y);
-    //             max.z = std::max(max.z, vertex.position.z);
-    //             /**/
-    //             vertex.normal = {attrib.normals[3 * idx.normal_index + 0], -attrib.normals[3 * idx.normal_index + 2],
-    //                              attrib.normals[3 * idx.normal_index + 1]};
-    //
-    //             glm::vec3 materialColor = {1.0f, 1.0f, 1.0f};  // Default color (white)
-    //             if (materialId >= 0 && materialId < (int)materials.size()) {
-    //                 materialColor = {materials[materialId].diffuse[0], materials[materialId].diffuse[1],
-    //                                  materials[materialId].diffuse[2]};
-    //                 /*mObjectInfo.useTexture = 1;*/
-    //             }
-    //             vertex.color = materialColor;
-    //
-    //             if (attrib.texcoords.empty()) {
-    //                 vertex.uv = {0.0, 0.0};
-    //             } else {
-    //                 vertex.uv = {attrib.texcoords[2 * idx.texcoord_index + 0],
-    //                              1 - attrib.texcoords[2 * idx.texcoord_index + 1]};
-    //             }
-    //             mMeshes[materialId].mVertexData.push_back(vertex);
-    //         }
-    //     }
-    // }
-    //
-    // for (auto& pair : mMeshes) {  // Iterate through each mesh (by materialId)
-    //     int materialId = pair.first;
-    //     /*Mesh& currentMesh = pair.second;  // Get a reference to the actual Mesh object*/
-    //
-    //     for (size_t i = 0; i < mMeshes[materialId].mVertexData.size(); i += 3) {
-    //         for (size_t k = 0; k < 3; k++) {
-    //             VertexAttributes* v = &mMeshes[materialId].mVertexData[i];
-    //             auto tbn = computeTBN(v, v[k].normal);
-    //             v[k].tangent = tbn[0];
-    //             v[k].biTangent = tbn[1];
-    //             v[k].normal = tbn[2];
-    //         }
-    //     }
-    // }
-    //
-    // for (const auto& material : materials) {
-    //     size_t material_id = &material - &materials[0];
-    //     if (material_id > mMeshes.size() - 1) {
-    //         break;
-    //     }
-    //     auto& mesh = mMeshes[material_id];
-    //     if (!material.diffuse_texname.empty()) {
-    //         mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, true);
-    //         std::string texture_path = RESOURCE_DIR;
-    //         texture_path += "/";
-    //         texture_path += material.diffuse_texname;
-    //         mesh.mTexture = new Texture{render_resource.device, texture_path};
-    //         if (mesh.mTexture->createView() == nullptr) {
-    //             std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName,
-    //             texture_path);
-    //         }
-    //         mesh.mTexture->uploadToGPU(render_resource.queue);
-    //         mesh.isTransparent = mesh.mTexture->isTransparent();
-    //     }
-    //
-    //     // Load and upload specular texture
-    //     if (!materials[material_id].specular_texname.empty()) {
-    //         mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, true);
-    //         std::string texture_path = RESOURCE_DIR;
-    //         texture_path += "/";
-    //         texture_path += materials[material_id].specular_texname;
-    //         mesh.mSpecularTexture = new Texture{render_resource.device, texture_path};
-    //         if (mesh.mSpecularTexture->createView() == nullptr) {
-    //             std::cout << std::format("Failed to create Specular Texture view for {}\n", mName);
-    //         }
-    //         mesh.mSpecularTexture->uploadToGPU(render_resource.queue);
-    //     }
-    //
-    //     // Load and upload normal texture
-    //     if (!materials[material_id].bump_texname.empty()) {
-    //         mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, true);
-    //         /*if (!materials[0].normal_texname.empty()) {*/
-    //         std::string texture_path = RESOURCE_DIR;
-    //         texture_path += "/";
-    //         texture_path += materials[material_id].bump_texname;
-    //         mesh.mNormalMapTexture = new Texture{render_resource.device, texture_path};
-    //         if (mesh.mNormalMapTexture->createView() == nullptr) {
-    //             std::cout << std::format("Failed to create normal Texture view for {} at {}\n", mName, texture_path);
-    //         }
-    //         mesh.mNormalMapTexture->uploadToGPU(render_resource.queue);
-    //         /*}*/
-    //     }
-    // }
-    //
-    // offset_buffer.setSize(sizeof(glm::vec4) * 10)
-    //     .setLabel("offset buffer")
-    //     .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-    //     .setMappedAtCraetion()
-    //     .create(app);
-    //
-    // std::array<glm::vec4, 10> dddata = {};
-    // for (size_t i = 0; i < 10; i++) {
-    //     dddata[i] = glm::vec4{0.0, i * 2, 0.0, 0.0};
-    // }
-    // wgpuQueueWriteBuffer(app->getRendererResource().queue, offset_buffer.getBuffer(), 0, &dddata,
-    //                      sizeof(glm::vec4) * 10);
-    // /*(void)layout;*/
-    // return *this;
 }
 
-void BaseModel::setInstanced(Instance* instance) {
-    /*this->instances = instances;*/
-    this->instance = instance;
-    /*return *this;*/
-}
+void BaseModel::setInstanced(Instance* instance) { this->instance = instance; }
+
 void BaseModel::addChildren(BaseModel* child) {
     auto new_local_transform = glm::inverse(getGlobalTransform()) * child->mTransform.mTransformMatrix;
 
