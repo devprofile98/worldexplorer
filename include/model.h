@@ -218,6 +218,9 @@ class Model : public BaseModel {
                                          // Buffer mIndirectDrawArgsBuffer2;  // copy dst, map read
                                          //
         std::unordered_map<std::string, aiNode*> mNodeCache;
+        std::unordered_map<std::string, glm::mat4> mOffsetMatrixCache;
+        std::vector<glm::mat4> mFinalTransformations;
+        std::map<std::string, size_t> boneToIdx;
         void ExtractBonePositions();
         void buildNodeCache(aiNode* node);
         std::vector<glm::vec3> mBonePosition;

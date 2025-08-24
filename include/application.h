@@ -125,8 +125,9 @@ class Application {
         Editor mEditor;
         BaseModel* mSelectedModel = nullptr;
         // Buffer indirectDrawArgsBuffer;  // copy dst, map read
-        Buffer mVisibleIndexBuffer;   // copy src, storage
-        Buffer mVisibleIndexBuffer2;  // copy src, storage
+        Buffer mVisibleIndexBuffer;             // copy src, storage
+        Buffer mVisibleIndexBuffer2;            // copy src, storage
+        Buffer mDefaultBoneFinalTransformData;  // copy src, storage
         int ccounter = 0;
         std::vector<Line*> mLines;
 

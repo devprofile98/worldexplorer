@@ -80,8 +80,8 @@ void loadSphereAtHumanBones(Application* app, Model* human, Model* sphere) {
     scales.reserve(20);
 
     for (auto& m : human->mBonePosition) {
-        positions.emplace_back(glm::vec3(human->mTransform.mTransformMatrix * glm::vec4{m, 0.0}));
-        // positions.emplace_back(glm::vec3{1.0});
+        // positions.emplace_back(glm::vec3(human->mTransform.mTransformMatrix * glm::vec4{m, 0.0}));
+        positions.emplace_back(m);
         degrees.emplace_back(rotrot);
         scales.emplace_back(glm::vec3{0.2f});
     }
@@ -320,6 +320,8 @@ void Application::initializePipeline() {
     mBindingGroup.addBuffer(13,  //
                             BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                             mInstanceManager->mBufferSize);
+    mBindingGroup.addBuffer(14,  //
+                            BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4));
 
     mDefaultTextureBindingGroup.addTexture(0,  //
                                            BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
@@ -579,6 +581,26 @@ void Application::initializePipeline() {
     mBindingData[13].binding = 13;
     mBindingData[13].offset = 0;
     mBindingData[13].size = mInstanceManager->mBufferSize;
+
+    mDefaultBoneFinalTransformData.setLabel("default bone final transform")
+        .setSize(100 * sizeof(glm::mat4))
+        .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
+        .setMappedAtCraetion(false)
+        .create(this);
+
+    static std::vector<glm::mat4> bones;
+    for (int i = 0; i < 100; i++) {
+        bones.emplace_back(glm::mat4{1.0});
+    }
+    wgpuQueueWriteBuffer(getRendererResource().queue, mDefaultBoneFinalTransformData.getBuffer(), 0, bones.data(),
+                         sizeof(glm::mat4) * bones.size());
+
+    mBindingData[14] = {};
+    mBindingData[14].nextInChain = nullptr;
+    mBindingData[14].buffer = mDefaultBoneFinalTransformData.getBuffer();
+    mBindingData[14].binding = 14;
+    mBindingData[14].offset = 0;
+    mBindingData[14].size = 100 * sizeof(glm::mat4);
 
     //
     //
@@ -1424,7 +1446,7 @@ WGPULimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     // Binding groups
     required_limits.maxBindGroups = 6;
     required_limits.maxUniformBuffersPerShaderStage = 6;
-    required_limits.maxUniformBufferBindingSize = 2048 * 2;  // 16 * 4 * sizeof(float);
+    required_limits.maxUniformBufferBindingSize = 2048 * 4;  // 16 * 4 * sizeof(float);
 
     required_limits.maxTextureDimension1D = 4096;
     required_limits.maxTextureDimension2D = 4096;
@@ -1656,17 +1678,16 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
     auto human = iter.find("human");
     auto sphere = iter.find("sphere");
     if (human != iter.end() && sphere != iter.end()) {
-        static float value = 0.0;
         human->second->mAnimationSecond = std::fmod(time, 0.8333) * 1000.0f;
         human->second->ExtractBonePositions();
-        loadSphereAtHumanBones(this, human->second, sphere->second);
-        if (ImGui::DragFloat("Animation Timestamp", &rotrot)) {
-            // if (human->second->mAnimationSecond > 832) {
-            // human->second->mAnimationSecond = 0;
-            // }
-            // std::cout << "value is " << value << std::endl;
-            // human->second->mAnimationSecond += 5.0;
+        // loadSphereAtHumanBones(this, human->second, sphere->second);
+
+        for (auto& trans : human->second->mFinalTransformations) {
+            trans = trans * human->second->mTransform.mTransformMatrix;
         }
+
+        wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 * sizeof(glm::mat4),
+                             human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
     }
     /*color2 = color;*/
     /*color2.x += color.z;*/

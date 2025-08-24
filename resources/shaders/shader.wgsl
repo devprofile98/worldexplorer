@@ -29,19 +29,37 @@ fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
     return default_color;
 }
 
+    //@location(6) boneIds: vec4i,
+    //@location(7) boneWeights: vec4f,
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
     let off_id: u32 = objectTranformation.offsetId * 100000;
     var transform: mat4x4f;
     if instance_index != 0 {
-	let original_instance_idx = visible_instances_indices[off_id + instance_index];
+        let original_instance_idx = visible_instances_indices[off_id + instance_index];
         transform = offsetInstance[original_instance_idx + off_id].transformation;
     } else {
         transform = objectTranformation.transformations;
     }
 
-    let world_position = transform * vec4f(in.position, 1.0);
+    //let skinned_position = bonesFinalTransform[in.boneIds[0]] * vec4f(in.position, 1.0) * 1.0; // + bonesFinalTransform[in.boneIds[1]] * vec4f(in.position, 1.0) * in.boneWeights[1] + bonesFinalTransform[in.boneIds[2]] * vec4f(in.position, 1.0) * in.boneWeights[2] + bonesFinalTransform[in.boneIds[3]] * vec4f(in.position, 1.0) * in.boneWeights[3];
+    //let world_position = transform * skinned_position;
+
+    var bone_matrix = mat4x4<f32>(
+        vec4<f32>(0.0, 0.0, 0.0, 0.0), // Column 0
+        vec4<f32>(0.0, 0.0, 0.0, 0.0), // Column 1
+        vec4<f32>(0.0, 0.0, 0.0, 0.0), // Column 2
+        vec4<f32>(0.0, 0.0, 0.0, 0.0)  // Column 3
+    );
+
+    bone_matrix += bonesFinalTransform[in.boneIds.x] * normalize(in.boneWeights).x;
+    bone_matrix += bonesFinalTransform[in.boneIds.y] * normalize(in.boneWeights).y;
+    bone_matrix += bonesFinalTransform[in.boneIds.z] * normalize(in.boneWeights).z;
+    bone_matrix += bonesFinalTransform[in.boneIds.w] * normalize(in.boneWeights).w;
+
+    let world_position = transform * bone_matrix * vec4f(in.position, 1.0);
+
     out.normal = (transform * vec4f(in.normal, 0.0)).xyz;
 
     out.viewSpacePos = uMyUniform[myuniformindex].viewMatrix * world_position;

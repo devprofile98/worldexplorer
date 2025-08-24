@@ -261,6 +261,7 @@ glm::mat4 GetLocalTransformAtTime(const aiNode* node, double time, const std::ma
         aiNodeAnim* channel = it->second;
 
         glm::vec3 pos = calculateInterpolatedPosition(time, channel);
+        // pos = {pos.x, pos.y, -pos.z};
         glm::quat rotation = CalcInterpolatedRotation(time, channel);
         glm::vec3 scale = calculateInterpolatedScale(time, channel);
 
@@ -278,6 +279,7 @@ void ComputeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, 
                              std::map<std::string, glm::mat4>& outGlobalMap, size_t index) {
     glm::mat4 local = GetLocalTransformAtTime(node, time, channelMap, index);
     glm::mat4 global = parentGlobal * local;
+    // auto global2 = glm::rotate(global, glm::radians(-180.0f), glm::vec3{0.0, 1.0, 0.0});
     outGlobalMap[node->mName.C_Str()] = global;
 
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
@@ -286,17 +288,6 @@ void ComputeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, 
 }
 
 void Model::ExtractBonePositions() {
-    if (getName() == "human") {
-        // const aiAnimation* anim = mScene->mAnimations[0];
-
-        // std::cout << "pointer at ------------ : " << mScene << " " << mAnimationSecond << " "
-        //           << 833.33 / anim->mTicksPerSecond << std::endl;
-        // const aiNodeAnim* channel = anim->mChannels[0];
-        // for (size_t i = 0; i < channel->mNumPositionKeys; i++) {
-        // std::cout << channel->mPositionKeys[i].mTime << ", ";
-        // }
-        // std::cout << std::endl;
-    }
     mBonePosition.clear();
 
     std::unordered_set<std::string> uniqueBones;  // Avoid duplicate spheres if bones are shared
@@ -310,7 +301,9 @@ void Model::ExtractBonePositions() {
 
             if (uniqueBones.find(boneName) != uniqueBones.end()) continue;
             uniqueBones.insert(boneName);
-            // mUniqueBoneNames.push_back(boneName);
+
+            if (mOffsetMatrixCache.find(boneName) != mOffsetMatrixCache.end()) continue;
+            mOffsetMatrixCache[boneName] = AiToGlm(bone->mOffsetMatrix);
         }
     }
 
@@ -323,12 +316,8 @@ void Model::ExtractBonePositions() {
     }
 
     if (mScene->mAnimations) {
-        // Animated globals
-        // auto num_channel = mScene->mAnimations[0]->mChannels[0]->mNumPositionKeys;
-        // std::cout << " number of channels are  " << num_channel << std::endl;
-
         auto trans = glm::mat4{1.0};
-        auto trans2 = glm::rotate(trans, glm::radians(180.0f), glm::vec3{0.0, 1.0, 0.0});
+        auto trans2 = glm::rotate(trans, glm::radians(00.0f), glm::vec3{0.0, 1.0, 0.0});
         ComputeGlobalTransforms(mScene->mRootNode, trans2, mAnimationSecond, channelMap, globalMap,
                                 mAnimationPoseCounter);
     } else {
@@ -344,6 +333,13 @@ void Model::ExtractBonePositions() {
             mBonePosition.push_back(position);
         }
         return;
+    }
+
+    for (const std::string& boneName : uniqueBones) {
+        if (boneToIdx.find(boneName) != boneToIdx.end()) {
+            // std::cout << boneName << " " << boneToIdx[boneName] << std::endl;
+            mFinalTransformations[boneToIdx[boneName]] = globalMap[boneName] * mOffsetMatrixCache[boneName];
+        }
     }
 
     // Extract positions from animated globals
@@ -369,12 +365,9 @@ void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
 }
 
 std::map<size_t, std::vector<std::pair<size_t, float>>> bonemap;
-std::map<std::string, size_t> boneToIdx;
 size_t boneIdx = 0;
 
 void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
-    (void)scene;
-
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
     size_t index_offset = mMeshes[mesh->mMaterialIndex].mVertexData.size();
@@ -387,9 +380,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
             std::cout << "------- " << bone->mWeights[bone->mNumWeights - 1].mVertexId << ": "
                       << bone->mWeights[bone->mNumWeights - 1].mWeight << " " << mesh->mNumVertices << std::endl;
             for (size_t j = 0; j < bone->mNumWeights; ++j) {
-                // std::cout << "------- " << bone->mWeights[j].mVertexId << ": " << bone->mWeights[j].mWeight << " "
-                //           << mesh->mNumVertices << std::endl;
-
                 if (boneToIdx.count(bone->mName.C_Str()) == 0) {
                     boneToIdx[bone->mName.C_Str()] = boneIdx++;
                 }
@@ -420,7 +410,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
 
         vector.x = mesh->mVertices[i].x;
         vector.y = mesh->mVertices[i].z;
-        vector.z = mesh->mVertices[i].y;
+        vector.z = -mesh->mVertices[i].y;
 
         size_t bid_cnt = 0;
         for (const auto& [bid, bwg] : bonemap[i]) {
@@ -571,6 +561,8 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         // printAnimationInfos(getName(), scene);
     }
     mNodeCache.clear();
+    mFinalTransformations.reserve(100);
+    mFinalTransformations.resize(100);
     buildNodeCache(mScene->mRootNode);
     ExtractBonePositions();
     processNode(app, scene->mRootNode, scene);
