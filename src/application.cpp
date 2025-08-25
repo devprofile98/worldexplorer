@@ -71,61 +71,57 @@ double lastClickY = 0.0;
 
 float rotrot = 0.f;
 
-void loadSphereAtHumanBones(Application* app, Model* human, Model* sphere) {
-    std::vector<glm::vec3> positions;
-    std::vector<float> degrees;
-    std::vector<glm::vec3> scales;
-    positions.reserve(20);
-    degrees.reserve(20);
-    scales.reserve(20);
-
-    for (auto& m : human->mBonePosition) {
-        // positions.emplace_back(glm::vec3(human->mTransform.mTransformMatrix * glm::vec4{m, 0.0}));
-        positions.emplace_back(m);
-        degrees.emplace_back(rotrot);
-        scales.emplace_back(glm::vec3{0.2f});
-    }
-
-    sphere->mTransform.moveTo(positions[0]);
-
-    auto* ins = new Instance{positions, glm::vec3{1.0, 0.0, 0.0},     degrees,
-                             scales,    glm::vec4{sphere->min, 1.0f}, glm::vec4{sphere->max, 1.0f}};
-    // std::cout << ins->mInstanceBuffer.size() << " --------------------Barrier reached -----------------\n";
-
-    // ins->mInstanceBuffer.clear();
-    // for (auto& m : human->mBonePosition) {
-    //     std::cout << human->mBonePosition.size() << std::endl;
-    // ins->mInstanceBuffer.push_back({m, m * glm::vec4{sphere->min, 1.0f}, m * glm::vec4{sphere->max, 1.0f}});
-    // }
-    wgpuQueueWriteBuffer(app->getRendererResource().queue, app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
-                         ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
-
-    sphere->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + sphere->getName()).c_str())
-        .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
-                  WGPUBufferUsage_CopyDst)
-        .setSize(sizeof(DrawIndexedIndirectArgs))
-        .setMappedAtCraetion()
-        .create(app);
-
-    auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
-    wgpuQueueWriteBuffer(app->getRendererResource().queue, sphere->mIndirectDrawArgsBuffer.getBuffer(), 0, &indirect,
-                         sizeof(DrawIndexedIndirectArgs));
-
-    for (auto& [mat_id, mesh] : sphere->mMeshes) {
-        mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + sphere->getName()).c_str())
-            .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
-            .setSize(sizeof(DrawIndexedIndirectArgs))
-            .setMappedAtCraetion()
-            .create(app);
-
-        auto indirect = DrawIndexedIndirectArgs{static_cast<uint32_t>(mesh.mIndexData.size()), 0, 0, 0, 0};
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0, &indirect,
-                             sizeof(DrawIndexedIndirectArgs));
-    }
-
-    sphere->mTransform.mObjectInfo.instanceOffsetId = 0;
-    sphere->setInstanced(ins);
-}
+// void loadSphereAtHumanBones(Application* app, Model* human, Model* sphere) {
+//     std::vector<glm::vec3> positions;
+//     std::vector<float> degrees;
+//     std::vector<glm::vec3> scales;
+//     positions.reserve(20);
+//     degrees.reserve(20);
+//     scales.reserve(20);
+//
+//     for (auto& m : human->mBonePosition) {
+//         // positions.emplace_back(glm::vec3(human->mTransform.mTransformMatrix * glm::vec4{m, 0.0}));
+//         positions.emplace_back(m);
+//         degrees.emplace_back(rotrot);
+//         scales.emplace_back(glm::vec3{0.2f});
+//     }
+//
+//     sphere->mTransform.moveTo(positions[0]);
+//
+//     auto* ins = new Instance{positions, glm::vec3{1.0, 0.0, 0.0},     degrees,
+//                              scales,    glm::vec4{sphere->min, 1.0f}, glm::vec4{sphere->max, 1.0f}};
+//
+//     wgpuQueueWriteBuffer(app->getRendererResource().queue, app->mInstanceManager->getInstancingBuffer().getBuffer(),
+//     0,
+//                          ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
+//
+//     sphere->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + sphere->getName()).c_str())
+//         .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+//                   WGPUBufferUsage_CopyDst)
+//         .setSize(sizeof(DrawIndexedIndirectArgs))
+//         .setMappedAtCraetion()
+//         .create(app);
+//
+//     auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
+//     wgpuQueueWriteBuffer(app->getRendererResource().queue, sphere->mIndirectDrawArgsBuffer.getBuffer(), 0, &indirect,
+//                          sizeof(DrawIndexedIndirectArgs));
+//
+//     for (auto& [mat_id, mesh] : sphere->mMeshes) {
+//         mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + sphere->getName()).c_str())
+//             .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
+//             .setSize(sizeof(DrawIndexedIndirectArgs))
+//             .setMappedAtCraetion()
+//             .create(app);
+//
+//         auto indirect = DrawIndexedIndirectArgs{static_cast<uint32_t>(mesh.mIndexData.size()), 0, 0, 0, 0};
+//         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0,
+//         &indirect,
+//                              sizeof(DrawIndexedIndirectArgs));
+//     }
+//
+//     sphere->mTransform.mObjectInfo.instanceOffsetId = 0;
+//     sphere->setInstanced(ins);
+// }
 
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
     const auto inv = glm::inverse(proj * view);
@@ -1110,7 +1106,7 @@ void Application::mainLoop() {
         if (human != iter.end() && sphere != iter.end()) {
             if (reparenting) {
                 reparenting = false;
-                loadSphereAtHumanBones(this, human->second, sphere->second);
+                // loadSphereAtHumanBones(this, human->second, sphere->second);
             }
         }
     }

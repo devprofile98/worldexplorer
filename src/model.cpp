@@ -253,8 +253,8 @@ glm::mat4 AiToGlm(const aiMatrix4x4& aiMat) {
                      aiMat.c3, aiMat.d3, aiMat.a4, aiMat.b4, aiMat.c4, aiMat.d4);
 }
 
-glm::mat4 GetLocalTransformAtTime(const aiNode* node, double time, const std::map<std::string, aiNodeAnim*>& channelMap,
-                                  size_t index) {
+glm::mat4 GetLocalTransformAtTime(const aiNode* node, double time,
+                                  const std::map<std::string, aiNodeAnim*>& channelMap) {
     auto it = channelMap.find(node->mName.C_Str());
     if (it != channelMap.end()) {
         // find a pose and use it
@@ -276,82 +276,28 @@ glm::mat4 GetLocalTransformAtTime(const aiNode* node, double time, const std::ma
 
 void ComputeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, double time,
                              const std::map<std::string, aiNodeAnim*>& channelMap,
-                             std::map<std::string, glm::mat4>& outGlobalMap, size_t index) {
-    glm::mat4 local = GetLocalTransformAtTime(node, time, channelMap, index);
+                             std::map<std::string, glm::mat4>& outGlobalMap) {
+    glm::mat4 local = GetLocalTransformAtTime(node, time, channelMap);
     glm::mat4 global = parentGlobal * local;
-    // auto global2 = glm::rotate(global, glm::radians(-180.0f), glm::vec3{0.0, 1.0, 0.0});
     outGlobalMap[node->mName.C_Str()] = global;
 
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-        ComputeGlobalTransforms(node->mChildren[i], global, time, channelMap, outGlobalMap, index);
+        ComputeGlobalTransforms(node->mChildren[i], global, time, channelMap, outGlobalMap);
     }
 }
 
 void Model::ExtractBonePositions() {
-    mBonePosition.clear();
-
-    std::unordered_set<std::string> uniqueBones;  // Avoid duplicate spheres if bones are shared
-    std::map<std::string, aiNodeAnim*> channelMap;
-    //
-    for (unsigned int m = 0; m < mScene->mNumMeshes; ++m) {
-        aiMesh* mesh = mScene->mMeshes[m];
-        for (unsigned int b = 0; b < mesh->mNumBones; ++b) {
-            aiBone* bone = mesh->mBones[b];
-            std::string boneName = bone->mName.C_Str();
-
-            if (uniqueBones.find(boneName) != uniqueBones.end()) continue;
-            uniqueBones.insert(boneName);
-
-            if (mOffsetMatrixCache.find(boneName) != mOffsetMatrixCache.end()) continue;
-            mOffsetMatrixCache[boneName] = AiToGlm(bone->mOffsetMatrix);
-        }
-    }
-
-    if (mScene->HasAnimations()) {
-        aiAnimation* anim = mScene->mAnimations[0];
-        for (size_t i = 0; i < anim->mNumChannels; ++i) {
-            aiNodeAnim* channel = anim->mChannels[i];
-            channelMap[channel->mNodeName.C_Str()] = channel;
-        }
-    }
-
     if (mScene->mAnimations) {
-        auto trans = glm::mat4{1.0};
-        auto trans2 = glm::rotate(trans, glm::radians(00.0f), glm::vec3{0.0, 1.0, 0.0});
-        ComputeGlobalTransforms(mScene->mRootNode, trans2, mAnimationSecond, channelMap, globalMap,
-                                mAnimationPoseCounter);
+        ComputeGlobalTransforms(mScene->mRootNode, glm::mat4{1.0}, mAnimationSecond, channelMap, globalMap);
     } else {
-        // Bind-pose fallback
-        for (const std::string& boneName : uniqueBones) {
-            auto it = mNodeCache.find(boneName);
-            if (it == mNodeCache.end()) continue;
-            aiNode* node = it->second;
-            aiMatrix4x4 globalTransform = GetGlobalTransform(node);
-            glm::mat4 glmGlobal = AiToGlm(globalTransform);
-            // mBonePosition.push_back(glmGlobal);
-            glm::vec3 position = glm::vec3(glmGlobal[3]);
-            mBonePosition.push_back(position);
-        }
         return;
     }
 
     for (const std::string& boneName : uniqueBones) {
         if (boneToIdx.find(boneName) != boneToIdx.end()) {
-            // std::cout << boneName << " " << boneToIdx[boneName] << std::endl;
             mFinalTransformations[boneToIdx[boneName]] = globalMap[boneName] * mOffsetMatrixCache[boneName];
         }
     }
-
-    // Extract positions from animated globals
-    for (const std::string& boneName : uniqueBones) {
-        auto it = globalMap.find(boneName);
-        if (it == globalMap.end()) continue;
-        glm::mat4 globalTransform = it->second;
-        // glm::mat4 glmGlobal = AiToGlm(globalTransform);
-        glm::vec3 position = glm::vec3(globalTransform[3]);
-        // mBonePosition.push_back(globalTransform);
-        mBonePosition.push_back(position);
-    }  // Load one of the keyframe positions
 }
 
 void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
@@ -414,7 +360,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
 
         size_t bid_cnt = 0;
         for (const auto& [bid, bwg] : bonemap[i]) {
-            std::cout << "bid is " << bid << " and bwg is " << bwg << std::endl;
             vertex.boneIds[bid_cnt] = bid;
             vertex.weights[bid_cnt] = bwg;
             ++bid_cnt;
@@ -557,13 +502,35 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         std::cout << std::format("Assimp - Succesfully loaded model {}\n", (const char*)path.c_str());
     }
     mScene = scene;
-    if (getName() == "human") {
-        // printAnimationInfos(getName(), scene);
-    }
+
     mNodeCache.clear();
     mFinalTransformations.reserve(100);
     mFinalTransformations.resize(100);
     buildNodeCache(mScene->mRootNode);
+
+    for (unsigned int m = 0; m < mScene->mNumMeshes; ++m) {
+        aiMesh* mesh = mScene->mMeshes[m];
+        for (unsigned int b = 0; b < mesh->mNumBones; ++b) {
+            aiBone* bone = mesh->mBones[b];
+            std::string boneName = bone->mName.C_Str();
+
+            if (uniqueBones.find(boneName) != uniqueBones.end()) continue;
+            uniqueBones.insert(boneName);
+
+            if (mOffsetMatrixCache.find(boneName) != mOffsetMatrixCache.end()) continue;
+            mOffsetMatrixCache[boneName] = AiToGlm(bone->mOffsetMatrix);
+        }
+    }
+
+    /* Create a mapping from [name] -> [channel data]*/
+    if (mScene->HasAnimations()) {
+        aiAnimation* anim = mScene->mAnimations[0];
+        for (size_t i = 0; i < anim->mNumChannels; ++i) {
+            aiNodeAnim* channel = anim->mChannels[i];
+            channelMap[channel->mNodeName.C_Str()] = channel;
+        }
+    }
+
     ExtractBonePositions();
     processNode(app, scene->mRootNode, scene);
 

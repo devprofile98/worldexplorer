@@ -227,7 +227,9 @@ class Model : public BaseModel {
         const aiScene* mScene;
         Assimp::Importer mImport;
         std::map<std::string, glm::mat4> globalMap;
-        size_t mAnimationPoseCounter = 0;
+        std::unordered_set<std::string> uniqueBones;  // Avoid duplicate spheres if bones are shared
+        std::map<std::string, aiNodeAnim*> channelMap;
+        // size_t mAnimationPoseCounter = 0;
         double mAnimationSecond = 0.0;
 
 #ifdef DEVELOPMENT_BUILD
