@@ -231,6 +231,7 @@ class Model : public BaseModel {
         std::map<std::string, aiNodeAnim*> channelMap;
         // size_t mAnimationPoseCounter = 0;
         double mAnimationSecond = 0.0;
+        double mAnimationDuration = 0.0;
 
 #ifdef DEVELOPMENT_BUILD
         // Common User-Interface to interact with Object in the Development state

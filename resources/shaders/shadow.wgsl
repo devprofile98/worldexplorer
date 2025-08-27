@@ -11,7 +11,9 @@ struct Vertex {
     @location(3) tangent: vec3f,
     @location(4) biTangent: vec3f,
     @location(5) uv: vec2f,
-    @builtin(instance_index) instance_index: u32
+    @builtin(instance_index) instance_index: u32,
+    @location(6) boneIds: vec4i,
+    @location(7) boneWeights: vec4f,
 };
 
 struct VSOutput {
@@ -42,6 +44,7 @@ struct ObjectInfo {
 @group(0) @binding(1) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(2) var<uniform> objectTranformation: ObjectInfo;
 @group(0) @binding(3) var textureSampler: sampler;
+@group(0) @binding(4) var<uniform> bonesFinalTransform: array<mat4x4f, 100>;
 
 @group(1) @binding(0) var diffuseMap: texture_2d<f32>;
 @group(1) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
@@ -52,15 +55,41 @@ struct ObjectInfo {
 @vertex
 fn vs_main(vertex: Vertex) -> VSOutput {
 
-    var world_position: vec4f;
+    //var world_position: vec4f;
     let off_id: u32 = objectTranformation.offsetId * 100000;
-    if vertex.instance_index == 0 {
-        world_position = objectTranformation.transformations * vec4f(vertex.position, 1.0);
+    //if vertex.instance_index == 0 {
+    //    world_position = objectTranformation.transformations * vec4f(vertex.position, 1.0);
+    //} else {
+    //    let original_instance_idx = visible_instances_indices[off_id + vertex.instance_index];
+    //    // transform = offsetInstance[original_instance_idx + off_id].transformation;
+    //    world_position = offsetInstance[original_instance_idx + off_id].transformation * vec4f(vertex.position, 1.0);
+    //}
+
+
+
+    var transform: mat4x4f;
+    if vertex.instance_index != 0 {
+        let original_instance_idx = visible_instances_indices[off_id + vertex.instance_index];
+        transform = offsetInstance[original_instance_idx + off_id].transformation;
     } else {
-	    let original_instance_idx = visible_instances_indices[off_id + vertex.instance_index];
-        // transform = offsetInstance[original_instance_idx + off_id].transformation;
-        world_position = offsetInstance[original_instance_idx + off_id].transformation * vec4f(vertex.position, 1.0);
+        transform = objectTranformation.transformations;
     }
+
+
+    var bone_matrix = mat4x4<f32>(
+        vec4<f32>(0.0, 0.0, 0.0, 0.0), // Column 0
+        vec4<f32>(0.0, 0.0, 0.0, 0.0), // Column 1
+        vec4<f32>(0.0, 0.0, 0.0, 0.0), // Column 2
+        vec4<f32>(0.0, 0.0, 0.0, 0.0)  // Column 3
+    );
+
+    bone_matrix += bonesFinalTransform[vertex.boneIds.x] * normalize(vertex.boneWeights).x;
+    bone_matrix += bonesFinalTransform[vertex.boneIds.y] * normalize(vertex.boneWeights).y;
+    bone_matrix += bonesFinalTransform[vertex.boneIds.z] * normalize(vertex.boneWeights).z;
+    bone_matrix += bonesFinalTransform[vertex.boneIds.w] * normalize(vertex.boneWeights).w;
+
+    let world_position = transform * bone_matrix * vec4f(vertex.position, 1.0);
+
     var vsOut: VSOutput;
     vsOut.position = scene.projection * scene.view * world_position;
     vsOut.uv = vertex.uv;
@@ -73,7 +102,7 @@ fn fs_main(in: VSOutput) -> @location(0) vec4f {
     var pos = in.position;
     let transparency = textureSample(diffuseMap, textureSampler, in.uv).a;
     if objectTranformation.useTexture == 1 && transparency == 0.0 {
-       discard; 
+       discard;
     }
     return pos;
 }

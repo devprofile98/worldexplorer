@@ -156,7 +156,7 @@ inline glm::quat assimpToGlmQuat(aiQuaternion quat) {
 size_t findPositionKey(double time, const aiNodeAnim* channel) {
     for (size_t i = 0; i < channel->mNumPositionKeys; i++) {
         if (time < channel->mPositionKeys[i].mTime) {
-            return i - 1;
+            return i;
         }
     }
     return channel->mNumPositionKeys - 1;
@@ -165,7 +165,7 @@ size_t findPositionKey(double time, const aiNodeAnim* channel) {
 size_t findRotationKey(double time, const aiNodeAnim* channel) {
     for (size_t i = 0; i < channel->mNumRotationKeys; ++i) {
         if (time < channel->mRotationKeys[i].mTime) {
-            return i - 1;
+            return i;
         }
     }
     return channel->mNumRotationKeys - 1;
@@ -261,7 +261,6 @@ glm::mat4 GetLocalTransformAtTime(const aiNode* node, double time,
         aiNodeAnim* channel = it->second;
 
         glm::vec3 pos = calculateInterpolatedPosition(time, channel);
-        // pos = {pos.x, pos.y, -pos.z};
         glm::quat rotation = CalcInterpolatedRotation(time, channel);
         glm::vec3 scale = calculateInterpolatedScale(time, channel);
 
@@ -525,7 +524,9 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     /* Create a mapping from [name] -> [channel data]*/
     if (mScene->HasAnimations()) {
         aiAnimation* anim = mScene->mAnimations[0];
+        mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
         for (size_t i = 0; i < anim->mNumChannels; ++i) {
+            std::cout << " ----- " << anim->mChannels[i]->mNumPositionKeys << std::endl;
             aiNodeAnim* channel = anim->mChannels[i];
             channelMap[channel->mNodeName.C_Str()] = channel;
         }

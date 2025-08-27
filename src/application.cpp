@@ -1674,7 +1674,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
     auto human = iter.find("human");
     auto sphere = iter.find("sphere");
     if (human != iter.end() && sphere != iter.end()) {
-        human->second->mAnimationSecond = std::fmod(time, 0.8333) * 1000.0f;
+        human->second->mAnimationSecond = std::fmod(time, human->second->mAnimationDuration) * 1000.0f;
         human->second->ExtractBonePositions();
         // loadSphereAtHumanBones(this, human->second, sphere->second);
 

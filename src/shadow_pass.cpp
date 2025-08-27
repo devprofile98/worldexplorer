@@ -70,6 +70,8 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
 
     mBindingGroup.addSampler(3,  //
                              BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
+    mBindingGroup.addBuffer(4,  //
+                            BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4));
 
     mTextureBindingGroup.addTexture(0,  //
                                     BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
@@ -101,6 +103,8 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
                                    .addAttribute(9 * sizeof(float), 3, WGPUVertexFormat_Float32x3)
                                    .addAttribute(12 * sizeof(float), 4, WGPUVertexFormat_Float32x3)
                                    .addAttribute(offsetof(VertexAttributes, uv), 5, WGPUVertexFormat_Float32x2)
+                                   .addAttribute(offsetof(VertexAttributes, boneIds), 6, WGPUVertexFormat_Sint32x4)
+                                   .addAttribute(offsetof(VertexAttributes, weights), 7, WGPUVertexFormat_Float32x4)
                                    .configure(sizeof(VertexAttributes), VertexStepMode::VERTEX);
 
     static WGPUFragmentState mFragmentState = {};
@@ -114,7 +118,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     (void)mFragmentState;
 
     // fill bindgroup
-    mBindingData.reserve(5);
+    mBindingData.reserve(6);
     mBindingData.resize(5);
 
     // mBindingData.push_back(entry);
@@ -142,12 +146,19 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     mBindingData[3].binding = 3;
     mBindingData[3].sampler = mApp->getDefaultSampler();
 
+    // mBindingData[4] = {};
+    // mBindingData[4].nextInChain = nullptr;
+    // mBindingData[4].buffer = mApp->mVisibleIndexBuffer.getBuffer();
+    // mBindingData[4].binding = 4;
+    // mBindingData[4].offset = 0;
+    // mBindingData[4].size = sizeof(uint32_t) * 100'000 * 5;
+
     mBindingData[4] = {};
     mBindingData[4].nextInChain = nullptr;
-    mBindingData[4].buffer = mApp->mVisibleIndexBuffer.getBuffer();
+    mBindingData[4].buffer = mApp->mDefaultBoneFinalTransformData.getBuffer();
     mBindingData[4].binding = 4;
     mBindingData[4].offset = 0;
-    mBindingData[4].size = sizeof(uint32_t) * 100'000 * 5;
+    mBindingData[4].size = 100 * sizeof(glm::mat4);
 
     mTextureBindingData[0] = {};
     mTextureBindingData[0].nextInChain = nullptr;
@@ -304,6 +315,7 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
             mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
             mBindingData[2].buffer = model->getUniformBuffer().getBuffer();
             mBindingData[3].sampler = mApp->getDefaultSampler();
+            mBindingData[4].buffer = mApp->mDefaultBoneFinalTransformData.getBuffer();
 
             auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
             wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer.getBuffer(), 0,
