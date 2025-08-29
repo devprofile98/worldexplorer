@@ -71,58 +71,6 @@ double lastClickY = 0.0;
 
 float rotrot = 0.f;
 
-// void loadSphereAtHumanBones(Application* app, Model* human, Model* sphere) {
-//     std::vector<glm::vec3> positions;
-//     std::vector<float> degrees;
-//     std::vector<glm::vec3> scales;
-//     positions.reserve(20);
-//     degrees.reserve(20);
-//     scales.reserve(20);
-//
-//     for (auto& m : human->mBonePosition) {
-//         // positions.emplace_back(glm::vec3(human->mTransform.mTransformMatrix * glm::vec4{m, 0.0}));
-//         positions.emplace_back(m);
-//         degrees.emplace_back(rotrot);
-//         scales.emplace_back(glm::vec3{0.2f});
-//     }
-//
-//     sphere->mTransform.moveTo(positions[0]);
-//
-//     auto* ins = new Instance{positions, glm::vec3{1.0, 0.0, 0.0},     degrees,
-//                              scales,    glm::vec4{sphere->min, 1.0f}, glm::vec4{sphere->max, 1.0f}};
-//
-//     wgpuQueueWriteBuffer(app->getRendererResource().queue, app->mInstanceManager->getInstancingBuffer().getBuffer(),
-//     0,
-//                          ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
-//
-//     sphere->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + sphere->getName()).c_str())
-//         .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
-//                   WGPUBufferUsage_CopyDst)
-//         .setSize(sizeof(DrawIndexedIndirectArgs))
-//         .setMappedAtCraetion()
-//         .create(app);
-//
-//     auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
-//     wgpuQueueWriteBuffer(app->getRendererResource().queue, sphere->mIndirectDrawArgsBuffer.getBuffer(), 0, &indirect,
-//                          sizeof(DrawIndexedIndirectArgs));
-//
-//     for (auto& [mat_id, mesh] : sphere->mMeshes) {
-//         mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + sphere->getName()).c_str())
-//             .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
-//             .setSize(sizeof(DrawIndexedIndirectArgs))
-//             .setMappedAtCraetion()
-//             .create(app);
-//
-//         auto indirect = DrawIndexedIndirectArgs{static_cast<uint32_t>(mesh.mIndexData.size()), 0, 0, 0, 0};
-//         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0,
-//         &indirect,
-//                              sizeof(DrawIndexedIndirectArgs));
-//     }
-//
-//     sphere->mTransform.mObjectInfo.instanceOffsetId = 0;
-//     sphere->setInstanced(ins);
-// }
-
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
     const auto inv = glm::inverse(proj * view);
 
@@ -316,9 +264,13 @@ void Application::initializePipeline() {
     mBindingGroup.addBuffer(13,  //
                             BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                             mInstanceManager->mBufferSize);
-    mBindingGroup.addBuffer(14,  //
-                            BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4));
 
+    /*    Default Skining Data Final Transformations */
+    mDefaultSkiningData.addBuffer(0,  //
+                                  BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM,
+                                  100 * sizeof(glm::mat4));
+
+    /* Default textures for the render pass, if a model doenst have textures, these will be used */
     mDefaultTextureBindingGroup.addTexture(0,  //
                                            BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                                            TextureViewDimension::VIEW_2D);
@@ -330,6 +282,9 @@ void Application::initializePipeline() {
                                            BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
                                            TextureViewDimension::VIEW_2D);
 
+    /* Default camera index buffer
+     * Each render pass could have its own camear index to use a different camera in shader
+     * */
     mDefaultCameraIndexBindgroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
                                            sizeof(uint32_t));
 
@@ -354,6 +309,9 @@ void Application::initializePipeline() {
     WGPUBindGroupLayout visible_bind_group_layout =
         mDefaultVisibleBuffer.createLayout(this, "default visible index layout");
 
+    WGPUBindGroupLayout default_bone_transformations_bind_group_layout =
+        mDefaultSkiningData.createLayout(this, "default Bone Transformation bindgroup");
+
     WGPUBindGroupLayoutEntry object_transformation = {};
     setDefault(object_transformation);
     object_transformation.binding = 0;
@@ -373,10 +331,11 @@ void Application::initializePipeline() {
     mBindGroupLayouts[3] = camera_bind_group_layout;
     mBindGroupLayouts[4] = clipplane_bind_group_layout;
     mBindGroupLayouts[5] = visible_bind_group_layout;
+    mBindGroupLayouts[6] = default_bone_transformations_bind_group_layout;
 
     mPipeline = new Pipeline{this,
                              {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
-                              mBindGroupLayouts[4], mBindGroupLayouts[5]},
+                              mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
                              "standard pipeline"};
 
     mPipeline->defaultConfiguration(this, mSurfaceFormat);
@@ -384,10 +343,11 @@ void Application::initializePipeline() {
     mPipeline->setDepthStencilState(mPipeline->getDepthStencilState());
     mPipeline->createPipeline(this);
 
-    mStenctilEnabledPipeline = new Pipeline{this,
-                                            {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2],
-                                             mBindGroupLayouts[3], mBindGroupLayouts[4], mBindGroupLayouts[5]},
-                                            "Draw outline pipe"};
+    mStenctilEnabledPipeline =
+        new Pipeline{this,
+                     {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
+                      mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
+                     "Draw outline pipe"};
     mStenctilEnabledPipeline->defaultConfiguration(this, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8)
         .createPipeline(this);
 
@@ -591,12 +551,12 @@ void Application::initializePipeline() {
     wgpuQueueWriteBuffer(getRendererResource().queue, mDefaultBoneFinalTransformData.getBuffer(), 0, bones.data(),
                          sizeof(glm::mat4) * bones.size());
 
-    mBindingData[14] = {};
-    mBindingData[14].nextInChain = nullptr;
-    mBindingData[14].buffer = mDefaultBoneFinalTransformData.getBuffer();
-    mBindingData[14].binding = 14;
-    mBindingData[14].offset = 0;
-    mBindingData[14].size = 100 * sizeof(glm::mat4);
+    mDefaultBoneTransformations[0] = {};
+    mDefaultBoneTransformations[0].nextInChain = nullptr;
+    mDefaultBoneTransformations[0].buffer = mDefaultBoneFinalTransformData.getBuffer();
+    mDefaultBoneTransformations[0].binding = 0;
+    mDefaultBoneTransformations[0].offset = 0;
+    mDefaultBoneTransformations[0].size = 100 * sizeof(glm::mat4);
 
     //
     //
@@ -605,20 +565,21 @@ void Application::initializePipeline() {
     mDefaultVisibleBGData[0].buffer = mVisibleIndexBuffer.getBuffer();
     mDefaultVisibleBGData[0].binding = 0;
     mDefaultVisibleBGData[0].offset = 0;
-    mDefaultVisibleBGData[0].size = sizeof(uint32_t) * 100000 * 5;
+    mDefaultVisibleBGData[0].size = sizeof(uint32_t) * 100'000 * 5;
 
     mDefaultVisibleBGData2[0] = {};
     mDefaultVisibleBGData2[0].nextInChain = nullptr;
     mDefaultVisibleBGData2[0].buffer = mVisibleIndexBuffer2.getBuffer();
     mDefaultVisibleBGData2[0].binding = 0;
     mDefaultVisibleBGData2[0].offset = 0;
-    mDefaultVisibleBGData2[0].size = sizeof(uint32_t) * 100000 * 5;
+    mDefaultVisibleBGData2[0].size = sizeof(uint32_t) * 100'000 * 5;
 
     mBindingGroup.create(this, mBindingData);
     mDefaultTextureBindingGroup.create(this, mDefaultTextureBindingData);
     mDefaultCameraIndexBindgroup.create(this, mDefaultCameraIndexBindingData);
     mDefaultClipPlaneBG.create(this, mDefaultClipPlaneBGData);
     mDefaultVisibleBuffer.create(this, mDefaultVisibleBGData);
+    mDefaultSkiningData.create(this, mDefaultBoneTransformations);
     // mDefaultVisibleBuffer2.create(this, mDefaultVisibleBGData2);
 
     WGPUBufferDescriptor buffer_descriptor = {};
@@ -1114,6 +1075,12 @@ void Application::mainLoop() {
     // main color psas
     {
         for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+            if (model->mScene->HasAnimations()) {
+                wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 6, model->mSkiningBindGroup, 0, nullptr);
+            } else {
+                wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 6, mDefaultSkiningData.getBindGroup(), 0,
+                                                  nullptr);
+            }
             model->draw(this, water_pass_encoder, mBindingData);
         }
     }
@@ -1162,9 +1129,18 @@ void Application::mainLoop() {
                                       mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0,
                                       nullptr);
+    // wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 6, mDefaultSkiningData.getBindGroup(), 0,
+    // nullptr);
+
     for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
         if (name == "water") {
             continue;
+        }
+        if (model->mScene->HasAnimations()) {
+            wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 6, model->mSkiningBindGroup, 0, nullptr);
+        } else {
+            wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 6, mDefaultSkiningData.getBindGroup(), 0,
+                                              nullptr);
         }
         model->draw(this, water_refraction_pass_encoder, mBindingData);
     }
@@ -1213,6 +1189,11 @@ void Application::mainLoop() {
         }
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder,
                                          (model->isSelected() ? mPipeline : mStenctilEnabledPipeline)->getPipeline());
+        if (model->mScene->HasAnimations()) {
+            wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 6, model->mSkiningBindGroup, 0, nullptr);
+        } else {
+            wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 6, mDefaultSkiningData.getBindGroup(), 0, nullptr);
+        }
         if (!model->isTransparent()) {
             model->draw(this, render_pass_encoder, mBindingData);
         }
@@ -1440,7 +1421,7 @@ WGPULimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     // required_limits.maxInterStageShaderComponents = 116;
 
     // Binding groups
-    required_limits.maxBindGroups = 6;
+    required_limits.maxBindGroups = 7;
     required_limits.maxUniformBuffersPerShaderStage = 6;
     required_limits.maxUniformBufferBindingSize = 2048 * 4;  // 16 * 4 * sizeof(float);
 
@@ -1672,41 +1653,24 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
     // if (ImGui::Button("Create", ImVec2(100, 30))) {
     auto& iter = ModelRegistry::instance().getLoadedModel(Visibility_User);
     auto human = iter.find("human");
-    auto sphere = iter.find("sphere");
-    if (human != iter.end() && sphere != iter.end()) {
+    auto sheep = iter.find("sheep");
+    // auto sphere = iter.find("sphere");
+    if (human != iter.end()) {
         human->second->mAnimationSecond = std::fmod(time, human->second->mAnimationDuration) * 1000.0f;
         human->second->ExtractBonePositions();
         // loadSphereAtHumanBones(this, human->second, sphere->second);
-
-        // auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(90.0f), glm::vec3{1.0, 0.0, 0.0});
-        // for (auto& trans : human->second->mFinalTransformations) {
-        //     trans = trans * rot;
-        // }
-
-        wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 * sizeof(glm::mat4),
-                             human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
+        // wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 *
+        // sizeof(glm::mat4),
+        //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
     }
-    /*color2 = color;*/
-    /*color2.x += color.z;*/
-    /*color2.z += color.x;*/
-    // std::vector<glm::vec2> lines = {{0, 1}, {2, 3}, {6, 7}, {4, 5}, {0, 4}, {2, 6},
-    //                                 {0, 2}, {4, 6}, {1, 5}, {1, 3}, {5, 7}, {3, 7}};
-    // for (const auto& l : lines) {
-    // Line* line = new Line{this, glm::vec3{1.0}, glm::vec3{10.0}, 0.5, glm::vec3{1.0, 1.0, 1.0}};
-    // line->setTransparent(false);
-    // // mLoadedModel.push_back(line);
-    // Line* line2 = new Line{this, glm::vec3{10.0}, glm::vec3{1.0}, 0.5, glm::vec3{1.0, 1.0, 1.0}};
-    // line2->setTransparent(false);
-    // mLines.push_back(line);
-    // mLines.push_back(line2);
-    // mLoadedModel.push_back(line2);
-    // }
-    /*should = !should;*/
-    /*loadTree(this);*/
-    /*for (auto [key, func] : ModelRegistry::instance().factories) {*/
-    /*    futures.push_back(std::async(std::launch::async, func, this));*/
-    /*}*/
-    // }
+    if (sheep != iter.end()) {
+        sheep->second->mAnimationSecond = std::fmod(time, sheep->second->mAnimationDuration) * 1000.0f;
+        sheep->second->ExtractBonePositions();
+        // loadSphereAtHumanBones(this, human->second, sphere->second);
+        // wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 *
+        // sizeof(glm::mat4),
+        //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
+    }
     if (ImGui::Button("remove frustum", ImVec2(100, 30))) {
         // for (int i = 0; i < 24; i++) {
         //     mLoadedModel.pop_back();

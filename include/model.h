@@ -214,9 +214,10 @@ class Model : public BaseModel {
         void createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData);
         // size_t getInstaceCount();
         WGPUBindGroup getObjectInfoBindGroup();
-        Buffer mIndirectDrawArgsBuffer;  // copy dst, map read
-                                         // Buffer mIndirectDrawArgsBuffer2;  // copy dst, map read
-                                         //
+
+        Buffer mIndirectDrawArgsBuffer;
+        Buffer mSkiningTransformationBuffer;
+
         std::unordered_map<std::string, aiNode*> mNodeCache;
         std::unordered_map<std::string, glm::mat4> mOffsetMatrixCache;
         std::vector<glm::mat4> mFinalTransformations;
@@ -232,6 +233,8 @@ class Model : public BaseModel {
         // size_t mAnimationPoseCounter = 0;
         double mAnimationSecond = 0.0;
         double mAnimationDuration = 0.0;
+        WGPUBindGroup mSkiningBindGroup = {};
+        WGPUBindGroupEntry mSkiningDataEntry;
 
 #ifdef DEVELOPMENT_BUILD
         // Common User-Interface to interact with Object in the Development state

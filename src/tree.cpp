@@ -12,6 +12,7 @@ struct TreeModel : public IModel {
             mModel = new Model{};
             mModel->load("tree", app, RESOURCE_DIR "/tree2.obj", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{0.725, -7.640, 1.125})
+                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.9});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
@@ -102,7 +103,8 @@ struct BoatModel : public IModel {
             mModel = new Model{};
             mModel->load("boat", app, RESOURCE_DIR "/fourareen.obj", app->getObjectBindGroupLayout())
                 .mTransform.scale(glm::vec3{0.8})
-                .rotate(glm::vec3{0.0f, 0.0f, 45.0f}, 0.0);
+                .rotate(glm::vec3{0.0f, 0.0f, 45.0f}, 0.0)
+                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0);
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->setFoliage();
@@ -142,7 +144,8 @@ struct CarModel : public IModel {
             mModel->load("car", app, RESOURCE_DIR "/jeep.obj", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{-6.883, 3.048, -1.709})
                 .scale(glm::vec3{1.0})
-                .rotate(glm::vec3{0.0, 0.0, 1.0}, 90.0f);
+                .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.0f)
+                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0);
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->useTexture(false);
@@ -163,6 +166,7 @@ struct TowerModel : public IModel {
 
             mModel->load("tower", app, RESOURCE_DIR "/tower.obj", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{-2.0, -1.0, -2.58})
+                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.5});
             mModel->uploadToGPU(app);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
@@ -181,6 +185,7 @@ struct ArrowModel : public IModel {
 
             mModel->load("arrow", app, RESOURCE_DIR "/arrow.obj", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{1.0f, 1.0f, 4.0f})
+                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.2});
             mModel->uploadToGPU(app);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
@@ -200,6 +205,7 @@ struct DeskModel : public IModel {
 
             mModel->load("desk", app, RESOURCE_DIR "/desk.obj", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{0.725, 0.333, 0.72})
+                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.3});
             mModel->uploadToGPU(app);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
@@ -416,6 +422,7 @@ struct Steampunk : public IModel {
 
             mModel->load("steampunk", app, RESOURCE_DIR "/steampunk.obj", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{-1.45, -3.239, -0.810})
+                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.002f});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
@@ -435,6 +442,7 @@ struct Motor : public IModel {
 
             mModel->load("motor", app, RESOURCE_DIR "/motor.obj", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{-2.45, -3.239, -0.810})
+                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{1.0f});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
@@ -452,11 +460,43 @@ struct SheepModel : public IModel {
         SheepModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("sheep", app, RESOURCE_DIR "/sheep/sheep.obj", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{5.125, 2.239, -2.859})
-                .scale(glm::vec3{0.5f});
+            mModel->load("sheep", app, RESOURCE_DIR "/model3.dae", app->getObjectBindGroupLayout())
+                .mTransform
+                .moveTo(glm::vec3{5.125, 2.239, -2.859})
+                // .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
+                .scale(glm::vec3{0.3f});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
+
+            mModel->mSkiningTransformationBuffer.setLabel("default skining data transform")
+                .setSize(100 * sizeof(glm::mat4))
+                .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
+                .setMappedAtCraetion(false)
+                .create(app);
+
+            static std::vector<glm::mat4> bones;
+            for (int i = 0; i < 100; i++) {
+                bones.emplace_back(glm::mat4{1.0});
+            }
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mSkiningTransformationBuffer.getBuffer(), 0,
+                                 bones.data(), sizeof(glm::mat4) * bones.size());
+
+            WGPUBindGroupEntry mSkiningDataEntry = {};
+            mSkiningDataEntry.nextInChain = nullptr;
+            mSkiningDataEntry.binding = 0;
+            mSkiningDataEntry.buffer = mModel->mSkiningTransformationBuffer.getBuffer();
+            mSkiningDataEntry.offset = 0;
+            mSkiningDataEntry.size = sizeof(glm::mat4) * 100;
+
+            WGPUBindGroupDescriptor descriptor = {};
+            descriptor.nextInChain = nullptr;
+            descriptor.entries = &mSkiningDataEntry;
+            descriptor.entryCount = 1;
+            descriptor.label = {"skining bind group", WGPU_STRLEN};
+            descriptor.layout = app->getBindGroupLayouts()[6];
+
+            mModel->mSkiningBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &descriptor);
+
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
 
@@ -514,6 +554,7 @@ struct WaterModel : public IModel {
                 .scale(glm::vec3{100.0, 100.0, 1.0});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
+
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
 
@@ -534,6 +575,36 @@ struct HumanModel : public IModel {
                 .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.);
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
+
+            mModel->mSkiningTransformationBuffer.setLabel("default skining data transform")
+                .setSize(100 * sizeof(glm::mat4))
+                .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
+                .setMappedAtCraetion(false)
+                .create(app);
+
+            static std::vector<glm::mat4> bones;
+            for (int i = 0; i < 100; i++) {
+                bones.emplace_back(glm::mat4{1.0});
+            }
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mSkiningTransformationBuffer.getBuffer(), 0,
+                                 bones.data(), sizeof(glm::mat4) * bones.size());
+
+            WGPUBindGroupEntry mSkiningDataEntry = {};
+            mSkiningDataEntry.nextInChain = nullptr;
+            mSkiningDataEntry.binding = 0;
+            mSkiningDataEntry.buffer = mModel->mSkiningTransformationBuffer.getBuffer();
+            mSkiningDataEntry.offset = 0;
+            mSkiningDataEntry.size = sizeof(glm::mat4) * 100;
+
+            WGPUBindGroupDescriptor descriptor = {};
+            descriptor.nextInChain = nullptr;
+            descriptor.entries = &mSkiningDataEntry;
+            descriptor.entryCount = 1;
+            descriptor.label = {"skining bind group", WGPU_STRLEN};
+            descriptor.layout = app->getBindGroupLayouts()[6];
+
+            mModel->mSkiningBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &descriptor);
+
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
 
@@ -545,17 +616,17 @@ struct HumanModel : public IModel {
         };
 };
 
-// USER_REGISTER_MODEL("tree", TreeModel);
+USER_REGISTER_MODEL("tree", TreeModel);
 USER_REGISTER_MODEL("boat", BoatModel);
-// USER_REGISTER_MODEL("car", CarModel);
-// USER_REGISTER_MODEL("tower", TowerModel);
-// USER_REGISTER_MODEL("desk", DeskModel);
-// USER_REGISTER_MODEL("arrow", ArrowModel);
-// USER_REGISTER_MODEL("grass", GrassModel);
-// USER_REGISTER_MODEL("steampunk", Steampunk);
-// USER_REGISTER_MODEL("sheep", SheepModel);
+USER_REGISTER_MODEL("car", CarModel);
+USER_REGISTER_MODEL("tower", TowerModel);
+USER_REGISTER_MODEL("desk", DeskModel);
+USER_REGISTER_MODEL("arrow", ArrowModel);
+USER_REGISTER_MODEL("grass", GrassModel);
+USER_REGISTER_MODEL("steampunk", Steampunk);
+USER_REGISTER_MODEL("sheep", SheepModel);
 USER_REGISTER_MODEL("water", WaterModel);
-USER_REGISTER_MODEL("sphere", SphereModel);
+// USER_REGISTER_MODEL("sphere", SphereModel);
 USER_REGISTER_MODEL("human", HumanModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
 // USER_REGISTER_MODEL("house", HouseModel);

@@ -101,4 +101,5 @@ struct OffsetData {
 @group(0) @binding(11) var<uniform> lightSpaceTrans: array<Scene, 5>;
 @group(0) @binding(12) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(13) var<storage, read> offsetInstance: array<OffsetData>;
-@group(0) @binding(14) var<uniform> bonesFinalTransform: array<mat4x4f, 100>;
+
+@group(6) @binding(0) var<uniform> bonesFinalTransform: array<mat4x4f, 100>;

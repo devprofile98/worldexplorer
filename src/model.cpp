@@ -114,14 +114,6 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
 
 void printMeshBoneData(aiMesh* mesh) {
     std::cout << "has bone " << mesh->HasBones() << " and " << mesh->mNumBones << std::endl;
-
-    for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
-        auto bone = mesh->mBones[i];
-        std::cout << bone->mName.C_Str() << std::endl;
-        // for (size_t j = 0; j < bone->mNumWeights; ++j) {
-        //     std::cout << "------- " << bone->mWeights[j].mVertexId << ": " << bone->mWeights[j].mWeight << std::endl;
-        // }
-    }
 }
 
 void printAnimationInfos(const std::string& name, const aiScene* scene) {
@@ -320,11 +312,11 @@ void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
     }
 }
 
-std::map<size_t, std::vector<std::pair<size_t, float>>> bonemap;
-size_t boneIdx = 0;
+// size_t boneIdx = 0;
 
 void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+    std::map<size_t, std::vector<std::pair<size_t, float>>> bonemap;
 
     size_t index_offset = mMeshes[mesh->mMaterialIndex].mVertexData.size();
     if (mesh->HasBones()) {
@@ -337,7 +329,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
                       << bone->mWeights[bone->mNumWeights - 1].mWeight << " " << mesh->mNumVertices << std::endl;
             for (size_t j = 0; j < bone->mNumWeights; ++j) {
                 if (boneToIdx.count(bone->mName.C_Str()) == 0) {
-                    boneToIdx[bone->mName.C_Str()] = boneIdx++;
+                    boneToIdx[bone->mName.C_Str()] = boneToIdx.size();
                 }
                 if (bonemap.count(bone->mWeights[j].mVertexId) == 0) {
                     bonemap[bone->mWeights[j].mVertexId] = {};
@@ -346,18 +338,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
                     {boneToIdx[bone->mName.C_Str()], bone->mWeights[j].mWeight});
             }
         }
-    }
-
-    if (getName() == "human") {
-        size_t max_count = 0;
-        size_t idx = 0;
-        for (const auto& [vid, vec] : bonemap) {
-            if (vec.size() > max_count) {
-                max_count = vec.size();
-                idx = vid;
-            }
-        }
-        std::cout << "\n\n\n" << "maximum number of affecting bones is " << max_count << "\n\n\n\n" << idx << std::endl;
     }
 
     for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
@@ -369,10 +349,12 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
         vector.z = -mesh->mVertices[i].y;
 
         size_t bid_cnt = 0;
-        for (const auto& [bid, bwg] : bonemap[i]) {
-            vertex.boneIds[bid_cnt] = bid;
-            vertex.weights[bid_cnt] = bwg;
-            ++bid_cnt;
+        if (mesh->HasBones()) {
+            for (const auto& [bid, bwg] : bonemap[i]) {
+                vertex.boneIds[bid_cnt] = bid;
+                vertex.weights[bid_cnt] = bwg;
+                ++bid_cnt;
+            }
         }
 
         min.x = std::min(min.x, vector.x);
@@ -542,8 +524,10 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
             channelMap[channel->mNodeName.C_Str()] = channel;
         }
     }
+    // craeting the bindgropu for skining data
 
     ExtractBonePositions();
+
     processNode(app, scene->mRootNode, scene);
 
     return *this;
@@ -694,8 +678,11 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
     auto& render_resource = app->getRendererResource();
     WGPUBindGroup active_bind_group = nullptr;
 
-    // Bind Diffuse texture for the model if existed
-    /*std::cout << getName() << " has " << mMeshes.size() << " meshes\n";*/
+    if (mScene->HasAnimations()) {
+        wgpuQueueWriteBuffer(app->getRendererResource().queue, mSkiningTransformationBuffer.getBuffer(),
+                             0 * sizeof(glm::mat4), mFinalTransformations.data(), 100 * sizeof(glm::mat4));
+    }
+
     for (auto& [mat_id, mesh] : mMeshes) {
         if (mesh.isTransparent) {
             continue;

@@ -22,8 +22,8 @@ struct alignas(16) VertexAttributes {
         glm::vec3 tangent;
         glm::vec3 biTangent;
         glm::vec2 uv;
-        glm::ivec4 boneIds{0};
-        glm::vec4 weights{0};
+        glm::ivec4 boneIds{0, 0, 0, 0};
+        glm::vec4 weights{1.0, 0.0, 0.0, 0.0};
 };
 
 class Mesh {

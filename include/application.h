@@ -103,7 +103,7 @@ class Application {
         WGPUBindGroup bindGrouptrans = {};
         glm::mat4 mtransmodel{1.0};
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
-        std::array<WGPUBindGroupLayout, 6> mBindGroupLayouts;
+        std::array<WGPUBindGroupLayout, 7> mBindGroupLayouts;
         Camera& getCamera();
         WGPUTextureFormat getTextureFormat();
         WGPUSampler getDefaultSampler();
@@ -116,6 +116,7 @@ class Application {
         void setWindowSize(size_t width, size_t height);
 
         WGPUBuffer mBuffer1;
+        BindingGroup mDefaultSkiningData = {};
         BindingGroup mDefaultTextureBindingGroup = {};
         BindingGroup mDefaultCameraIndexBindgroup = {};
         BindingGroup mDefaultClipPlaneBG = {};
@@ -173,6 +174,7 @@ class Application {
         std::vector<WGPUBindGroupEntry> mDefaultClipPlaneBGData{1};
         std::vector<WGPUBindGroupEntry> mDefaultVisibleBGData{1};
         std::vector<WGPUBindGroupEntry> mDefaultVisibleBGData2{1};
+        std::vector<WGPUBindGroupEntry> mDefaultBoneTransformations{1};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
         // WGPUBindGroup mBindGroup;
         WGPUBuffer mUniformBuffer;

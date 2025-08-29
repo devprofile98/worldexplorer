@@ -315,7 +315,11 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
             mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
             mBindingData[2].buffer = model->getUniformBuffer().getBuffer();
             mBindingData[3].sampler = mApp->getDefaultSampler();
-            mBindingData[4].buffer = mApp->mDefaultBoneFinalTransformData.getBuffer();
+            if (model->mScene->HasAnimations()) {
+                mBindingData[4].buffer = model->mSkiningTransformationBuffer.getBuffer();
+            } else {
+                mBindingData[4].buffer = mApp->mDefaultBoneFinalTransformData.getBuffer();
+            }
 
             auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
             wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer.getBuffer(), 0,
