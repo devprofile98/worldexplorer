@@ -1678,9 +1678,10 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
         human->second->ExtractBonePositions();
         // loadSphereAtHumanBones(this, human->second, sphere->second);
 
-        for (auto& trans : human->second->mFinalTransformations) {
-            trans = trans * human->second->mTransform.mTransformMatrix;
-        }
+        // auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(90.0f), glm::vec3{1.0, 0.0, 0.0});
+        // for (auto& trans : human->second->mFinalTransformations) {
+        //     trans = trans * rot;
+        // }
 
         wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 * sizeof(glm::mat4),
                              human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));

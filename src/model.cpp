@@ -287,14 +287,25 @@ void ComputeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, 
 
 void Model::ExtractBonePositions() {
     if (mScene->mAnimations) {
-        ComputeGlobalTransforms(mScene->mRootNode, glm::mat4{1.0}, mAnimationSecond, channelMap, globalMap);
+        const aiMatrix4x4 rootTransform = mScene->mRootNode->mTransformation;
+
+        // 2. Convert to glm and invert
+        // Use a helper function for conversion from Assimp's aiMatrix4x4 to glm::mat4
+        glm::mat4 globalInverseMatrix = AiToGlm(rootTransform);
+        globalInverseMatrix = glm::inverse(globalInverseMatrix);
+
+        ComputeGlobalTransforms(mScene->mRootNode, globalInverseMatrix, mAnimationSecond, channelMap, globalMap);
+
     } else {
         return;
     }
 
+    // TODO: fix this rotation, we need a 90 degree rotation to be aligned with z-up coordinate system of the mesh data
+    auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(90.0f), glm::vec3{1.0, 0.0, 0.0});
+
     for (const std::string& boneName : uniqueBones) {
         if (boneToIdx.find(boneName) != boneToIdx.end()) {
-            mFinalTransformations[boneToIdx[boneName]] = globalMap[boneName] * mOffsetMatrixCache[boneName];
+            mFinalTransformations[boneToIdx[boneName]] = globalMap[boneName] * mOffsetMatrixCache[boneName] * rot;
         }
     }
 }

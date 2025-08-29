@@ -531,7 +531,7 @@ struct HumanModel : public IModel {
             mModel->load("human", app, RESOURCE_DIR "/dance2.dae", app->getObjectBindGroupLayout())
                 .mTransform  //.moveTo(glm::vec3{0.0, 9.0, -3.7})
                 .scale(glm::vec3{1.0})
-                .rotate(glm::vec3{90.0, 0.0, 0.0}, 0.);
+                .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.);
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
@@ -546,7 +546,7 @@ struct HumanModel : public IModel {
 };
 
 // USER_REGISTER_MODEL("tree", TreeModel);
-// USER_REGISTER_MODEL("boat", BoatModel);
+USER_REGISTER_MODEL("boat", BoatModel);
 // USER_REGISTER_MODEL("car", CarModel);
 // USER_REGISTER_MODEL("tower", TowerModel);
 // USER_REGISTER_MODEL("desk", DeskModel);
