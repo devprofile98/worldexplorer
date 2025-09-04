@@ -2,6 +2,7 @@ struct Scene {
     projection: mat4x4f,
     model: mat4x4f,
     view: mat4x4f,
+    padding: vec4f,
 };
 
 struct Vertex {
@@ -40,11 +41,12 @@ struct ObjectInfo {
     offset3: u32
 }
 
-@group(0) @binding(0) var<uniform> scene: Scene;
+@group(0) @binding(0) var<uniform> scene: array<Scene, 3>;
 @group(0) @binding(1) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(2) var<uniform> objectTranformation: ObjectInfo;
 @group(0) @binding(3) var textureSampler: sampler;
 @group(0) @binding(4) var<uniform> bonesFinalTransform: array<mat4x4f, 100>;
+@group(0) @binding(5) var<uniform> sceneIndex: u32;
 
 @group(1) @binding(0) var diffuseMap: texture_2d<f32>;
 @group(1) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
@@ -55,17 +57,7 @@ struct ObjectInfo {
 @vertex
 fn vs_main(vertex: Vertex) -> VSOutput {
 
-    //var world_position: vec4f;
     let off_id: u32 = objectTranformation.offsetId * 100000;
-    //if vertex.instance_index == 0 {
-    //    world_position = objectTranformation.transformations * vec4f(vertex.position, 1.0);
-    //} else {
-    //    let original_instance_idx = visible_instances_indices[off_id + vertex.instance_index];
-    //    // transform = offsetInstance[original_instance_idx + off_id].transformation;
-    //    world_position = offsetInstance[original_instance_idx + off_id].transformation * vec4f(vertex.position, 1.0);
-    //}
-
-
 
     var transform: mat4x4f;
     if vertex.instance_index != 0 {
@@ -91,7 +83,7 @@ fn vs_main(vertex: Vertex) -> VSOutput {
     let world_position = transform * bone_matrix * vec4f(vertex.position, 1.0);
 
     var vsOut: VSOutput;
-    vsOut.position = scene.projection * scene.view * world_position;
+    vsOut.position = scene[sceneIndex].projection * scene[sceneIndex].view * world_position;
     vsOut.uv = vertex.uv;
     return vsOut;
 }

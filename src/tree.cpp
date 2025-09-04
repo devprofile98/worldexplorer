@@ -142,8 +142,9 @@ struct CarModel : public IModel {
             mModel = new Model{};
 
             mModel->load("car", app, RESOURCE_DIR "/jeep.obj", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{-6.883, 3.048, -1.709})
-                .scale(glm::vec3{1.0})
+                .mTransform
+                .moveTo(glm::vec3{-6.883, 3.048, -1.709})
+                // .scale(glm::vec3{1.0})
                 .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.0f)
                 .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0);
             mModel->uploadToGPU(app);
@@ -624,7 +625,7 @@ USER_REGISTER_MODEL("desk", DeskModel);
 USER_REGISTER_MODEL("arrow", ArrowModel);
 USER_REGISTER_MODEL("grass", GrassModel);
 USER_REGISTER_MODEL("steampunk", Steampunk);
-USER_REGISTER_MODEL("sheep", SheepModel);
+// USER_REGISTER_MODEL("sheep", SheepModel);
 USER_REGISTER_MODEL("water", WaterModel);
 // USER_REGISTER_MODEL("sphere", SphereModel);
 USER_REGISTER_MODEL("human", HumanModel);

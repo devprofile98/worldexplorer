@@ -17,8 +17,8 @@ add_subdirectory(extern/assmip)
 
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
- # set(CMAKE_BUILD_TYPE Release)
- set(CMAKE_BUILD_TYPE Debug)
+ set(CMAKE_BUILD_TYPE Release)
+ # set(CMAKE_BUILD_TYPE Debug)
 
 
 
@@ -185,3 +185,12 @@ else()
     target_link_options(glfw INTERFACE -sUSE_GLFW=3)
 endif()
 # add_subdirectory(extern/glfw3webgpu)
+
+
+
+# Enable profiling
+# if (CMAKE_BUILD_TYPE MATCHES "Debug")
+#     # Adds the -pg flag for both compiler and linker
+#     target_compile_options(App PRIVATE -pg)
+#     target_link_options(App PRIVATE -pg)
+# endif()

@@ -20,7 +20,7 @@ class TerrainPass : public RenderPass {
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 
     public:
-        explicit TerrainPass(Application* app);
+        explicit TerrainPass(Application* app, const std::string& name);
 
         Pipeline* create(WGPUTextureFormat textureFormat);
 
@@ -32,7 +32,7 @@ class OutlinePass : public RenderPass {
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 
     public:
-        explicit OutlinePass(Application* app);
+        explicit OutlinePass(Application* app, const std::string& name);
         BindingGroup mDepthTextureBindgroup;
         WGPUBindGroupLayout mLayerThree;
         WGPUTextureView mTextureView;
@@ -49,7 +49,7 @@ class ViewPort3DPass : public RenderPass {
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 
     public:
-        explicit ViewPort3DPass(Application* app);
+        explicit ViewPort3DPass(Application* app, const std::string& name);
         WGPUBindGroupLayout mLayerThree;
         BindingGroup mLayerThreeBindgroup;
         Pipeline* create(WGPUTextureFormat textureFormat);

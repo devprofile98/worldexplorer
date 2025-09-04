@@ -51,9 +51,8 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     skinned_position += bonesFinalTransform[in.boneIds.z] * vec4f(in.position, 1.0) * in.boneWeights.z;
     skinned_position += bonesFinalTransform[in.boneIds.w] * vec4f(in.position, 1.0) * in.boneWeights.w;
 
+    //let world_position = transform * vec4f(in.position, 1.0);
     let world_position = transform * skinned_position;
-
-
 
     var skinned_normal = vec4f(0.0, 0.0, 0.0, 0.0);
     skinned_normal += bonesFinalTransform[in.boneIds.x] * vec4f(in.normal, 0.0) * in.boneWeights.x;
@@ -61,6 +60,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     skinned_normal += bonesFinalTransform[in.boneIds.z] * vec4f(in.normal, 0.0) * in.boneWeights.z;
     skinned_normal += bonesFinalTransform[in.boneIds.w] * vec4f(in.normal, 0.0) * in.boneWeights.w;
 
+    //out.normal = (transform * vec4f(in.normal, 0.0f)).xyz;
     out.normal = (transform * skinned_normal).xyz;
 
     out.viewSpacePos = uMyUniform[myuniformindex].viewMatrix * world_position;

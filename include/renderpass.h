@@ -2,6 +2,7 @@
 #ifndef WEBGPUTEST_ABSTRACT_RENDER_PASS_H
 #define WEBGPUTEST_ABSTRACT_RENDER_PASS_H
 
+#include <string>
 #include <vector>
 
 #include "../webgpu/webgpu.h"
@@ -67,7 +68,7 @@ class DepthStencilAttachment {
 
 class RenderPass {
     public:
-        RenderPass();
+        RenderPass(const std::string& name);
         WGPURenderPassDescriptor* getRenderPassDescriptor();
         void setRenderPassDescriptor(WGPURenderPassDescriptor desc);
         Pipeline* getPipeline();
@@ -80,6 +81,7 @@ class RenderPass {
 
     private:
         // render pass
+        std::string mName;
         WGPURenderPassDescriptor mRenderPassDesc;
 
         // bindings

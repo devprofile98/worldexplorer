@@ -398,25 +398,26 @@ void Application::initializePipeline() {
     mDefaultClipPlaneBGData[0].offset = 0;
     mDefaultClipPlaneBGData[0].size = sizeof(glm::vec4);
 
-    mShadowPass = new ShadowPass{this};
+    mShadowPass = new ShadowPass{this, "Shadow pass"};
     mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm, 3);
 
-    mTerrainPass = new TerrainPass{this};
+    mTerrainPass = new TerrainPass{this, "Terrain Render Pass"};
     mTerrainPass->create(mSurfaceFormat);
 
-    mOutlinePass = new OutlinePass{this};
+    mOutlinePass = new OutlinePass{this, "Outline Render Pass"};
     mOutlinePass->create(mSurfaceFormat, mDepthTextureViewDepthOnly);
 
-    m3DviewportPass = new ViewPort3DPass{this};
+    m3DviewportPass = new ViewPort3DPass{this, "ViewPort 3D Render Pass"};
     m3DviewportPass->create(mSurfaceFormat);
 
-    mWaterPass = new WaterReflectionPass{this};
+    mWaterPass = new WaterReflectionPass{this, "Water Reflection Pass"};
     mWaterPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
 
-    mWaterRefractionPass = new WaterRefractionPass{this};
+    mWaterRefractionPass = new WaterRefractionPass{this, "Water Refraction Pass"};
     mWaterRefractionPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
 
-    mWaterRenderPass = new WaterPass{this, mWaterPass->mRenderTarget, mWaterRefractionPass->mRenderTarget};
+    mWaterRenderPass =
+        new WaterPass{this, mWaterPass->mRenderTarget, mWaterRefractionPass->mRenderTarget, "Water pass"};
     mWaterRenderPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
 
     mBindingData[0].nextInChain = nullptr;
@@ -910,18 +911,22 @@ void Application::mainLoop() {
                              sizeof(Scene) * all_scenes.size());
     }
 
-    mShadowPass->renderAllCascades(encoder);
+    {
+        // PerfTimer timer{"Water Reflection"};
+        mShadowPass->renderAllCascades(encoder);
+    }
+
     //-------------- End of shadow pass
     //
     mUniforms.setCamera(mCamera);
     mUniforms.cameraWorldPosition = getCamera().getPos();
-    auto all_scenes = mShadowPass->getScene();
-    if (look_as_light) {
-        auto all_scene = all_scenes[which_frustum];
-        mUniforms.projectMatrix = all_scene.projection;
-        mUniforms.viewMatrix = all_scene.view;
-        mUniforms.modelMatrix = all_scene.model;
-    }
+    // auto all_scenes = mShadowPass->getScene();
+    // if (look_as_light) {
+    //     auto all_scene = all_scenes[which_frustum];
+    //     mUniforms.projectMatrix = all_scene.projection;
+    //     mUniforms.viewMatrix = all_scene.view;
+    //     mUniforms.modelMatrix = all_scene.model;
+    // }
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, sizeof(MyUniform));
 
@@ -1183,24 +1188,28 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
-    for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-        if (name == "water") {
-            continue;
+
+    {
+        for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+            if (name == "water") {
+                continue;
+            }
+            wgpuRenderPassEncoderSetPipeline(
+                render_pass_encoder, (model->isSelected() ? mPipeline : mStenctilEnabledPipeline)->getPipeline());
+            if (model->mScene->HasAnimations()) {
+                wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 6, model->mSkiningBindGroup, 0, nullptr);
+            } else {
+                wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 6, mDefaultSkiningData.getBindGroup(), 0,
+                                                  nullptr);
+            }
+            if (!model->isTransparent()) {
+                model->draw(this, render_pass_encoder, mBindingData);
+            }
         }
-        wgpuRenderPassEncoderSetPipeline(render_pass_encoder,
-                                         (model->isSelected() ? mPipeline : mStenctilEnabledPipeline)->getPipeline());
-        if (model->mScene->HasAnimations()) {
-            wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 6, model->mSkiningBindGroup, 0, nullptr);
-        } else {
-            wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 6, mDefaultSkiningData.getBindGroup(), 0, nullptr);
-        }
-        if (!model->isTransparent()) {
+
+        for (const auto& model : mLines) {
             model->draw(this, render_pass_encoder, mBindingData);
         }
-    }
-
-    for (const auto& model : mLines) {
-        model->draw(this, render_pass_encoder, mBindingData);
     }
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);

@@ -689,3 +689,11 @@ BaseModel* testIntersection2(Camera& camera, size_t width, size_t height, std::p
     }
     return nullptr;
 }
+
+PerfTimer::PerfTimer(std::string_view label) : mLabel(label), mStart(std::chrono::high_resolution_clock::now()) {}
+
+PerfTimer::~PerfTimer() {
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duration = end - mStart;
+    std::cout << "Completes in " << duration.count() << std::endl;
+}

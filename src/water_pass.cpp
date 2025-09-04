@@ -4,8 +4,9 @@
 #include <webgpu/webgpu.h>
 
 #include "application.h"
+#include "renderpass.h"
 
-WaterReflectionPass::WaterReflectionPass(Application* app) : mApp(app) {
+WaterReflectionPass::WaterReflectionPass(Application* app, const std::string& name) : RenderPass(name), mApp(app) {
     // create render target
     mRenderTarget = new Texture{mApp->getRendererResource().device,
                                 static_cast<uint32_t>(1920),
@@ -102,7 +103,7 @@ void WaterReflectionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline->createPipeline(mApp);
 }
 
-WaterRefractionPass::WaterRefractionPass(Application* app) : mApp(app) {
+WaterRefractionPass::WaterRefractionPass(Application* app, const std::string& name) : RenderPass(name), mApp(app) {
     // create render target
     mRenderTarget = new Texture{mApp->getRendererResource().device,
                                 static_cast<uint32_t>(1920),
@@ -175,7 +176,8 @@ void WaterRefractionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline->createPipeline(mApp);
 }
 
-WaterPass::WaterPass(Application* app, Texture* renderTarget, Texture* refractionTarget) : mApp(app) {
+WaterPass::WaterPass(Application* app, Texture* renderTarget, Texture* refractionTarget, const std::string& name)
+    : RenderPass(name), mApp(app) {
     mWaterTextureBindGroup.addTexture(0,  //
                                       BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                                       TextureViewDimension::VIEW_2D);

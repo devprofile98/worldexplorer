@@ -19,7 +19,7 @@ float sunlength = 5.0;
 
 extern const char* model_name;
 
-ShadowPass::ShadowPass(Application* app) { mApp = app; }
+ShadowPass::ShadowPass(Application* app, const std::string& name) : RenderPass(name) { mApp = app; }
 
 ShadowFrustum::ShadowFrustum(Application* app, WGPUTextureView renderTarget, WGPUTextureView depthTexture)
     : mShadowDepthTexture(depthTexture), mRenderTarget(renderTarget), mApp(app) {
@@ -60,7 +60,8 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
             new ShadowFrustum{mApp, mRenderTarget->getTextureView(), mShadowDepthTexture->createViewDepthOnly2(c, 1)});
     }
     // for projection
-    mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(Scene));
+    mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM,
+                            sizeof(Scene) * mNumOfCascades);
     mBindingGroup.addBuffer(1,  //
                             BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                             mApp->mInstanceManager->mBufferSize);
@@ -72,6 +73,8 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
                              BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
     mBindingGroup.addBuffer(4,  //
                             BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4));
+    mBindingGroup.addBuffer(5,  //
+                            BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(uint32_t));
 
     mTextureBindingGroup.addTexture(0,  //
                                     BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
@@ -119,15 +122,27 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
 
     // fill bindgroup
     mBindingData.reserve(6);
-    mBindingData.resize(5);
+    mBindingData.resize(6);
 
+    // modelUniformBuffer.setLabel("Scene buffer for shadow pass")
+    // .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
+    // .setSize(sizeof(Scene))
+    // .setMappedAtCraetion()
+    // .create(mApp);
+    //
+    // creating and writing to buffer
+    mSceneUniformBuffer.setLabel("shadow map pass scene buffer")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .setSize(sizeof(Scene) * mNumOfCascades)
+        .setMappedAtCraetion()
+        .create(mApp);
     // mBindingData.push_back(entry);
     mBindingData[0] = {};
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
-    mBindingData[0].buffer = nullptr;
+    mBindingData[0].buffer = mSceneUniformBuffer.getBuffer();
     mBindingData[0].offset = 0;
-    mBindingData[0].size = sizeof(Scene);
+    mBindingData[0].size = sizeof(Scene) * mNumOfCascades;
 
     mBindingData[1] = {};
     mBindingData[1].nextInChain = nullptr;
@@ -146,19 +161,30 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     mBindingData[3].binding = 3;
     mBindingData[3].sampler = mApp->getDefaultSampler();
 
-    // mBindingData[4] = {};
-    // mBindingData[4].nextInChain = nullptr;
-    // mBindingData[4].buffer = mApp->mVisibleIndexBuffer.getBuffer();
-    // mBindingData[4].binding = 4;
-    // mBindingData[4].offset = 0;
-    // mBindingData[4].size = sizeof(uint32_t) * 100'000 * 5;
-
     mBindingData[4] = {};
     mBindingData[4].nextInChain = nullptr;
     mBindingData[4].buffer = mApp->mDefaultBoneFinalTransformData.getBuffer();
     mBindingData[4].binding = 4;
     mBindingData[4].offset = 0;
     mBindingData[4].size = 100 * sizeof(glm::mat4);
+
+    for (size_t f = 0; f < mNumOfCascades; ++f) {
+        Buffer buf;
+        buf.setLabel("frustum idx ")
+            .setSize(sizeof(uint32_t))
+            .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+            .setMappedAtCraetion(false)
+            .create(mApp);
+
+        wgpuQueueWriteBuffer(mApp->getRendererResource().queue, buf.getBuffer(), 0, &f, sizeof(uint32_t));
+        mFrustuIndexBuffer.push_back(buf);
+    }
+
+    mBindingData[5].nextInChain = nullptr;
+    mBindingData[5].binding = 5;
+    mBindingData[5].buffer = mFrustuIndexBuffer[0].getBuffer();
+    mBindingData[5].offset = 0;
+    mBindingData[5].size = sizeof(float);
 
     mTextureBindingData[0] = {};
     mTextureBindingData[0].nextInChain = nullptr;
@@ -182,13 +208,6 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     /*mRenderPipeline->getDescriptorPtr()->fragment = nullptr;*/
 
     mRenderPipeline->setMultiSampleState().createPipeline(mApp);
-
-    // creating and writing to buffer
-    mSceneUniformBuffer.setLabel("shadow map pass scene buffer")
-        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-        .setSize(sizeof(Scene))
-        .setMappedAtCraetion()
-        .create(mApp);
 }
 
 glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corners, const glm::mat4& lightView,
@@ -282,80 +301,87 @@ WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor(size_t index) {
 WGPURenderPassDescriptor* ShadowFrustum::getRenderPassDescriptor() { return &mRenderPassDesc; }
 
 void ShadowPass::renderAllCascades(WGPUCommandEncoder encoder) {
+    auto& models = ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User);
+
+    mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
+    mBindingData[3].sampler = mApp->getDefaultSampler();
+    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mSceneUniformBuffer.getBuffer(), 0, mScenes.data(),
+                         sizeof(Scene) * mNumOfCascades);
+
     for (size_t c = 0; c < mNumOfCascades; ++c) {
+        // PerfTimer timer{"Water Reflection"};
         WGPURenderPassEncoder shadow_pass_encoder =
             wgpuCommandEncoderBeginRenderPass(encoder, getRenderPassDescriptor(c));
         wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder, getPipeline()->getPipeline());
-        render(ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User), shadow_pass_encoder, c);
+        render(models, shadow_pass_encoder, c);
         wgpuRenderPassEncoderEnd(shadow_pass_encoder);
         wgpuRenderPassEncoderRelease(shadow_pass_encoder);
     }
+    // std::cout << "---------------------------------------------" << std::endl;
 }
 
 void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEncoder encoder, size_t which) {
     /*auto& render_resource = mApp->getRendererResource();*/
-    for (auto [name, model] : models) {
-        if (name == "water") {
-            continue;
-        }
-        for (auto& [mat_id, mesh] : model->mMeshes) {
-            Buffer modelUniformBuffer = {};
-            modelUniformBuffer.setLabel("Model Uniform Buffer")
-                .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
-                .setSize(sizeof(Scene))
-                .setMappedAtCraetion()
-                .create(mApp);
 
-            if (which >= mScenes.size()) {
-                continue;
-            };
+    for (auto& [name, model] : models) {
+        if (name != "water") {
+            // mScenes[which].model = model->mTransform.getLocalTransform();
 
-            mScenes[which].model = model->mTransform.getLocalTransform();
-            mBindingData[0].buffer = modelUniformBuffer.getBuffer();
-            mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
+            mBindingData[0].buffer = mSceneUniformBuffer.getBuffer();
             mBindingData[2].buffer = model->getUniformBuffer().getBuffer();
-            mBindingData[3].sampler = mApp->getDefaultSampler();
+            mBindingData[5].buffer = mFrustuIndexBuffer[which].getBuffer();
+
             if (model->mScene->HasAnimations()) {
                 mBindingData[4].buffer = model->mSkiningTransformationBuffer.getBuffer();
             } else {
                 mBindingData[4].buffer = mApp->mDefaultBoneFinalTransformData.getBuffer();
             }
 
-            auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
-            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer.getBuffer(), 0,
-                                 &mScenes.at(which), sizeof(Scene));
+            for (auto& [mat_id, mesh] : model->mMeshes) {
+                // Buffer modelUniformBuffer = {};
+                // // {
+                // //     PerfTimer timer{"Water Reflection"};
+                // modelUniformBuffer.setLabel("Model Uniform Buffer")
+                //     .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
+                //     .setSize(sizeof(Scene))
+                //     .setMappedAtCraetion()
+                //     .create(mApp);
+                // // }
 
-            wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
-                                                 wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
+                auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
 
-            if (model->getName() != model_name) {
+                // wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer.getBuffer(), 0,
+                //                      &mScenes.at(which), sizeof(Scene));
+                wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
+                                                     wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
                 wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
                                                     wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
+                wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
+                wgpuRenderPassEncoderSetBindGroup(encoder, 1,
+                                                  mesh.mTextureBindGroup == nullptr
+                                                      ? mApp->mDefaultTextureBindingGroup.getBindGroup()
+                                                      : mesh.mTextureBindGroup,
+                                                  0, nullptr);
+
+                wgpuRenderPassEncoderSetBindGroup(encoder, 2, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+
+                if (model->instance == nullptr) {
+                    wgpuRenderPassEncoderDrawIndexed(
+                        encoder, mesh.mIndexData.size(),
+                        model->instance == nullptr ? 1 : model->instance->getInstanceCount(), 0, 0, 0);
+                } else {
+                    wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
+                }
+
+                // wgpuBufferRelease(modelUniformBuffer.getBuffer());
+                wgpuBindGroupRelease(bindgroup);
             }
-            wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
-            wgpuRenderPassEncoderSetBindGroup(encoder, 1,
-                                              mesh.mTextureBindGroup == nullptr
-                                                  ? mApp->mDefaultTextureBindingGroup.getBindGroup()
-                                                  : mesh.mTextureBindGroup,
-                                              0, nullptr);
-
-            wgpuRenderPassEncoderSetBindGroup(encoder, 2, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
-
-            if (model->instance == nullptr) {
-                wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(),
-                                                 model->instance == nullptr ? 1 : model->instance->getInstanceCount(),
-                                                 0, 0, 0);
-            } else {
-                wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
-            }
-
-            wgpuBufferRelease(modelUniformBuffer.getBuffer());
-            wgpuBindGroupRelease(bindgroup);
         }
+        // std::cout << model->getName() << " ------------------------------" << std::endl;
     }
 }
 
-std::vector<Scene>& ShadowPass::getScene() { return mScenes; }
+std::vector<Scene>& ShadowPass::getScene2() { return mScenes; }
 
 WGPUTextureView ShadowPass::getShadowMapView() { return mShadowDepthTexture->getTextureViewArray(); }
 

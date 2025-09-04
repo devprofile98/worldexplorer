@@ -99,4 +99,14 @@ std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width,
                                                    const glm::vec3& max);
 // Terrain generateTerrainVertices(size_t gridSize);
 
+class PerfTimer {
+    public:
+        explicit PerfTimer(std::string_view label);
+        ~PerfTimer();
+
+    private:
+        std::string_view mLabel;
+        std::chrono::time_point<std::chrono::high_resolution_clock> mStart;
+};
+
 #endif  //  TEST_WGPU_UTILS_H

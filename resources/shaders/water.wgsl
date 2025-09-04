@@ -66,7 +66,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     }
 
     let world_position = transform * vec4f(in.position, 1.0);
-    out.normal = (transform * vec4f(in.normal, 0.0)).xyz;
+    out.normal = -(transform * vec4f(in.normal, 0.0)).xyz;
 
     out.viewSpacePos = uMyUniform[myuniformindex].viewMatrix * world_position;
     out.position = uMyUniform[myuniformindex].projectionMatrix * out.viewSpacePos;
@@ -74,7 +74,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     out.viewDirection = uMyUniform[myuniformindex].cameraWorldPosition - world_position.xyz;
     out.color = in.color;
     out.uv = in.uv;
-    // out.uv = vec2f(in.uv.x, 1 - in.uv.y);
+    //out.uv = vec2f(in.uv.x, 1 - in.uv.y);
 
     let T = normalize(vec3f((transform * vec4(in.tangent, 0.0)).xyz));
     let B = normalize(vec3f((transform * vec4(in.biTangent, 0.0)).xyz));

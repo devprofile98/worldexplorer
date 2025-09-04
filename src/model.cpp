@@ -370,7 +370,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
         if (mesh->HasNormals()) {
             vector.x = mesh->mNormals[i].x;
             vector.y = mesh->mNormals[i].z;
-            vector.z = mesh->mNormals[i].y;
+            vector.z = -mesh->mNormals[i].y;
             vertex.normal = vector;
         }
 

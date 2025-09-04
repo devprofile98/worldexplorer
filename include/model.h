@@ -162,7 +162,7 @@ struct AABB {
 class BaseModel : public Drawable, public AABB, public DebugUI {
     public:
         BaseModel()
-            : mTransform({}, {glm::vec3{0.0}}, glm::vec3{0.0}, glm::vec3{0.0}, glm::mat4{1.0}, glm::mat4{1.0},
+            : mTransform({}, {glm::vec3{0.0}}, glm::vec3{0.0}, glm::vec3{1.0}, glm::mat4{1.0}, glm::mat4{1.0},
                          glm::mat4{1.0}, glm::mat4{1.0}, glm::vec3{0.0, 0.0, 1.0}) {};
 
         std::string mName;

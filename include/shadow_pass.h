@@ -8,6 +8,7 @@
 #include "binding_group.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
+#include "gpu_buffer.h"
 #include "model.h"
 #include "model_registery.h"
 #include "pipeline.h"
@@ -26,7 +27,7 @@ struct FrustumParams {
 
 class ShadowPass : public RenderPass {
     public:
-        explicit ShadowPass(Application* app);
+        explicit ShadowPass(Application* app, const std::string& name);
         Pipeline* create(WGPUTextureFormat textureFormat);
 
         void createRenderPass(WGPUTextureFormat textureFormat) override;
@@ -39,7 +40,7 @@ class ShadowPass : public RenderPass {
         WGPUTextureView getShadowMapView();
         void render(ModelRegistry::ModelContainer& models, WGPURenderPassEncoder encoder, size_t which);
         void renderAllCascades(WGPUCommandEncoder encoder);
-        std::vector<Scene>& getScene();
+        std::vector<Scene>& getScene2();
 
         glm::vec3 lightPos = glm::vec3{0.0f};
 
@@ -61,6 +62,8 @@ class ShadowPass : public RenderPass {
         Pipeline* mRenderPipeline;
         // render pass
         size_t mNumOfCascades;
+        std::vector<Buffer> mFrustuIndexBuffer;
+        Buffer mSceneUniformBuffer;
 
         // bindings
         BindingGroup mBindingGroup;
@@ -76,7 +79,7 @@ class ShadowPass : public RenderPass {
         Texture* mShadowDepthTexture;
         Texture* mShadowDepthTexture2;
         // buffers
-        Buffer mSceneUniformBuffer;
+        // Buffer mSceneUniformBuffer;
 
         Scene calculateFrustumScene(const std::vector<glm::vec4> frustum, float farZ, size_t cascadeIdx);
         // scene

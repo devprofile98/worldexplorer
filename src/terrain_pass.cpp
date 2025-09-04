@@ -10,7 +10,7 @@
 
 // ifdef WEBGPU_BACKEND
 
-TerrainPass::TerrainPass(Application* app) { mApp = app; }
+TerrainPass::TerrainPass(Application* app, const std::string& name) : RenderPass(name) { mApp = app; }
 
 void TerrainPass::createRenderPass(WGPUTextureFormat textureFormat) {
     auto* layouts = mApp->getBindGroupLayouts();
@@ -29,7 +29,7 @@ Pipeline* TerrainPass::create(WGPUTextureFormat textureFormat) {
     return mRenderPipeline;
 }
 
-OutlinePass::OutlinePass(Application* app) {
+OutlinePass::OutlinePass(Application* app, const std::string& name) : RenderPass(name) {
     mApp = app;
 
     mDepthTextureBindgroup.addTexture(0,  //
@@ -72,7 +72,7 @@ Pipeline* OutlinePass::create(WGPUTextureFormat textureFormat, WGPUTextureView t
 }
 
 // ----------------------------------- 3D viewport item render pass
-ViewPort3DPass::ViewPort3DPass(Application* app) {
+ViewPort3DPass::ViewPort3DPass(Application* app, const std::string& name) : RenderPass(name) {
     mApp = app;
     mLayerThreeBindgroup.addBuffer(0,  //
                                    BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,

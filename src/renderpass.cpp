@@ -39,7 +39,7 @@ DepthStencilAttachment::DepthStencilAttachment(WGPUTextureView target, StoreOp d
 
 WGPURenderPassDepthStencilAttachment* DepthStencilAttachment::get() { return &mAttachment; }
 
-RenderPass::RenderPass() {}
+RenderPass::RenderPass(const std::string& name) : mName(name) {}
 
 WGPURenderPassDescriptor* RenderPass::getRenderPassDescriptor() { return &mRenderPassDesc; }
 
@@ -58,7 +58,7 @@ RenderPass& RenderPass::setDepthStencilAttachment(const DepthStencilAttachment& 
 }
 
 WGPURenderPassDescriptor* RenderPass::init() {
-    mRenderPassDesc.label = createStringViewC("what is it");
+    mRenderPassDesc.label = createStringViewC(mName.c_str());
     mRenderPassDesc.nextInChain = nullptr;
     mRenderPassDesc.colorAttachmentCount = 1;
     mRenderPassDesc.colorAttachments = mColorAttachment.get();

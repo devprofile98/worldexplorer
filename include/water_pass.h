@@ -5,6 +5,8 @@
 
 #include <webgpu/webgpu.h>
 
+#include <string>
+
 #include "gpu_buffer.h"
 #include "renderpass.h"
 
@@ -12,7 +14,7 @@ class Application;
 
 class WaterReflectionPass : public RenderPass {
     public:
-        WaterReflectionPass(Application* app);
+        WaterReflectionPass(Application* app, const std::string& name);
 
         Texture* mRenderTarget;
         Texture* mDepthTexture;
@@ -36,7 +38,7 @@ class WaterReflectionPass : public RenderPass {
 
 class WaterRefractionPass : public RenderPass {
     public:
-        WaterRefractionPass(Application* app);
+        WaterRefractionPass(Application* app, const std::string& name);
 
         Texture* mRenderTarget;
         Texture* mDepthTexture;
@@ -60,7 +62,7 @@ class WaterRefractionPass : public RenderPass {
 
 class WaterPass : public RenderPass {
     public:
-        WaterPass(Application* app, Texture* renderTarget, Texture* refractionTarget);
+        WaterPass(Application* app, Texture* renderTarget, Texture* refractionTarget, const std::string& name);
 
         // Texture* mRenderTarget;
         // Texture* mDepthTexture;
