@@ -271,5 +271,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     color = color / (color + vec3f(1.0));
 	    // gamma correct
     color = pow(color, vec3(1.1));
-    return vec4f(color, 1.0);
+
+    let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
+
+    return vec4f(color * (1 - shadow * (0.75)), 1.0);
 }

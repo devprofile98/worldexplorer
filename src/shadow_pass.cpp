@@ -302,6 +302,9 @@ WGPURenderPassDescriptor* ShadowFrustum::getRenderPassDescriptor() { return &mRe
 
 void ShadowPass::renderAllCascades(WGPUCommandEncoder encoder) {
     auto& models = ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User);
+    for (auto& s : mScenes) {
+        s.projection = s.projection * s.view;
+    }
 
     mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
     mBindingData[3].sampler = mApp->getDefaultSampler();

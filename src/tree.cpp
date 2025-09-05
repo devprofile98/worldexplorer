@@ -461,7 +461,7 @@ struct SheepModel : public IModel {
         SheepModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("sheep", app, RESOURCE_DIR "/model3.dae", app->getObjectBindGroupLayout())
+            mModel->load("sheep", app, RESOURCE_DIR "/body.dae", app->getObjectBindGroupLayout())
                 .mTransform
                 .moveTo(glm::vec3{5.125, 2.239, -2.859})
                 // .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
@@ -619,7 +619,7 @@ struct HumanModel : public IModel {
 
 USER_REGISTER_MODEL("tree", TreeModel);
 USER_REGISTER_MODEL("boat", BoatModel);
-USER_REGISTER_MODEL("car", CarModel);
+// USER_REGISTER_MODEL("car", CarModel);
 USER_REGISTER_MODEL("tower", TowerModel);
 USER_REGISTER_MODEL("desk", DeskModel);
 USER_REGISTER_MODEL("arrow", ArrowModel);

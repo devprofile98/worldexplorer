@@ -912,7 +912,6 @@ void Application::mainLoop() {
     }
 
     {
-        // PerfTimer timer{"Water Reflection"};
         mShadowPass->renderAllCascades(encoder);
     }
 
@@ -1067,14 +1066,14 @@ void Application::mainLoop() {
         //
         //     arrow->second->update();
         // }
-        auto human = iter.find("human");
-        auto sphere = iter.find("sphere");
-        if (human != iter.end() && sphere != iter.end()) {
-            if (reparenting) {
-                reparenting = false;
-                // loadSphereAtHumanBones(this, human->second, sphere->second);
-            }
-        }
+        // auto human = iter.find("human");
+        // auto sphere = iter.find("sphere");
+        // if (human != iter.end() && sphere != iter.end()) {
+        //     if (reparenting) {
+        //         reparenting = false;
+        //         // loadSphereAtHumanBones(this, human->second, sphere->second);
+        //     }
+        // }
     }
 
     // main color psas

@@ -83,7 +83,7 @@ fn vs_main(vertex: Vertex) -> VSOutput {
     let world_position = transform * bone_matrix * vec4f(vertex.position, 1.0);
 
     var vsOut: VSOutput;
-    vsOut.position = scene[sceneIndex].projection * scene[sceneIndex].view * world_position;
+    vsOut.position = scene[sceneIndex].projection * world_position;
     vsOut.uv = vertex.uv;
     return vsOut;
 }
