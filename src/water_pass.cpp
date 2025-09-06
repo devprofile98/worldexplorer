@@ -87,12 +87,12 @@ void WaterReflectionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     (void)textureFormat;
 
     auto* layouts = mApp->getBindGroupLayouts();
-    mRenderPipeline =
-        new Pipeline{mApp,
-                     {layouts[0], layouts[1], layouts[2], layout, layouts[4], layouts[5], layouts[6] /*, mLayerThree*/},
-                     "Water Render Pass1"};
+    mRenderPipeline = new Pipeline{
+        mApp,
+        {layouts[0], layouts[1], layouts[2], layout, layouts[4], layouts[5] /*, layouts[6] , mLayerThree*/},
+        "Water Render Pass1"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
-    // mRenderPipeline->setShader(RESOURCE_DIR "/editor.wgsl");
+    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/water_reflection.wgsl");
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     setDefault(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->getDepthStencilState().format = WGPUTextureFormat_Depth24PlusStencil8;
@@ -162,7 +162,7 @@ void WaterRefractionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     auto* layouts = mApp->getBindGroupLayouts();
     mRenderPipeline = new Pipeline{
         mApp,
-        {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4], layouts[5], layouts[6] /*, mLayerThree*/},
+        {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4], layouts[5] /*, layouts[6] , mLayerThree*/},
         "Water Render Pass1"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
     // mRenderPipeline->setShader(RESOURCE_DIR "/editor.wgsl");

@@ -1,5 +1,5 @@
 #include "common.wgsl"
-@group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
+//@group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 
 @group(2) @binding(0) var diffuse_map: texture_2d<f32>;
 @group(2) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
@@ -36,7 +36,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     //let is_primary = f32(instance_index == 0);
     var transform: mat4x4f;
     if instance_index != 0 {
-	let original_instance_idx = visible_instances_indices[off_id + instance_index];
+        let original_instance_idx = visible_instances_indices[off_id + instance_index];
         transform = offsetInstance[original_instance_idx + off_id].transformation;
     } else {
         transform = objectTranformation.transformations;
@@ -48,13 +48,13 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     out.normal = (transform * vec4f(in.normal, 0.0)).xyz;
     //let color = min(max(abs(out.viewSpacePos.z) / 20.0, 0.02), 0.04);
     let color = max(pow(clamp(abs(out.viewSpacePos.z), 0.0, 10.0), 2.0) / 1250.0, 0.02);
-    let extruded_position = transform * vec4f(in.position + normalize(in.normal) * color , 1.0);
+    let extruded_position = transform * vec4f(in.position + normalize(in.normal) * color, 1.0);
     out.viewSpacePos = uMyUniform[0].viewMatrix * extruded_position;
 
     out.position = uMyUniform[0].projectionMatrix * out.viewSpacePos;
     out.worldPos = world_position.xyz;
     out.viewDirection = uMyUniform[0].cameraWorldPosition - world_position.xyz;
-    out.color = vec3f(color * 3,0,0);
+    out.color = vec3f(color * 3, 0, 0);
     out.uv = in.uv;
 
     let T = normalize(vec3f((transform * vec4(in.tangent, 0.0)).xyz));
@@ -65,11 +65,11 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     out.biTangent = B;
     out.aNormal = out.normal;
 
-    var index:u32 = 0;
+    var index: u32 = 0;
 
     for (var i: u32 = 0u; i < numOfCascades; i = i + 1u) {
-        if ( length(out.viewSpacePos) < lightSpaceTrans[i].farZ){
-        	index= i;
+        if length(out.viewSpacePos) < lightSpaceTrans[i].farZ {
+            index = i;
 		break;
         }
     }
@@ -82,22 +82,22 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //return vec4f(in.color, 1.0);
-	let frag_ambient = textureSample(diffuse_map, textureSampler, in.uv).rgba;
-	if (frag_ambient.a < 0.001 ) {
+    let frag_ambient = textureSample(diffuse_map, textureSampler, in.uv).rgba;
+    if frag_ambient.a < 0.001 {
 		discard;
-	}
-
-	let screen_uv = in.position.xy / vec2f(1920.0, 1022.0);
-	// let existing_depth_ndc_z = textureSample(near_depth_texture, textureSampler, screen_uv).x;
-	let outline_ndc_z = in.position.z / in.position.w;
-        let compare_res = textureSampleCompare(standard_depth, shadowMapSampler, screen_uv, outline_ndc_z  - 0.0001 );
-
-        var outline_alpha = 0.9; // Make it more transparent
-    if (compare_res == 1) {
-        outline_alpha = 0.3; // Make it more transparent
-    	return vec4f(vec3f(1.0, 1.0, 0.0), outline_alpha);
     }
 
-    return vec4f(vec3f(1.0, 0.5, 0.0 ), outline_alpha);
+    let screen_uv = in.position.xy / vec2f(1920.0, 1022.0);
+	// let existing_depth_ndc_z = textureSample(near_depth_texture, textureSampler, screen_uv).x;
+    let outline_ndc_z = in.position.z / in.position.w;
+    let compare_res = textureSampleCompare(standard_depth, shadowMapSampler, screen_uv, outline_ndc_z - 0.0001);
+
+    var outline_alpha = 0.9; // Make it more transparent
+    if compare_res == 1 {
+        outline_alpha = 0.3; // Make it more transparent
+        return vec4f(vec3f(1.0, 1.0, 0.0), outline_alpha);
+    }
+
+    return vec4f(vec3f(1.0, 0.5, 0.0), outline_alpha);
 }
 

@@ -1,6 +1,6 @@
 #include "common.wgsl"
 
-@group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
+//@group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 
 @group(2) @binding(0) var diffuse_map: texture_2d<f32>;
 @group(2) @binding(1) var metalic_roughness_texture: texture_2d<f32>;

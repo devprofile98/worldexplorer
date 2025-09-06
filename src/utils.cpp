@@ -512,17 +512,23 @@ Terrain& Terrain::uploadToGpu(Application* app) {
 }
 
 void Terrain::createSomeBinding(Application* app) {
-    WGPUBindGroupEntry mBindGroupEntry = {};
-    mBindGroupEntry.nextInChain = nullptr;
-    mBindGroupEntry.binding = 0;
-    mBindGroupEntry.buffer = mUniformBuffer;
-    mBindGroupEntry.offset = 0;
-    mBindGroupEntry.size = sizeof(ObjectInfo);
+    std::array<WGPUBindGroupEntry, 2> mBindGroupEntry = {};
+    mBindGroupEntry[0].nextInChain = nullptr;
+    mBindGroupEntry[0].binding = 0;
+    mBindGroupEntry[0].buffer = mUniformBuffer;
+    mBindGroupEntry[0].offset = 0;
+    mBindGroupEntry[0].size = sizeof(ObjectInfo);
+
+    mBindGroupEntry[1].nextInChain = nullptr;
+    mBindGroupEntry[1].buffer = app->mDefaultBoneFinalTransformData.getBuffer();
+    mBindGroupEntry[1].binding = 1;
+    mBindGroupEntry[1].offset = 0;
+    mBindGroupEntry[1].size = 100 * sizeof(glm::mat4);
 
     WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
     mTrasBindGroupDesc.nextInChain = nullptr;
-    mTrasBindGroupDesc.entries = &mBindGroupEntry;
-    mTrasBindGroupDesc.entryCount = 1;
+    mTrasBindGroupDesc.entries = mBindGroupEntry.data();
+    mTrasBindGroupDesc.entryCount = 2;
     mTrasBindGroupDesc.label = createStringView("translation bind group");
     mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
 

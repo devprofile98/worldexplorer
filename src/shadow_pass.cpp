@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cstring>
 #include <format>
+
+#include "binding_group.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <webgpu/webgpu.h>
 
@@ -14,6 +16,7 @@
 #include "gpu_buffer.h"
 #include "model.h"
 #include "renderpass.h"
+#include "tracy/Tracy.hpp"
 
 float sunlength = 5.0;
 
@@ -66,15 +69,11 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
                             BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                             mApp->mInstanceManager->mBufferSize);
 
-    mBindingGroup.addBuffer(2, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
-                            sizeof(ObjectInfo));
+    // mBindingGroup.addBuffer(2,  //
+    //                         BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(uint32_t));
 
-    mBindingGroup.addSampler(3,  //
+    mBindingGroup.addSampler(2,  //
                              BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
-    mBindingGroup.addBuffer(4,  //
-                            BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4));
-    mBindingGroup.addBuffer(5,  //
-                            BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(uint32_t));
 
     mTextureBindingGroup.addTexture(0,  //
                                     BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
@@ -93,10 +92,25 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
 
     auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
     auto texture_bind_group_layout = mTextureBindingGroup.createLayout(mApp, "shadow pass pipeline");
-    auto visible_bind_group_layout = mVisibleBindingGroup.createLayout(mApp, "visible indices pipeline");
+
+    WGPUBindGroupLayoutEntry ot = {};
+    setDefault(ot);
+    ot.binding = 0;
+    ot.visibility = WGPUShaderStage_Vertex;
+    ot.buffer.type = WGPUBufferBindingType_Uniform;
+    ot.buffer.minBindingSize = sizeof(uint32_t);
+
+    WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor1 = {};
+    bind_group_layout_descriptor1.nextInChain = nullptr;
+    bind_group_layout_descriptor1.label = {"Object Tranformation Matrix uniform", WGPU_STRLEN};
+    bind_group_layout_descriptor1.entryCount = 1;
+    bind_group_layout_descriptor1.entries = &ot;
+
+    auto layout = wgpuDeviceCreateBindGroupLayout(mApp->getRendererResource().device, &bind_group_layout_descriptor1);
 
     mRenderPipeline = new Pipeline{mApp,
-                                   {bind_group_layout, texture_bind_group_layout, mApp->getBindGroupLayouts()[5]},
+                                   {bind_group_layout, texture_bind_group_layout, mApp->getBindGroupLayouts()[5],
+                                    mApp->getBindGroupLayouts()[1], layout},
                                    "shadow pass pipeline layout"};
 
     WGPUVertexBufferLayout d = mRenderPipeline->mVertexBufferLayout
@@ -121,15 +135,9 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     (void)mFragmentState;
 
     // fill bindgroup
-    mBindingData.reserve(6);
-    mBindingData.resize(6);
+    mBindingData.reserve(4);
+    mBindingData.resize(4);
 
-    // modelUniformBuffer.setLabel("Scene buffer for shadow pass")
-    // .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
-    // .setSize(sizeof(Scene))
-    // .setMappedAtCraetion()
-    // .create(mApp);
-    //
     // creating and writing to buffer
     mSceneUniformBuffer.setLabel("shadow map pass scene buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
@@ -146,27 +154,21 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
 
     mBindingData[1] = {};
     mBindingData[1].nextInChain = nullptr;
-    mBindingData[1].buffer = nullptr;
+    mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
     mBindingData[1].binding = 1;
     mBindingData[1].offset = 0;
     mBindingData[1].size = mApp->mInstanceManager->mBufferSize;
 
-    mBindingData[2].nextInChain = nullptr;
-    mBindingData[2].binding = 2;
-    mBindingData[2].buffer = nullptr;
-    mBindingData[2].offset = 0;
-    mBindingData[2].size = sizeof(ObjectInfo);
+    BindingGroup test;
+    test.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(uint32_t));
+    test.createLayout(mApp, "test layout");
 
-    mBindingData[3] = {};
-    mBindingData[3].binding = 3;
-    mBindingData[3].sampler = mApp->getDefaultSampler();
-
-    mBindingData[4] = {};
-    mBindingData[4].nextInChain = nullptr;
-    mBindingData[4].buffer = mApp->mDefaultBoneFinalTransformData.getBuffer();
-    mBindingData[4].binding = 4;
-    mBindingData[4].offset = 0;
-    mBindingData[4].size = 100 * sizeof(glm::mat4);
+    // WGPUBindGroupLayoutEntry object_transformation = {};
+    // setDefault(object_transformation);
+    // object_transformation.binding = 0;
+    // object_transformation.visibility = WGPUShaderStage_Vertex;
+    // object_transformation.buffer.type = WGPUBufferBindingType_Uniform;
+    // object_transformation.buffer.minBindingSize = sizeof(uint32_t);
 
     for (size_t f = 0; f < mNumOfCascades; ++f) {
         Buffer buf;
@@ -178,13 +180,35 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
 
         wgpuQueueWriteBuffer(mApp->getRendererResource().queue, buf.getBuffer(), 0, &f, sizeof(uint32_t));
         mFrustuIndexBuffer.push_back(buf);
+
+        WGPUBindGroupEntry mBindGroupEntry = {};
+        mBindGroupEntry.nextInChain = nullptr;
+        mBindGroupEntry.binding = 0;
+        mBindGroupEntry.buffer = buf.getBuffer();
+        mBindGroupEntry.offset = 0;
+        mBindGroupEntry.size = sizeof(uint32_t);
+
+        WGPUBindGroupDescriptor desc{};
+        desc.nextInChain = nullptr;
+        desc.entries = &mBindGroupEntry;
+        desc.entryCount = 1;
+        desc.label = {"translation bind group", WGPU_STRLEN};
+        desc.layout = layout;
+
+        mSceneIndicesBindGroup.emplace_back(wgpuDeviceCreateBindGroup(mApp->getRendererResource().device, &desc));
     }
 
-    mBindingData[5].nextInChain = nullptr;
-    mBindingData[5].binding = 5;
-    mBindingData[5].buffer = mFrustuIndexBuffer[0].getBuffer();
-    mBindingData[5].offset = 0;
-    mBindingData[5].size = sizeof(float);
+    // mBindingData[2].nextInChain = nullptr;
+    // mBindingData[2].binding = 2;
+    // mBindingData[2].buffer = mFrustuIndexBuffer[0].getBuffer();
+    // mBindingData[2].offset = 0;
+    // mBindingData[2].size = sizeof(float);
+
+    mBindingData[2] = {};
+    mBindingData[2].binding = 2;
+    mBindingData[2].sampler = mApp->getDefaultSampler();
+
+    mBindingGroup.create(mApp, mBindingData);
 
     mTextureBindingData[0] = {};
     mTextureBindingData[0].nextInChain = nullptr;
@@ -204,8 +228,6 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
         .setBlendState()
         .setColorTargetState(textureFormat)
         .setFragmentState();
-
-    /*mRenderPipeline->getDescriptorPtr()->fragment = nullptr;*/
 
     mRenderPipeline->setMultiSampleState().createPipeline(mApp);
 }
@@ -301,6 +323,7 @@ WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor(size_t index) {
 WGPURenderPassDescriptor* ShadowFrustum::getRenderPassDescriptor() { return &mRenderPassDesc; }
 
 void ShadowPass::renderAllCascades(WGPUCommandEncoder encoder) {
+    // ZoneScoped;
     auto& models = ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User);
     for (auto& s : mScenes) {
         s.projection = s.projection * s.view;
@@ -312,7 +335,6 @@ void ShadowPass::renderAllCascades(WGPUCommandEncoder encoder) {
                          sizeof(Scene) * mNumOfCascades);
 
     for (size_t c = 0; c < mNumOfCascades; ++c) {
-        // PerfTimer timer{"Water Reflection"};
         WGPURenderPassEncoder shadow_pass_encoder =
             wgpuCommandEncoderBeginRenderPass(encoder, getRenderPassDescriptor(c));
         wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder, getPipeline()->getPipeline());
@@ -320,46 +342,33 @@ void ShadowPass::renderAllCascades(WGPUCommandEncoder encoder) {
         wgpuRenderPassEncoderEnd(shadow_pass_encoder);
         wgpuRenderPassEncoderRelease(shadow_pass_encoder);
     }
-    // std::cout << "---------------------------------------------" << std::endl;
 }
 
 void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEncoder encoder, size_t which) {
     /*auto& render_resource = mApp->getRendererResource();*/
 
+    mBindingData[0].buffer = mSceneUniformBuffer.getBuffer();
+    mBindingData[2].buffer = mFrustuIndexBuffer[which].getBuffer();
     for (auto& [name, model] : models) {
         if (name != "water") {
             // mScenes[which].model = model->mTransform.getLocalTransform();
 
-            mBindingData[0].buffer = mSceneUniformBuffer.getBuffer();
-            mBindingData[2].buffer = model->getUniformBuffer().getBuffer();
-            mBindingData[5].buffer = mFrustuIndexBuffer[which].getBuffer();
-
-            if (model->mScene->HasAnimations()) {
-                mBindingData[4].buffer = model->mSkiningTransformationBuffer.getBuffer();
-            } else {
-                mBindingData[4].buffer = mApp->mDefaultBoneFinalTransformData.getBuffer();
-            }
+            // mBindingData[2].buffer = model->getUniformBuffer().getBuffer();
+            //
+            // if (model->mScene->HasAnimations()) {
+            //     mBindingData[4].buffer = model->mSkiningTransformationBuffer.getBuffer();
+            // } else {
+            //     mBindingData[4].buffer = mApp->mDefaultBoneFinalTransformData.getBuffer();
+            // }
+            //
+            // auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
 
             for (auto& [mat_id, mesh] : model->mMeshes) {
-                // Buffer modelUniformBuffer = {};
-                // // {
-                // //     PerfTimer timer{"Water Reflection"};
-                // modelUniformBuffer.setLabel("Model Uniform Buffer")
-                //     .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
-                //     .setSize(sizeof(Scene))
-                //     .setMappedAtCraetion()
-                //     .create(mApp);
-                // // }
-
-                auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
-
-                // wgpuQueueWriteBuffer(mApp->getRendererResource().queue, modelUniformBuffer.getBuffer(), 0,
-                //                      &mScenes.at(which), sizeof(Scene));
                 wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                                      wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
                 wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
                                                     wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
-                wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
+                wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindingGroup.getBindGroup(), 0, nullptr);
                 wgpuRenderPassEncoderSetBindGroup(encoder, 1,
                                                   mesh.mTextureBindGroup == nullptr
                                                       ? mApp->mDefaultTextureBindingGroup.getBindGroup()
@@ -367,6 +376,8 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
                                                   0, nullptr);
 
                 wgpuRenderPassEncoderSetBindGroup(encoder, 2, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+                wgpuRenderPassEncoderSetBindGroup(encoder, 3, model->getObjectInfoBindGroup(), 0, nullptr);
+                wgpuRenderPassEncoderSetBindGroup(encoder, 4, mSceneIndicesBindGroup[which], 0, nullptr);
 
                 if (model->instance == nullptr) {
                     wgpuRenderPassEncoderDrawIndexed(
@@ -375,10 +386,8 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
                 } else {
                     wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
                 }
-
-                // wgpuBufferRelease(modelUniformBuffer.getBuffer());
-                wgpuBindGroupRelease(bindgroup);
             }
+            // wgpuBindGroupRelease(bindgroup);
         }
         // std::cout << model->getName() << " ------------------------------" << std::endl;
     }

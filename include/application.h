@@ -103,7 +103,7 @@ class Application {
         WGPUBindGroup bindGrouptrans = {};
         glm::mat4 mtransmodel{1.0};
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
-        std::array<WGPUBindGroupLayout, 7> mBindGroupLayouts;
+        std::array<WGPUBindGroupLayout, 6> mBindGroupLayouts;
         Camera& getCamera();
         WGPUTextureFormat getTextureFormat();
         WGPUSampler getDefaultSampler();

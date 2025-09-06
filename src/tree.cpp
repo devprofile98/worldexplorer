@@ -143,7 +143,7 @@ struct CarModel : public IModel {
 
             mModel->load("car", app, RESOURCE_DIR "/jeep.obj", app->getObjectBindGroupLayout())
                 .mTransform
-                .moveTo(glm::vec3{-6.883, 3.048, -1.709})
+                .moveTo(glm::vec3{-2.883, -6.280, -1.709})
                 // .scale(glm::vec3{1.0})
                 .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.0f)
                 .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0);
@@ -482,21 +482,21 @@ struct SheepModel : public IModel {
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mSkiningTransformationBuffer.getBuffer(), 0,
                                  bones.data(), sizeof(glm::mat4) * bones.size());
 
-            WGPUBindGroupEntry mSkiningDataEntry = {};
-            mSkiningDataEntry.nextInChain = nullptr;
-            mSkiningDataEntry.binding = 0;
-            mSkiningDataEntry.buffer = mModel->mSkiningTransformationBuffer.getBuffer();
-            mSkiningDataEntry.offset = 0;
-            mSkiningDataEntry.size = sizeof(glm::mat4) * 100;
-
-            WGPUBindGroupDescriptor descriptor = {};
-            descriptor.nextInChain = nullptr;
-            descriptor.entries = &mSkiningDataEntry;
-            descriptor.entryCount = 1;
-            descriptor.label = {"skining bind group", WGPU_STRLEN};
-            descriptor.layout = app->getBindGroupLayouts()[6];
-
-            mModel->mSkiningBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &descriptor);
+            // WGPUBindGroupEntry mSkiningDataEntry = {};
+            // mSkiningDataEntry.nextInChain = nullptr;
+            // mSkiningDataEntry.binding = 0;
+            // mSkiningDataEntry.buffer = mModel->mSkiningTransformationBuffer.getBuffer();
+            // mSkiningDataEntry.offset = 0;
+            // mSkiningDataEntry.size = sizeof(glm::mat4) * 100;
+            //
+            // WGPUBindGroupDescriptor descriptor = {};
+            // descriptor.nextInChain = nullptr;
+            // descriptor.entries = &mSkiningDataEntry;
+            // descriptor.entryCount = 1;
+            // descriptor.label = {"skining bind group", WGPU_STRLEN};
+            // descriptor.layout = app->getBindGroupLayouts()[6];
+            //
+            // mModel->mSkiningBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &descriptor);
 
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
@@ -590,21 +590,21 @@ struct HumanModel : public IModel {
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mSkiningTransformationBuffer.getBuffer(), 0,
                                  bones.data(), sizeof(glm::mat4) * bones.size());
 
-            WGPUBindGroupEntry mSkiningDataEntry = {};
-            mSkiningDataEntry.nextInChain = nullptr;
-            mSkiningDataEntry.binding = 0;
-            mSkiningDataEntry.buffer = mModel->mSkiningTransformationBuffer.getBuffer();
-            mSkiningDataEntry.offset = 0;
-            mSkiningDataEntry.size = sizeof(glm::mat4) * 100;
-
-            WGPUBindGroupDescriptor descriptor = {};
-            descriptor.nextInChain = nullptr;
-            descriptor.entries = &mSkiningDataEntry;
-            descriptor.entryCount = 1;
-            descriptor.label = {"skining bind group", WGPU_STRLEN};
-            descriptor.layout = app->getBindGroupLayouts()[6];
-
-            mModel->mSkiningBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &descriptor);
+            // WGPUBindGroupEntry mSkiningDataEntry = {};
+            // mSkiningDataEntry.nextInChain = nullptr;
+            // mSkiningDataEntry.binding = 0;
+            // mSkiningDataEntry.buffer = mModel->mSkiningTransformationBuffer.getBuffer();
+            // mSkiningDataEntry.offset = 0;
+            // mSkiningDataEntry.size = sizeof(glm::mat4) * 100;
+            //
+            // WGPUBindGroupDescriptor descriptor = {};
+            // descriptor.nextInChain = nullptr;
+            // descriptor.entries = &mSkiningDataEntry;
+            // descriptor.entryCount = 1;
+            // descriptor.label = {"skining bind group", WGPU_STRLEN};
+            // descriptor.layout = app->getBindGroupLayouts()[6];
+            //
+            // mModel->mSkiningBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &descriptor);
 
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
@@ -619,13 +619,13 @@ struct HumanModel : public IModel {
 
 USER_REGISTER_MODEL("tree", TreeModel);
 USER_REGISTER_MODEL("boat", BoatModel);
-// USER_REGISTER_MODEL("car", CarModel);
+USER_REGISTER_MODEL("car", CarModel);
 USER_REGISTER_MODEL("tower", TowerModel);
 USER_REGISTER_MODEL("desk", DeskModel);
 USER_REGISTER_MODEL("arrow", ArrowModel);
 USER_REGISTER_MODEL("grass", GrassModel);
 USER_REGISTER_MODEL("steampunk", Steampunk);
-// USER_REGISTER_MODEL("sheep", SheepModel);
+USER_REGISTER_MODEL("sheep", SheepModel);
 USER_REGISTER_MODEL("water", WaterModel);
 // USER_REGISTER_MODEL("sphere", SphereModel);
 USER_REGISTER_MODEL("human", HumanModel);

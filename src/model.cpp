@@ -351,8 +351,11 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
         size_t bid_cnt = 0;
         if (mesh->HasBones()) {
             for (const auto& [bid, bwg] : bonemap[i]) {
-                vertex.boneIds[bid_cnt] = bid;
-                vertex.weights[bid_cnt] = bwg;
+                // if (bid_cnt > 3) {
+                //     break;
+                // }
+                vertex.boneIds[bid_cnt % 4] = bid;
+                vertex.weights[bid_cnt % 4] = bwg;
                 ++bid_cnt;
             }
         }
@@ -517,6 +520,8 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     /* Create a mapping from [name] -> [channel data]*/
     if (mScene->HasAnimations()) {
         aiAnimation* anim = mScene->mAnimations[0];
+        std::cout << " -----**************************************************** " << getName() << " "
+                  << mScene->mNumAnimations << std::endl;
         mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
         for (size_t i = 0; i < anim->mNumChannels; ++i) {
             std::cout << " ----- " << anim->mChannels[i]->mNumPositionKeys << std::endl;
@@ -627,17 +632,24 @@ void BaseModel::selected(bool selected) { mTransform.mObjectInfo.isSelected = se
 bool BaseModel::isSelected() const { return mTransform.mObjectInfo.isSelected; }
 
 void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData) {
-    WGPUBindGroupEntry mBindGroupEntry = {};
-    mBindGroupEntry.nextInChain = nullptr;
-    mBindGroupEntry.binding = 0;
-    mBindGroupEntry.buffer = Drawable::getUniformBuffer().getBuffer();
-    mBindGroupEntry.offset = 0;
-    mBindGroupEntry.size = sizeof(ObjectInfo);
+    std::array<WGPUBindGroupEntry, 2> mBindGroupEntry = {};
+    mBindGroupEntry[0].nextInChain = nullptr;
+    mBindGroupEntry[0].binding = 0;
+    mBindGroupEntry[0].buffer = Drawable::getUniformBuffer().getBuffer();
+    mBindGroupEntry[0].offset = 0;
+    mBindGroupEntry[0].size = sizeof(ObjectInfo);
+
+    mBindGroupEntry[1].nextInChain = nullptr;
+    mBindGroupEntry[1].buffer = mScene->HasAnimations() ? mSkiningTransformationBuffer.getBuffer()
+                                                        : app->mDefaultBoneFinalTransformData.getBuffer();
+    mBindGroupEntry[1].binding = 1;
+    mBindGroupEntry[1].offset = 0;
+    mBindGroupEntry[1].size = 100 * sizeof(glm::mat4);
 
     WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
     mTrasBindGroupDesc.nextInChain = nullptr;
-    mTrasBindGroupDesc.entries = &mBindGroupEntry;
-    mTrasBindGroupDesc.entryCount = 1;
+    mTrasBindGroupDesc.entries = mBindGroupEntry.data();
+    mTrasBindGroupDesc.entryCount = 2;
     mTrasBindGroupDesc.label = createStringView("translation bind group");
     mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
 

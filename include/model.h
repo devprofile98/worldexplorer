@@ -233,7 +233,7 @@ class Model : public BaseModel {
         // size_t mAnimationPoseCounter = 0;
         double mAnimationSecond = 0.0;
         double mAnimationDuration = 0.0;
-        WGPUBindGroup mSkiningBindGroup = {};
+        // WGPUBindGroup mSkiningBindGroup = {};
         WGPUBindGroupEntry mSkiningDataEntry;
 
 #ifdef DEVELOPMENT_BUILD

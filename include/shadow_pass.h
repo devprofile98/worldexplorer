@@ -67,6 +67,7 @@ class ShadowPass : public RenderPass {
 
         // bindings
         BindingGroup mBindingGroup;
+        std::vector<WGPUBindGroup> mSceneIndicesBindGroup;
         std::vector<WGPUBindGroupEntry> mBindingData;
         BindingGroup mTextureBindingGroup;
         std::vector<WGPUBindGroupEntry> mTextureBindingData{3};

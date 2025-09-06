@@ -1,3 +1,4 @@
+
 #include "common.wgsl"
 
 //@group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
@@ -272,7 +273,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	    // gamma correct
     color = pow(color, vec3(1.1));
 
-    let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
+    //let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
 
-    return vec4f(color * (1 - shadow * (0.75)), 1.0);
+    return vec4f(color, 1.0);
 }
