@@ -10,7 +10,7 @@
 struct TreeModel : public IModel {
         TreeModel(Application* app) {
             mModel = new Model{};
-            mModel->load("tree", app, RESOURCE_DIR "/tree2.obj", app->getObjectBindGroupLayout())
+            mModel->load("tree", app, RESOURCE_DIR "/tree3.gltf", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{0.725, -7.640, 1.125})
                 .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.9});

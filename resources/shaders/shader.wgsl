@@ -85,6 +85,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
         	break;
         }
     }
+
     // if length(out.viewSpacePos) > ElapsedTime { index = 1;}
     out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
     out.shadowIdx = index;
@@ -209,11 +210,18 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     F0 = mix(F0, albedo, metallic);
 
     var lo: vec3f = vec3f(0.0);
+
+
+    ////////////// Calculations for point lights
     for (var i = 0u; i < 2; i += 1u) {
         let curr_light = pointLight[i];
-        let L = normalize(curr_light.position.xyz - in.worldPos);
+        let diff = curr_light.position.xyz - in.worldPos;
+        let distance = length(diff);
+        if distance > 5.0f {
+            continue;
+        }
+        let L = normalize(diff);
         let H = normalize(V + L);
-        let distance = length(curr_light.position.xyz - in.worldPos);
         let attenuation = 1.0f / (distance * distance);
 
         let radiance = curr_light.ambient.rgb * attenuation;
@@ -237,6 +245,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         lo += (kD * albedo / PI + specular) * radiance * NdotL;
     }
 
+    ////////////// Calculations for sun light
         {
         let curr_light = lightingInfos.colors[0].rgb;
         let L = normalize(lightingInfos.directions[0].xyz); // normalize(curr_light.position.xyz - in.worldPos);

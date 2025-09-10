@@ -201,7 +201,7 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
                 .setMappedAtCraetion()
                 .create(mApp);
 
-            mBindingData[0].buffer = mApp->getUniformBuffer();
+            mBindingData[0].buffer = mApp->getUniformBuffer().getBuffer();
             mBindingData[3].textureView = opaqueDepthTextureView;
             mBindingData[4].buffer = object_info_buffer.getBuffer();
             mBindingData[7].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();

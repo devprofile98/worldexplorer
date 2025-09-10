@@ -135,8 +135,7 @@ class Drawable {
     public:
         Drawable();
         void configure(Application* app);
-        virtual void draw(Application* app, WGPURenderPassEncoder encoder,
-                          std::vector<WGPUBindGroupEntry>& bindingData);
+        virtual void draw(Application* app, WGPURenderPassEncoder encoder);
 
         Buffer& getUniformBuffer();
 
@@ -204,8 +203,7 @@ class Model : public BaseModel {
         void processNode(Application* app, aiNode* node, const aiScene* scene);
         Model& load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout);
         Model& uploadToGPU(Application* app);
-        void draw(Application* app, WGPURenderPassEncoder encoder,
-                  std::vector<WGPUBindGroupEntry>& bindingData) override;
+        void draw(Application* app, WGPURenderPassEncoder encoder) override;
 
         Model& setFoliage();
         Model& useTexture(bool use = true);

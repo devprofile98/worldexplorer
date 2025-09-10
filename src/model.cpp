@@ -53,10 +53,9 @@ void Drawable::configure(Application* app) {
         .create(app);
 }
 
-void Drawable::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
+void Drawable::draw(Application* app, WGPURenderPassEncoder encoder) {
     (void)app;
     (void)encoder;
-    (void)bindingData;
 }
 
 Buffer& Drawable::getUniformBuffer() { return mUniformBuffer; }
@@ -685,8 +684,7 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     }
 }
 
-void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
-    (void)bindingData;
+void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
     auto& render_resource = app->getRendererResource();
     WGPUBindGroup active_bind_group = nullptr;
 

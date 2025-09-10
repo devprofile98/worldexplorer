@@ -34,11 +34,13 @@ class WaterReflectionPass : public RenderPass {
         WGPUBindGroupLayout layout;
 
         void createRenderPass(WGPUTextureFormat textureFormat) override;
+        void execute(WGPUCommandEncoder /*encoder*/) override;
 };
 
 class WaterRefractionPass : public RenderPass {
     public:
         WaterRefractionPass(Application* app, const std::string& name);
+        void execute(WGPUCommandEncoder encoder) override;
 
         Texture* mRenderTarget;
         Texture* mDepthTexture;

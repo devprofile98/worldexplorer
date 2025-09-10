@@ -92,8 +92,8 @@ void LightManager::renderGUI() {
         tmp_light.mLinear != mPointlight->mLinear || tmp_light.mQuadratic != mPointlight->mQuadratic ||
         tmp_light.mInnerCutoff != mPointlight->mInnerCutoff || tmp_light.mOuterCutoff != mPointlight->mOuterCutoff) {
         *mPointlight = tmp_light;
-        wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->mBuffer1, sizeof(Light) * mSelectedLightInGui,
-                             mPointlight, sizeof(Light));
+        wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->mLightBuffer.getBuffer(),
+                             sizeof(Light) * mSelectedLightInGui, mPointlight, sizeof(Light));
     }
 
     ImGui::BeginChild("Light manager list", ImVec2(0, 200),

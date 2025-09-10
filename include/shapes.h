@@ -13,8 +13,7 @@ class Application;
 class Cube : public BaseModel {
     public:
         Cube(Application* app);
-        virtual void draw(Application* app, WGPURenderPassEncoder encoder,
-                          std::vector<WGPUBindGroupEntry>& bindingData) override;
+        virtual void draw(Application* app, WGPURenderPassEncoder encoder) override;
         void userInterface() override;
         size_t getVertexCount() const override;
 
@@ -38,8 +37,7 @@ class Line : public BaseModel {
     public:
         Line(Application* app, glm::vec3 start, glm::vec3 end, float width, glm::vec3 color);
 
-        virtual void draw(Application* app, WGPURenderPassEncoder encoder,
-                          std::vector<WGPUBindGroupEntry>& bindingData) override;
+        virtual void draw(Application* app, WGPURenderPassEncoder encoder) override;
 
     private:
         Application* mApp;

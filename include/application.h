@@ -96,12 +96,12 @@ class Application {
         // Getters
         RendererResource& getRendererResource();
         BindingGroup& getBindingGroup();
-        WGPUBuffer& getUniformBuffer();
+        Buffer& getUniformBuffer();
         MyUniform& getUniformData();
         const WGPUBindGroupLayout& getObjectBindGroupLayout() const;
         const WGPUBindGroupLayout* getBindGroupLayouts() const;
         const std::vector<WGPUBindGroupEntry> getDefaultTextureBindingData() const;
-        WGPUBindGroup bindGrouptrans = {};
+        // WGPUBindGroup bindGrouptrans = {};
         glm::mat4 mtransmodel{1.0};
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
         std::array<WGPUBindGroupLayout, 6> mBindGroupLayouts;
@@ -116,7 +116,6 @@ class Application {
         std::pair<size_t, size_t> getWindowSize();
         void setWindowSize(size_t width, size_t height);
 
-        WGPUBuffer mBuffer1;
         BindingGroup mDefaultSkiningData = {};
         BindingGroup mDefaultTextureBindingGroup = {};
         BindingGroup mDefaultCameraIndexBindgroup = {};
@@ -127,11 +126,14 @@ class Application {
         Editor mEditor;
         BaseModel* mSelectedModel = nullptr;
         // Buffer indirectDrawArgsBuffer;  // copy dst, map read
+        Buffer mLightBuffer;
         Buffer mVisibleIndexBuffer;             // copy src, storage
         Buffer mVisibleIndexBuffer2;            // copy src, storage
         Buffer mDefaultBoneFinalTransformData;  // copy src, storage
         int ccounter = 0;
         std::vector<Line*> mLines;
+        std::vector<WGPUBindGroupEntry> mBindingData{20};
+        WGPUTextureView mCurrentTargetView;
 
     private:
         size_t mWindowWidth = 1920;
@@ -170,18 +172,17 @@ class Application {
 
         // WGPURenderPipeline mPipeline;
         BindingGroup mBindingGroup;
-        std::vector<WGPUBindGroupEntry> mBindingData{20};
         std::vector<WGPUBindGroupEntry> mDefaultTextureBindingData{3};
         std::vector<WGPUBindGroupEntry> mDefaultCameraIndexBindingData{1};
         std::vector<WGPUBindGroupEntry> mDefaultClipPlaneBGData{1};
         std::vector<WGPUBindGroupEntry> mDefaultVisibleBGData{1};
-        std::vector<WGPUBindGroupEntry> mDefaultVisibleBGData2{1};
+        // std::vector<WGPUBindGroupEntry> mDefaultVisibleBGData2{1};
         std::vector<WGPUBindGroupEntry> mDefaultBoneTransformations{1};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
         // WGPUBindGroup mBindGroup;
-        WGPUBuffer mUniformBuffer;
-        WGPUBuffer mUniformBufferTransform;
-        WGPUBuffer mDirectionalLightBuffer;
+        Buffer mUniformBuffer;
+        // WGPUBuffer mUniformBufferTransform;
+        Buffer mDirectionalLightBuffer;
         Buffer mLightSpaceTransformation;
         Buffer mTimeBuffer;
         Buffer mDefaultCameraIndex;

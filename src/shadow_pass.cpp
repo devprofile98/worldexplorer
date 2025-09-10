@@ -44,7 +44,7 @@ ShadowFrustum::ShadowFrustum(Application* app, WGPUTextureView renderTarget, WGP
 
 void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat) { (void)textureFormat; }
 void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascadeNumber) {
-    constexpr uint32_t screen = 1024;
+    constexpr uint32_t screen = 2048;
     mNumOfCascades = cascadeNumber;
     mRenderTarget =
         new Texture{mApp->getRendererResource().device, static_cast<uint32_t>(screen), static_cast<uint32_t>(screen),

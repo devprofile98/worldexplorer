@@ -78,6 +78,7 @@ class RenderPass {
 
         ColorAttachment mColorAttachment;
         DepthStencilAttachment mDepthStencilAttachment;
+        virtual void execute(WGPUCommandEncoder /*encoder*/){};
 
     private:
         // render pass

@@ -148,8 +148,7 @@ WGPUBindGroupDescriptor createBindGroup(Application* app, WGPUBuffer buffer, siz
     return mTrasBindGroupDesc;
 }
 
-void Cube::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
-    (void)bindingData;
+void Cube::draw(Application* app, WGPURenderPassEncoder encoder) {
     auto& render_resource = app->getRendererResource();
 
     mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
@@ -164,7 +163,7 @@ void Cube::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGP
 
     /*bindingData[13].buffer = offset_buffer.getBuffer();*/
     auto& desc = app->getBindingGroup().getDescriptor();
-    desc.entries = bindingData.data();
+    desc.entries = app->mBindingData.data();
     auto bindgroup0 = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup0, 0, nullptr);
 
@@ -299,8 +298,7 @@ Line::Line(Application* app, glm::vec3 start, glm::vec3 end, float width, glm::v
     }
 }
 
-void Line::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
-    (void)bindingData;
+void Line::draw(Application* app, WGPURenderPassEncoder encoder) {
     auto& render_resource = app->getRendererResource();
 
     mTransform.mObjectInfo.transformation = glm::mat4{1.0f};  // mTransformMatrix;
@@ -315,7 +313,7 @@ void Line::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGP
                                          wgpuBufferGetSize(mMeshes[0].mVertexBuffer.getBuffer()));
 
     auto& desc = app->getBindingGroup().getDescriptor();
-    desc.entries = bindingData.data();
+    desc.entries = app->mBindingData.data();
     auto bindgroup0 = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup0, 0, nullptr);
 

@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "binding_group.h"
 #include "glm/matrix.hpp"
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -294,6 +295,15 @@ void Application::initializePipeline() {
                                     BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                                     sizeof(uint32_t) * 13000);
 
+    /* Default Object Detail bindgroup*/
+    BindingGroup object_information;
+    object_information.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
+                                 sizeof(ObjectInfo));
+    object_information.addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM,
+                                 100 * sizeof(glm::mat4));
+
+    /* Creating bindgroup layouts */
+    /* ************************** */
     WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
     WGPUBindGroupLayout texture_bind_group_layout =
         mDefaultTextureBindingGroup.createLayout(this, "default texture bindgroup layout");
@@ -307,29 +317,11 @@ void Application::initializePipeline() {
     WGPUBindGroupLayout visible_bind_group_layout =
         mDefaultVisibleBuffer.createLayout(this, "default visible index layout");
 
-    // WGPUBindGroupLayout default_bone_transformations_bind_group_layout =
-    //     mDefaultSkiningData.createLayout(this, "default Bone Transformation bindgroup");
-
-    std::array<WGPUBindGroupLayoutEntry, 2> object_transformation = {};
-    setDefault(object_transformation[0]);
-    object_transformation[0].binding = 0;
-    object_transformation[0].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-    object_transformation[0].buffer.type = WGPUBufferBindingType_Uniform;
-    object_transformation[0].buffer.minBindingSize = sizeof(ObjectInfo);
-
-    object_transformation[1].binding = 1;
-    object_transformation[1].visibility = WGPUShaderStage_Vertex;
-    object_transformation[1].buffer.type = WGPUBufferBindingType_Uniform;
-    object_transformation[1].buffer.minBindingSize = 100 * sizeof(glm::mat4);
-
-    WGPUBindGroupLayoutDescriptor bind_group_layout_descriptor1 = {};
-    bind_group_layout_descriptor1.nextInChain = nullptr;
-    bind_group_layout_descriptor1.label = createStringViewC("Object Tranformation Matrix uniform");
-    bind_group_layout_descriptor1.entryCount = 2;
-    bind_group_layout_descriptor1.entries = object_transformation.data();
+    WGPUBindGroupLayout obj_transform_layout =
+        object_information.createLayout(this, "Object Tranformation Matrix uniform");
 
     mBindGroupLayouts[0] = bind_group_layout;
-    mBindGroupLayouts[1] = wgpuDeviceCreateBindGroupLayout(mRendererResource.device, &bind_group_layout_descriptor1);
+    mBindGroupLayouts[1] = obj_transform_layout;
     mBindGroupLayouts[2] = texture_bind_group_layout;
     mBindGroupLayouts[3] = camera_bind_group_layout;
     mBindGroupLayouts[4] = clipplane_bind_group_layout;
@@ -413,6 +405,7 @@ void Application::initializePipeline() {
     mDefaultClipPlaneBGData[0].offset = 0;
     mDefaultClipPlaneBGData[0].size = sizeof(glm::vec4);
 
+    /* Initializing Render Passes */
     mShadowPass = new ShadowPass{this, "Shadow pass"};
     mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm, 3);
 
@@ -440,9 +433,10 @@ void Application::initializePipeline() {
         new WaterPass{this, mWaterPass->mRenderTarget, mWaterRefractionPass->mRenderTarget, "Water pass"};
     mWaterRenderPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
 
+    /* Initializing Binding Data for bindgroups */
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
-    mBindingData[0].buffer = mUniformBuffer;
+    mBindingData[0].buffer = mUniformBuffer.getBuffer();
     mBindingData[0].offset = 0;
     mBindingData[0].size = sizeof(MyUniform) * 10;
 
@@ -458,13 +452,13 @@ void Application::initializePipeline() {
 
     mBindingData[3].nextInChain = nullptr;
     mBindingData[3].binding = 3;
-    mBindingData[3].buffer = mDirectionalLightBuffer;
+    mBindingData[3].buffer = mDirectionalLightBuffer.getBuffer();
     mBindingData[3].offset = 0;
     mBindingData[3].size = sizeof(LightingUniforms);
 
     mBindingData[4].nextInChain = nullptr;
     mBindingData[4].binding = 4;
-    mBindingData[4].buffer = mBuffer1;
+    mBindingData[4].buffer = mLightBuffer.getBuffer();
     mBindingData[4].offset = 0;
     mBindingData[4].size = sizeof(Light) * 10;
 
@@ -507,9 +501,6 @@ void Application::initializePipeline() {
     /*mCompositionPass = new CompositionPass{this};*/
     /*mCompositionPass->initializePass();*/
 
-    /*static auto texture_array =*/
-    /*    std::vector<WGPUTextureView>{mShadowPass->mNearFrustum->mShadowDepthTexture->getTextureViewArray(),*/
-    /*                                 mShadowPass->mFarFrustum->mShadowDepthTexture->getTextureViewArray()};*/
     mBindingData[10] = {};
     mBindingData[10].nextInChain = nullptr;
     mBindingData[10].binding = 10;
@@ -559,8 +550,6 @@ void Application::initializePipeline() {
     wgpuQueueWriteBuffer(getRendererResource().queue, mDefaultBoneFinalTransformData.getBuffer(), 0, bones.data(),
                          sizeof(glm::mat4) * bones.size());
 
-    //
-    //
     mDefaultVisibleBGData[0] = {};
     mDefaultVisibleBGData[0].nextInChain = nullptr;
     mDefaultVisibleBGData[0].buffer = mVisibleIndexBuffer.getBuffer();
@@ -568,52 +557,12 @@ void Application::initializePipeline() {
     mDefaultVisibleBGData[0].offset = 0;
     mDefaultVisibleBGData[0].size = sizeof(uint32_t) * 100'000 * 5;
 
-    mDefaultVisibleBGData2[0] = {};
-    mDefaultVisibleBGData2[0].nextInChain = nullptr;
-    mDefaultVisibleBGData2[0].buffer = mVisibleIndexBuffer2.getBuffer();
-    mDefaultVisibleBGData2[0].binding = 0;
-    mDefaultVisibleBGData2[0].offset = 0;
-    mDefaultVisibleBGData2[0].size = sizeof(uint32_t) * 100'000 * 5;
-
+    /* Creating actual bindgroups */
     mBindingGroup.create(this, mBindingData);
     mDefaultTextureBindingGroup.create(this, mDefaultTextureBindingData);
     mDefaultCameraIndexBindgroup.create(this, mDefaultCameraIndexBindingData);
     mDefaultClipPlaneBG.create(this, mDefaultClipPlaneBGData);
     mDefaultVisibleBuffer.create(this, mDefaultVisibleBGData);
-    // mDefaultSkiningData.create(this, mDefaultBoneTransformations);
-    // mDefaultVisibleBuffer2.create(this, mDefaultVisibleBGData2);
-
-    WGPUBufferDescriptor buffer_descriptor = {};
-    buffer_descriptor.nextInChain = nullptr;
-    buffer_descriptor.label = createStringViewC("ahmad");
-
-    // Create Uniform buffers
-    buffer_descriptor.size = sizeof(ObjectInfo);
-    buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-    buffer_descriptor.mappedAtCreation = false;
-    mUniformBufferTransform = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
-
-    ///////// Transformation bind group
-    std::array<WGPUBindGroupEntry, 2> mBindGroupEntry = {};
-    mBindGroupEntry[0].nextInChain = nullptr;
-    mBindGroupEntry[0].binding = 0;
-    mBindGroupEntry[0].buffer = mUniformBufferTransform;
-    mBindGroupEntry[0].offset = 0;
-    mBindGroupEntry[0].size = sizeof(ObjectInfo);
-
-    mBindGroupEntry[1].nextInChain = nullptr;
-    mBindGroupEntry[1].buffer = mDefaultBoneFinalTransformData.getBuffer();
-    mBindGroupEntry[1].binding = 1;
-    mBindGroupEntry[1].offset = 0;
-    mBindGroupEntry[1].size = 100 * sizeof(glm::mat4);
-
-    mTrasBindGroupDesc.nextInChain = nullptr;
-    mTrasBindGroupDesc.entries = mBindGroupEntry.data();
-    mTrasBindGroupDesc.entryCount = 2;
-    mTrasBindGroupDesc.label = createStringView("translation bind group");
-    mTrasBindGroupDesc.layout = mBindGroupLayouts[1];
-
-    bindGrouptrans = wgpuDeviceCreateBindGroup(mRendererResource.device, &mTrasBindGroupDesc);
 
     mSkybox = new SkyBox{this, RESOURCE_DIR "/skybox"};
 }
@@ -623,13 +572,6 @@ void Application::initializeBuffers() {
     // initialize The instancing buffer
     mLightManager = LightManager::init(this);
     mInstanceManager = new InstanceManager{this, sizeof(InstanceData) * 100000 * 10, 100000};
-
-    /*water.load("water", this, RESOURCE_DIR "/bluecube.obj", mBindGroupLayouts[1])*/
-    /*    .moveTo(glm::vec3{-3.725, -7.640, -3.425})*/
-    /*    .scale(glm::vec3{100.0, 100.0, 1.0});*/
-    /*water.uploadToGPU(this);*/
-    /*water.setTransparent(false);*/
-    /*water.useTexture(false);*/
 
     terrain.generate(200, 8, terrainData).uploadToGpu(this);
     std::cout << "Generate is " << terrainData.size() << '\n';
@@ -642,29 +584,33 @@ void Application::initializeBuffers() {
     plane->mTransform.moveTo(glm::vec3{3.0f, 1.0f, 4.0f}).scale(glm::vec3{0.01, 1.0, 1.0});
     plane->setTransparent(false);
 
-    WGPUBufferDescriptor buffer_descriptor = {};
-    buffer_descriptor.nextInChain = nullptr;
-    // Create Uniform buffers
-    buffer_descriptor.label = {"uniform buffer", WGPU_STRLEN};
-    buffer_descriptor.size = sizeof(MyUniform) * 10;
-    buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-    buffer_descriptor.mappedAtCreation = false;
-    mUniformBuffer = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
+    // WGPUBufferDescriptor buffer_descriptor = {};
+    // buffer_descriptor.nextInChain = nullptr;
+    // // Create Uniform buffers
+    // buffer_descriptor.label = {"uniform buffer", WGPU_STRLEN};
+    // buffer_descriptor.size = sizeof(MyUniform) * 10;
+    // buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
+    // buffer_descriptor.mappedAtCreation = false;
+    // mUniformBuffer = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
+
+    mUniformBuffer.setLabel("MVP matrices matrix")
+        .setSize(sizeof(MyUniform) * 10)
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .setMappedAtCraetion()
+        .create(this);
+
     mUniforms.time = 1.0f;
     mUniforms.color = {0.0f, 1.0f, 0.4f, 1.0f};
     // setupCamera(mUniforms);
     mCamera = Camera{{-0.0f, -0.0f, 0.0f}, glm::vec3{0.8f}, {1.0, 0.0, 0.0}, 0.0};
     mUniforms.setCamera(mCamera);
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, buffer_descriptor.size);
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), 0, &mUniforms, sizeof(MyUniform) * 10);
 
-    WGPUBufferDescriptor lighting_buffer_descriptor = {};
-    lighting_buffer_descriptor.nextInChain = nullptr;
-    // Create Uniform buffers
-    lighting_buffer_descriptor.label = createStringView(":::::");
-    lighting_buffer_descriptor.size = sizeof(LightingUniforms);
-    lighting_buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-    lighting_buffer_descriptor.mappedAtCreation = false;
-    mDirectionalLightBuffer = wgpuDeviceCreateBuffer(mRendererResource.device, &lighting_buffer_descriptor);
+    mDirectionalLightBuffer.setLabel("Directional light buffer")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .setSize(sizeof(LightingUniforms))
+        .setMappedAtCraetion()
+        .create(this);
 
     std::cout << "Generate is " << terrainData.size() << '\n';
     mLightSpaceTransformation.setLabel("Light space transform buffer")
@@ -675,17 +621,14 @@ void Application::initializeBuffers() {
 
     mLightingUniforms.directions = {glm::vec4{0.7, 0.4, 1.0, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
     mLightingUniforms.colors = {glm::vec4{0.99, 1.0, 0.88, 1.0}, glm::vec4{0.6, 0.9, 1.0, 1.0}};
-    wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
-                         lighting_buffer_descriptor.size);
+    wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer.getBuffer(), 0, &mLightingUniforms,
+                         sizeof(LightingUniforms));
 
-    WGPUBufferDescriptor pointligth_buffer_descriptor = {};
-    pointligth_buffer_descriptor.nextInChain = nullptr;
-    pointligth_buffer_descriptor.label = createStringView(":::::");
-    pointligth_buffer_descriptor.size = sizeof(Light) * 10;
-    pointligth_buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-    pointligth_buffer_descriptor.mappedAtCreation = false;
-    mBuffer1 = wgpuDeviceCreateBuffer(mRendererResource.device, &pointligth_buffer_descriptor);
-
+    mLightBuffer.setLabel("Lights Buffer")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .setSize(sizeof(Light) * 10)
+        .setMappedAtCraetion(false)
+        .create(this);
     glm::vec4 red = {1.0, 0.0, 0.0, 1.0};
     glm::vec4 blue = {0.0, 0.0, 1.0, 1.0};
 
@@ -696,7 +639,7 @@ void Application::initializeBuffers() {
     mLightManager->createSpotLight({1.0, 2.0, 1.0, 1.0}, {0.0, 0.0, -1.0f, 1.0f}, glm::cos(glm::radians(12.5f)),
                                    glm::cos(glm::radians(17.5f)));
 
-    mLightManager->uploadToGpu(this, mBuffer1);
+    mLightManager->uploadToGpu(this, mLightBuffer.getBuffer());
 
     setupComputePass(this, mInstanceManager->getInstancingBuffer().getBuffer());
 }
@@ -855,47 +798,6 @@ bool Application::initialize() {
     initializeBuffers();
     initializePipeline();
 
-    // if (!look_as_light) {
-    //     auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
-    //     /*mShadowPass->setupScene(corners, which_frustum == true ? 1 : 0);*/
-    //     /*mShadowPass->createFrustumSplits(corners, 10.0f, 100.0f);*/
-    // }
-    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, nullptr);
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, nullptr);
-    wgpuCommandEncoderRelease(encoder);
-    wgpuQueueSubmit(mRendererResource.queue, 1, &command);
-    wgpuCommandBufferRelease(command);
-    //
-    //     {
-    //         depth_prepass_render_pass_descriptor.nextInChain = nullptr;
-    //
-    //         static WGPURenderPassColorAttachment color_attachment = {};
-    //         color_attachment.view = nullptr;
-    //         color_attachment.resolveTarget = nullptr;
-    //         color_attachment.loadOp = WGPULoadOp_Undefined;
-    //         color_attachment.storeOp = WGPUStoreOp_Discard;
-    //         color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
-    // #ifndef WEBGPU_BACKEND_WGPU
-    //         color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-    // #endif  // NOT WEBGPU_BACKEND_WGPU
-    //
-    //         depth_prepass_render_pass_descriptor.colorAttachmentCount = 0;
-    //         depth_prepass_render_pass_descriptor.colorAttachments = nullptr;
-    //
-    //         static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
-    //         depth_stencil_attachment.view = mDepthTextureView;
-    //         depth_stencil_attachment.depthClearValue = 1.0f;
-    //         depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
-    //         depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
-    //         depth_stencil_attachment.depthReadOnly = false;
-    //         depth_stencil_attachment.stencilClearValue = 0;
-    //         depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Clear;
-    //         depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Discard;
-    //         depth_stencil_attachment.stencilReadOnly = false;
-    //         depth_prepass_render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
-    //         depth_prepass_render_pass_descriptor.timestampWrites = nullptr;
-    //     }
-
     return true;
 }
 
@@ -903,14 +805,17 @@ void Application::mainLoop() {
     glfwPollEvents();
 
     double time = glfwGetTime();
-    WGPUTextureView target_view = getNextSurfaceTextureView();
-    if (target_view == nullptr) {
+    mCurrentTargetView = getNextSurfaceTextureView();
+    if (mCurrentTargetView == nullptr) {
         return;
     }
 
-    for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-        model->mAnimationSecond = std::fmod(time, model->mAnimationDuration) * 1000.0f;
-        model->ExtractBonePositions();
+    {
+        // PerfTimer timer{"tick"};
+        for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+            model->mAnimationSecond = std::fmod(time, model->mAnimationDuration) * 1000.0f;
+            model->ExtractBonePositions();
+        }
     }
 
     // create a commnad encoder
@@ -971,11 +876,11 @@ void Application::mainLoop() {
     //     mUniforms.modelMatrix = all_scene.model;
     // }
 
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, 0, &mUniforms, sizeof(MyUniform));
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), 0, &mUniforms, sizeof(MyUniform));
 
     // ---------------- 2 - begining of the opaque object color pass ---------------
 
-    /*auto render_pass_descriptor = createRenderPassDescriptor(target_view, mDepthTextureView);*/
+    /*auto render_pass_descriptor = createRenderPassDescriptor(mCurrentTargetView, mDepthTextureView);*/
 
     // inverting pitch and reflect camera based on the water plane
     // auto water_plane = ModelRegistry::instance().getLoadedModel(Visibility_User).find("water");
@@ -993,7 +898,7 @@ void Application::mainLoop() {
             camera.updateCamera();
             muniform.setCamera(camera);
             muniform.cameraWorldPosition = camera.getPos();
-            wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, sizeof(MyUniform), &muniform,
+            wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), sizeof(MyUniform), &muniform,
                                  sizeof(MyUniform));
             glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(muniform.viewMatrix));
             glm::mat4 mvp = muniform.projectMatrix * viewNoTranslation;
@@ -1049,66 +954,35 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderRelease(render_pass_encoder);
     }
 
-    // water pass
-    mWaterPass->setColorAttachment(
-        {mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    mWaterPass->setDepthStencilAttachment(
-        {mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false, 1.0});
-    mWaterPass->init();
-
-    WGPURenderPassEncoder water_pass_encoder =
-        wgpuCommandEncoderBeginRenderPass(encoder, mWaterPass->getRenderPassDescriptor());
-
-    wgpuRenderPassEncoderSetPipeline(water_pass_encoder, mWaterPass->getPipeline()->getPipeline());
-    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 3, mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(), 0,
-                                      nullptr);
-    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
-                                      nullptr);
-    wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+    mWaterPass->execute(encoder);
 
     // Test for scene hirarchy
-    static bool reparenting = true;
-    {
-        // auto& iter = ModelRegistry::instance().getLoadedModel(Visibility_User);
-        // auto boat = iter.find("tower");
-        // auto arrow = iter.find("arrow");
-        // auto desk = iter.find("boat");
-        // if (boat != iter.end() && arrow != iter.end() && desk != iter.end()) {
-        //     if (reparenting) {
-        //         reparenting = false;
-        //         // boat->second->mTransform.mTransformMatrix = new_transform;
-        //
-        //         arrow->second->addChildren(static_cast<BaseModel*>(boat->second));
-        //         boat->second->addChildren(static_cast<BaseModel*>(desk->second));
-        //     }
-        //
-        //     arrow->second->update();
-        // }
-        // auto human = iter.find("human");
-        // auto sphere = iter.find("sphere");
-        // if (human != iter.end() && sphere != iter.end()) {
-        //     if (reparenting) {
-        //         reparenting = false;
-        //         // loadSphereAtHumanBones(this, human->second, sphere->second);
-        //     }
-        // }
-    }
-
-    // main color psas
-    {
-        for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-            // if (model->mScene->HasAnimations()) {
-            //     wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 6, model->mSkiningBindGroup, 0, nullptr);
-            // } else {
-            //     wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 6, mDefaultSkiningData.getBindGroup(), 0,
-            //                                       nullptr);
-            // }
-            model->draw(this, water_pass_encoder, mBindingData);
-        }
-    }
-
-    wgpuRenderPassEncoderEnd(water_pass_encoder);
-    wgpuRenderPassEncoderRelease(water_pass_encoder);
+    // static bool reparenting = true;
+    // {
+    // auto& iter = ModelRegistry::instance().getLoadedModel(Visibility_User);
+    // auto boat = iter.find("tower");
+    // auto arrow = iter.find("arrow");
+    // auto desk = iter.find("boat");
+    // if (boat != iter.end() && arrow != iter.end() && desk != iter.end()) {
+    //     if (reparenting) {
+    //         reparenting = false;
+    //         // boat->second->mTransform.mTransformMatrix = new_transform;
+    //
+    //         arrow->second->addChildren(static_cast<BaseModel*>(boat->second));
+    //         boat->second->addChildren(static_cast<BaseModel*>(desk->second));
+    //     }
+    //
+    //     arrow->second->update();
+    // }
+    // auto human = iter.find("human");
+    // auto sphere = iter.find("sphere");
+    // if (human != iter.end() && sphere != iter.end()) {
+    //     if (reparenting) {
+    //         reparenting = false;
+    //         // loadSphereAtHumanBones(this, human->second, sphere->second);
+    //     }
+    // }
+    // }
 
     {  // Terrain Render Pass for Water Reflection
 
@@ -1134,33 +1008,31 @@ void Application::mainLoop() {
     }
 
     //----------------------------  Water Refraction Pass
-    mWaterRefractionPass->setColorAttachment({mWaterRefractionPass->mRenderTargetView, nullptr,
-                                              WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Clear});
-    mWaterRefractionPass->setDepthStencilAttachment({mWaterRefractionPass->mDepthTextureView, StoreOp::Store,
-                                                     LoadOp::Clear, false, StoreOp::Store, LoadOp::Load, false, 1.0});
-    mWaterRefractionPass->init();
 
-    WGPURenderPassEncoder water_refraction_pass_encoder =
-        wgpuCommandEncoderBeginRenderPass(encoder, mWaterRefractionPass->getRenderPassDescriptor());
-
-    wgpuRenderPassEncoderSetPipeline(water_refraction_pass_encoder, mWaterRefractionPass->getPipeline()->getPipeline());
-    wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
-                                      nullptr);
-
-    wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 4,
-                                      mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
-    wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0,
-                                      nullptr);
-
-    {
-        for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-            if (model->mName != "water") {
-                model->draw(this, water_refraction_pass_encoder, mBindingData);
-            }
-        }
-    }
-    wgpuRenderPassEncoderEnd(water_refraction_pass_encoder);
-    wgpuRenderPassEncoderRelease(water_refraction_pass_encoder);
+    mWaterRefractionPass->execute(encoder);
+    // WGPURenderPassEncoder water_refraction_pass_encoder =
+    //     wgpuCommandEncoderBeginRenderPass(encoder, mWaterRefractionPass->getRenderPassDescriptor());
+    //
+    // wgpuRenderPassEncoderSetPipeline(water_refraction_pass_encoder,
+    // mWaterRefractionPass->getPipeline()->getPipeline());
+    // wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(),
+    // 0,
+    //                                   nullptr);
+    //
+    // wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 4,
+    //                                   mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
+    // wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0,
+    //                                   nullptr);
+    //
+    // {
+    //     for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+    //         if (model->mName != "water") {
+    //             model->draw(this, water_refraction_pass_encoder, mBindingData);
+    //         }
+    //     }
+    // }
+    // wgpuRenderPassEncoderEnd(water_refraction_pass_encoder);
+    // wgpuRenderPassEncoderRelease(water_refraction_pass_encoder);
 
     {  // Terrain Render Pass for Water Refraction
 
@@ -1200,7 +1072,7 @@ void Application::mainLoop() {
             for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
                 if (model->mName != "water") {
                     // continue;
-                    model->draw(this, render_pass_encoder, mBindingData);
+                    model->draw(this, render_pass_encoder);
                 }
                 // if (!model->isTransparent()) {
                 // }
@@ -1219,7 +1091,7 @@ void Application::mainLoop() {
         render_pass_descriptor.nextInChain = nullptr;
 
         static WGPURenderPassColorAttachment color_attachment = {};
-        color_attachment.view = target_view;
+        color_attachment.view = mCurrentTargetView;
         color_attachment.resolveTarget = nullptr;
         color_attachment.loadOp = WGPULoadOp_Clear;
         color_attachment.storeOp = WGPUStoreOp_Store;
@@ -1266,7 +1138,7 @@ void Application::mainLoop() {
 
                 // std::cout << mPipeline->getPipelineLayout  .depthStencil->depthCompare;
                 if (!model->isTransparent()) {
-                    model->draw(this, render_pass_encoder, mBindingData);
+                    model->draw(this, render_pass_encoder);
                 }
             }
         }
@@ -1283,7 +1155,7 @@ void Application::mainLoop() {
 
     {
         mWaterRenderPass->setColorAttachment(
-            {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+            {mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
         mWaterRenderPass->setDepthStencilAttachment(
             {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false, 1.0});
         mWaterRenderPass->init();
@@ -1301,7 +1173,7 @@ void Application::mainLoop() {
                 wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 4,
                                                   mWaterRenderPass->mWaterTextureBindGroup.getBindGroup(), 0, nullptr);
                 if (!model->isTransparent()) {
-                    model->draw(this, water_render_pass_encoder, mBindingData);
+                    model->draw(this, water_render_pass_encoder);
                 }
             }
         }
@@ -1310,31 +1182,34 @@ void Application::mainLoop() {
     }
 
     // terrain pass
-    mTerrainPass->setColorAttachment(
-        {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    mTerrainPass->setDepthStencilAttachment(
-        {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined, false});
-    mTerrainPass->init();
+    {
+        mTerrainPass->setColorAttachment(
+            {mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+        mTerrainPass->setDepthStencilAttachment(
+            {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined, false});
+        mTerrainPass->init();
 
-    WGPURenderPassEncoder terrain_pass_encoder =
-        wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());
-    wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());
+        WGPURenderPassEncoder terrain_pass_encoder =
+            wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());
+        wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());
 
-    wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
+                                          nullptr);
 
-    wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
-    terrain.draw(this, terrain_pass_encoder, mBindingData);
+        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
+        terrain.draw(this, terrain_pass_encoder, mBindingData);
 
-    updateGui(terrain_pass_encoder, time);
+        updateGui(terrain_pass_encoder, time);
 
-    wgpuRenderPassEncoderEnd(terrain_pass_encoder);
-    wgpuRenderPassEncoderRelease(terrain_pass_encoder);
+        wgpuRenderPassEncoderEnd(terrain_pass_encoder);
+        wgpuRenderPassEncoderRelease(terrain_pass_encoder);
+    }
 
     // ---------------------------------------------------------------------
 
     // outline pass
     // mOutlinePass->setColorAttachment(
-    //     {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    //     {mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
     // mOutlinePass->setDepthStencilAttachment({mDepthTextureView, StoreOp::Undefined, LoadOp::Undefined, false,
     //                                          StoreOp::Undefined, LoadOp::Undefined, true, 0.0});
     // mOutlinePass->init();
@@ -1361,7 +1236,7 @@ void Application::mainLoop() {
 
     // 3D editor elements pass
     m3DviewportPass->setColorAttachment(
-        {target_view, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+        {mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
     m3DviewportPass->setDepthStencilAttachment({mDepthTextureView, StoreOp::Undefined, LoadOp::Undefined, false,
                                                 StoreOp::Undefined, LoadOp::Undefined, false, 0.0});
     m3DviewportPass->init();
@@ -1372,7 +1247,7 @@ void Application::mainLoop() {
 
     for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_Editor)) {
         wgpuRenderPassEncoderSetPipeline(viewport_3d_pass_encoder, m3DviewportPass->getPipeline()->getPipeline());
-        model->draw(this, viewport_3d_pass_encoder, mBindingData);
+        model->draw(this, viewport_3d_pass_encoder);
     }
 
     wgpuRenderPassEncoderEnd(viewport_3d_pass_encoder);
@@ -1399,7 +1274,7 @@ void Application::mainLoop() {
     /*auto ssbo_buffers = mTransparencyPass->getSSBOBuffers();*/
     /*mCompositionPass->setSSBOBuffers(ssbo_buffers.first, ssbo_buffers.second);*/
     /*mCompositionPass->mRenderPassDepthStencilAttachment.view = mDepthTextureView;*/
-    /*mCompositionPass->mRenderPassColorAttachment.view = target_view;*/
+    /*mCompositionPass->mRenderPassColorAttachment.view = mCurrentTargetView;*/
     /*auto composition_pass_desc = mCompositionPass->getRenderPassDescriptor();*/
     /*WGPURenderPassEncoder composition_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder,
      * composition_pass_desc);*/
@@ -1435,7 +1310,7 @@ void Application::mainLoop() {
         wgpuCommandBufferRelease(command);
         wgpuCommandEncoderRelease(encoder);
 
-        wgpuTextureViewRelease(target_view);
+        wgpuTextureViewRelease(mCurrentTargetView);
     }
 
 #ifndef __EMSCRIPTEN__
@@ -1450,8 +1325,8 @@ void Application::mainLoop() {
 }
 
 void Application::terminate() {
-    wgpuBufferRelease(mBuffer1);
-    wgpuBufferRelease(mUniformBuffer);
+    wgpuBufferRelease(mLightBuffer.getBuffer());
+    wgpuBufferRelease(mUniformBuffer.getBuffer());
     terminateGui();
     wgpuRenderPipelineRelease(mPipeline->getPipeline());
     wgpuSurfaceUnconfigure(mRendererResource.surface);
@@ -1610,6 +1485,7 @@ bool Application::initGui() {
     std::cout << " failed to run1111" << std::endl;
     return true;
 }
+
 void Application::terminateGui() {
     ImGui_ImplGlfw_Shutdown();
     ImGui_ImplWGPU_Shutdown();
@@ -1652,8 +1528,8 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                 ImGui::Text("Directional Light");
                 if (ImGui::ColorEdit3("Color", glm::value_ptr(mLightingUniforms.colors[0])) ||
                     ImGui::DragFloat3("Direction", glm::value_ptr(mLightingUniforms.directions[0]), 0.1, -1.0, 1.0)) {
-                    wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer, 0, &mLightingUniforms,
-                                         sizeof(LightingUniforms));
+                    wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer.getBuffer(), 0,
+                                         &mLightingUniforms, sizeof(LightingUniforms));
                 }
                 static glm::vec3 new_ligth_position = {};
                 ImGui::InputFloat3("create new light at:", glm::value_ptr(new_ligth_position));
@@ -1775,7 +1651,7 @@ RendererResource& Application::getRendererResource() { return mRendererResource;
 
 BindingGroup& Application::getBindingGroup() { return mBindingGroup; }
 
-WGPUBuffer& Application::getUniformBuffer() { return mUniformBuffer; }
+Buffer& Application::getUniformBuffer() { return mUniformBuffer; }
 
 MyUniform& Application::getUniformData() { return mUniforms; }
 

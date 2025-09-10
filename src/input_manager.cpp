@@ -2,6 +2,7 @@
 
 #include "GLFW/glfw3.h"
 #include "editor.h"
+#include "utils.h"
 
 InputManager::InputManager() {}
 

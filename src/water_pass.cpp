@@ -101,6 +101,31 @@ void WaterReflectionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline->setPrimitiveState(WGPUFrontFace_CW, WGPUCullMode_Back);
 
     mRenderPipeline->createPipeline(mApp);
+
+    setColorAttachment({mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    setDepthStencilAttachment(
+        {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false, 1.0});
+    init();
+}
+
+void WaterReflectionPass::execute(WGPUCommandEncoder encoder) {
+    // water pass
+
+    WGPURenderPassEncoder pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, getRenderPassDescriptor());
+
+    wgpuRenderPassEncoderSetPipeline(pass_encoder, getPipeline()->getPipeline());
+    wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+
+    {
+        for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+            model->draw(mApp, pass_encoder);
+        }
+    }
+
+    wgpuRenderPassEncoderEnd(pass_encoder);
+    wgpuRenderPassEncoderRelease(pass_encoder);
 }
 
 WaterRefractionPass::WaterRefractionPass(Application* app, const std::string& name) : RenderPass(name), mApp(app) {
@@ -156,6 +181,26 @@ WaterRefractionPass::WaterRefractionPass(Application* app, const std::string& na
     mDefaultClipPlaneBG.create(mApp, mDefaultClipPlaneBGData);
 }
 
+void WaterRefractionPass::execute(WGPUCommandEncoder encoder) {
+    WGPURenderPassEncoder pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, getRenderPassDescriptor());
+
+    wgpuRenderPassEncoderSetPipeline(pass_encoder, getPipeline()->getPipeline());
+    wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mApp->mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
+
+    wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mApp->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+
+    {
+        for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+            if (model->mName != "water") {
+                model->draw(mApp, pass_encoder);
+            }
+        }
+    }
+    wgpuRenderPassEncoderEnd(pass_encoder);
+    wgpuRenderPassEncoderRelease(pass_encoder);
+}
+
 void WaterRefractionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     (void)textureFormat;
 
@@ -174,6 +219,11 @@ void WaterRefractionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline->setPrimitiveState(WGPUFrontFace_CW, WGPUCullMode_Back);
 
     mRenderPipeline->createPipeline(mApp);
+
+    setColorAttachment({mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Clear});
+    setDepthStencilAttachment(
+        {mDepthTextureView, StoreOp::Store, LoadOp::Clear, false, StoreOp::Store, LoadOp::Load, false, 1.0});
+    init();
 }
 
 WaterPass::WaterPass(Application* app, Texture* renderTarget, Texture* refractionTarget, const std::string& name)
