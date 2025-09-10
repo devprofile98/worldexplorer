@@ -399,7 +399,7 @@ void runFrustumCullingTask(Application* app, WGPUCommandEncoder encoder) {
     auto& objs = ModelRegistry::instance().getLoadedModel(Visibility_User);
     // auto grass = objs.find("grass");
 
-    for (auto& [name, model] : objs) {
+    for (auto& model : objs) {
         // Buffer* buffers[] = {&model->mIndirectDrawArgsBuffer};
         if (model->instance == nullptr) continue;
         if (model->instance != nullptr) {

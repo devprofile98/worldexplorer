@@ -12,11 +12,11 @@ ModelRegistry& ModelRegistry::instance() {
 
 void ModelRegistry::registerModel(const std::string& name, FactoryFunc func) { factories[name] = func; }
 
-std::vector<std::string> ModelRegistry::getRegisteredNames() const {
-    std::vector<std::string> names;
-    for (const auto& kv : factories) names.push_back(kv.first);
-    return names;
-}
+// std::vector<std::string> ModelRegistry::getRegisteredNames() const {
+//     std::vector<std::string> names;
+//     for (const auto& kv : factories) names.push_back(kv.first);
+//     return names;
+// }
 
 // LoadModelResult ModelRegistry::create(Application* app, const std::string& name) const {
 //     auto it = factories.find(name);
@@ -27,7 +27,12 @@ std::vector<std::string> ModelRegistry::getRegisteredNames() const {
 //
 
 ModelRegistry::ModelContainer& ModelRegistry::getLoadedModel(ModelVisibility visibility) {
-    return mLoadedModels[visibility];
+    // return mLoadedModels[visibility];
+    if (visibility == Visibility_User) {
+        return mUserLoadedModel;
+    } else /*if (visibility == Visibility_Editor)*/ {
+        return mEditorLoadedModel;
+    }
 }
 
 void ModelRegistry::tick(Application* app) {
@@ -40,9 +45,15 @@ void ModelRegistry::tick(Application* app) {
     for (auto it = futures.begin(); it != futures.end();) {
         if (it->wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
             LoadModelResult model = it->get();
-            auto &container = mLoadedModels[model.visibility];
-	    std::cout << "Model loaded with visibility " << model.visibility <<" " << container.size()<< std::endl;
-            container[model.model->getName()] = model.model;
+            std::cout << "Model loaded with visibility " << model.visibility << " " << std::endl;
+            if (model.visibility == Visibility_User) {
+                mUserLoadedModel.push_back(model.model);
+            } else if (model.visibility == Visibility_Editor) {
+                mEditorLoadedModel.push_back(model.model);
+            }
+            // auto& container = mLoadedModels[model.visibility];
+            // container[model.model->getName()] = model.model;
+            // container.push_back(model.model);
             it = futures.erase(it);
         } else {
             it++;

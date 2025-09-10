@@ -41,12 +41,13 @@ class Pipeline {
         Pipeline& setColorTargetState(WGPUTextureFormat format = WGPUTextureFormat_Undefined);
         Pipeline& setColorTargetState(WGPUColorTargetState colorTargetState);
         Pipeline& setFragmentState();
-        Pipeline& setFragmentState(WGPUFragmentState fragmentState);
+        Pipeline& setFragmentState(WGPUFragmentState* fragmentState);
         Pipeline& setMultiSampleState(/*WGPUMultisampleState multiSampleState*/);
 
         WGPUDepthStencilState& getDepthStencilState();
 
         VertexBufferLayout mVertexBufferLayout = {};
+        WGPUShaderModule mShaderModule;
 
     private:
         Application* mApp;
@@ -59,7 +60,6 @@ class Pipeline {
 
         WGPUTextureFormat mDepthTextureFormat = WGPUTextureFormat_Depth24Plus;
 
-        WGPUShaderModule mShaderModule;
         // state
         WGPUDepthStencilState mDepthStencilState = {};
         WGPUBlendState mBlendState = {};

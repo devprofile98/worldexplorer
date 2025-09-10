@@ -694,36 +694,33 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WG
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mSkiningTransformationBuffer.getBuffer(),
                              0 * sizeof(glm::mat4), mFinalTransformations.data(), 100 * sizeof(glm::mat4));
     }
+    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
+                         sizeof(ObjectInfo));
 
     for (auto& [mat_id, mesh] : mMeshes) {
-        if (mesh.isTransparent) {
-            continue;
-        }
+        if (!mesh.isTransparent) {
+            active_bind_group = app->getBindingGroup().getBindGroup();
 
-        active_bind_group = app->getBindingGroup().getBindGroup();
+            wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
+                                                 wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
+            wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
+                                                wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
+            wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
 
-        wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
-                                             wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
-        wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
-                                            wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
-        wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(encoder, 2,
+                                              mesh.mTextureBindGroup == nullptr
+                                                  ? app->mDefaultTextureBindingGroup.getBindGroup()
+                                                  : mesh.mTextureBindGroup,
+                                              0, nullptr);
 
-        wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0,
-                             &mTransform.mObjectInfo, sizeof(ObjectInfo));
+            if (this->instance != nullptr) {
+                wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
+            } else {
+                wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
+            }
 
-        wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(encoder, 2,
-                                          mesh.mTextureBindGroup == nullptr
-                                              ? app->mDefaultTextureBindingGroup.getBindGroup()
-                                              : mesh.mTextureBindGroup,
-                                          0, nullptr);
-
-        if (this->instance != nullptr) {
-            wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
-        } else {
-            wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(),
-                                             this->instance == nullptr ? 1 : this->instance->getInstanceCount(), 0, 0,
-                                             0);
+            // continue;
         }
     }
 }

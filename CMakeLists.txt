@@ -17,9 +17,10 @@ add_subdirectory(extern/assmip)
 
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
- set(CMAKE_BUILD_TYPE Release)
- # set(CMAKE_BUILD_TYPE Debug)
+ # set(CMAKE_BUILD_TYPE Release)
+ set(CMAKE_BUILD_TYPE Debug)
 
+ add_definitions(-DTRACY_ENABLE)
 
 
  # configuring imgui
@@ -84,6 +85,8 @@ add_executable(
     src/animation.cpp
 
     src/tree.cpp
+
+    tracy_external/TracyClient.cpp
     
     ${IMGUI_SOURCES}
     ${IMGUI_BACKEND_SOURCES}
@@ -105,7 +108,7 @@ target_include_directories(App PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}"
                                        "extern/imgui"
                                        "extern/glfw3webgpu"
                                        "include"
-                                       
+                                       "tracy_external"
                                    )
 
 set_target_properties(App PROPERTIES

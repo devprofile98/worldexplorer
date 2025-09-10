@@ -5,6 +5,7 @@
 #include <format>
 
 #include "binding_group.h"
+#include "utils.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <webgpu/webgpu.h>
 
@@ -43,15 +44,16 @@ ShadowFrustum::ShadowFrustum(Application* app, WGPUTextureView renderTarget, WGP
 
 void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat) { (void)textureFormat; }
 void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascadeNumber) {
+    constexpr uint32_t screen = 1024;
     mNumOfCascades = cascadeNumber;
     mRenderTarget =
-        new Texture{mApp->getRendererResource().device, static_cast<uint32_t>(2048), static_cast<uint32_t>(2048),
+        new Texture{mApp->getRendererResource().device, static_cast<uint32_t>(screen), static_cast<uint32_t>(screen),
                     TextureDimension::TEX_2D, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};
     mRenderTarget->createView();
 
     mShadowDepthTexture = new Texture{mApp->getRendererResource().device,
-                                      static_cast<uint32_t>(2048),
-                                      static_cast<uint32_t>(2048),
+                                      static_cast<uint32_t>(screen),
+                                      static_cast<uint32_t>(screen),
                                       TextureDimension::TEX_2D,
                                       WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
                                       WGPUTextureFormat_Depth24Plus,
@@ -345,24 +347,10 @@ void ShadowPass::renderAllCascades(WGPUCommandEncoder encoder) {
 }
 
 void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEncoder encoder, size_t which) {
-    /*auto& render_resource = mApp->getRendererResource();*/
-
     mBindingData[0].buffer = mSceneUniformBuffer.getBuffer();
     mBindingData[2].buffer = mFrustuIndexBuffer[which].getBuffer();
-    for (auto& [name, model] : models) {
-        if (name != "water") {
-            // mScenes[which].model = model->mTransform.getLocalTransform();
-
-            // mBindingData[2].buffer = model->getUniformBuffer().getBuffer();
-            //
-            // if (model->mScene->HasAnimations()) {
-            //     mBindingData[4].buffer = model->mSkiningTransformationBuffer.getBuffer();
-            // } else {
-            //     mBindingData[4].buffer = mApp->mDefaultBoneFinalTransformData.getBuffer();
-            // }
-            //
-            // auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
-
+    for (auto& model : models) {
+        if (model->mName != "water") {
             for (auto& [mat_id, mesh] : model->mMeshes) {
                 wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                                      wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
@@ -380,20 +368,16 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
                 wgpuRenderPassEncoderSetBindGroup(encoder, 4, mSceneIndicesBindGroup[which], 0, nullptr);
 
                 if (model->instance == nullptr) {
-                    wgpuRenderPassEncoderDrawIndexed(
-                        encoder, mesh.mIndexData.size(),
-                        model->instance == nullptr ? 1 : model->instance->getInstanceCount(), 0, 0, 0);
+                    wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
                 } else {
                     wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
                 }
             }
-            // wgpuBindGroupRelease(bindgroup);
         }
-        // std::cout << model->getName() << " ------------------------------" << std::endl;
     }
 }
 
-std::vector<Scene>& ShadowPass::getScene2() { return mScenes; }
+// std::vector<Scene>& ShadowPass::getScene2() { return mScenes; }
 
 WGPUTextureView ShadowPass::getShadowMapView() { return mShadowDepthTexture->getTextureViewArray(); }
 
@@ -405,3 +389,110 @@ void printMatrix(const glm::mat4& matrix) {
         std::cout << std::endl;
     }
 }
+
+// -------------------------------------------------------------------
+// -------------------------------------------------------------------
+// -------------------------------------------------------------------
+// -------------------------------------------------------------------
+//
+//
+//
+//
+
+DepthPrePass::DepthPrePass(Application* app, const std::string& name, WGPUTextureView depthTexture)
+    : RenderPass(name), mApp(app) {
+    mColorAttachment =
+        ColorAttachment{nullptr, nullptr, WGPUColor{0.02, 0.80, 0.92, 1.0}, StoreOp::Discard, LoadOp::Load};
+
+    auto* mRenderPassDesc = getRenderPassDescriptor();
+    // setDefault(mRenderPassDesc);
+    *mRenderPassDesc = {};
+    mRenderPassDesc->nextInChain = nullptr;
+    mRenderPassDesc->colorAttachmentCount = 1;
+    mRenderPassDesc->colorAttachments = mColorAttachment.get();
+
+    mDepthStencilAttachment = DepthStencilAttachment{depthTexture,     StoreOp::Store, LoadOp::Clear, false,
+                                                     StoreOp::Discard, LoadOp::Clear,  false};
+
+    mRenderPassDesc->depthStencilAttachment = mDepthStencilAttachment.get();
+    mRenderPassDesc->timestampWrites = nullptr;
+}
+
+void DepthPrePass::createRenderPass(WGPUTextureFormat textureFormat) {
+    (void)textureFormat;
+
+    auto* layouts = mApp->getBindGroupLayouts();
+    mRenderPipeline = new Pipeline{
+        mApp,
+        {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4], layouts[5] /*, layouts[6] , mLayerThree*/},
+        "Depth Pre-Pass"};
+
+    WGPUColorTargetState colorTargetState;
+
+    WGPUVertexBufferLayout d = mRenderPipeline->mVertexBufferLayout
+                                   .addAttribute(0, 0, WGPUVertexFormat_Float32x3)  // for position
+                                   .addAttribute(3 * sizeof(float), 1, WGPUVertexFormat_Float32x3)
+                                   .addAttribute(6 * sizeof(float), 2, WGPUVertexFormat_Float32x3)
+                                   .addAttribute(9 * sizeof(float), 3, WGPUVertexFormat_Float32x3)
+                                   .addAttribute(12 * sizeof(float), 4, WGPUVertexFormat_Float32x3)
+                                   .addAttribute(offsetof(VertexAttributes, uv), 5, WGPUVertexFormat_Float32x2)
+                                   .addAttribute(offsetof(VertexAttributes, boneIds), 6, WGPUVertexFormat_Sint32x4)
+                                   .addAttribute(offsetof(VertexAttributes, weights), 7, WGPUVertexFormat_Float32x4)
+                                   .configure(sizeof(VertexAttributes), VertexStepMode::VERTEX);
+    mRenderPipeline
+        // ->defaultConfiguration(mApp, textureFormat, WGPUTextureFormat_Depth24Plus,
+        //                        )
+        ->setShader(RESOURCE_DIR "/shaders/depth_prepass.wgsl")
+        .setVertexBufferLayout(d)
+        .setVertexState()
+        .setPrimitiveState()
+        .setDepthStencilState(true, 0xFF, 0xFF, WGPUTextureFormat_Depth24PlusStencil8)
+        .setBlendState();
+
+    static WGPUFragmentState mFragmentState = {};
+    mFragmentState.nextInChain = nullptr;
+    mFragmentState.module = mRenderPipeline->mShaderModule;
+    mFragmentState.entryPoint = {"fs_main", WGPU_STRLEN};
+    mFragmentState.constants = nullptr;
+    mFragmentState.constantCount = 0;
+    mFragmentState.targetCount = 0;
+    mFragmentState.targets = nullptr;
+
+    mRenderPipeline->setColorTargetState(WGPUTextureFormat_Undefined).setFragmentState(&mFragmentState);
+
+    mRenderPipeline->setMultiSampleState().createPipeline(mApp);
+}
+
+WGPURenderPassDescriptor& DepthPrePass::getRenderDesc(WGPUTextureView texture) {
+    mDesc = {};
+    mDesc.nextInChain = nullptr;
+
+    static WGPURenderPassColorAttachment color_attachment = {};
+    color_attachment.view = nullptr;
+    color_attachment.resolveTarget = nullptr;
+    color_attachment.loadOp = WGPULoadOp_Undefined;
+    color_attachment.storeOp = WGPUStoreOp_Discard;
+    color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
+#ifndef WEBGPU_BACKEND_WGPU
+    color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif  // NOT WEBGPU_BACKEND_WGPU
+
+    mDesc.colorAttachmentCount = 0;
+    mDesc.colorAttachments = nullptr;
+
+    static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
+    depth_stencil_attachment.view = texture;
+    depth_stencil_attachment.depthClearValue = 1.0f;
+    depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
+    depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
+    depth_stencil_attachment.depthReadOnly = false;
+    depth_stencil_attachment.stencilClearValue = 0;
+    depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Clear;
+    depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Discard;
+    depth_stencil_attachment.stencilReadOnly = false;
+    mDesc.depthStencilAttachment = &depth_stencil_attachment;
+    mDesc.timestampWrites = nullptr;
+    return mDesc;
+}
+
+// WGPURenderPassDescriptor* DepthPrePass::getRenderPassDescriptor() { return RenderPass::getRenderPassDescriptor(); }

@@ -172,8 +172,6 @@ void Application::initializePipeline() {
     shaderDesc.hints = nullptr;
 #endif
 
-    initDepthBuffer();
-
     mLightViewSceneTexture = new Texture{
         mRendererResource.device,
         1920,
@@ -417,6 +415,11 @@ void Application::initializePipeline() {
 
     mShadowPass = new ShadowPass{this, "Shadow pass"};
     mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm, 3);
+
+    mDepthPrePass = new DepthPrePass{this, "Depth PrePass", mDepthTextureView};
+    mDepthPrePass->createRenderPass(WGPUTextureFormat_RGBA8Unorm);
+
+    initDepthBuffer();
 
     mTerrainPass = new TerrainPass{this, "Terrain Render Pass"};
     mTerrainPass->create(mSurfaceFormat);
@@ -732,6 +735,7 @@ void onWindowResize(GLFWwindow* window, int width, int height) {
 /*static int WINDOW_WIDTH = 1920;*/
 /*static int WINDOW_HEIGHT = 1080;*/
 
+WGPURenderPassDescriptor depth_prepass_render_pass_descriptor = {};
 bool Application::initialize() {
     // We create a descriptor
 
@@ -861,6 +865,36 @@ bool Application::initialize() {
     wgpuCommandEncoderRelease(encoder);
     wgpuQueueSubmit(mRendererResource.queue, 1, &command);
     wgpuCommandBufferRelease(command);
+    //
+    //     {
+    //         depth_prepass_render_pass_descriptor.nextInChain = nullptr;
+    //
+    //         static WGPURenderPassColorAttachment color_attachment = {};
+    //         color_attachment.view = nullptr;
+    //         color_attachment.resolveTarget = nullptr;
+    //         color_attachment.loadOp = WGPULoadOp_Undefined;
+    //         color_attachment.storeOp = WGPUStoreOp_Discard;
+    //         color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
+    // #ifndef WEBGPU_BACKEND_WGPU
+    //         color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    // #endif  // NOT WEBGPU_BACKEND_WGPU
+    //
+    //         depth_prepass_render_pass_descriptor.colorAttachmentCount = 0;
+    //         depth_prepass_render_pass_descriptor.colorAttachments = nullptr;
+    //
+    //         static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
+    //         depth_stencil_attachment.view = mDepthTextureView;
+    //         depth_stencil_attachment.depthClearValue = 1.0f;
+    //         depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
+    //         depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
+    //         depth_stencil_attachment.depthReadOnly = false;
+    //         depth_stencil_attachment.stencilClearValue = 0;
+    //         depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Clear;
+    //         depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Discard;
+    //         depth_stencil_attachment.stencilReadOnly = false;
+    //         depth_prepass_render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
+    //         depth_prepass_render_pass_descriptor.timestampWrites = nullptr;
+    //     }
 
     return true;
 }
@@ -872,6 +906,11 @@ void Application::mainLoop() {
     WGPUTextureView target_view = getNextSurfaceTextureView();
     if (target_view == nullptr) {
         return;
+    }
+
+    for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+        model->mAnimationSecond = std::fmod(time, model->mAnimationDuration) * 1000.0f;
+        model->ExtractBonePositions();
     }
 
     // create a commnad encoder
@@ -937,58 +976,32 @@ void Application::mainLoop() {
     // ---------------- 2 - begining of the opaque object color pass ---------------
 
     /*auto render_pass_descriptor = createRenderPassDescriptor(target_view, mDepthTextureView);*/
-    WGPURenderPassDescriptor render_pass_descriptor = {};
-
-    {
-        render_pass_descriptor.nextInChain = nullptr;
-
-        static WGPURenderPassColorAttachment color_attachment = {};
-        color_attachment.view = target_view;
-        color_attachment.resolveTarget = nullptr;
-        color_attachment.loadOp = WGPULoadOp_Clear;
-        color_attachment.storeOp = WGPUStoreOp_Store;
-        color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
-#ifndef WEBGPU_BACKEND_WGPU
-        color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-#endif  // NOT WEBGPU_BACKEND_WGPU
-
-        render_pass_descriptor.colorAttachmentCount = 1;
-        render_pass_descriptor.colorAttachments = &color_attachment;
-
-        static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
-        depth_stencil_attachment.view = mDepthTextureView;
-        depth_stencil_attachment.depthClearValue = 1.0f;
-        depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
-        depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
-        depth_stencil_attachment.depthReadOnly = false;
-        depth_stencil_attachment.stencilClearValue = 0;
-        depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Clear;
-        depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
-        depth_stencil_attachment.stencilReadOnly = false;
-        render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
-        render_pass_descriptor.timestampWrites = nullptr;
-    }
 
     // inverting pitch and reflect camera based on the water plane
-    auto water_plane = ModelRegistry::instance().getLoadedModel(Visibility_User).find("water");
-    if (water_plane != ModelRegistry::instance().getLoadedModel(Visibility_User).end()) {
-        static Camera camera = getCamera();
-        camera = getCamera();
-        static MyUniform muniform = mUniforms;
-        float diff = 2 * (camera.getPos().z - water_plane->second->mTransform.getPosition().z);
-        auto new_pos = camera.getPos();
-        new_pos.z -= diff;
-        camera.setPosition(new_pos);
-        camera.mPitch *= -1.0;
-        camera.updateCamera();
-        muniform.setCamera(camera);
-        muniform.cameraWorldPosition = camera.getPos();
-        wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, sizeof(MyUniform), &muniform, sizeof(MyUniform));
-        glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(muniform.viewMatrix));
-        glm::mat4 mvp = muniform.projectMatrix * viewNoTranslation;
-        auto reflected_camera = mvp;
-        wgpuQueueWriteBuffer(mRendererResource.queue, mSkybox->mReflectedCameraMatrix.getBuffer(), 0, &reflected_camera,
-                             sizeof(glm::mat4));
+    // auto water_plane = ModelRegistry::instance().getLoadedModel(Visibility_User).find("water");
+    for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+        if (model->mName == "water") {
+            // if (model != ModelRegistry::instance().getLoadedModel(Visibility_User).end()) {
+            static Camera camera = getCamera();
+            camera = getCamera();
+            static MyUniform muniform = mUniforms;
+            float diff = 2 * (camera.getPos().z - model->mTransform.getPosition().z);
+            auto new_pos = camera.getPos();
+            new_pos.z -= diff;
+            camera.setPosition(new_pos);
+            camera.mPitch *= -1.0;
+            camera.updateCamera();
+            muniform.setCamera(camera);
+            muniform.cameraWorldPosition = camera.getPos();
+            wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer, sizeof(MyUniform), &muniform,
+                                 sizeof(MyUniform));
+            glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(muniform.viewMatrix));
+            glm::mat4 mvp = muniform.projectMatrix * viewNoTranslation;
+            auto reflected_camera = mvp;
+            wgpuQueueWriteBuffer(mRendererResource.queue, mSkybox->mReflectedCameraMatrix.getBuffer(), 0,
+                                 &reflected_camera, sizeof(glm::mat4));
+        }
+        // }
     }
 
     {
@@ -1056,7 +1069,7 @@ void Application::mainLoop() {
     // Test for scene hirarchy
     static bool reparenting = true;
     {
-        auto& iter = ModelRegistry::instance().getLoadedModel(Visibility_User);
+        // auto& iter = ModelRegistry::instance().getLoadedModel(Visibility_User);
         // auto boat = iter.find("tower");
         // auto arrow = iter.find("arrow");
         // auto desk = iter.find("boat");
@@ -1083,7 +1096,7 @@ void Application::mainLoop() {
 
     // main color psas
     {
-        for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+        for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
             // if (model->mScene->HasAnimations()) {
             //     wgpuRenderPassEncoderSetBindGroup(water_pass_encoder, 6, model->mSkiningBindGroup, 0, nullptr);
             // } else {
@@ -1138,23 +1151,12 @@ void Application::mainLoop() {
                                       mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0,
                                       nullptr);
-    // wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 6, mDefaultSkiningData.getBindGroup(), 0,
-    // nullptr);
 
     {
-        for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-            if (name == "water") {
-                continue;
+        for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+            if (model->mName != "water") {
+                model->draw(this, water_refraction_pass_encoder, mBindingData);
             }
-            // if (model->mScene->HasAnimations()) {
-            //     wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 6, model->mSkiningBindGroup, 0,
-            //     nullptr);
-            // } else {
-            //     wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 6,
-            //     mDefaultSkiningData.getBindGroup(), 0,
-            //                                       nullptr);
-            // }
-            model->draw(this, water_refraction_pass_encoder, mBindingData);
         }
     }
     wgpuRenderPassEncoderEnd(water_refraction_pass_encoder);
@@ -1182,7 +1184,67 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderRelease(terrain_pass_encoder);
     }
 
+    {
+        WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &mDepthPrePass->mDesc);
+        wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mDepthPrePass->getPipeline()->getPipeline());
+        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 0, mBindingGroup.getBindGroup(), 0, nullptr);
+
+        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
+                                          nullptr);
+        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+
+        {
+            // PerfTimer timer{"test"};
+            wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mDepthPrePass->getPipeline()->getPipeline());
+            for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+                if (model->mName != "water") {
+                    // continue;
+                    model->draw(this, render_pass_encoder, mBindingData);
+                }
+                // if (!model->isTransparent()) {
+                // }
+            }
+        }
+
+        wgpuRenderPassEncoderEnd(render_pass_encoder);
+        wgpuRenderPassEncoderRelease(render_pass_encoder);
+    }
+
     // skybox and pbr render pass
+
+    WGPURenderPassDescriptor render_pass_descriptor = {};
+
+    {
+        render_pass_descriptor.nextInChain = nullptr;
+
+        static WGPURenderPassColorAttachment color_attachment = {};
+        color_attachment.view = target_view;
+        color_attachment.resolveTarget = nullptr;
+        color_attachment.loadOp = WGPULoadOp_Clear;
+        color_attachment.storeOp = WGPUStoreOp_Store;
+        color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
+#ifndef WEBGPU_BACKEND_WGPU
+        color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif  // NOT WEBGPU_BACKEND_WGPU
+
+        render_pass_descriptor.colorAttachmentCount = 1;
+        render_pass_descriptor.colorAttachments = &color_attachment;
+
+        static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
+        depth_stencil_attachment.view = mDepthTextureView;
+        depth_stencil_attachment.depthClearValue = 1.0f;
+        depth_stencil_attachment.depthLoadOp = WGPULoadOp_Load;
+        depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
+        depth_stencil_attachment.depthReadOnly = false;
+        depth_stencil_attachment.stencilClearValue = 0;
+        depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Load;
+        depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
+        depth_stencil_attachment.stencilReadOnly = false;
+        render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
+        render_pass_descriptor.timestampWrites = nullptr;
+    }
+
     WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
     glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mUniforms.viewMatrix));
     glm::mat4 mvp = mUniforms.projectMatrix * viewNoTranslation;
@@ -1197,20 +1259,21 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
 
     {
-        for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-            if (name == "water") {
-                continue;
-            }
-            wgpuRenderPassEncoderSetPipeline(
-                render_pass_encoder, (model->isSelected() ? mPipeline : mStenctilEnabledPipeline)->getPipeline());
-            if (!model->isTransparent()) {
-                model->draw(this, render_pass_encoder, mBindingData);
+        wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
+        for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+            if (model->mName != "water") {
+                // continue;
+
+                // std::cout << mPipeline->getPipelineLayout  .depthStencil->depthCompare;
+                if (!model->isTransparent()) {
+                    model->draw(this, render_pass_encoder, mBindingData);
+                }
             }
         }
 
-        for (const auto& model : mLines) {
-            model->draw(this, render_pass_encoder, mBindingData);
-        }
+        // for (const auto& model : mLines) {
+        //     model->draw(this, render_pass_encoder, mBindingData);
+        // }
     }
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);
@@ -1227,18 +1290,19 @@ void Application::mainLoop() {
 
         WGPURenderPassEncoder water_render_pass_encoder =
             wgpuCommandEncoderBeginRenderPass(encoder, mWaterRenderPass->getRenderPassDescriptor());
-        for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-            if (name != "water") {
-                continue;
-            }
-            wgpuRenderPassEncoderSetPipeline(water_render_pass_encoder, mWaterRenderPass->getPipeline()->getPipeline());
-            wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(),
-                                              0, nullptr);
+        for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+            if (model->mName == "water") {
+                // continue;
+                wgpuRenderPassEncoderSetPipeline(water_render_pass_encoder,
+                                                 mWaterRenderPass->getPipeline()->getPipeline());
+                wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 3,
+                                                  mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
 
-            wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 4,
-                                              mWaterRenderPass->mWaterTextureBindGroup.getBindGroup(), 0, nullptr);
-            if (!model->isTransparent()) {
-                model->draw(this, water_render_pass_encoder, mBindingData);
+                wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 4,
+                                                  mWaterRenderPass->mWaterTextureBindGroup.getBindGroup(), 0, nullptr);
+                if (!model->isTransparent()) {
+                    model->draw(this, water_render_pass_encoder, mBindingData);
+                }
             }
         }
         wgpuRenderPassEncoderEnd(water_render_pass_encoder);
@@ -1306,7 +1370,7 @@ void Application::mainLoop() {
         wgpuCommandEncoderBeginRenderPass(encoder, m3DviewportPass->getRenderPassDescriptor());
     wgpuRenderPassEncoderSetStencilReference(viewport_3d_pass_encoder, stencilReferenceValue);
 
-    for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_Editor)) {
+    for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_Editor)) {
         wgpuRenderPassEncoderSetPipeline(viewport_3d_pass_encoder, m3DviewportPass->getPipeline()->getPipeline());
         model->draw(this, viewport_3d_pass_encoder, mBindingData);
     }
@@ -1488,11 +1552,13 @@ bool Application::initDepthBuffer() {
                                 TextureDimension::TEX_2D,
                                 WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
                                 depth_texture_format,
-                                2,
+                                1,
                                 "Standard depth texture"};
 
     // Create the view of the depth texture manipulated by the rasterizer
     mDepthTextureView = mDepthTexture->createViewDepthStencil();
+    // depth_prepass_render_pass_descriptor.depthStencilAttachment->view = mDepthTextureView;
+    mDepthPrePass->getRenderDesc(mDepthTextureView);
     // 2. Create a WGPUTextureView for the DEPTH aspect only
     WGPUTextureViewDescriptor depthViewDesc = {};
     depthViewDesc.format = WGPUTextureFormat_Depth24Plus;  // Must match the base texture format
@@ -1501,7 +1567,7 @@ bool Application::initDepthBuffer() {
     depthViewDesc.mipLevelCount = 1;
     depthViewDesc.baseArrayLayer = 0;
     depthViewDesc.arrayLayerCount = 1;
-    depthViewDesc.aspect = WGPUTextureAspect_DepthOnly;         // <-- CRITICAL: Specify Depth Only
+    depthViewDesc.aspect = WGPUTextureAspect_DepthOnly;         // Specify Depth Only
     depthViewDesc.label = createStringView("Depth-Only View");  // Label for debugging
 
     mDepthTextureViewDepthOnly = wgpuTextureCreateView(mDepthTexture->getTexture(), &depthViewDesc);
@@ -1620,8 +1686,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::BeginChild("ScrollableList", ImVec2(0, 200),
                               ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY);
 
-            for (const auto& [name, item] :
-                 ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+            for (const auto& item : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
                 // Create a unique ID for each selectable item based on its unique item.id
                 ImGui::PushID((void*)item);
 
@@ -1667,26 +1732,26 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
     ImGui::ColorPicker3("lines color", glm::value_ptr(color));
     // if (ImGui::Button("Create", ImVec2(100, 30))) {
-    auto& iter = ModelRegistry::instance().getLoadedModel(Visibility_User);
-    auto human = iter.find("human");
-    auto sheep = iter.find("sheep");
-    // auto sphere = iter.find("sphere");
-    if (human != iter.end()) {
-        human->second->mAnimationSecond = std::fmod(time, human->second->mAnimationDuration) * 1000.0f;
-        human->second->ExtractBonePositions();
-        // loadSphereAtHumanBones(this, human->second, sphere->second);
-        // wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 *
-        // sizeof(glm::mat4),
-        //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
-    }
-    if (sheep != iter.end()) {
-        sheep->second->mAnimationSecond = std::fmod(time, sheep->second->mAnimationDuration) * 1000.0f;
-        sheep->second->ExtractBonePositions();
-        // loadSphereAtHumanBones(this, human->second, sphere->second);
-        // wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 *
-        // sizeof(glm::mat4),
-        //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
-    }
+    // auto& item = ModelRegistry::instance().getLoadedModel(Visibility_User);
+    // auto human = iter.find("human");
+    // auto sheep = iter.find("sheep");
+    // // auto sphere = iter.find("sphere");
+    // if (human != iter.end()) {
+    //     human->second->mAnimationSecond = std::fmod(time, human->second->mAnimationDuration) * 1000.0f;
+    //     human->second->ExtractBonePositions();
+    //     // loadSphereAtHumanBones(this, human->second, sphere->second);
+    //     // wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 *
+    //     // sizeof(glm::mat4),
+    //     //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
+    // }
+    // if (sheep != iter.end()) {
+    //     sheep->second->mAnimationSecond = std::fmod(time, sheep->second->mAnimationDuration) * 1000.0f;
+    //     sheep->second->ExtractBonePositions();
+    //     // loadSphereAtHumanBones(this, human->second, sphere->second);
+    //     // wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 *
+    //     // sizeof(glm::mat4),
+    //     //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
+    // }
     if (ImGui::Button("remove frustum", ImVec2(100, 30))) {
         // for (int i = 0; i < 24; i++) {
         //     mLoadedModel.pop_back();

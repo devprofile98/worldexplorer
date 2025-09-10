@@ -47,12 +47,13 @@ Pipeline& Pipeline::createPipeline(Application* app) {
     pipeline_layout_descriptor.nextInChain = nullptr;
     pipeline_layout_descriptor.bindGroupLayoutCount = mBindGroupLayouts.size();
     pipeline_layout_descriptor.bindGroupLayouts = mBindGroupLayouts.data();
-    std::cout << "****************************" << mPipelineName << mBindGroupLayouts.size() << std::endl;
 
     mPipelineLayout = wgpuDeviceCreatePipelineLayout(app->getRendererResource().device, &pipeline_layout_descriptor);
 
     mDescriptor.layout = mPipelineLayout;
     mDescriptor.label = createStringView(mPipelineName);
+    std::cout << "****************************" << mPipelineName << mBindGroupLayouts.size() << " "
+              << mDescriptor.depthStencil->depthCompare << std::endl;
     mPipeline = wgpuDeviceCreateRenderPipeline(app->getRendererResource().device, &mDescriptor);
     return *this;
 }
@@ -90,7 +91,6 @@ Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat sur
     vertex_state.entryPoint = createStringViewC("vs_main");
     vertex_state.constantCount = 0;
     vertex_state.constants = nullptr;
-    (void)vertex_state;
     mDescriptor.vertex = vertex_state;
 
     // 3 - Primitive state
@@ -272,14 +272,14 @@ Pipeline& Pipeline::setMultiSampleState(/*WGPUMultisampleState multiSampleState*
     return *this;
 }
 
-Pipeline& Pipeline::setFragmentState(WGPUFragmentState fragmentState) {
+Pipeline& Pipeline::setFragmentState(WGPUFragmentState* fragmentState) {
     // mFragmentState.module = mShaderModule;
     // mFragmentState.entryPoint = "fs_main";
     // mFragmentState.constants = nullptr;
     // mFragmentState.constantCount = 0;
     // mFragmentState.targetCount = 1;
     // mFragmentState.targets = &mColorTargetState;
-    mDescriptor.fragment = &fragmentState;
+    mDescriptor.fragment = fragmentState;
 
     mDescriptor.multisample.count = 1;
     mDescriptor.multisample.mask = ~0u;

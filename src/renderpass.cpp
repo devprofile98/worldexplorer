@@ -58,6 +58,7 @@ RenderPass& RenderPass::setDepthStencilAttachment(const DepthStencilAttachment& 
 }
 
 WGPURenderPassDescriptor* RenderPass::init() {
+    // std::cout << "if you go away !" << mName.c_str() << std::endl;
     mRenderPassDesc.label = createStringViewC(mName.c_str());
     mRenderPassDesc.nextInChain = nullptr;
     mRenderPassDesc.colorAttachmentCount = 1;

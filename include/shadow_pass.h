@@ -40,7 +40,7 @@ class ShadowPass : public RenderPass {
         WGPUTextureView getShadowMapView();
         void render(ModelRegistry::ModelContainer& models, WGPURenderPassEncoder encoder, size_t which);
         void renderAllCascades(WGPUCommandEncoder encoder);
-        std::vector<Scene>& getScene2();
+        // std::vector<Scene>& getScene2();
 
         glm::vec3 lightPos = glm::vec3{0.0f};
 
@@ -98,6 +98,55 @@ class ShadowFrustum {
         Application* mApp;
         ColorAttachment mColorAttachment{};
         DepthStencilAttachment mDepthStencilAttachment{};
+};
+
+class DepthPrePass : public RenderPass {
+    public:
+        explicit DepthPrePass(Application* app, const std::string& name, WGPUTextureView depthTexture);
+        Pipeline* create(WGPUTextureFormat textureFormat);
+
+        void createRenderPass(WGPUTextureFormat textureFormat) override;
+
+        // Getters
+        // WGPURenderPassDescriptor* getRenderPassDescriptor();
+
+        // Pipeline* getPipeline();
+        // WGPUTextureView getShadowMapView();
+        void render(ModelRegistry::ModelContainer& models, WGPURenderPassEncoder encoder);
+        WGPURenderPassDescriptor mDesc;
+        WGPURenderPassDescriptor& getRenderDesc(WGPUTextureView texture);
+
+    private:
+        Application* mApp;
+        // pipeline
+        // Pipeline* mRenderPipeline;
+        // render pass
+        // size_t mNumOfCascades;
+        // std::vector<Buffer> mFrustuIndexBuffer;
+        // Buffer mSceneUniformBuffer;
+
+        // bindings
+        BindingGroup mBindingGroup;
+        // std::vector<WGPUBindGroup> mSceneIndicesBindGroup;
+        std::vector<WGPUBindGroupEntry> mBindingData;
+        BindingGroup mTextureBindingGroup;
+        std::vector<WGPUBindGroupEntry> mTextureBindingData{3};
+        BindingGroup mVisibleBindingGroup;
+
+        // textures and views
+        WGPUTextureView mDepthTextureView;
+        WGPUTexture mDepthTexture;
+        Texture* mRenderTarget;
+        ColorAttachment mColorAttachment{};
+        DepthStencilAttachment mDepthStencilAttachment{};
+        // Texture* mShadowDepthTexture;
+        // Texture* mShadowDepthTexture2;
+        // buffers
+        // Buffer mSceneUniformBuffer;
+
+        Scene calculateFrustumScene(const std::vector<glm::vec4> frustum, float farZ, size_t cascadeIdx);
+        // scene
+        // std::vector<Scene> mScenes;
 };
 
 #endif  // WEBGPUTEST_SHADOW_PASS_H

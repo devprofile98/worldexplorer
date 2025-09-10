@@ -18,6 +18,7 @@
 #include "model_registery.h"
 #include "pipeline.h"
 #include "point_light.h"
+#include "shadow_pass.h"
 #include "shapes.h"
 #include "skybox.h"
 #include "terrain_pass.h"
@@ -148,6 +149,7 @@ class Application {
 
         /*Line* line;*/
         ShadowPass* mShadowPass;
+        DepthPrePass* mDepthPrePass;
         TransparencyPass* mTransparencyPass;
         CompositionPass* mCompositionPass;
         TerrainPass* mTerrainPass;

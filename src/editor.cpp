@@ -333,12 +333,12 @@ void Screen::onKey(KeyEvent event) {
     } else if (GLFW_KEY_KP_2 == key.key && key.action == GLFW_PRESS) {
         // that->mLightManager->nextLight();
     } else if (GLFW_KEY_KP_3 == key.key && key.action == GLFW_PRESS) {
-        auto water_plane = ModelRegistry::instance().getLoadedModel(Visibility_User).find("water")->second;
-        float diff = 2 * (mApp->getCamera().getPos().z - water_plane->mTransform.getPosition().z);
-        auto new_pos = mApp->getCamera().getPos();
-        new_pos.z -= diff;
-        mApp->getCamera().setPosition(new_pos);
-        mApp->getCamera().mPitch *= -1.0;
-        mApp->getCamera().updateCamera();
+        // auto water_plane = ModelRegistry::instance().getLoadedModel(Visibility_User).find("water")->second;
+        // float diff = 2 * (mApp->getCamera().getPos().z - water_plane->mTransform.getPosition().z);
+        // auto new_pos = mApp->getCamera().getPos();
+        // new_pos.z -= diff;
+        // mApp->getCamera().setPosition(new_pos);
+        // mApp->getCamera().mPitch *= -1.0;
+        // mApp->getCamera().updateCamera();
     }
 }

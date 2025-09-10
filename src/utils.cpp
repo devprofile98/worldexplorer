@@ -101,7 +101,7 @@ void setDefaultActiveStencil(WGPUDepthStencilState& depthStencilState) {
     setDefault(depthStencilState.stencilBack);
     depthStencilState.format = WGPUTextureFormat_Depth24PlusStencil8;
     depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
-    depthStencilState.depthCompare = WGPUCompareFunction_Less;
+    depthStencilState.depthCompare = WGPUCompareFunction_LessEqual;
     depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
     depthStencilState.stencilFront.passOp = WGPUStencilOperation_Replace;
     depthStencilState.stencilFront.depthFailOp = WGPUStencilOperation_Replace;
@@ -640,7 +640,7 @@ BaseModel* testIntersection(Camera& camera, size_t width, size_t height, std::pa
 
     glm::vec4 worldray = glm::inverse(camera.getView()) * eyecoord;
     auto normalized = glm::normalize(worldray);
-    for (auto& [name, obj] : models) {
+    for (auto& obj : models) {
         auto [obj_in_world_min, obj_in_world_max] = obj->getWorldMin();
         bool does_intersect = intersection(ray_origin, normalized, obj_in_world_min, obj_in_world_max);
         if (does_intersect) {
