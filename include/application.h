@@ -18,6 +18,7 @@
 #include "model_registery.h"
 #include "pipeline.h"
 #include "point_light.h"
+#include "renderpass.h"
 #include "shadow_pass.h"
 #include "shapes.h"
 #include "skybox.h"
@@ -101,6 +102,9 @@ class Application {
         const WGPUBindGroupLayout& getObjectBindGroupLayout() const;
         const WGPUBindGroupLayout* getBindGroupLayouts() const;
         const std::vector<WGPUBindGroupEntry> getDefaultTextureBindingData() const;
+        WGPUTextureView getDepthStencilTarget();
+        WGPUTextureView getColorTarget();
+
         // WGPUBindGroup bindGrouptrans = {};
         glm::mat4 mtransmodel{1.0};
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
@@ -148,6 +152,9 @@ class Application {
         Plane* plane;
 
         ModelRegistry mViewportModelRegistery;
+
+        NewRenderPass* mTerrainForRefraction;
+        NewRenderPass* mTerrainForReflection;
 
         /*Line* line;*/
         ShadowPass* mShadowPass;

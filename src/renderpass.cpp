@@ -58,7 +58,33 @@ RenderPass& RenderPass::setDepthStencilAttachment(const DepthStencilAttachment& 
 }
 
 WGPURenderPassDescriptor* RenderPass::init() {
-    // std::cout << "if you go away !" << mName.c_str() << std::endl;
+    mRenderPassDesc.label = createStringViewC(mName.c_str());
+    mRenderPassDesc.nextInChain = nullptr;
+    mRenderPassDesc.colorAttachmentCount = 1;
+    mRenderPassDesc.colorAttachments = mColorAttachment.get();
+
+    mRenderPassDesc.depthStencilAttachment = mDepthStencilAttachment.get();
+    mRenderPassDesc.timestampWrites = nullptr;
+    mRenderPassDesc.occlusionQuerySet = nullptr;
+    return &mRenderPassDesc;
+}
+
+/////////////////////////////////
+/////////////////////////////////
+///
+NewRenderPass::NewRenderPass(const std::string& name) : mName(name) {}
+
+NewRenderPass& NewRenderPass::setColorAttachment(const ColorAttachment& attachment) {
+    mColorAttachment = attachment;
+    return *this;
+}
+
+NewRenderPass& NewRenderPass::setDepthStencilAttachment(const DepthStencilAttachment& attachment) {
+    mDepthStencilAttachment = attachment;
+    return *this;
+}
+
+WGPURenderPassDescriptor* NewRenderPass::init() {
     mRenderPassDesc.label = createStringViewC(mName.c_str());
     mRenderPassDesc.nextInChain = nullptr;
     mRenderPassDesc.colorAttachmentCount = 1;

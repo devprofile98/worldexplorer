@@ -24,6 +24,10 @@ void runFrustumCullingTask(Application* app, WGPUCommandEncoder encoder);
 
 Buffer& getFrustumPlaneBuffer();
 
+std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view);
+std::vector<FrustumPlane> create2FrustumPlanes(const std::vector<glm::vec4>& corners);
+bool isInFrustum(const std::vector<glm::vec4>& corners, BaseModel* model);
+
 namespace frustum {
 
 class Plane {
@@ -37,6 +41,7 @@ class Plane {
         void normalize();
 };
 }  // namespace frustum
+
 class Frustum {
     public:
         Frustum() {};

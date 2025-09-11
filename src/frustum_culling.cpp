@@ -444,4 +444,89 @@ void runFrustumCullingTask(Application* app, WGPUCommandEncoder encoder) {
         }
     }
 }
+
+std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
+    const auto inv = glm::inverse(proj * view);
+    std::vector<glm::vec4> frustumCorners;
+    frustumCorners.reserve(8);
+
+    for (unsigned int x = 0; x < 2; ++x) {
+        for (unsigned int y = 0; y < 2; ++y) {
+            for (unsigned int z = 0; z < 2; ++z) {
+                const glm::vec4 pt = inv * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
+                frustumCorners.emplace_back(pt / pt.w);
+            }
+        }
+    }
+
+    return frustumCorners;
+}
+
+std::vector<FrustumPlane> create2FrustumPlanes(const std::vector<glm::vec4>& corners) {
+    // for left plane
+    auto near_bottom_left = corners[0];
+    auto far_bottom_left = corners[1];
+    auto near_top_left = corners[2];
+    auto far_top_left = corners[3];
+    auto ab = glm::vec3(near_bottom_left - far_bottom_left);
+    auto ac = glm::vec3(near_bottom_left - near_top_left);
+    auto left_plane_normal = glm::normalize(glm::cross(ab, ac));
+    auto left_constant_sigend_distanc = -glm::dot(left_plane_normal, glm::vec3(far_top_left));
+
+    // for right plane
+    auto near_bottom_right = corners[4];
+    auto far_bottom_right = corners[5];
+    auto near_top_right = corners[6];
+    auto far_top_right = corners[7];
+    ab = glm::vec3(near_bottom_right - far_bottom_right);
+    ac = glm::vec3(near_bottom_right - near_top_right);
+    auto right_plane_normal = glm::normalize(glm::cross(ac, ab));
+    auto right_constant_sigend_distanc = -glm::dot(right_plane_normal, glm::vec3(far_top_right));
+
+    FrustumPlane fr{};
+    fr.N_D = {right_plane_normal.x, right_plane_normal.y, right_plane_normal.z, right_constant_sigend_distanc};
+
+    FrustumPlane fl{};
+    fl.N_D = {left_plane_normal.x, left_plane_normal.y, left_plane_normal.z, left_constant_sigend_distanc};
+
+    return {fl, fr};
+}
+
+bool isInFrustum(const std::vector<glm::vec4>& corners, BaseModel* model) {
+    (void)model;
+    if (model == nullptr) {
+        return false;
+    }
+    // for left plane
+    auto near_bottom_left = corners[0];
+    auto far_bottom_left = corners[1];
+    auto near_top_left = corners[2];
+    auto far_top_left = corners[3];
+    auto ab = glm::vec3(near_bottom_left - far_bottom_left);
+    auto ac = glm::vec3(near_bottom_left - near_top_left);
+    auto left_plane_normal = glm::normalize(glm::cross(ab, ac));
+    auto left_constant_sigend_distanc = -glm::dot(left_plane_normal, glm::vec3(far_top_left));
+
+    // for right plane
+    auto near_bottom_right = corners[4];
+    auto far_bottom_right = corners[5];
+    auto near_top_right = corners[6];
+    auto far_top_right = corners[7];
+    ab = glm::vec3(near_bottom_right - far_bottom_right);
+    ac = glm::vec3(near_bottom_right - near_top_right);
+    auto right_plane_normal = glm::normalize(glm::cross(ab, ac));
+    auto right_constant_sigend_distanc = -glm::dot(right_plane_normal, glm::vec3(far_top_right));
+
+    auto [min, max] = model->getWorldSpaceAABB();
+    auto dmin = glm::dot(left_plane_normal, min) + left_constant_sigend_distanc;
+    auto dmax = glm::dot(left_plane_normal, max) + left_constant_sigend_distanc;
+
+    auto drmin = glm::dot(right_plane_normal, min) + right_constant_sigend_distanc;
+    auto drmax = glm::dot(right_plane_normal, max) + right_constant_sigend_distanc;
+
+    auto ret = (drmax < 0.0 || drmin < 0.0) && (dmin > 0.0 || dmax > 0.0);
+
+    return ret;
+}
+
 // End of Copmute Pass

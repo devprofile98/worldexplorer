@@ -79,6 +79,15 @@ ViewPort3DPass::ViewPort3DPass(Application* app, const std::string& name) : Rend
                                    sizeof(int32_t));
 
     mLayerThree = mLayerThreeBindgroup.createLayout(app, "layer three bidngroup");
+    mRenderPipeline = nullptr;
+}
+
+void ViewPort3DPass::initTargets() {
+    setColorAttachment(
+        {mApp->getColorTarget(), nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    setDepthStencilAttachment({mApp->getDepthStencilTarget(), StoreOp::Undefined, LoadOp::Undefined, false,
+                               StoreOp::Undefined, LoadOp::Undefined, false, 0.0});
+    init();
 }
 
 void ViewPort3DPass::createRenderPass(WGPUTextureFormat textureFormat) {
@@ -90,9 +99,25 @@ void ViewPort3DPass::createRenderPass(WGPUTextureFormat textureFormat) {
     setDefault(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->getDepthStencilState().format = WGPUTextureFormat_Depth24PlusStencil8;
     mRenderPipeline->createPipeline(mApp);
+    initTargets();
 }
 
 Pipeline* ViewPort3DPass::create(WGPUTextureFormat textureFormat) {
     createRenderPass(textureFormat);
     return mRenderPipeline;
+}
+
+static uint32_t stencilRefValue = 240;
+void ViewPort3DPass::execute(WGPUCommandEncoder encoder) {
+    initTargets();
+    WGPURenderPassEncoder pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, getRenderPassDescriptor());
+    wgpuRenderPassEncoderSetStencilReference(pass_encoder, stencilRefValue);
+
+    for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_Editor)) {
+        wgpuRenderPassEncoderSetPipeline(pass_encoder, getPipeline()->getPipeline());
+        model->draw(mApp, pass_encoder);
+    }
+
+    wgpuRenderPassEncoderEnd(pass_encoder);
+    wgpuRenderPassEncoderRelease(pass_encoder);
 }

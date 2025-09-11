@@ -93,6 +93,14 @@ add_executable(
     "${CMAKE_CURRENT_SOURCE_DIR}/extern/glfw3webgpu/glfw3webgpu.c"
 )
 
+# if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+#     # For GCC and Clang, the flag is -S
+#     target_compile_options(App PRIVATE -S -fverbose-asm)
+# elseif(MSVC)
+#     # For MSVC, the flag is /Fa
+#     target_compile_options(App PRIVATE /Fa)
+# endif()
+
 target_compile_definitions(App PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
 # Adding ImGui include directories
 target_include_directories(App PRIVATE

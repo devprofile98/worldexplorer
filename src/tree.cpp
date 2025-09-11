@@ -512,11 +512,12 @@ struct HouseModel : public IModel {
         HouseModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("house", app, RESOURCE_DIR "/suburban_house/scene.gltf", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{-6.883, 3.048, -1.709})
-                .scale(glm::vec3{0.001f});
+            mModel->load("house", app, RESOURCE_DIR "/house/scene.gltf", app->getObjectBindGroupLayout())
+                .mTransform.moveTo(glm::vec3{-0.483, 52.048, -3.309})
+                .rotate(glm::vec3{90, 0.0, 324.0}, 0.0)
+                .scale(glm::vec3{2.601f});
             mModel->uploadToGPU(app);
-            mModel->setTransparent(false);
+            // mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
 
@@ -617,6 +618,25 @@ struct HumanModel : public IModel {
         };
 };
 
+struct StonesModel : public IModel {
+        StonesModel(Application* app) {
+            mModel = new Model{};
+
+            mModel->load("stones", app, RESOURCE_DIR "/stones/stones.gltf", app->getObjectBindGroupLayout())
+                .mTransform.moveTo(glm::vec3{-2.0, -1.0, -2.58})
+                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
+                .scale(glm::vec3{0.5});
+            mModel->uploadToGPU(app);
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+        }
+
+        Model* getModel() override { return mModel; }
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
+};
+
 USER_REGISTER_MODEL("tree", TreeModel);
 USER_REGISTER_MODEL("boat", BoatModel);
 // USER_REGISTER_MODEL("car", CarModel);
@@ -629,7 +649,8 @@ USER_REGISTER_MODEL("sheep", SheepModel);
 USER_REGISTER_MODEL("water", WaterModel);
 // USER_REGISTER_MODEL("sphere", SphereModel);
 USER_REGISTER_MODEL("human", HumanModel);
+USER_REGISTER_MODEL("stones", StonesModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
-// USER_REGISTER_MODEL("house", HouseModel);
+USER_REGISTER_MODEL("house", HouseModel);
 // USER_REGISTER_MODEL("motor", Motor);
 /*USER_REGISTER_MODEL("jet", JetModel);*/

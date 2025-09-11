@@ -101,4 +101,16 @@ class RenderPass {
         virtual void createRenderPass(WGPUTextureFormat textureFormat) = 0;
 };
 
+struct NewRenderPass {
+        NewRenderPass(const std::string& name);
+        NewRenderPass& setColorAttachment(const ColorAttachment& attachment);
+        NewRenderPass& setDepthStencilAttachment(const DepthStencilAttachment& attachment);
+        WGPURenderPassDescriptor* init();
+
+        std::string mName;
+        ColorAttachment mColorAttachment;
+        DepthStencilAttachment mDepthStencilAttachment;
+        WGPURenderPassDescriptor mRenderPassDesc;
+};
+
 #endif  // WEBGPUTEST_ABSTRACT_RENDER_PASS_H

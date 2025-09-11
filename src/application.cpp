@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <format>
+#include <functional>
 #include <future>
 #include <iostream>
 #include <random>
@@ -15,6 +16,7 @@
 
 #include "binding_group.h"
 #include "glm/matrix.hpp"
+#include "renderpass.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <imgui.h>
@@ -69,90 +71,18 @@ bool should_update_csm = true;
 double lastClickTime = 0.0;
 double lastClickX = 0.0;
 double lastClickY = 0.0;
+Frustum frustumm{};
 
 float rotrot = 0.f;
 
-std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) {
-    const auto inv = glm::inverse(proj * view);
+void beginTerrainPassFor(WGPUCommandEncoder encoder, NewRenderPass* renderPass,
+                         std::function<void(WGPURenderPassEncoder encoder)> drawFunc) {
+    WGPURenderPassEncoder terrain_pass_encoder =
+        wgpuCommandEncoderBeginRenderPass(encoder, &renderPass->mRenderPassDesc);
 
-    std::vector<glm::vec4> frustumCorners;
-    for (unsigned int x = 0; x < 2; ++x) {
-        for (unsigned int y = 0; y < 2; ++y) {
-            for (unsigned int z = 0; z < 2; ++z) {
-                const glm::vec4 pt = inv * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
-                frustumCorners.push_back(pt / pt.w);
-            }
-        }
-    }
+    drawFunc(terrain_pass_encoder);
 
-    return frustumCorners;
-}
-
-std::vector<FrustumPlane> create2FrustumPlanes(const std::vector<glm::vec4>& corners) {
-    // for left plane
-    auto near_bottom_left = corners[0];
-    auto far_bottom_left = corners[1];
-    auto near_top_left = corners[2];
-    auto far_top_left = corners[3];
-    auto ab = glm::vec3(near_bottom_left - far_bottom_left);
-    auto ac = glm::vec3(near_bottom_left - near_top_left);
-    auto left_plane_normal = glm::normalize(glm::cross(ab, ac));
-    auto left_constant_sigend_distanc = -glm::dot(left_plane_normal, glm::vec3(far_top_left));
-
-    // for right plane
-    auto near_bottom_right = corners[4];
-    auto far_bottom_right = corners[5];
-    auto near_top_right = corners[6];
-    auto far_top_right = corners[7];
-    ab = glm::vec3(near_bottom_right - far_bottom_right);
-    ac = glm::vec3(near_bottom_right - near_top_right);
-    auto right_plane_normal = glm::normalize(glm::cross(ac, ab));
-    auto right_constant_sigend_distanc = -glm::dot(right_plane_normal, glm::vec3(far_top_right));
-
-    FrustumPlane fr{};
-    fr.N_D = {right_plane_normal.x, right_plane_normal.y, right_plane_normal.z, right_constant_sigend_distanc};
-
-    FrustumPlane fl{};
-    fl.N_D = {left_plane_normal.x, left_plane_normal.y, left_plane_normal.z, left_constant_sigend_distanc};
-
-    return {fl, fr};
-}
-
-bool isInFrustum(const std::vector<glm::vec4>& corners, BaseModel* model) {
-    (void)model;
-    if (model == nullptr) {
-        return false;
-    }
-    // for left plane
-    auto near_bottom_left = corners[0];
-    auto far_bottom_left = corners[1];
-    auto near_top_left = corners[2];
-    auto far_top_left = corners[3];
-    auto ab = glm::vec3(near_bottom_left - far_bottom_left);
-    auto ac = glm::vec3(near_bottom_left - near_top_left);
-    auto left_plane_normal = glm::normalize(glm::cross(ab, ac));
-    auto left_constant_sigend_distanc = -glm::dot(left_plane_normal, glm::vec3(far_top_left));
-
-    // for right plane
-    auto near_bottom_right = corners[4];
-    auto far_bottom_right = corners[5];
-    auto near_top_right = corners[6];
-    auto far_top_right = corners[7];
-    ab = glm::vec3(near_bottom_right - far_bottom_right);
-    ac = glm::vec3(near_bottom_right - near_top_right);
-    auto right_plane_normal = glm::normalize(glm::cross(ab, ac));
-    auto right_constant_sigend_distanc = -glm::dot(right_plane_normal, glm::vec3(far_top_right));
-
-    auto [min, max] = model->getWorldSpaceAABB();
-    auto dmin = glm::dot(left_plane_normal, min) + left_constant_sigend_distanc;
-    auto dmax = glm::dot(left_plane_normal, max) + left_constant_sigend_distanc;
-
-    auto drmin = glm::dot(right_plane_normal, min) + right_constant_sigend_distanc;
-    auto drmax = glm::dot(right_plane_normal, max) + right_constant_sigend_distanc;
-
-    auto ret = (drmax < 0.0 || drmin < 0.0) && (dmin > 0.0 || dmax > 0.0);
-
-    return ret;
+    wgpuRenderPassEncoderRelease(terrain_pass_encoder);
 }
 
 void MyUniform::setCamera(Camera& camera) {
@@ -216,12 +146,14 @@ void Application::initializePipeline() {
     mDefaultMetallicRoughness->setBufferData(texture_data);
     mDefaultMetallicRoughness->uploadToGPU(mRendererResource.queue);
 
+    // Creating default normal-map texture
     mDefaultNormalMap = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_normal_map_view = mDefaultNormalMap->createView();
     texture_data = {0, 255, 0, 255};  // White color for Default specular texture
     mDefaultNormalMap->setBufferData(texture_data);
     mDefaultNormalMap->uploadToGPU(mRendererResource.queue);
 
+    // Initializing Default bindgroups
     mBindingGroup.addBuffer(0,  //
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
                             sizeof(MyUniform) * 10);
@@ -240,34 +172,36 @@ void Application::initializePipeline() {
 
     mBindingGroup.addBuffer(5,  //
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float));
+
     mBindingGroup.addTexture(6,  //
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                              TextureViewDimension::VIEW_2D);
+
     mBindingGroup.addTexture(7,  //
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                              TextureViewDimension::VIEW_2D);
+
     mBindingGroup.addTexture(8,  //
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                              TextureViewDimension::VIEW_2D);
+
     mBindingGroup.addTexture(9,  //
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                              TextureViewDimension::VIEW_2D);
+
     mBindingGroup.addTexture(10,  //
                              BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
                              TextureViewDimension::ARRAY_2D);
+
     mBindingGroup.addBuffer(11,  //
                             BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 5);
+
     mBindingGroup.addSampler(12,  //
                              BindGroupEntryVisibility::FRAGMENT, SampleType::Compare);
 
     mBindingGroup.addBuffer(13,  //
                             BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                             mInstanceManager->mBufferSize);
-
-    /*    Default Skining Data Final Transformations */
-    // mDefaultSkiningData.addBuffer(0,  //
-    //                               BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM,
-    //                               100 * sizeof(glm::mat4));
 
     /* Default textures for the render pass, if a model doenst have textures, these will be used */
     mDefaultTextureBindingGroup.addTexture(0,  //
@@ -326,7 +260,6 @@ void Application::initializePipeline() {
     mBindGroupLayouts[3] = camera_bind_group_layout;
     mBindGroupLayouts[4] = clipplane_bind_group_layout;
     mBindGroupLayouts[5] = visible_bind_group_layout;
-    // mBindGroupLayouts[6] = default_bone_transformations_bind_group_layout;
 
     mPipeline = new Pipeline{this,
                              {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
@@ -412,16 +345,17 @@ void Application::initializePipeline() {
     mDepthPrePass = new DepthPrePass{this, "Depth PrePass", mDepthTextureView};
     mDepthPrePass->createRenderPass(WGPUTextureFormat_RGBA8Unorm);
 
-    initDepthBuffer();
-
     mTerrainPass = new TerrainPass{this, "Terrain Render Pass"};
     mTerrainPass->create(mSurfaceFormat);
 
+    m3DviewportPass = new ViewPort3DPass{this, "ViewPort 3D Render Pass"};
+
+    initDepthBuffer();
+
+    m3DviewportPass->create(mSurfaceFormat);
+
     mOutlinePass = new OutlinePass{this, "Outline Render Pass"};
     mOutlinePass->create(mSurfaceFormat, mDepthTextureViewDepthOnly);
-
-    m3DviewportPass = new ViewPort3DPass{this, "ViewPort 3D Render Pass"};
-    m3DviewportPass->create(mSurfaceFormat);
 
     mWaterPass = new WaterReflectionPass{this, "Water Reflection Pass"};
     mWaterPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
@@ -429,9 +363,33 @@ void Application::initializePipeline() {
     mWaterRefractionPass = new WaterRefractionPass{this, "Water Refraction Pass"};
     mWaterRefractionPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
 
+    mTerrainForRefraction = new NewRenderPass{"Terrain for refraction"};
+
+    mTerrainForRefraction->setColorAttachment({mWaterRefractionPass->mRenderTargetView, nullptr,
+                                               WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    mTerrainForRefraction->setDepthStencilAttachment({mWaterRefractionPass->mDepthTextureView, StoreOp::Store,
+                                                      LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined,
+                                                      false});
+    mTerrainForRefraction->init();
+
+    //
+    mTerrainForReflection = new NewRenderPass{"Terrain for reflection"};
+    mTerrainForReflection->setColorAttachment(
+        {mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    mTerrainForReflection->setDepthStencilAttachment({mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Load,
+                                                      false, StoreOp::Undefined, LoadOp::Undefined, false});
+    mTerrainForReflection->init();
+    //
+
     mWaterRenderPass =
         new WaterPass{this, mWaterPass->mRenderTarget, mWaterRefractionPass->mRenderTarget, "Water pass"};
     mWaterRenderPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
+
+    /*mTransparencyPass = new TransparencyPass{this};*/
+    /*mTransparencyPass->initializePass();*/
+    /**/
+    /*mCompositionPass = new CompositionPass{this};*/
+    /*mCompositionPass->initializePass();*/
 
     /* Initializing Binding Data for bindgroups */
     mBindingData[0].nextInChain = nullptr;
@@ -495,12 +453,6 @@ void Application::initializePipeline() {
     mBindingData[9].binding = 9;
     mBindingData[9].textureView = snow_texture.getTextureView();
 
-    /*mTransparencyPass = new TransparencyPass{this};*/
-    /*mTransparencyPass->initializePass();*/
-    /**/
-    /*mCompositionPass = new CompositionPass{this};*/
-    /*mCompositionPass->initializePass();*/
-
     mBindingData[10] = {};
     mBindingData[10].nextInChain = nullptr;
     mBindingData[10].binding = 10;
@@ -544,6 +496,7 @@ void Application::initializePipeline() {
         .create(this);
 
     static std::vector<glm::mat4> bones;
+    bones.reserve(100);
     for (int i = 0; i < 100; i++) {
         bones.emplace_back(glm::mat4{1.0});
     }
@@ -583,15 +536,6 @@ void Application::initializeBuffers() {
     plane->mName = "Plane";
     plane->mTransform.moveTo(glm::vec3{3.0f, 1.0f, 4.0f}).scale(glm::vec3{0.01, 1.0, 1.0});
     plane->setTransparent(false);
-
-    // WGPUBufferDescriptor buffer_descriptor = {};
-    // buffer_descriptor.nextInChain = nullptr;
-    // // Create Uniform buffers
-    // buffer_descriptor.label = {"uniform buffer", WGPU_STRLEN};
-    // buffer_descriptor.size = sizeof(MyUniform) * 10;
-    // buffer_descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-    // buffer_descriptor.mappedAtCreation = false;
-    // mUniformBuffer = wgpuDeviceCreateBuffer(mRendererResource.device, &buffer_descriptor);
 
     mUniformBuffer.setLabel("MVP matrices matrix")
         .setSize(sizeof(MyUniform) * 10)
@@ -675,10 +619,6 @@ void onWindowResize(GLFWwindow* window, int width, int height) {
     if (that != nullptr) that->onResize();
 }
 
-/*static int WINDOW_WIDTH = 1920;*/
-/*static int WINDOW_HEIGHT = 1080;*/
-
-WGPURenderPassDescriptor depth_prepass_render_pass_descriptor = {};
 bool Application::initialize() {
     // We create a descriptor
 
@@ -792,7 +732,6 @@ bool Application::initialize() {
     wgpuSurfaceConfigure(mRendererResource.surface, &surface_configuration);
     wgpuAdapterRelease(adapter);
 
-    // ImGui stuff
     initGui();
 
     initializeBuffers();
@@ -825,7 +764,6 @@ void Application::mainLoop() {
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, &encoder_descriptor);
     mRendererResource.commandEncoder = encoder;
 
-    Frustum frustum{};
     auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
 
     // Dispaching Compute shaders to cull everything that is outside the frustum
@@ -855,7 +793,7 @@ void Application::mainLoop() {
         uint32_t new_value = all_scenes.size();
         wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &new_value, sizeof(uint32_t));
 
-        frustum.createFrustumPlanesFromCorner(corners);
+        frustumm.createFrustumPlanesFromCorner(corners);
         wgpuQueueWriteBuffer(mRendererResource.queue, mLightSpaceTransformation.getBuffer(), 0, all_scenes.data(),
                              sizeof(Scene) * all_scenes.size());
     }
@@ -863,24 +801,14 @@ void Application::mainLoop() {
     {
         mShadowPass->renderAllCascades(encoder);
     }
-
     //-------------- End of shadow pass
-    //
+
     mUniforms.setCamera(mCamera);
     mUniforms.cameraWorldPosition = getCamera().getPos();
-    // auto all_scenes = mShadowPass->getScene();
-    // if (look_as_light) {
-    //     auto all_scene = all_scenes[which_frustum];
-    //     mUniforms.projectMatrix = all_scene.projection;
-    //     mUniforms.viewMatrix = all_scene.view;
-    //     mUniforms.modelMatrix = all_scene.model;
-    // }
 
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), 0, &mUniforms, sizeof(MyUniform));
 
     // ---------------- 2 - begining of the opaque object color pass ---------------
-
-    /*auto render_pass_descriptor = createRenderPassDescriptor(mCurrentTargetView, mDepthTextureView);*/
 
     // inverting pitch and reflect camera based on the water plane
     // auto water_plane = ModelRegistry::instance().getLoadedModel(Visibility_User).find("water");
@@ -906,7 +834,6 @@ void Application::mainLoop() {
             wgpuQueueWriteBuffer(mRendererResource.queue, mSkybox->mReflectedCameraMatrix.getBuffer(), 0,
                                  &reflected_camera, sizeof(glm::mat4));
         }
-        // }
     }
 
     {
@@ -984,78 +911,38 @@ void Application::mainLoop() {
     // }
     // }
 
-    {  // Terrain Render Pass for Water Reflection
-
-        mTerrainPass->setColorAttachment(
-            {mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-        mTerrainPass->setDepthStencilAttachment({mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Load, false,
-                                                 StoreOp::Undefined, LoadOp::Undefined, false});
-        mTerrainPass->init();
-
-        WGPURenderPassEncoder terrain_pass_encoder =
-            wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());
-        wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());
-        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 3,
-                                          mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
-
-        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
+    // ---------- Terrain Render Pass for Water Reflection
+    beginTerrainPassFor(encoder, mTerrainForReflection, [&](WGPURenderPassEncoder pass_encoder) {
+        wgpuRenderPassEncoderSetPipeline(pass_encoder, mTerrainPass->getPipeline()->getPipeline());
+        wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                           nullptr);
-        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
-        terrain.draw(this, terrain_pass_encoder, mBindingData);
 
-        wgpuRenderPassEncoderEnd(terrain_pass_encoder);
-        wgpuRenderPassEncoderRelease(terrain_pass_encoder);
-    }
+        wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+
+        terrain.draw(this, pass_encoder, mBindingData);
+
+        wgpuRenderPassEncoderEnd(pass_encoder);
+    });
 
     //----------------------------  Water Refraction Pass
-
     mWaterRefractionPass->execute(encoder);
-    // WGPURenderPassEncoder water_refraction_pass_encoder =
-    //     wgpuCommandEncoderBeginRenderPass(encoder, mWaterRefractionPass->getRenderPassDescriptor());
-    //
-    // wgpuRenderPassEncoderSetPipeline(water_refraction_pass_encoder,
-    // mWaterRefractionPass->getPipeline()->getPipeline());
-    // wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(),
-    // 0,
-    //                                   nullptr);
-    //
-    // wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 4,
-    //                                   mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
-    // wgpuRenderPassEncoderSetBindGroup(water_refraction_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0,
-    //                                   nullptr);
-    //
-    // {
-    //     for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-    //         if (model->mName != "water") {
-    //             model->draw(this, water_refraction_pass_encoder, mBindingData);
-    //         }
-    //     }
-    // }
-    // wgpuRenderPassEncoderEnd(water_refraction_pass_encoder);
-    // wgpuRenderPassEncoderRelease(water_refraction_pass_encoder);
+    // ----------------------------------------------
 
-    {  // Terrain Render Pass for Water Refraction
-
-        mTerrainPass->setColorAttachment({mWaterRefractionPass->mRenderTargetView, nullptr,
-                                          WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-        mTerrainPass->setDepthStencilAttachment({mWaterRefractionPass->mDepthTextureView, StoreOp::Store, LoadOp::Load,
-                                                 false, StoreOp::Undefined, LoadOp::Undefined, false});
-        mTerrainPass->init();
-
-        WGPURenderPassEncoder terrain_pass_encoder =
-            wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());
-        wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());
-        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
+    // ---------- Terrain Render Pass for Water Refraction
+    beginTerrainPassFor(encoder, mTerrainForRefraction, [&](WGPURenderPassEncoder pass_encoder) {
+        wgpuRenderPassEncoderSetPipeline(pass_encoder, mTerrainPass->getPipeline()->getPipeline());
+        wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0,
                                           nullptr);
+        wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
 
-        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4,
-                                          mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
-        terrain.draw(this, terrain_pass_encoder, mBindingData);
+        terrain.draw(this, pass_encoder, mBindingData);
 
-        wgpuRenderPassEncoderEnd(terrain_pass_encoder);
-        wgpuRenderPassEncoderRelease(terrain_pass_encoder);
-    }
+        wgpuRenderPassEncoderEnd(pass_encoder);
+    });
 
+    // Depth pre-pass to reduce number of overdraws
     {
         WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &mDepthPrePass->mDesc);
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mDepthPrePass->getPipeline()->getPipeline());
@@ -1082,8 +969,9 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderEnd(render_pass_encoder);
         wgpuRenderPassEncoderRelease(render_pass_encoder);
     }
+    // ----------------------------------------------
 
-    // skybox and pbr render pass
+    // ---- Skybox and PBR render pass
 
     WGPURenderPassDescriptor render_pass_descriptor = {};
 
@@ -1150,7 +1038,6 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
-    // end of color render pass
     // ---------------------------------------------------------------------
 
     {
@@ -1235,25 +1122,11 @@ void Application::mainLoop() {
     // wgpuRenderPassEncoderRelease(outline_pass_encoder);
 
     // 3D editor elements pass
-    m3DviewportPass->setColorAttachment(
-        {mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    m3DviewportPass->setDepthStencilAttachment({mDepthTextureView, StoreOp::Undefined, LoadOp::Undefined, false,
-                                                StoreOp::Undefined, LoadOp::Undefined, false, 0.0});
-    m3DviewportPass->init();
+    m3DviewportPass->execute(encoder);
 
-    WGPURenderPassEncoder viewport_3d_pass_encoder =
-        wgpuCommandEncoderBeginRenderPass(encoder, m3DviewportPass->getRenderPassDescriptor());
-    wgpuRenderPassEncoderSetStencilReference(viewport_3d_pass_encoder, stencilReferenceValue);
-
-    for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_Editor)) {
-        wgpuRenderPassEncoderSetPipeline(viewport_3d_pass_encoder, m3DviewportPass->getPipeline()->getPipeline());
-        model->draw(this, viewport_3d_pass_encoder);
-    }
-
-    wgpuRenderPassEncoderEnd(viewport_3d_pass_encoder);
-    wgpuRenderPassEncoderRelease(viewport_3d_pass_encoder);
-
+    // polling if any model loading process is done and append it to loaded model list
     ModelRegistry::instance().tick(this);
+
     // ------------ 3- Transparent pass
     // Calculate the Accumulation Buffer from the transparent object, this pass does not draw
     // on the render Target
@@ -1432,8 +1305,10 @@ bool Application::initDepthBuffer() {
 
     // Create the view of the depth texture manipulated by the rasterizer
     mDepthTextureView = mDepthTexture->createViewDepthStencil();
-    // depth_prepass_render_pass_descriptor.depthStencilAttachment->view = mDepthTextureView;
+
     mDepthPrePass->getRenderDesc(mDepthTextureView);
+    m3DviewportPass->initTargets();
+
     // 2. Create a WGPUTextureView for the DEPTH aspect only
     WGPUTextureViewDescriptor depthViewDesc = {};
     depthViewDesc.format = WGPUTextureFormat_Depth24Plus;  // Must match the base texture format
@@ -1668,3 +1543,6 @@ void Application::setWindowSize(size_t width, size_t height) {
 const std::vector<WGPUBindGroupEntry> Application::getDefaultTextureBindingData() const {
     return mDefaultTextureBindingData;
 };
+
+WGPUTextureView Application::getDepthStencilTarget() { return mDepthTextureView; }
+WGPUTextureView Application::getColorTarget() { return mCurrentTargetView; }

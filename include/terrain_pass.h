@@ -53,6 +53,8 @@ class ViewPort3DPass : public RenderPass {
         WGPUBindGroupLayout mLayerThree;
         BindingGroup mLayerThreeBindgroup;
         Pipeline* create(WGPUTextureFormat textureFormat);
+        void initTargets();
+        void execute(WGPUCommandEncoder /*encoder*/) override;
 
     private:
         Application* mApp;
