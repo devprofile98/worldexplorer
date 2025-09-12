@@ -131,21 +131,45 @@ void Cube::userInterface() {
 #endif  // DEVELOPMENT_BUILD
 
 WGPUBindGroupDescriptor createBindGroup(Application* app, WGPUBuffer buffer, size_t bufferSize = sizeof(ObjectInfo)) {
-    WGPUBindGroupEntry mBindGroupEntry = {};
-    mBindGroupEntry.nextInChain = nullptr;
-    mBindGroupEntry.binding = 0;
-    mBindGroupEntry.buffer = buffer;
-    mBindGroupEntry.offset = 0;
-    mBindGroupEntry.size = bufferSize;
+    // static WGPUBindGroupEntry mBindGroupEntry = {};
+    // mBindGroupEntry.nextInChain = nullptr;
+    // mBindGroupEntry.binding = 0;
+    // mBindGroupEntry.buffer = buffer;
+    // mBindGroupEntry.offset = 0;
+    // mBindGroupEntry.size = bufferSize;
+    //
+    // WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
+    // mTrasBindGroupDesc.nextInChain = nullptr;
+    // mTrasBindGroupDesc.entries = &mBindGroupEntry;
+    // mTrasBindGroupDesc.entryCount = 1;
+    // mTrasBindGroupDesc.label = {"translation bind group", WGPU_STRLEN};
+    // mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
+    //
+    // return mTrasBindGroupDesc;
+
+    static std::array<WGPUBindGroupEntry, 2> mBindGroupEntry = {};
+    mBindGroupEntry[0].nextInChain = nullptr;
+    mBindGroupEntry[0].binding = 0;
+    mBindGroupEntry[0].buffer = buffer;
+    mBindGroupEntry[0].offset = 0;
+    mBindGroupEntry[0].size = bufferSize;
+
+    mBindGroupEntry[1].nextInChain = nullptr;
+    mBindGroupEntry[1].buffer = app->mDefaultBoneFinalTransformData.getBuffer();
+    mBindGroupEntry[1].binding = 1;
+    mBindGroupEntry[1].offset = 0;
+    mBindGroupEntry[1].size = 100 * sizeof(glm::mat4);
 
     WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
     mTrasBindGroupDesc.nextInChain = nullptr;
-    mTrasBindGroupDesc.entries = &mBindGroupEntry;
-    mTrasBindGroupDesc.entryCount = 1;
+    mTrasBindGroupDesc.entries = mBindGroupEntry.data();
+    mTrasBindGroupDesc.entryCount = 2;
     mTrasBindGroupDesc.label = createStringView("translation bind group");
     mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
 
+    // ggg = ;
     return mTrasBindGroupDesc;
+    // return wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);
 }
 
 void Cube::draw(Application* app, WGPURenderPassEncoder encoder) {
@@ -199,19 +223,24 @@ void generateThickLine(glm::vec3 start, glm::vec3 end, float width, float* verte
     vertexData[1] = v0.y;
     vertexData[2] = v0.z;
 
-    vertexData[0 + 11] = v1.x;
-    vertexData[1 + 11] = v1.y;
-    vertexData[2 + 11] = v1.z;
+    vertexData[0 + 28] = v1.x;
+    vertexData[1 + 28] = v1.y;
+    vertexData[2 + 28] = v1.z;
 
     /*glm::vec3 other_end = glm::vec3{start.x + 0.1, start_y, start.z};*/
     /*glm::vec3 other_start = glm::vec3{end.x + 0.1, y, end.z};*/
-    vertexData[0 + 22] = v2.x;
-    vertexData[1 + 22] = v2.y;
-    vertexData[2 + 22] = v2.z;
+    vertexData[0 + 28 * 2] = v2.x;
+    vertexData[1 + 28 * 2] = v2.y;
+    vertexData[2 + 28 * 2] = v2.z;
 
-    vertexData[0 + 33] = v3.x;
-    vertexData[1 + 33] = v3.y;
-    vertexData[2 + 33] = v3.z;
+    vertexData[0 + 28 * 3] = v3.x;
+    vertexData[1 + 28 * 3] = v3.y;
+    vertexData[2 + 28 * 3] = v3.z;
+
+    std::cout << glm::to_string(v0) << std::endl;
+    std::cout << glm::to_string(v1) << std::endl;
+    std::cout << glm::to_string(v2) << std::endl;
+    std::cout << glm::to_string(v3) << std::endl;
 }
 
 glm::vec3 generateLine(glm::vec3 start, glm::vec3 end, float* vertexData) {
@@ -246,17 +275,16 @@ glm::vec3 generateLine(glm::vec3 start, glm::vec3 end, float* vertexData) {
 
     return other_end;
 }
+
 void setColor(const glm::vec3 color, float* vertexData) {
     for (int i = 0; i < 4; i++) {
-        vertexData[6 + (11 * i)] = color.x;
-        vertexData[7 + (11 * i)] = color.y;
-        vertexData[8 + (11 * i)] = color.z;
+        vertexData[6 + (28 * i)] = color.x;
+        vertexData[7 + (28 * i)] = color.y;
+        vertexData[8 + (28 * i)] = color.z;
     }
 }
 
 Line::Line(Application* app, glm::vec3 start, glm::vec3 end, float width, glm::vec3 color) : BaseModel() {
-    (void)start;
-    (void)end;
     mApp = app;
     mName = "Line";
 
@@ -266,6 +294,9 @@ Line::Line(Application* app, glm::vec3 start, glm::vec3 end, float width, glm::v
     generateThickLine(start, end, width, triangleVertexData);
     setColor(color, triangleVertexData);
     /*std::cout << "middle: " << glm::to_string(middle) << "\n";*/
+    // for (size_t i = 0; i < 100; i++) {
+    //     triangleVertexData[i] = i;
+    // }
 
     mMeshes[0]
         .mVertexBuffer.setLabel("Line vertex buffer")
@@ -287,8 +318,8 @@ Line::Line(Application* app, glm::vec3 start, glm::vec3 end, float width, glm::v
                          sizeof(mIndexData));
     Drawable::configure(app);
 
-    for (size_t i = 0; i < (sizeof(triangleVertexData) / (11 * sizeof(float))); i++) {
-        size_t idx = i * 11;
+    for (size_t i = 0; i < (sizeof(triangleVertexData) / (28 * sizeof(float))); ++i) {
+        size_t idx = i * 28;
         min.x = std::min(min.x, triangleVertexData[idx]);
         min.y = std::min(min.y, triangleVertexData[idx + 1]);
         min.z = std::min(min.z, triangleVertexData[idx + 2]);
@@ -312,20 +343,22 @@ void Line::draw(Application* app, WGPURenderPassEncoder encoder) {
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mMeshes[0].mVertexBuffer.getBuffer(), 0,
                                          wgpuBufferGetSize(mMeshes[0].mVertexBuffer.getBuffer()));
 
-    auto& desc = app->getBindingGroup().getDescriptor();
-    desc.entries = app->mBindingData.data();
-    auto bindgroup0 = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
-    wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup0, 0, nullptr);
+    // auto desc = app->getBindingGroup().getDescriptor();
+    // desc.label = {"line", WGPU_STRLEN};
+    // desc.entries = app->mBindingData.data();
+    // auto bindgroup0 = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
+    wgpuRenderPassEncoderSetBindGroup(encoder, 0, app->getBindingGroup().getBindGroup(), 0, nullptr);
 
     auto bindgroup_desc =
         createBindGroup(app, Drawable::getUniformBuffer().getBuffer(), sizeof(mTransform.mObjectInfo));
     WGPUBindGroup bindgroup_object = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &bindgroup_desc);
 
     wgpuRenderPassEncoderSetBindGroup(encoder, 1, bindgroup_object, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(encoder, 2, app->mDefaultTextureBindingGroup.getBindGroup(), 0, nullptr);
 
     /*wgpuRenderPassEncoderDraw(encoder, sizeof(triangleVertexData) / (11 * sizeof(float)), 1, 0, 0);*/
     wgpuRenderPassEncoderDrawIndexed(encoder, sizeof(mIndexData) / sizeof(uint16_t), 1, 0, 0, 0);
 
     wgpuBindGroupRelease(bindgroup_object);
-    wgpuBindGroupRelease(bindgroup0);
+    // wgpuBindGroupRelease(bindgroup0);
 }

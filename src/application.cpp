@@ -75,8 +75,8 @@ Frustum frustumm{};
 
 float rotrot = 0.f;
 
-void beginTerrainPassFor(WGPUCommandEncoder encoder, NewRenderPass* renderPass,
-                         std::function<void(WGPURenderPassEncoder encoder)> drawFunc) {
+void beginPass(NewRenderPass* renderPass, WGPUCommandEncoder encoder,
+               std::function<void(WGPURenderPassEncoder encoder)> drawFunc) {
     WGPURenderPassEncoder terrain_pass_encoder =
         wgpuCommandEncoderBeginRenderPass(encoder, &renderPass->mRenderPassDesc);
 
@@ -342,6 +342,9 @@ void Application::initializePipeline() {
     mShadowPass = new ShadowPass{this, "Shadow pass"};
     mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm, 3);
 
+    // mDepthPrePass = new DepthPrePass{this, "Depth PrePass", mDepthTextureView};
+    // mDepthPrePass->createRenderPass(WGPUTextureFormat_RGBA8Unorm);
+    //
     mDepthPrePass = new DepthPrePass{this, "Depth PrePass", mDepthTextureView};
     mDepthPrePass->createRenderPass(WGPUTextureFormat_RGBA8Unorm);
 
@@ -576,12 +579,12 @@ void Application::initializeBuffers() {
     glm::vec4 red = {1.0, 0.0, 0.0, 1.0};
     glm::vec4 blue = {0.0, 0.0, 1.0, 1.0};
 
-    mLightManager->createPointLight({-2.5, -5.833, 0.184, 1.0}, red, red, red, 1.0, -3.0, 1.8);
-    mLightManager->createPointLight({-1.0, -0.833, 1.0, 1.0}, blue, blue, blue, 1.0, -0.922, 1.8);
-    mLightManager->createPointLight({-5.0, -3.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
-    mLightManager->createPointLight({2.0, 2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8);
+    mLightManager->createPointLight({-2.5, -5.833, 0.184, 1.0}, red, red, red, 1.0, -3.0, 1.8, "red light 1");
+    mLightManager->createPointLight({-1.0, -0.833, 1.0, 1.0}, blue, blue, blue, 1.0, -0.922, 1.8, "blue light 1");
+    mLightManager->createPointLight({-5.0, -3.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8, "blue light 2");
+    mLightManager->createPointLight({2.0, 2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8, "blue light 3");
     mLightManager->createSpotLight({1.0, 2.0, 1.0, 1.0}, {0.0, 0.0, -1.0f, 1.0f}, glm::cos(glm::radians(12.5f)),
-                                   glm::cos(glm::radians(17.5f)));
+                                   glm::cos(glm::radians(17.5f)), "spotlight ");
 
     mLightManager->uploadToGpu(this, mLightBuffer.getBuffer());
 
@@ -912,7 +915,7 @@ void Application::mainLoop() {
     // }
 
     // ---------- Terrain Render Pass for Water Reflection
-    beginTerrainPassFor(encoder, mTerrainForReflection, [&](WGPURenderPassEncoder pass_encoder) {
+    beginPass(mTerrainForReflection, encoder, [&](WGPURenderPassEncoder pass_encoder) {
         wgpuRenderPassEncoderSetPipeline(pass_encoder, mTerrainPass->getPipeline()->getPipeline());
         wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                           nullptr);
@@ -930,7 +933,7 @@ void Application::mainLoop() {
     // ----------------------------------------------
 
     // ---------- Terrain Render Pass for Water Refraction
-    beginTerrainPassFor(encoder, mTerrainForRefraction, [&](WGPURenderPassEncoder pass_encoder) {
+    beginPass(mTerrainForRefraction, encoder, [&](WGPURenderPassEncoder pass_encoder) {
         wgpuRenderPassEncoderSetPipeline(pass_encoder, mTerrainPass->getPipeline()->getPipeline());
         wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0,
@@ -1031,9 +1034,9 @@ void Application::mainLoop() {
             }
         }
 
-        // for (const auto& model : mLines) {
-        //     model->draw(this, render_pass_encoder, mBindingData);
-        // }
+        for (const auto& model : mLines) {
+            model->draw(this, render_pass_encoder);
+        }
     }
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);
@@ -1482,27 +1485,29 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
     ImGui::InputFloat3("End", glm::value_ptr(end));
 
     ImGui::ColorPicker3("lines color", glm::value_ptr(color));
-    // if (ImGui::Button("Create", ImVec2(100, 30))) {
-    // auto& item = ModelRegistry::instance().getLoadedModel(Visibility_User);
-    // auto human = iter.find("human");
-    // auto sheep = iter.find("sheep");
-    // // auto sphere = iter.find("sphere");
-    // if (human != iter.end()) {
-    //     human->second->mAnimationSecond = std::fmod(time, human->second->mAnimationDuration) * 1000.0f;
-    //     human->second->ExtractBonePositions();
-    //     // loadSphereAtHumanBones(this, human->second, sphere->second);
-    //     // wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 *
-    //     // sizeof(glm::mat4),
-    //     //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
-    // }
-    // if (sheep != iter.end()) {
-    //     sheep->second->mAnimationSecond = std::fmod(time, sheep->second->mAnimationDuration) * 1000.0f;
-    //     sheep->second->ExtractBonePositions();
-    //     // loadSphereAtHumanBones(this, human->second, sphere->second);
-    //     // wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 *
-    //     // sizeof(glm::mat4),
-    //     //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
-    // }
+    if (ImGui::Button("Create", ImVec2(100, 30))) {
+        // auto& item = ModelRegistry::instance().getLoadedModel(Visibility_User);
+        // auto human = iter.find("human");
+        // auto sheep = iter.find("sheep");
+        // // auto sphere = iter.find("sphere");
+        // if (human != iter.end()) {
+        //     human->second->mAnimationSecond = std::fmod(time, human->second->mAnimationDuration) * 1000.0f;
+        //     human->second->ExtractBonePositions();
+        //     // loadSphereAtHumanBones(this, human->second, sphere->second);
+        //     // wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 *
+        //     // sizeof(glm::mat4),
+        //     //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
+        // }
+        // if (sheep != iter.end()) {
+        //     sheep->second->mAnimationSecond = std::fmod(time, sheep->second->mAnimationDuration) * 1000.0f;
+        //     sheep->second->ExtractBonePositions();
+        //     // loadSphereAtHumanBones(this, human->second, sphere->second);
+        //     // wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 *
+        //     // sizeof(glm::mat4),
+        //     //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
+        std::cout << "Line got created !";
+        mLines.emplace_back(new Line(this, start, end, 100.0, color));
+    }
     if (ImGui::Button("remove frustum", ImVec2(100, 30))) {
         // for (int i = 0; i < 24; i++) {
         //     mLoadedModel.pop_back();

@@ -29,7 +29,7 @@ LightManager* LightManager::init(Application* app) {
 Buffer& LightManager::getCountBuffer() { return mLightCountBuffer; }
 
 void LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float cons, float lin,
-                                    float quad) {
+                                    float quad, const char* name) {
     Light light;
     light.mPosition = pos;
     light.mAmbient = amb;
@@ -41,9 +41,11 @@ void LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff
     light.type = POINT;
 
     mLights.push_back(light);
+    mLightsNames.push_back(name);
 }
 
-void LightManager::createSpotLight(glm::vec4 pos, glm::vec4 direction, float cutoff, float outerCutoff) {
+void LightManager::createSpotLight(glm::vec4 pos, glm::vec4 direction, float cutoff, float outerCutoff,
+                                   const char* name) {
     (void)cutoff;
     (void)outerCutoff;
     Light light;
@@ -58,6 +60,7 @@ void LightManager::createSpotLight(glm::vec4 pos, glm::vec4 direction, float cut
     light.mQuadratic = 1.8;
 
     mLights.push_back(light);
+    mLightsNames.push_back(name);
 }
 
 Light* LightManager::get(size_t index) { return &mLights[index]; }
@@ -104,8 +107,9 @@ void LightManager::renderGUI() {
         auto* light = &getLights()[i];
         ImGui::PushID((void*)&light);
 
-        if (ImGui::Selectable("light", light == &getLights()[mSelectedLightInGui])) {
+        if (ImGui::Selectable(mLightsNames[i].c_str(), light == &getLights()[mSelectedLightInGui])) {
             ImGui::Text("%s", glm::to_string(light->mPosition).c_str());
+            mSelectedLightInGui = i;
         }
 
         ImGui::PopID();  // Pop the unique ID for this item

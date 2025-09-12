@@ -32,7 +32,8 @@ class Plane : public Cube {
     private:
         std::map<int, Mesh> mMeshes;
 };
-
+//
+//
 class Line : public BaseModel {
     public:
         Line(Application* app, glm::vec3 start, glm::vec3 end, float width, glm::vec3 color);
@@ -44,11 +45,18 @@ class Line : public BaseModel {
         Buffer mIndexDataBuffer = {};
         /*float triangleVertexData[33];*/
         uint16_t mIndexData[6] = {0, 1, 2, 1, 2, 3};
-        float triangleVertexData[44] = {
-            1.0, 0.5, 4.0, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,  //
-            6.0, 3.0, 4.0, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,  //
-            6.1, 2.8, 4.0, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,  //
-        };
+        float triangleVertexData[112] = {};
+        //
+        //     1.0, 0.5, 4.0, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,  //
+        //     6.0, 3.0, 4.0, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,                                      //
+        //     6.1, 2.8, 4.0, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,                                      //
+        // };
         /*    std::map<int, Mesh> mMeshes;*/
 };
+
+struct LineEngine {
+        std::array<float, 12> mLineInstance = {0, -0.5, 1, -0.5, 1, 0.5, 0, -0.5, 1, 0.5, 0, 0.5};
+        WGPURenderPipeline mRenderPipeline;
+};
+
 #endif  // WEBGPUTEST_SHAPE_H

@@ -34,9 +34,9 @@ class LightManager {
     public:
         static LightManager* init(Application* app);
         void createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float cons, float lin,
-                              float quad);
+                              float quad, const char* name);
 
-        void createSpotLight(glm::vec4 pos, glm::vec4 direction, float cutoff, float outerCutoff);
+        void createSpotLight(glm::vec4 pos, glm::vec4 direction, float cutoff, float outerCutoff, const char* name);
 
         Light* get(size_t index);
         void uploadToGpu(Application* app, WGPUBuffer buffer);
@@ -52,6 +52,7 @@ class LightManager {
         /*static inline Light* mLightInstance;*/
         Buffer mLightCountBuffer;
         std::vector<Light> mLights;
+        std::vector<std::string> mLightsNames;
         size_t mSelectedLightInGui;
 };
 

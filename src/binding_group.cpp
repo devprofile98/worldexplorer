@@ -156,7 +156,7 @@ void BindingGroup::addSampler(uint32_t bindingNumber, BindGroupEntryVisibility v
 WGPUBindGroupLayout BindingGroup::createLayout(Application* app, const char* label) {
     mBindGroupLayoutDesc = {};
     mBindGroupLayoutDesc.nextInChain = nullptr;
-    mBindGroupLayoutDesc.label = {"test test", WGPU_STRLEN};
+    mBindGroupLayoutDesc.label = {label, WGPU_STRLEN};
     mBindGroupLayoutDesc.entryCount = this->getEntryCount();
     mBindGroupLayoutDesc.entries = this->getEntryData();
 
