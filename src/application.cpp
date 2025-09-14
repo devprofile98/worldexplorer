@@ -132,6 +132,9 @@ void Application::initializePipeline() {
     snow_texture.createView();
     snow_texture.uploadToGPU(mRendererResource.queue);
 
+    mLineEngine = new LineEngine{};
+    mLineEngine->initialize(this);
+
     // creating default diffuse texture
     mDefaultDiffuse = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_diffuse_texture_view = mDefaultDiffuse->createView();
@@ -353,6 +356,13 @@ void Application::initializePipeline() {
 
     m3DviewportPass = new ViewPort3DPass{this, "ViewPort 3D Render Pass"};
 
+    mLineRenderingPass = new NewRenderPass{"Line Rendering render pass"};
+    mLineRenderingPass->setColorAttachment(
+        {this->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    mLineRenderingPass->setDepthStencilAttachment(
+        {this->mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined, false});
+    mLineRenderingPass->init();
+
     initDepthBuffer();
 
     m3DviewportPass->create(mSurfaceFormat);
@@ -382,6 +392,8 @@ void Application::initializePipeline() {
     mTerrainForReflection->setDepthStencilAttachment({mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Load,
                                                       false, StoreOp::Undefined, LoadOp::Undefined, false});
     mTerrainForReflection->init();
+    //
+    //
     //
 
     mWaterRenderPass =
@@ -1034,9 +1046,9 @@ void Application::mainLoop() {
             }
         }
 
-        for (const auto& model : mLines) {
-            model->draw(this, render_pass_encoder);
-        }
+        // for (const auto& model : mLines) {
+        //     model->draw(this, render_pass_encoder);
+        // }
     }
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);
@@ -1312,6 +1324,12 @@ bool Application::initDepthBuffer() {
     mDepthPrePass->getRenderDesc(mDepthTextureView);
     m3DviewportPass->initTargets();
 
+    mLineRenderingPass->setColorAttachment(
+        {this->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    mLineRenderingPass->setDepthStencilAttachment(
+        {this->mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined, false});
+    mLineRenderingPass->init();
+
     // 2. Create a WGPUTextureView for the DEPTH aspect only
     WGPUTextureViewDescriptor depthViewDesc = {};
     depthViewDesc.format = WGPUTextureFormat_Depth24Plus;  // Must match the base texture format
@@ -1506,7 +1524,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
         //     // sizeof(glm::mat4),
         //     //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
         std::cout << "Line got created !";
-        mLines.emplace_back(new Line(this, start, end, 100.0, color));
+        // mLines.emplace_back(new Line(this, start, end, 100.0, color));
     }
     if (ImGui::Button("remove frustum", ImVec2(100, 30))) {
         // for (int i = 0; i < 24; i++) {

@@ -1,8 +1,13 @@
 #include "shapes.h"
 
 #include <array>
+#include <glm/fwd.hpp>
 
 #include "application.h"
+#include "binding_group.h"
+#include "mesh.h"
+#include "pipeline.h"
+#include "utils.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <webgpu/webgpu.h>
 
@@ -201,164 +206,224 @@ void Cube::draw(Application* app, WGPURenderPassEncoder encoder) {
     wgpuBindGroupRelease(bindgroup0);
 }
 
-void generateThickLine(glm::vec3 start, glm::vec3 end, float width, float* vertexData) {
-    glm::vec3 direction = glm::normalize(end - start);
+// void generateThickLine(glm::vec3 start, glm::vec3 end, float width, float* vertexData) {
+//     glm::vec3 direction = glm::normalize(end - start);
+//
+//     // You need a reference vector to create a perpendicular in 3D
+//     // This can be the view direction (like the camera forward vector)
+//     glm::vec3 up = glm::vec3(0.0f, 0.0f, 1.0f);  // fallback
+//     if (glm::abs(glm::dot(direction, up)) > 0.99f) {
+//         up = glm::vec3(0.0f, 1.0f, 0.0f);  // Avoid colinearity
+//     }
+//
+//     // Get perpendicular vector in plane using cross product
+//     glm::vec3 perp = glm::normalize(glm::cross(direction, up)) * (width * 0.5f);
+//
+//     glm::vec3 v0 = start + perp;
+//     glm::vec3 v1 = start - perp;
+//     glm::vec3 v2 = end + perp;
+//     glm::vec3 v3 = end - perp;
+//
+//     vertexData[0] = v0.x;
+//     vertexData[1] = v0.y;
+//     vertexData[2] = v0.z;
+//
+//     vertexData[0 + 28] = v1.x;
+//     vertexData[1 + 28] = v1.y;
+//     vertexData[2 + 28] = v1.z;
+//
+//     /*glm::vec3 other_end = glm::vec3{start.x + 0.1, start_y, start.z};*/
+//     /*glm::vec3 other_start = glm::vec3{end.x + 0.1, y, end.z};*/
+//     vertexData[0 + 28 * 2] = v2.x;
+//     vertexData[1 + 28 * 2] = v2.y;
+//     vertexData[2 + 28 * 2] = v2.z;
+//
+//     vertexData[0 + 28 * 3] = v3.x;
+//     vertexData[1 + 28 * 3] = v3.y;
+//     vertexData[2 + 28 * 3] = v3.z;
+//
+//     std::cout << glm::to_string(v0) << std::endl;
+//     std::cout << glm::to_string(v1) << std::endl;
+//     std::cout << glm::to_string(v2) << std::endl;
+//     std::cout << glm::to_string(v3) << std::endl;
+// }
+//
+// glm::vec3 generateLine(glm::vec3 start, glm::vec3 end, float* vertexData) {
+//     float slope = (end.y - start.y) / (end.x - start.x);
+//     if (slope == 0) {
+//         return glm::vec3{0.0};
+//     }
+//     float prep_slope = -1.f / (slope);
+//     /*float b = end.y - (slope)*end.x;*/
+//     float other_b = end.y - (prep_slope)*end.x;
+//     float start_b = start.y - (prep_slope)*start.x;
+//     float y = prep_slope * (end.x + 0.1) + other_b;
+//     float start_y = prep_slope * (start.x + 0.1) + start_b;
+//     /*return glm::vec3{end.x + 0.1, y, end.z};*/
+//     vertexData[0] = start.x;
+//     vertexData[1] = start.y;
+//     vertexData[2] = start.z;
+//
+//     vertexData[0 + 11] = end.x;
+//     vertexData[1 + 11] = end.y;
+//     vertexData[2 + 11] = end.z;
+//
+//     glm::vec3 other_end = glm::vec3{start.x + 0.1, start_y, start.z};
+//     glm::vec3 other_start = glm::vec3{end.x + 0.1, y, end.z};
+//     vertexData[0 + 22] = other_end.x;
+//     vertexData[1 + 22] = other_end.y;
+//     vertexData[2 + 22] = other_end.z;
+//
+//     vertexData[0 + 33] = other_start.x;
+//     vertexData[1 + 33] = other_start.y;
+//     vertexData[2 + 33] = other_start.z;
+//
+//     return other_end;
+// }
+//
+// void setColor(const glm::vec3 color, float* vertexData) {
+//     for (int i = 0; i < 4; i++) {
+//         vertexData[6 + (28 * i)] = color.x;
+//         vertexData[7 + (28 * i)] = color.y;
+//         vertexData[8 + (28 * i)] = color.z;
+//     }
+// }
+//
+// Line::Line(Application* app, glm::vec3 start, glm::vec3 end, float width, glm::vec3 color) : BaseModel() {
+//     mApp = app;
+//     mName = "Line";
+//
+//     std::cout << "start: " << glm::to_string(start) << "\n";
+//     std::cout << "end: " << glm::to_string(end) << "\n";
+//
+//     generateThickLine(start, end, width, triangleVertexData);
+//     setColor(color, triangleVertexData);
+//     /*std::cout << "middle: " << glm::to_string(middle) << "\n";*/
+//     // for (size_t i = 0; i < 100; i++) {
+//     //     triangleVertexData[i] = i;
+//     // }
+//
+//     mMeshes[0]
+//         .mVertexBuffer.setLabel("Line vertex buffer")
+//         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
+//         .setSize(sizeof(triangleVertexData))
+//         .setMappedAtCraetion()
+//         .create(mApp);
+//
+//     wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mMeshes[0].mVertexBuffer.getBuffer(), 0,
+//                          &triangleVertexData, sizeof(triangleVertexData));
+//
+//     mIndexDataBuffer.setLabel("Line indices buffer")
+//         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index)
+//         .setSize(sizeof(mIndexData))
+//         .setMappedAtCraetion()
+//         .create(mApp);
+//
+//     wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mIndexDataBuffer.getBuffer(), 0, &mIndexData,
+//                          sizeof(mIndexData));
+//     Drawable::configure(app);
+//
+//     for (size_t i = 0; i < (sizeof(triangleVertexData) / (28 * sizeof(float))); ++i) {
+//         size_t idx = i * 28;
+//         min.x = std::min(min.x, triangleVertexData[idx]);
+//         min.y = std::min(min.y, triangleVertexData[idx + 1]);
+//         min.z = std::min(min.z, triangleVertexData[idx + 2]);
+//         max.x = std::max(max.x, triangleVertexData[idx]);
+//         max.y = std::max(max.y, triangleVertexData[idx + 1]);
+//         max.z = std::max(max.z, triangleVertexData[idx + 2]);
+//     }
+// }
+//
+// void Line::draw(Application* app, WGPURenderPassEncoder encoder) {
+//     auto& render_resource = app->getRendererResource();
+//
+//     mTransform.mObjectInfo.transformation = glm::mat4{1.0f};  // mTransformMatrix;
+//     mTransform.mObjectInfo.isFlat = false;
+//     wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
+//                          sizeof(ObjectInfo));
+//
+//     wgpuRenderPassEncoderSetIndexBuffer(encoder, mIndexDataBuffer.getBuffer(), WGPUIndexFormat_Uint16, 0,
+//                                         wgpuBufferGetSize(mIndexDataBuffer.getBuffer()));
+//
+//     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mMeshes[0].mVertexBuffer.getBuffer(), 0,
+//                                          wgpuBufferGetSize(mMeshes[0].mVertexBuffer.getBuffer()));
+//
+//     // auto desc = app->getBindingGroup().getDescriptor();
+//     // desc.label = {"line", WGPU_STRLEN};
+//     // desc.entries = app->mBindingData.data();
+//     // auto bindgroup0 = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
+//     wgpuRenderPassEncoderSetBindGroup(encoder, 0, app->getBindingGroup().getBindGroup(), 0, nullptr);
+//
+//     auto bindgroup_desc =
+//         createBindGroup(app, Drawable::getUniformBuffer().getBuffer(), sizeof(mTransform.mObjectInfo));
+//     WGPUBindGroup bindgroup_object = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &bindgroup_desc);
+//
+//     wgpuRenderPassEncoderSetBindGroup(encoder, 1, bindgroup_object, 0, nullptr);
+//     wgpuRenderPassEncoderSetBindGroup(encoder, 2, app->mDefaultTextureBindingGroup.getBindGroup(), 0, nullptr);
+//
+//     /*wgpuRenderPassEncoderDraw(encoder, sizeof(triangleVertexData) / (11 * sizeof(float)), 1, 0, 0);*/
+//     wgpuRenderPassEncoderDrawIndexed(encoder, sizeof(mIndexData) / sizeof(uint16_t), 1, 0, 0, 0);
+//
+//     wgpuBindGroupRelease(bindgroup_object);
+//     // wgpuBindGroupRelease(bindgroup0);
+// }
 
-    // You need a reference vector to create a perpendicular in 3D
-    // This can be the view direction (like the camera forward vector)
-    glm::vec3 up = glm::vec3(0.0f, 0.0f, 1.0f);  // fallback
-    if (glm::abs(glm::dot(direction, up)) > 0.99f) {
-        up = glm::vec3(0.0f, 1.0f, 0.0f);  // Avoid colinearity
-    }
+void LineEngine::initialize(Application* app) {
+    // create render pass
+    // create bindgroups
+    // create pipeline
+    //// create attribute vector
+    mBindGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::STORAGE_READONLY,
+                         100 * sizeof(Line));
 
-    // Get perpendicular vector in plane using cross product
-    glm::vec3 perp = glm::normalize(glm::cross(direction, up)) * (width * 0.5f);
+    auto layout = mBindGroup.createLayout(app, "line rendering bindgroup");
 
-    glm::vec3 v0 = start + perp;
-    glm::vec3 v1 = start - perp;
-    glm::vec3 v2 = end + perp;
-    glm::vec3 v3 = end - perp;
+    mVertexBufferLayout.addAttribute(0, 0, WGPUVertexFormat_Float32x3)
+        .configure(sizeof(glm::vec4), VertexStepMode::VERTEX);
 
-    vertexData[0] = v0.x;
-    vertexData[1] = v0.y;
-    vertexData[2] = v0.z;
+    mPipeline = new Pipeline{app, {layout}, "Line Drawing pipeline"};
 
-    vertexData[0 + 28] = v1.x;
-    vertexData[1 + 28] = v1.y;
-    vertexData[2 + 28] = v1.z;
+    mPipeline->setVertexBufferLayout(mVertexBufferLayout.getLayout())
+        .setShader(RESOURCE_DIR "/shaders/line_pass.wgsl")
+        .setVertexState()
+        .setBlendState()
+        .setPrimitiveState()
+        .setColorTargetState()
+        .setDepthStencilState(true, 0xFF, 0xFF, WGPUTextureFormat_Depth24PlusStencil8)
+        .setFragmentState();
 
-    /*glm::vec3 other_end = glm::vec3{start.x + 0.1, start_y, start.z};*/
-    /*glm::vec3 other_start = glm::vec3{end.x + 0.1, y, end.z};*/
-    vertexData[0 + 28 * 2] = v2.x;
-    vertexData[1 + 28 * 2] = v2.y;
-    vertexData[2 + 28 * 2] = v2.z;
+    //
+    mOffsetBuffer.setSize(100 * sizeof(Line))
+        .setLabel("Instancing Shader Storage Buffer for lines")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
+        .setMappedAtCraetion()
+        .create(app);
 
-    vertexData[0 + 28 * 3] = v3.x;
-    vertexData[1 + 28 * 3] = v3.y;
-    vertexData[2 + 28 * 3] = v3.z;
+    Line l = {glm::vec4{0.0}, glm::vec4{10.0}};
+    wgpuQueueWriteBuffer(app->getRendererResource().queue, mOffsetBuffer.getBuffer(), 0, &l, sizeof(Line));
 
-    std::cout << glm::to_string(v0) << std::endl;
-    std::cout << glm::to_string(v1) << std::endl;
-    std::cout << glm::to_string(v2) << std::endl;
-    std::cout << glm::to_string(v3) << std::endl;
-}
-
-glm::vec3 generateLine(glm::vec3 start, glm::vec3 end, float* vertexData) {
-    float slope = (end.y - start.y) / (end.x - start.x);
-    if (slope == 0) {
-        return glm::vec3{0.0};
-    }
-    float prep_slope = -1.f / (slope);
-    /*float b = end.y - (slope)*end.x;*/
-    float other_b = end.y - (prep_slope)*end.x;
-    float start_b = start.y - (prep_slope)*start.x;
-    float y = prep_slope * (end.x + 0.1) + other_b;
-    float start_y = prep_slope * (start.x + 0.1) + start_b;
-    /*return glm::vec3{end.x + 0.1, y, end.z};*/
-    vertexData[0] = start.x;
-    vertexData[1] = start.y;
-    vertexData[2] = start.z;
-
-    vertexData[0 + 11] = end.x;
-    vertexData[1 + 11] = end.y;
-    vertexData[2 + 11] = end.z;
-
-    glm::vec3 other_end = glm::vec3{start.x + 0.1, start_y, start.z};
-    glm::vec3 other_start = glm::vec3{end.x + 0.1, y, end.z};
-    vertexData[0 + 22] = other_end.x;
-    vertexData[1 + 22] = other_end.y;
-    vertexData[2 + 22] = other_end.z;
-
-    vertexData[0 + 33] = other_start.x;
-    vertexData[1 + 33] = other_start.y;
-    vertexData[2 + 33] = other_start.z;
-
-    return other_end;
-}
-
-void setColor(const glm::vec3 color, float* vertexData) {
-    for (int i = 0; i < 4; i++) {
-        vertexData[6 + (28 * i)] = color.x;
-        vertexData[7 + (28 * i)] = color.y;
-        vertexData[8 + (28 * i)] = color.z;
-    }
-}
-
-Line::Line(Application* app, glm::vec3 start, glm::vec3 end, float width, glm::vec3 color) : BaseModel() {
-    mApp = app;
-    mName = "Line";
-
-    std::cout << "start: " << glm::to_string(start) << "\n";
-    std::cout << "end: " << glm::to_string(end) << "\n";
-
-    generateThickLine(start, end, width, triangleVertexData);
-    setColor(color, triangleVertexData);
-    /*std::cout << "middle: " << glm::to_string(middle) << "\n";*/
-    // for (size_t i = 0; i < 100; i++) {
-    //     triangleVertexData[i] = i;
-    // }
-
-    mMeshes[0]
-        .mVertexBuffer.setLabel("Line vertex buffer")
+    mVertexBuffer.setSize(sizeof(mLineInstance))
+        .setLabel("Single Line Instance Vertex Buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
-        .setSize(sizeof(triangleVertexData))
         .setMappedAtCraetion()
-        .create(mApp);
+        .create(app);
 
-    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mMeshes[0].mVertexBuffer.getBuffer(), 0,
-                         &triangleVertexData, sizeof(triangleVertexData));
+    wgpuQueueWriteBuffer(app->getRendererResource().queue, mVertexBuffer.getBuffer(), 0, mLineInstance.data(),
+                         sizeof(mLineInstance));
 
-    mIndexDataBuffer.setLabel("Line indices buffer")
-        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index)
-        .setSize(sizeof(mIndexData))
-        .setMappedAtCraetion()
-        .create(mApp);
+    mBindingData.push_back({});
+    mBindingData[0] = {};
+    mBindingData[0].nextInChain = nullptr;
+    mBindingData[0].buffer = mOffsetBuffer.getBuffer();
+    mBindingData[0].binding = 0;
+    mBindingData[0].offset = 0;
+    mBindingData[0].size = 100 * sizeof(Line);
 
-    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mIndexDataBuffer.getBuffer(), 0, &mIndexData,
-                         sizeof(mIndexData));
-    Drawable::configure(app);
-
-    for (size_t i = 0; i < (sizeof(triangleVertexData) / (28 * sizeof(float))); ++i) {
-        size_t idx = i * 28;
-        min.x = std::min(min.x, triangleVertexData[idx]);
-        min.y = std::min(min.y, triangleVertexData[idx + 1]);
-        min.z = std::min(min.z, triangleVertexData[idx + 2]);
-        max.x = std::max(max.x, triangleVertexData[idx]);
-        max.y = std::max(max.y, triangleVertexData[idx + 1]);
-        max.z = std::max(max.z, triangleVertexData[idx + 2]);
-    }
+    mBindGroup.create(app, mBindingData);
 }
 
-void Line::draw(Application* app, WGPURenderPassEncoder encoder) {
-    auto& render_resource = app->getRendererResource();
-
-    mTransform.mObjectInfo.transformation = glm::mat4{1.0f};  // mTransformMatrix;
-    mTransform.mObjectInfo.isFlat = false;
-    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
-                         sizeof(ObjectInfo));
-
-    wgpuRenderPassEncoderSetIndexBuffer(encoder, mIndexDataBuffer.getBuffer(), WGPUIndexFormat_Uint16, 0,
-                                        wgpuBufferGetSize(mIndexDataBuffer.getBuffer()));
-
-    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mMeshes[0].mVertexBuffer.getBuffer(), 0,
-                                         wgpuBufferGetSize(mMeshes[0].mVertexBuffer.getBuffer()));
-
-    // auto desc = app->getBindingGroup().getDescriptor();
-    // desc.label = {"line", WGPU_STRLEN};
-    // desc.entries = app->mBindingData.data();
-    // auto bindgroup0 = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
-    wgpuRenderPassEncoderSetBindGroup(encoder, 0, app->getBindingGroup().getBindGroup(), 0, nullptr);
-
-    auto bindgroup_desc =
-        createBindGroup(app, Drawable::getUniformBuffer().getBuffer(), sizeof(mTransform.mObjectInfo));
-    WGPUBindGroup bindgroup_object = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &bindgroup_desc);
-
-    wgpuRenderPassEncoderSetBindGroup(encoder, 1, bindgroup_object, 0, nullptr);
-    wgpuRenderPassEncoderSetBindGroup(encoder, 2, app->mDefaultTextureBindingGroup.getBindGroup(), 0, nullptr);
-
-    /*wgpuRenderPassEncoderDraw(encoder, sizeof(triangleVertexData) / (11 * sizeof(float)), 1, 0, 0);*/
-    wgpuRenderPassEncoderDrawIndexed(encoder, sizeof(mIndexData) / sizeof(uint16_t), 1, 0, 0, 0);
-
-    wgpuBindGroupRelease(bindgroup_object);
-    // wgpuBindGroupRelease(bindgroup0);
+void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
+    (void)app;
+    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mVertexBuffer.getBuffer(), 0, sizeof(mLineInstance));
+    wgpuRenderPassEncoderDrawIndexed(encoder, 12, 1, 0, 0, 0);
 }

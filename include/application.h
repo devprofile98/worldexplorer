@@ -135,7 +135,7 @@ class Application {
         Buffer mVisibleIndexBuffer2;            // copy src, storage
         Buffer mDefaultBoneFinalTransformData;  // copy src, storage
         int ccounter = 0;
-        std::vector<Line*> mLines;
+        // std::vector<Line*> mLines;
         std::vector<WGPUBindGroupEntry> mBindingData{20};
         WGPUTextureView mCurrentTargetView;
 
@@ -155,6 +155,9 @@ class Application {
 
         NewRenderPass* mTerrainForRefraction;
         NewRenderPass* mTerrainForReflection;
+        NewRenderPass* mLineRenderingPass;
+
+        LineEngine* mLineEngine;
 
         /*Line* line;*/
         ShadowPass* mShadowPass;
