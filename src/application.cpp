@@ -133,7 +133,6 @@ void Application::initializePipeline() {
     snow_texture.uploadToGPU(mRendererResource.queue);
 
     mLineEngine = new LineEngine{};
-    mLineEngine->initialize(this);
 
     // creating default diffuse texture
     mDefaultDiffuse = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
@@ -412,6 +411,8 @@ void Application::initializePipeline() {
     mBindingData[0].buffer = mUniformBuffer.getBuffer();
     mBindingData[0].offset = 0;
     mBindingData[0].size = sizeof(MyUniform) * 10;
+
+    mLineEngine->initialize(this);
 
     mBindingData[1] = {};
     mBindingData[1].nextInChain = nullptr;
@@ -1054,7 +1055,24 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
     // ---------------------------------------------------------------------
+    {
+        mLineRenderingPass->setColorAttachment(
+            {this->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+        mLineRenderingPass->setDepthStencilAttachment({this->mDepthTextureView, StoreOp::Store, LoadOp::Load, false,
+                                                       StoreOp::Undefined, LoadOp::Undefined, false});
+        mLineRenderingPass->init();
 
+        WGPURenderPassEncoder render_pass_encoder =
+            wgpuCommandEncoderBeginRenderPass(encoder, &mLineRenderingPass->mRenderPassDesc);
+        wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mLineEngine->mPipeline->getPipeline());
+        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 0, mLineEngine->mBindGroup.getBindGroup(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 1, mLineEngine->mCameraBindGroup.getBindGroup(), 0,
+                                          nullptr);
+        mLineEngine->draw(this, render_pass_encoder);
+        wgpuRenderPassEncoderEnd(render_pass_encoder);
+        wgpuRenderPassEncoderRelease(render_pass_encoder);
+    }
+    // ---------------------------------------------------------------------
     {
         mWaterRenderPass->setColorAttachment(
             {mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
@@ -1323,12 +1341,6 @@ bool Application::initDepthBuffer() {
 
     mDepthPrePass->getRenderDesc(mDepthTextureView);
     m3DviewportPass->initTargets();
-
-    mLineRenderingPass->setColorAttachment(
-        {this->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    mLineRenderingPass->setDepthStencilAttachment(
-        {this->mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined, false});
-    mLineRenderingPass->init();
 
     // 2. Create a WGPUTextureView for the DEPTH aspect only
     WGPUTextureViewDescriptor depthViewDesc = {};

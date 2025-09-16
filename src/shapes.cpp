@@ -375,22 +375,27 @@ void LineEngine::initialize(Application* app) {
     //// create attribute vector
     mBindGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::STORAGE_READONLY,
                          100 * sizeof(Line));
+    mCameraBindGroup.addBuffer(0,  //
+                               BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
+                               sizeof(MyUniform));
 
     auto layout = mBindGroup.createLayout(app, "line rendering bindgroup");
+    auto camera_layout = mCameraBindGroup.createLayout(app, "camera for line rendering bindgroup");
 
-    mVertexBufferLayout.addAttribute(0, 0, WGPUVertexFormat_Float32x3)
-        .configure(sizeof(glm::vec4), VertexStepMode::VERTEX);
+    mVertexBufferLayout.addAttribute(0, 0, WGPUVertexFormat_Float32x2)
+        .configure(sizeof(glm::vec2), VertexStepMode::VERTEX);
 
-    mPipeline = new Pipeline{app, {layout}, "Line Drawing pipeline"};
+    mPipeline = new Pipeline{app, {layout, camera_layout}, "Line Drawing pipeline"};
 
     mPipeline->setVertexBufferLayout(mVertexBufferLayout.getLayout())
         .setShader(RESOURCE_DIR "/shaders/line_pass.wgsl")
         .setVertexState()
         .setBlendState()
         .setPrimitiveState()
-        .setColorTargetState()
+        .setColorTargetState(WGPUTextureFormat_BGRA8UnormSrgb)
         .setDepthStencilState(true, 0xFF, 0xFF, WGPUTextureFormat_Depth24PlusStencil8)
-        .setFragmentState();
+        .setFragmentState()
+        .createPipeline(app);
 
     //
     mOffsetBuffer.setSize(100 * sizeof(Line))
@@ -399,8 +404,10 @@ void LineEngine::initialize(Application* app) {
         .setMappedAtCraetion()
         .create(app);
 
-    Line l = {glm::vec4{0.0}, glm::vec4{10.0}};
-    wgpuQueueWriteBuffer(app->getRendererResource().queue, mOffsetBuffer.getBuffer(), 0, &l, sizeof(Line));
+    mLineList.emplace_back(Line{glm::vec4{0.0}, glm::vec4{10.0}});
+    mLineList.emplace_back(Line{glm::vec4{11.0}, glm::vec4{11.0, 20.0, 5.0, 0.0}});
+    wgpuQueueWriteBuffer(app->getRendererResource().queue, mOffsetBuffer.getBuffer(), 0, mLineList.data(),
+                         sizeof(Line) * mLineList.size());
 
     mVertexBuffer.setSize(sizeof(mLineInstance))
         .setLabel("Single Line Instance Vertex Buffer")
@@ -419,11 +426,19 @@ void LineEngine::initialize(Application* app) {
     mBindingData[0].offset = 0;
     mBindingData[0].size = 100 * sizeof(Line);
 
+    mCameraBindingData.push_back({});
+    mCameraBindingData[0].nextInChain = nullptr;
+    mCameraBindingData[0].binding = 0;
+    mCameraBindingData[0].buffer = app->getUniformBuffer().getBuffer();
+    mCameraBindingData[0].offset = 0;
+    mCameraBindingData[0].size = sizeof(MyUniform);
+
     mBindGroup.create(app, mBindingData);
+    mCameraBindGroup.create(app, mCameraBindingData);
 }
 
 void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
     (void)app;
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mVertexBuffer.getBuffer(), 0, sizeof(mLineInstance));
-    wgpuRenderPassEncoderDrawIndexed(encoder, 12, 1, 0, 0, 0);
+    wgpuRenderPassEncoderDraw(encoder, 6, mLineList.size(), 0, 0);
 }

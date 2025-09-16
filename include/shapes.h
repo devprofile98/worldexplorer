@@ -1,6 +1,8 @@
 #ifndef WEBGPUTEST_SHAPE_H
 #define WEBGPUTEST_SHAPE_H
 
+#include <vector>
+
 #include "../webgpu/webgpu.h"
 #include "binding_group.h"
 #include "glm/fwd.hpp"
@@ -68,11 +70,14 @@ struct LineEngine {
         WGPURenderPipeline mRenderPipeline;
 
         BindingGroup mBindGroup{};
+        BindingGroup mCameraBindGroup{};
         Pipeline* mPipeline;
         VertexBufferLayout mVertexBufferLayout;
         Buffer mVertexBuffer = {};
+        std::vector<Line> mLineList;
 
         std::vector<WGPUBindGroupEntry> mBindingData;
+        std::vector<WGPUBindGroupEntry> mCameraBindingData;
         Buffer mOffsetBuffer;
 };
 
