@@ -1064,10 +1064,10 @@ void Application::mainLoop() {
 
         WGPURenderPassEncoder render_pass_encoder =
             wgpuCommandEncoderBeginRenderPass(encoder, &mLineRenderingPass->mRenderPassDesc);
-        wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mLineEngine->mPipeline->getPipeline());
         wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 0, mLineEngine->mBindGroup.getBindGroup(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 1, mLineEngine->mCameraBindGroup.getBindGroup(), 0,
                                           nullptr);
+        wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mLineEngine->mPipeline->getPipeline());
         mLineEngine->draw(this, render_pass_encoder);
         wgpuRenderPassEncoderEnd(render_pass_encoder);
         wgpuRenderPassEncoderRelease(render_pass_encoder);

@@ -72,13 +72,25 @@ struct LineEngine {
         BindingGroup mBindGroup{};
         BindingGroup mCameraBindGroup{};
         Pipeline* mPipeline;
+        Pipeline* mCirclePipeline;
         VertexBufferLayout mVertexBufferLayout;
+        VertexBufferLayout mCircleBufferLayout;
         Buffer mVertexBuffer = {};
+
+        Buffer mCircleVertexBuffer = {};
+        Buffer mCircleIndexBuffer = {};
+
         std::vector<Line> mLineList;
+
+        std::vector<uint16_t> mCircleIndexData;
+        std::vector<glm::vec3> mCircleVertexData;
 
         std::vector<WGPUBindGroupEntry> mBindingData;
         std::vector<WGPUBindGroupEntry> mCameraBindingData;
         Buffer mOffsetBuffer;
+
+    private:
+        void initCirclePipeline();
 };
 
 #endif  // WEBGPUTEST_SHAPE_H
