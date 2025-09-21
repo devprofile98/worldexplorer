@@ -36,8 +36,9 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 
     let xBasis = pointB - pointA;
     let xBasis_normalized = normalize(xBasis.xy);
-    let yBasis = vec3f(-xBasis_normalized.y, xBasis_normalized.x, 0.0);
-    let point = pointA + xBasis * in.position.x + yBasis * 0.5f * in.position.y;
+    //let yBasis = vec3f(-xBasis_normalized.y, xBasis_normalized.x, 0.0);
+    let yBasis = normalize(cross((viewProjection.cameraWorldPosition - pointA), xBasis));
+    let point = pointA + xBasis * in.position.x + yBasis * 0.1f * in.position.y;
 
     var d = vec4f(point.x, point.y, point.z, 1.0f);
 

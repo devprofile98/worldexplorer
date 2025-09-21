@@ -1055,23 +1055,19 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
     // ---------------------------------------------------------------------
-    {
-        mLineRenderingPass->setColorAttachment(
-            {this->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-        mLineRenderingPass->setDepthStencilAttachment({this->mDepthTextureView, StoreOp::Store, LoadOp::Load, false,
-                                                       StoreOp::Undefined, LoadOp::Undefined, false});
-        mLineRenderingPass->init();
-
-        WGPURenderPassEncoder render_pass_encoder =
-            wgpuCommandEncoderBeginRenderPass(encoder, &mLineRenderingPass->mRenderPassDesc);
-        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 0, mLineEngine->mBindGroup.getBindGroup(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 1, mLineEngine->mCameraBindGroup.getBindGroup(), 0,
-                                          nullptr);
-        wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mLineEngine->mPipeline->getPipeline());
-        mLineEngine->draw(this, render_pass_encoder);
-        wgpuRenderPassEncoderEnd(render_pass_encoder);
-        wgpuRenderPassEncoderRelease(render_pass_encoder);
-    }
+    // {
+    //     mLineRenderingPass->setColorAttachment(
+    //         {this->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    //     mLineRenderingPass->setDepthStencilAttachment({this->mDepthTextureView, StoreOp::Store, LoadOp::Load, false,
+    //                                                    StoreOp::Undefined, LoadOp::Undefined, false});
+    //     mLineRenderingPass->init();
+    //
+    //     WGPURenderPassEncoder render_pass_encoder =
+    //         wgpuCommandEncoderBeginRenderPass(encoder, &mLineRenderingPass->mRenderPassDesc);
+    //     mLineEngine->draw(this, render_pass_encoder);
+    //     wgpuRenderPassEncoderEnd(render_pass_encoder);
+    //     wgpuRenderPassEncoderRelease(render_pass_encoder);
+    // }
     // ---------------------------------------------------------------------
     {
         mWaterRenderPass->setColorAttachment(
@@ -1092,7 +1088,7 @@ void Application::mainLoop() {
 
                 wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 4,
                                                   mWaterRenderPass->mWaterTextureBindGroup.getBindGroup(), 0, nullptr);
-                if (!model->isTransparent()) {
+                if (!model->isTransparent() == true) {
                     model->draw(this, water_render_pass_encoder);
                 }
             }
