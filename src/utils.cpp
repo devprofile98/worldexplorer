@@ -696,6 +696,30 @@ BaseModel* testIntersection2(Camera& camera, size_t width, size_t height, std::p
     return nullptr;
 }
 
+std::vector<glm::vec4> generateAABBLines(const glm::vec3& min, const glm::vec3& max) {
+    std::vector<glm::vec4> result;
+
+    result.emplace_back(glm::vec4{min, 0.0});
+    result.emplace_back(min.x, min.y, max.z, 0.0);
+    result.emplace_back(max.x, min.y, max.z, 0.0);
+    result.emplace_back(max.x, min.y, min.z, 0.0);
+    result.emplace_back(glm::vec4{min, 0.0});
+    result.emplace_back(min.x, max.y, min.z, 0.0);
+    result.emplace_back(min.x, max.y, max.z, 0.0);
+    result.emplace_back(min.x, min.y, max.z, 0.0);
+    result.emplace_back(glm::vec4{max, 0.0});
+    result.emplace_back(max.x, max.y, min.z, 0.0);
+    result.emplace_back(min.x, max.y, min.z, 0.0);
+    result.emplace_back(min.x, max.y, max.z, 0.0);
+    result.emplace_back(glm::vec4{max, 0.0});
+    result.emplace_back(max.x, min.y, max.z, 0.0);
+    result.emplace_back(max.x, min.y, min.z, 0.0);
+    result.emplace_back(max.x, max.y, min.z, 0.0);
+    result.emplace_back(glm::vec4{max, 1.0});
+
+    return result;
+}
+
 PerfTimer::PerfTimer(std::string_view label) : mLabel(label), mStart(std::chrono::high_resolution_clock::now()) {}
 
 PerfTimer::~PerfTimer() {

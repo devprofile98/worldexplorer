@@ -110,6 +110,8 @@ void LightManager::renderGUI() {
         if (ImGui::Selectable(mLightsNames[i].c_str(), light == &getLights()[mSelectedLightInGui])) {
             ImGui::Text("%s", glm::to_string(light->mPosition).c_str());
             mSelectedLightInGui = i;
+            mApp->mLineEngine->addLines(generateAABBLines(glm::vec3{light->mPosition} - glm::vec3{0.3},
+                                                          glm::vec3{light->mPosition} + glm::vec3{0.3}));
         }
 
         ImGui::PopID();  // Pop the unique ID for this item

@@ -138,6 +138,7 @@ class Application {
         // std::vector<Line*> mLines;
         std::vector<WGPUBindGroupEntry> mBindingData{20};
         WGPUTextureView mCurrentTargetView;
+        LineEngine* mLineEngine;
 
     private:
         size_t mWindowWidth = 1920;
@@ -156,8 +157,6 @@ class Application {
         NewRenderPass* mTerrainForRefraction;
         NewRenderPass* mTerrainForReflection;
         NewRenderPass* mLineRenderingPass;
-
-        LineEngine* mLineEngine;
 
         /*Line* line;*/
         ShadowPass* mShadowPass;

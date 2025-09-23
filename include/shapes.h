@@ -65,6 +65,7 @@ struct alignas(16) Line {
 struct LineEngine {
         void initialize(Application* app);
         void draw(Application* app, WGPURenderPassEncoder encoder);
+        void refill(const std::vector<glm::vec4> newData);
 
         std::array<float, 12> mLineInstance = {0, -0.5, 1, -0.5, 1, 0.5, 0, -0.5, 1, 0.5, 0, 0.5};
         WGPURenderPipeline mRenderPipeline;
@@ -80,7 +81,7 @@ struct LineEngine {
         Buffer mCircleVertexBuffer = {};
         Buffer mCircleIndexBuffer = {};
 
-        std::vector<Line> mLineList;
+        // std::vector<glm::vec4> mLineList;
 
         std::vector<uint16_t> mCircleIndexData;
         std::vector<glm::vec3> mCircleVertexData;
@@ -89,7 +90,23 @@ struct LineEngine {
         std::vector<WGPUBindGroupEntry> mCameraBindingData;
         Buffer mOffsetBuffer;
 
+        struct LineGroup {
+                std::vector<glm::vec4> points;
+                uint32_t buffer_offset = 0;  // Starting index in the storage buffer
+                bool dirty = true;           // Needs write to buffer?
+        };
+
+        uint32_t addLines(const std::vector<glm::vec4>& points);
+        void removeLines(uint32_t id);
+        void updateLines(uint32_t id, const std::vector<glm::vec4>& newPoints);
+
+        std::unordered_map<uint32_t, LineGroup> mLineGroups;
+        uint32_t mNextGroupId = 0;   // For assigning handles
+        bool mGlobalDirty = false;   // Needs offset recalculation and potential buffer resize?
+        uint32_t mMaxPoints = 1024;  // Initial capacity; grow as needed
+
     private:
+        Application* mApp;
         void initCirclePipeline();
 };
 

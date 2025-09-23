@@ -248,6 +248,8 @@ void LineEngine::initialize(Application* app) {
     // create render pass
     // create bindgroups
     // create pipeline
+
+    mApp = app;
     //// create attribute vector
     mBindGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::STORAGE_READONLY,
                          100 * sizeof(glm::vec4));
@@ -286,17 +288,25 @@ void LineEngine::initialize(Application* app) {
         .setFragmentState()
         .createPipeline(app);
     //
-    mOffsetBuffer.setSize(100 * sizeof(glm::vec4))
+    // mOffsetBuffer.setSize(100 * sizeof(glm::vec4))
+    //     .setLabel("Instancing Shader Storage Buffer for lines")
+    //     .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
+    //     .setMappedAtCraetion()
+    //     .create(app);
+    mOffsetBuffer.setSize(mMaxPoints * sizeof(glm::vec4))
         .setLabel("Instancing Shader Storage Buffer for lines")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
-        .setMappedAtCraetion()
+        .setMappedAtCraetion(false)  // No need to map initially
         .create(app);
-
-    mLineList.emplace_back(Line{glm::vec4{0.0}, glm::vec4{10.0, 10.0, 0.0, 0.0}});
-    mLineList.emplace_back(Line{glm::vec4{12.0, 10.0, 0.0, 1.0}, glm::vec4{15.0, 0.0, 0.0, 0.0}});
-    mLineList.emplace_back(Line{glm::vec4{16.0, -5.0, 0.0, 0.0}, glm::vec4{18.0, 10.0, 0.0, 0.0}});
-    wgpuQueueWriteBuffer(app->getRendererResource().queue, mOffsetBuffer.getBuffer(), 0, mLineList.data(),
-                         sizeof(Line) * mLineList.size());
+    // mLineList.emplace_back(glm::vec4{0.0});
+    // mLineList.emplace_back(glm::vec4{10.0, 10.0, 0.0, 0.0});
+    // mLineList.emplace_back(glm::vec4{12.0, 10.0, 0.0, 1.0});
+    // mLineList.emplace_back(glm::vec4{15.0, 0.0, 0.0, 0.0});
+    // mLineList.emplace_back(glm::vec4{16.0, -5.0, 0.0, 0.0});
+    // mLineList.emplace_back(glm::vec4{18.0, 10.0, 0.0, 0.0});
+    //
+    // wgpuQueueWriteBuffer(app->getRendererResource().queue, mOffsetBuffer.getBuffer(), 0, mLineList.data(),
+    //                      sizeof(glm::vec4) * mLineList.size());
 
     mVertexBuffer.setSize(sizeof(mLineInstance))
         .setLabel("Single Line Instance Vertex Buffer")
@@ -347,6 +357,7 @@ void LineEngine::initialize(Application* app) {
     mCameraBindGroup.create(app, mCameraBindingData);
 }
 
+/*
 void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
     (void)app;
 
@@ -355,15 +366,108 @@ void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
 
     wgpuRenderPassEncoderSetPipeline(encoder, mPipeline->getPipeline());
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mVertexBuffer.getBuffer(), 0, sizeof(mLineInstance));
-    wgpuRenderPassEncoderDraw(encoder, 6, (mLineList.size() * 2) - 1, 0, 0);
+    // wgpuRenderPassEncoderDraw(encoder, 6, (mLineList.size()) - 1, 0, 0);
 
     // We need to issue draw  for rounded joints
-    wgpuRenderPassEncoderSetPipeline(encoder, mCirclePipeline->getPipeline());
-    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mCircleVertexBuffer.getBuffer(), 0,
-                                         mCircleVertexData.size() * sizeof(glm::vec3));
+    // wgpuRenderPassEncoderSetPipeline(encoder, mCirclePipeline->getPipeline());
+    // wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mCircleVertexBuffer.getBuffer(), 0,
+    //                                      mCircleVertexData.size() * sizeof(glm::vec3));
+    //
+    // wgpuRenderPassEncoderSetIndexBuffer(encoder, mCircleIndexBuffer.getBuffer(), WGPUIndexFormat_Uint16, 0,
+    //                                     mCircleIndexData.size());
+    //
+    // wgpuRenderPassEncoderDrawIndexed(encoder, mCircleIndexData.size() / 2, mLineList.size() * 2, 0, 0, 0);
+}
 
-    wgpuRenderPassEncoderSetIndexBuffer(encoder, mCircleIndexBuffer.getBuffer(), WGPUIndexFormat_Uint16, 0,
-                                        mCircleIndexData.size());
+*/
 
-    wgpuRenderPassEncoderDrawIndexed(encoder, mCircleIndexData.size() / 2, mLineList.size() * 2, 0, 0, 0);
+void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
+    // Calculate total points needed
+    uint32_t totalPoints = 0;
+    for (const auto& [id, group] : mLineGroups) {
+        totalPoints += static_cast<uint32_t>(group.points.size());
+    }
+
+    // Resize if needed
+    // resizeBufferIfNeeded(app, totalPoints);
+
+    // Recalculate offsets if structure changed
+    if (mGlobalDirty) {
+        uint32_t currentOffset = 0;
+        for (auto& [id, group] : mLineGroups) {
+            group.buffer_offset = currentOffset;
+            currentOffset += static_cast<uint32_t>(group.points.size());
+            group.dirty = true;  // Force write since offset may have changed
+        }
+        mGlobalDirty = false;
+    }
+
+    // Write dirty groups to buffer
+    WGPUQueue queue = app->getRendererResource().queue;
+    for (const auto& [id, group] : mLineGroups) {
+        if (group.dirty && !group.points.empty()) {
+            uint64_t byteOffset = static_cast<uint64_t>(group.buffer_offset) * sizeof(glm::vec4);
+            uint64_t byteSize = group.points.size() * sizeof(glm::vec4);
+            wgpuQueueWriteBuffer(queue, mOffsetBuffer.getBuffer(), byteOffset, group.points.data(), byteSize);
+            // No need to set dirty=false here; do it after successful write if you add error handling
+        }
+    }
+
+    // Bind groups (as before)
+    wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindGroup.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(encoder, 1, mCameraBindGroup.getBindGroup(), 0, nullptr);
+
+    // Set pipeline and vertex buffer (as before)
+    wgpuRenderPassEncoderSetPipeline(encoder, mPipeline->getPipeline());
+    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mVertexBuffer.getBuffer(), 0, sizeof(mLineInstance));
+
+    // Draw each group separately
+    for (const auto& [id, group] : mLineGroups) {
+        uint32_t instanceCount = static_cast<uint32_t>(group.points.size()) - 1;
+        if (instanceCount > 0) {
+            wgpuRenderPassEncoderDraw(encoder, 6, instanceCount, 0, group.buffer_offset);
+        }
+    }
+
+    // Circle/joint drawing (uncomment and adapt similarly if needed)
+    // ...
+}
+
+void LineEngine::refill(const std::vector<glm::vec4> newData) {
+    //     mLineList.clear();
+    //     mLineList = std::move(newData);
+    //
+    //     wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mOffsetBuffer.getBuffer(), 0, mLineList.data(),
+    //                          sizeof(glm::vec4) * mLineList.size());
+}
+
+// Returns a handle for the new group
+uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points) {
+    if (points.size() < 2) return UINT32_MAX;  // Invalid; need at least one segment
+
+    uint32_t id = mNextGroupId++;
+    mLineGroups[id] = {points, 0, true};
+    mGlobalDirty = true;
+    return id;
+}
+
+// Remove a group by handle
+void LineEngine::removeLines(uint32_t id) {
+    if (mLineGroups.erase(id)) {
+        mGlobalDirty = true;
+    }
+}
+
+// Update a group's points (e.g., when object moves)
+void LineEngine::updateLines(uint32_t id, const std::vector<glm::vec4>& newPoints) {
+    auto it = mLineGroups.find(id);
+    if (it == mLineGroups.end()) return;
+
+    LineGroup& group = it->second;
+    bool sizeChanged = (newPoints.size() != group.points.size());
+    group.points = newPoints;
+    group.dirty = true;
+    if (sizeChanged) {
+        mGlobalDirty = true;
+    }
 }

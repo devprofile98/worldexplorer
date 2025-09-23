@@ -1055,19 +1055,19 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
     // ---------------------------------------------------------------------
-    // {
-    //     mLineRenderingPass->setColorAttachment(
-    //         {this->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    //     mLineRenderingPass->setDepthStencilAttachment({this->mDepthTextureView, StoreOp::Store, LoadOp::Load, false,
-    //                                                    StoreOp::Undefined, LoadOp::Undefined, false});
-    //     mLineRenderingPass->init();
-    //
-    //     WGPURenderPassEncoder render_pass_encoder =
-    //         wgpuCommandEncoderBeginRenderPass(encoder, &mLineRenderingPass->mRenderPassDesc);
-    //     mLineEngine->draw(this, render_pass_encoder);
-    //     wgpuRenderPassEncoderEnd(render_pass_encoder);
-    //     wgpuRenderPassEncoderRelease(render_pass_encoder);
-    // }
+    {
+        mLineRenderingPass->setColorAttachment(
+            {this->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+        mLineRenderingPass->setDepthStencilAttachment({this->mDepthTextureView, StoreOp::Store, LoadOp::Load, false,
+                                                       StoreOp::Undefined, LoadOp::Undefined, false});
+        mLineRenderingPass->init();
+
+        WGPURenderPassEncoder render_pass_encoder =
+            wgpuCommandEncoderBeginRenderPass(encoder, &mLineRenderingPass->mRenderPassDesc);
+        mLineEngine->draw(this, render_pass_encoder);
+        wgpuRenderPassEncoderEnd(render_pass_encoder);
+        wgpuRenderPassEncoderRelease(render_pass_encoder);
+    }
     // ---------------------------------------------------------------------
     {
         mWaterRenderPass->setColorAttachment(
@@ -1479,6 +1479,8 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                     }
                     mSelectedModel = item;
                     mSelectedModel->selected(true);
+                    auto [min, max] = item->getWorldSpaceAABB();
+                    mLineEngine->addLines(generateAABBLines(min, max));
                 }
 
                 ImGui::PopID();  // Pop the unique ID for this item

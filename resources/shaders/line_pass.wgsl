@@ -30,24 +30,44 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     var out: VertexOutput;
 
     let pointA = lines[instance_index].p.xyz;
-    var pointB = lines[instance_index + 1u].p.xyz;
-    let flag = lines[instance_index].p.w;
-    pointB = mix(pointB, pointA, flag);
+    let pointB = mix(lines[instance_index + 1u].p.xyz, pointA, lines[instance_index].p.w);
 
-    let xBasis = pointB - pointA;
-    let xBasis_normalized = normalize(xBasis.xy);
-    //let yBasis = vec3f(-xBasis_normalized.y, xBasis_normalized.x, 0.0);
-    let yBasis = normalize(cross((viewProjection.cameraWorldPosition - pointA), xBasis));
-    let point = pointA + xBasis * in.position.x + yBasis * 0.1f * in.position.y;
+    // Interpolate in 3D space first (correct for perspective)
+    let point = mix(pointA, pointB, in.position.x);
+    var center_clip = viewProjection.projectionMatrix * viewProjection.viewMatrix * vec4f(point, 1.0);
 
-    var d = vec4f(point.x, point.y, point.z, 1.0f);
+    // Project endpoints to clip space (for direction calculation)
+    let clipPosA = viewProjection.projectionMatrix * viewProjection.viewMatrix * vec4f(pointA, 1.0);
+    let clipPosB = viewProjection.projectionMatrix * viewProjection.viewMatrix * vec4f(pointB, 1.0);
 
+    // NDC positions (post-perspective divide)
+    let ndcA = clipPosA.xy / clipPosA.w;
+    let ndcB = clipPosB.xy / clipPosB.w;
 
-    out.position = viewProjection.projectionMatrix * viewProjection.viewMatrix * d;
+    // Convert direction to pixel space for aspect-correct normalization
+    // Viewport uniform: e.g., vec2f(1920.0, 1080.0)
+    let viewport_size = vec2f(1920.0, 1080.0);  // Assume this uniform exists; add if needed
+    let pixel_dir = (ndcB - ndcA) * (viewport_size / 2.0);
+    let norm_pixel_dir = normalize(pixel_dir);
+    let perp_pixel = vec2f(-norm_pixel_dir.y, norm_pixel_dir.x);
+
+    // Desired full line width in pixels (e.g., 2.0)
+    let line_width_pixels = 5.0;
+    let half_width_pixels = line_width_pixels / 2.0;
+
+    // Offset in pixel space, then convert to NDC
+    let offset_pixels = perp_pixel * half_width_pixels * in.position.y;
+    let offset_ndc = offset_pixels * (2.0 / viewport_size);  // Pixel to NDC scale
+
+    // Apply offset in clip space: scale by w for constant NDC delta
+    center_clip.x += offset_ndc.x * center_clip.w;
+    center_clip.y += offset_ndc.y * center_clip.w;
+
+    out.position = center_clip;
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return vec4f(0.5, 0.0, 1.0, 1.0);
+    return vec4f(0.8, 0.4, 0.0, 1.0);
 }
