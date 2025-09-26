@@ -100,6 +100,8 @@ WGPUTextureView Texture::createViewArray(uint32_t base, uint32_t count) {
 
 Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
                  WGPUTextureUsage flags, WGPUTextureFormat textureFormat, uint32_t extent, std::string textureLabel) {
+    mBufferData.reserve(extent);
+    mBufferData.resize(extent);
     mLabel = textureLabel;
     mDescriptor = {};
     mDescriptor.label = {mLabel.c_str(), mLabel.size()};
@@ -117,7 +119,8 @@ Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, Texture
     mIsTextureAlive = true;
 }
 
-Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureFormat textureFormat) {
+Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureFormat textureFormat,
+                 uint32_t extent) {
     int width, height, channels;
     width = height = channels = 0;
     unsigned char* pixel_data = stbi_load(path.string().c_str(), &width, &height, &channels, 0);
@@ -131,11 +134,10 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
     std::string path_str = path.string();
     mDescriptor.label = WGPUStringView{path_str.c_str(), path_str.size()};
-    // by convention for bmp, png and jpg file. Be careful with other formats.
     mDescriptor.format = textureFormat;
     mDescriptor.mipLevelCount = glm::log2((float)width);
     mDescriptor.sampleCount = 1;
-    mDescriptor.size = {(unsigned int)width, (unsigned int)height, 1};
+    mDescriptor.size = {(uint32_t)width, (uint32_t)height, extent};
     mDescriptor.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
     mDescriptor.viewFormatCount = 0;
     mDescriptor.viewFormats = nullptr;
@@ -143,19 +145,74 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
 
     size_t image_byte_size = (width * height * 4);
-    mBufferData.reserve(image_byte_size);
-    mBufferData.resize(image_byte_size);
+    mBufferData.reserve(extent);
+    mBufferData.resize(extent);
+
+    mBufferData[0].reserve(image_byte_size);
+    mBufferData[0].resize(image_byte_size);
+
     mHasAlphaChannel = (channels == 4);
     // Copy pixel data into mBufferData
     for (size_t i = 0, j = 0; i < (size_t)width * height * channels; i += channels, j += 4) {
-        mBufferData[j] = pixel_data[i];                                    // Red
-        mBufferData[j + 1] = pixel_data[i + 1];                            // Green
-        mBufferData[j + 2] = pixel_data[i + 2];                            // Blue
-        mBufferData[j + 3] = (channels == 4) ? pixel_data[i + 3] : 255.0;  // Alpha (default to 255 if no alpha channel)
+        mBufferData[0][j] = pixel_data[i];          // Red
+        mBufferData[0][j + 1] = pixel_data[i + 1];  // Green
+        mBufferData[0][j + 2] = pixel_data[i + 2];  // Blue
+        mBufferData[0][j + 3] =
+            (channels == 4) ? pixel_data[i + 3] : 255.0;  // Alpha (default to 255 if no alpha channel)
     }
 
     stbi_image_free(pixel_data);
     mIsTextureAlive = true;
+}
+
+Texture::Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths, WGPUTextureFormat textureFormat,
+                 uint32_t extent) {
+    mBufferData.reserve(extent);
+    mBufferData.resize(extent);
+
+    for (size_t k = 0; k < extent; ++k) {
+        auto& path = paths[k];
+        int width, height, channels;
+        width = height = channels = 0;
+        unsigned char* pixel_data = stbi_load(path.string().c_str(), &width, &height, &channels, 0);
+
+        if (nullptr == pixel_data) {
+            std::cout << "failed to find file at " << path.string().c_str() << std::endl;
+            return;
+        };
+
+        mDescriptor = {};
+        mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
+        std::string path_str = path.string();
+        mDescriptor.label = WGPUStringView{path_str.c_str(), path_str.size()};
+        mDescriptor.format = textureFormat;
+        mDescriptor.mipLevelCount = glm::log2((float)width);
+        mDescriptor.sampleCount = 1;
+        mDescriptor.size = {(uint32_t)width, (uint32_t)height, extent};
+        mDescriptor.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+        mDescriptor.viewFormatCount = 0;
+        mDescriptor.viewFormats = nullptr;
+
+        mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
+
+        size_t image_byte_size = (width * height * 4);
+
+        mBufferData[k].reserve(image_byte_size);
+        mBufferData[k].resize(image_byte_size);
+
+        mHasAlphaChannel = (channels == 4);
+        // Copy pixel data into mBufferData
+        for (size_t i = 0, j = 0; i < (size_t)width * height * channels; i += channels, j += 4) {
+            mBufferData[k][j] = pixel_data[i];          // Red
+            mBufferData[k][j + 1] = pixel_data[i + 1];  // Green
+            mBufferData[k][j + 2] = pixel_data[i + 2];  // Blue
+            mBufferData[k][j + 3] =
+                (channels == 4) ? pixel_data[i + 3] : 255.0;  // Alpha (default to 255 if no alpha channel)
+        }
+
+        stbi_image_free(pixel_data);
+        mIsTextureAlive = true;
+    }
 }
 
 Texture::~Texture() {
@@ -168,65 +225,68 @@ Texture::~Texture() {
 WGPUTexture Texture::getTexture() { return mTexture; }
 
 Texture& Texture::setBufferData(std::vector<uint8_t>& data) {
-    mBufferData = data;
+    mBufferData[0] = data;
     return *this;
 }
 
 bool Texture::isTransparent() { return mHasAlphaChannel; }
 
 void Texture::uploadToGPU(WGPUQueue deviceQueue) {
-    WGPUTexelCopyTextureInfo destination;
-    destination.texture = mTexture;
-    destination.mipLevel = 0;
-    destination.origin = {0, 0, 0};              // equivalent of the offset argument of Queue::writeBuffer
-    destination.aspect = WGPUTextureAspect_All;  // only relevant for depth/Stencil textures
+    for (uint32_t layer = 0; layer < mDescriptor.size.depthOrArrayLayers; ++layer) {
+        WGPUTexelCopyTextureInfo destination;
+        destination.texture = mTexture;
+        destination.mipLevel = 0;
+        destination.origin = {0, 0, layer};          // equivalent of the offset argument of Queue::writeBuffer
+        destination.aspect = WGPUTextureAspect_All;  // only relevant for depth/Stencil textures
 
-    // Arguments telling how the C++ side pixel memory is laid out
-    WGPUTexelCopyBufferLayout source{};
-    source.offset = 0;
+        WGPUTexelCopyBufferLayout source{};
+        source.offset = 0;
+        // upload the level zero: aka original texture
+        source.bytesPerRow = 4 * mDescriptor.size.width;
+        source.rowsPerImage = mDescriptor.size.height;
+        auto tmp_size = WGPUExtent3D{mDescriptor.size.width, mDescriptor.size.height, 1};
 
-    // upload the level zero: aka original texture
-    source.bytesPerRow = 4 * mDescriptor.size.width;
+        wgpuQueueWriteTexture(deviceQueue, &destination, mBufferData[layer].data(), mBufferData[layer].size(), &source,
+                              &tmp_size);
 
-    source.rowsPerImage = mDescriptor.size.height;
+        // generate and upload other levels
+        WGPUExtent3D mip_level_size = mDescriptor.size;
+        // WGPUExtent3D prev_mip_level_size;
+        std::vector<uint8_t> previous_level_pixels = mBufferData[layer];
+        WGPUExtent3D prev_mip_level_size = mDescriptor.size;
+        prev_mip_level_size.depthOrArrayLayers = 1;
+        for (uint32_t level = 1; level < mDescriptor.mipLevelCount; ++level) {
+            prev_mip_level_size = mip_level_size;
+            prev_mip_level_size.depthOrArrayLayers = 1;
+            mip_level_size.height /= 2;
+            mip_level_size.width /= 2;
+            mip_level_size.depthOrArrayLayers = 1;
+            std::vector<uint8_t> pixels(4 * mip_level_size.width * mip_level_size.height);
 
-    wgpuQueueWriteTexture(deviceQueue, &destination, mBufferData.data(), mBufferData.size(), &source,
-                          &mDescriptor.size);
+            for (uint32_t i = 0; i < mip_level_size.width; ++i) {
+                for (uint32_t j = 0; j < mip_level_size.height; ++j) {
+                    uint8_t* p = &pixels[4 * (j * mip_level_size.width + i)];
 
-    // generate and upload other levels
-    WGPUExtent3D mip_level_size = mDescriptor.size;
-    // WGPUExtent3D prev_mip_level_size;
-    std::vector<uint8_t> previous_level_pixels = mBufferData;
-    WGPUExtent3D prev_mip_level_size = mDescriptor.size;
-    for (uint32_t level = 1; level < mDescriptor.mipLevelCount; ++level) {
-        prev_mip_level_size = mip_level_size;
-        mip_level_size.height /= 2;
-        mip_level_size.width /= 2;
-        std::vector<uint8_t> pixels(4 * mip_level_size.width * mip_level_size.height);
-
-        for (uint32_t i = 0; i < mip_level_size.width; ++i) {
-            for (uint32_t j = 0; j < mip_level_size.height; ++j) {
-                uint8_t* p = &pixels[4 * (j * mip_level_size.width + i)];
-
-                // Get the corresponding 4 pixels from the previous level
-                uint8_t* p00 = &previous_level_pixels[4 * ((2 * j + 0) * prev_mip_level_size.width + (2 * i + 0))];
-                uint8_t* p01 = &previous_level_pixels[4 * ((2 * j + 0) * prev_mip_level_size.width + (2 * i + 1))];
-                uint8_t* p10 = &previous_level_pixels[4 * ((2 * j + 1) * prev_mip_level_size.width + (2 * i + 0))];
-                uint8_t* p11 = &previous_level_pixels[4 * ((2 * j + 1) * prev_mip_level_size.width + (2 * i + 1))];
-                // Average
-                p[0] = (p00[0] + p01[0] + p10[0] + p11[0]) / 4;
-                p[1] = (p00[1] + p01[1] + p10[1] + p11[1]) / 4;
-                p[2] = (p00[2] + p01[2] + p10[2] + p11[2]) / 4;
-                p[3] = (p00[3] + p01[3] + p10[3] + p11[3]) / 4;
-                /*p[3] = 1.0;*/
+                    // Get the corresponding 4 pixels from the previous level
+                    uint8_t* p00 = &previous_level_pixels[4 * ((2 * j + 0) * prev_mip_level_size.width + (2 * i + 0))];
+                    uint8_t* p01 = &previous_level_pixels[4 * ((2 * j + 0) * prev_mip_level_size.width + (2 * i + 1))];
+                    uint8_t* p10 = &previous_level_pixels[4 * ((2 * j + 1) * prev_mip_level_size.width + (2 * i + 0))];
+                    uint8_t* p11 = &previous_level_pixels[4 * ((2 * j + 1) * prev_mip_level_size.width + (2 * i + 1))];
+                    // Average
+                    p[0] = (p00[0] + p01[0] + p10[0] + p11[0]) / 4;
+                    p[1] = (p00[1] + p01[1] + p10[1] + p11[1]) / 4;
+                    p[2] = (p00[2] + p01[2] + p10[2] + p11[2]) / 4;
+                    p[3] = (p00[3] + p01[3] + p10[3] + p11[3]) / 4;
+                    /*p[3] = 1.0;*/
+                }
             }
-        }
 
-        destination.mipLevel = level;
-        source.bytesPerRow = 4 * mip_level_size.width;
-        source.rowsPerImage = mip_level_size.height;
-        wgpuQueueWriteTexture(deviceQueue, &destination, pixels.data(), pixels.size(), &source, &mip_level_size);
-        previous_level_pixels = std::move(pixels);
+            destination.mipLevel = level;
+            source.bytesPerRow = 4 * mip_level_size.width;
+            source.rowsPerImage = mip_level_size.height;
+            wgpuQueueWriteTexture(deviceQueue, &destination, pixels.data(), pixels.size(), &source, &mip_level_size);
+            previous_level_pixels = std::move(pixels);
+        }
     }
 }
 

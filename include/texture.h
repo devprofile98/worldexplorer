@@ -18,8 +18,12 @@ class Texture {
                 WGPUTextureUsage flags = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst,
                 WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm, uint32_t extent = 1,
                 std::string textureLabel = "texture label");
+
         Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path,
-                WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm);
+                WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm, uint32_t extent = 1);
+
+        Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths,
+                WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm, uint32_t extent = 1);
         ~Texture();
 
         // access function
@@ -47,7 +51,7 @@ class Texture {
         WGPUTextureView mTextureView = nullptr;
         WGPUTextureView mArrayTextureView = nullptr;
         WGPUTextureDescriptor mDescriptor;
-        std::vector<uint8_t> mBufferData;
+        std::vector<std::vector<uint8_t>> mBufferData;
         bool mIsTextureAlive = false;  // Indicate whether the texure is still valid on VRAM or not
         bool mHasAlphaChannel = false;
 };

@@ -655,13 +655,13 @@ struct StonesModel : public IModel {
         };
 };
 
-// USER_REGISTER_MODEL("tree", TreeModel);
+USER_REGISTER_MODEL("tree", TreeModel);
 USER_REGISTER_MODEL("boat", BoatModel);
 // USER_REGISTER_MODEL("car", CarModel);
 // USER_REGISTER_MODEL("tower", TowerModel);
 // USER_REGISTER_MODEL("desk", DeskModel);
 // USER_REGISTER_MODEL("arrow", ArrowModel);
-// USER_REGISTER_MODEL("grass", GrassModel);
+USER_REGISTER_MODEL("grass", GrassModel);
 // USER_REGISTER_MODEL("steampunk", Steampunk);
 // USER_REGISTER_MODEL("sheep", SheepModel);
 USER_REGISTER_MODEL("water", WaterModel);

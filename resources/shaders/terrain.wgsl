@@ -97,32 +97,32 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, shadowIdx: u32) -> f
 }
 
 
-fn calculateTerrainColor(level: f32, uv: vec2f) -> vec3f {
+fn calculateTerrainColor(level: f32, uv: vec2f, index: i32) -> vec3f {
     var color = vec3f(0.0f, 1.0f, 0.0f);
     if level <= 1.1 && level >= 0.9 {
-        let texture_col = textureSample(sand_lake_texture, textureSampler, uv).rgb;
+        let texture_col = textureSample(sand_lake_texture, textureSampler, uv, index).rgb;
         color = mix(texture_col, vec3f(1.0, 0.0, 0.0), 0.05);
     } else if level >= 1.1 && level < 1.9 {
         let distance = level - 1.0;
-        let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
-        color = mix(textureSample(sand_lake_texture, textureSampler, uv).rgb, vec3f(1.0, 0.0, 0.0), 0.05);
+        let grass_color = textureSample(grass_ground_texture, textureSampler, uv * 0.2, index).rgb;
+        color = mix(textureSample(sand_lake_texture, textureSampler, uv, index).rgb, vec3f(1.0, 0.0, 0.0), 0.05);
         color = mix(color, grass_color, distance);
     } else if level >= 1.9 && level < 2.1 {
-        color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
+        color = textureSample(grass_ground_texture, textureSampler, uv * 0.2, index).rgb;
     } else if level >= 2.1 && level < 2.9 {
         let distance = level - 2.0;
-        let grass_color = textureSample(grass_ground_texture, textureSampler, uv).rgb;
-        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
+        let grass_color = textureSample(grass_ground_texture, textureSampler, uv * 0.2, index).rgb;
+        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2, index).rgb;
         color = mix(grass_color, color, distance);
     } else if level >= 2.9 && level < 3.1 {
-        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
+        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2, index).rgb;
     } else if level >= 3.1 && level < 3.9 {
         let distance = level - 3.0;
-        let snow_color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
-        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2).rgb;
+        let snow_color = textureSample(snow_mountain_texture, textureSampler, uv, index).rgb;
+        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2, index).rgb;
         color = mix(color, snow_color, distance);
     } else if level >= 3.9 {
-        color = textureSample(snow_mountain_texture, textureSampler, uv).rgb;
+        color = textureSample(snow_mountain_texture, textureSampler, uv, index).rgb;
     }
     return color;
 }
@@ -151,6 +151,7 @@ fn calculateSpotLight(currLight: PointLight, normal: vec3f, dir: vec3f) -> vec3f
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //let face_normal = normalize(in.normal);
     //var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
+    //var normal = calculateTerrainColor(in.color.r, in.uv, 1);
     //normal = normal * 2.0 - 1.0;
     //let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
     //normal = normalize(TBN * normal);
@@ -158,10 +159,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
     if d > 0.0 {
-	discard;
+	    discard;
     }
 
-    let normal = normalize(in.normal);
+    //let normal = normalize(in.normal);
+    //let normal = textureSample(normal_map, textureSampler, in.uv).rgb;
+    let normal = normalize(calculateTerrainColor(in.color.r, in.uv, 1));
 
     let view_direction = normalize(in.viewDirection);
     let metallic_roughness = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
@@ -199,14 +202,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         }
     }
 
-    let terrain_color = calculateTerrainColor(in.color.r, in.uv);
+    let terrain_color = calculateTerrainColor(in.color.r, in.uv, 0);
     color = pow(terrain_color * max(min_intensity, intensity), vec3f(1.2));
     let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
 
     let ambient = color * shading;
     let diffuse_final = point_light_color;
 
-    var col = (diffuse_final + ambient);
+    color = (diffuse_final + ambient);
 
     //if objectTranformation.isHovered == 1 {
     //    let variation = abs(sin(1.0 * 2.0));
@@ -217,6 +220,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //}else{
     //    return vec4f((col + vec3(0.0, 1.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
     //}
-    return vec4f(col * (1 - shadow * (0.75)), 1.0);
+
+	    // HDR tonemapping
+    color = color / (color + vec3f(1.0));
+	    // gamma correct
+    color = pow(color, vec3(1.1));
+    return vec4f(color * (1 - shadow * (0.75)), 1.0);
+    //return vec4(normal, 1.0);
 }
 

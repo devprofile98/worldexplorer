@@ -311,11 +311,11 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
     };
 
     std::array<uint8_t, 5> height_color_index = {
-        0,  // glm::vec3{0.0 / 255.0, 0.0 / 255.0, 139.0 / 255.0},      // Deep Water (Dark Blue)
-        1,  // glm::vec3{0.0 / 255.0, 0.0 / 255.0, 255.0 / 255.0},      // Shallow Water (Blue)
-        2,  // glm::vec3{34.0 / 255.0, 139.0 / 255.0, 34.0 / 255.0},    // Grassland (Green)
-        3,  // glm::vec3{139.0 / 255.0, 69.0 / 255.0, 19.0 / 255.0},    // Mountain (Brown)
-        4,  // glm::vec3{255.0 / 255.0, 255.0 / 255.0, 255.0 / 255.0},  // Snow (White)
+        0,  // Deep Water (Dark Blue)
+        1,  // Shallow Water (Blue)
+        2,  // Grassland (Green)
+        3,  // Mountain (Brown)
+        4,  // Snow (White)
     };
 
     mGridSize = gridSize;
@@ -356,7 +356,7 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
                 attr.color = height_color[3];
                 attr.color.r = height_color_index[3];
 
-            } else if (pixel_result > 210) {
+            } else if (pixel_result > 217) {
                 attr.color = height_color[2];
                 attr.color.r = height_color_index[2];
 

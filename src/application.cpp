@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <format>
 #include <functional>
 #include <future>
@@ -112,24 +113,43 @@ void Application::initializePipeline() {
     };
     mLightViewSceneTexture->createView();
 
-    Texture grass_texture = Texture{mRendererResource.device, RESOURCE_DIR "/forrest_ground_diff.jpg"};
-    grass_texture.createView();
+    Texture grass_texture =
+        Texture{mRendererResource.device,
+                std::vector<std::filesystem::path>{RESOURCE_DIR "/mud/brown_mud_leaves_01_diff_1k.jpg",
+                                                   RESOURCE_DIR "/mud/brown_mud_leaves_01_nor_gl_1k.jpg",
+                                                   RESOURCE_DIR "/mud/brown_mud_leaves_01_rough_1k.jpg"},
+                WGPUTextureFormat_RGBA8Unorm, 3};
+    grass_texture.createViewArray(0, 3);
     grass_texture.uploadToGPU(mRendererResource.queue);
 
-    Texture rock_texture = Texture{mRendererResource.device, RESOURCE_DIR "/rock.jpg"};
-    rock_texture.createView();
+    Texture rock_texture =
+        Texture{mRendererResource.device,
+                std::vector<std::filesystem::path>{RESOURCE_DIR "/Rock/Rock060_1K-JPG_Color.jpg",
+                                                   RESOURCE_DIR "/Rock/Rock060_1K-JPG_NormalGL.jpg",
+                                                   RESOURCE_DIR "/Rock/Rock060_1K-JPG_Roughness.jpg"},
+                WGPUTextureFormat_RGBA8Unorm, 3};
+    rock_texture.createViewArray(0, 3);
     rock_texture.uploadToGPU(mRendererResource.queue);
 
-    Texture sand_texture = Texture{mRendererResource.device, RESOURCE_DIR "/gravelly_sand_diff.jpg"};
-    sand_texture.createView();
+    Texture sand_texture =
+        Texture{mRendererResource.device,
+                std::vector<std::filesystem::path>{RESOURCE_DIR "/aerial/aerial_beach_01_diff_1k.jpg",
+                                                   RESOURCE_DIR "/aerial/aerial_beach_01_nor_gl_1k.jpg",
+                                                   RESOURCE_DIR "/aerial/aerial_beach_01_rough_1k.jpg"},
+                WGPUTextureFormat_RGBA8Unorm, 3};
+    sand_texture.createViewArray(0, 3);
     sand_texture.uploadToGPU(mRendererResource.queue);
 
     Texture grass_normal_texture = Texture{mRendererResource.device, RESOURCE_DIR "/gravelly_sand_diff.jpg"};
     grass_normal_texture.createView();
     grass_normal_texture.uploadToGPU(mRendererResource.queue);
 
-    Texture snow_texture = Texture{mRendererResource.device, RESOURCE_DIR "/snow_diff.jpg"};
-    snow_texture.createView();
+    Texture snow_texture = Texture{mRendererResource.device,
+                                   std::vector<std::filesystem::path>{RESOURCE_DIR "/snow/snow_02_diff_1k.jpg",
+                                                                      RESOURCE_DIR "/snow/snow_02_nor_gl_1k.jpg",
+                                                                      RESOURCE_DIR "/snow/snow_02_rough_1k.jpg"},
+                                   WGPUTextureFormat_RGBA8Unorm, 3};
+    snow_texture.createViewArray(0, 3);
     snow_texture.uploadToGPU(mRendererResource.queue);
 
     mLineEngine = new LineEngine{};
@@ -163,10 +183,10 @@ void Application::initializePipeline() {
         .addBuffer(3, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(LightingUniforms))
         .addBuffer(4, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(Light) * 10)
         .addBuffer(5, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float))
-        .addTexture(6, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
-        .addTexture(7, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
-        .addTexture(8, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
-        .addTexture(9, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
+        .addTexture(6, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
+        .addTexture(7, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
+        .addTexture(8, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
+        .addTexture(9, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
         .addTexture(10, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH, TextureViewDimension::ARRAY_2D)
         .addBuffer(11, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 5)
         .addSampler(12, BindGroupEntryVisibility::FRAGMENT, SampleType::Compare)
@@ -411,22 +431,22 @@ void Application::initializePipeline() {
     mBindingData[6] = {};
     mBindingData[6].nextInChain = nullptr;
     mBindingData[6].binding = 6;
-    mBindingData[6].textureView = grass_texture.getTextureView();
+    mBindingData[6].textureView = grass_texture.getTextureViewArray();
 
     mBindingData[7] = {};
     mBindingData[7].nextInChain = nullptr;
     mBindingData[7].binding = 7;
-    mBindingData[7].textureView = rock_texture.getTextureView();
+    mBindingData[7].textureView = rock_texture.getTextureViewArray();
 
     mBindingData[8] = {};
     mBindingData[8].nextInChain = nullptr;
     mBindingData[8].binding = 8;
-    mBindingData[8].textureView = sand_texture.getTextureView();
+    mBindingData[8].textureView = sand_texture.getTextureViewArray();
 
     mBindingData[9] = {};
     mBindingData[9].nextInChain = nullptr;
     mBindingData[9].binding = 9;
-    mBindingData[9].textureView = snow_texture.getTextureView();
+    mBindingData[9].textureView = snow_texture.getTextureViewArray();
 
     mBindingData[10] = {};
     mBindingData[10].nextInChain = nullptr;
