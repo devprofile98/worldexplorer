@@ -169,27 +169,27 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
 
         /*Buffer getVertexBuffer();*/
         Buffer getIndexBuffer();
-        Buffer mIndexBuffer = {};
         virtual size_t getVertexCount() const;
         void setTransparent(bool value = true);
         bool isTransparent();
         Texture* getDiffuseTexture();
-        std::map<int, Mesh> mMeshes;
-        size_t instances = 1;
-        Instance* instance = nullptr;
         void setInstanced(Instance* instance);
         void selected(bool selected = false);
         bool isSelected() const;
         std::pair<glm::vec3, glm::vec3> getWorldMin();
         std::pair<glm::vec3, glm::vec3> getWorldSpaceAABB();
+        Buffer mIndexBuffer = {};
+        std::map<int, Mesh> mMeshes;
+        size_t instances = 1;
+        Instance* instance = nullptr;
         std::vector<BaseModel*> mChildrens{};
 
         /* Scene graph related property */
-        BaseModel* mParent = nullptr;
         void addChildren(BaseModel* child);
-        Transform mTransform;
         glm::mat4 getGlobalTransform();
         void update();
+        BaseModel* mParent = nullptr;
+        Transform mTransform;
 
     private:
         bool mIsTransparent = false;

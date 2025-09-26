@@ -252,7 +252,7 @@ void LineEngine::initialize(Application* app) {
     mApp = app;
     //// create attribute vector
     mBindGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::STORAGE_READONLY,
-                         100 * sizeof(glm::vec4));
+                         mMaxPoints * sizeof(glm::vec4));
     mCameraBindGroup.addBuffer(0,  //
                                BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
                                sizeof(MyUniform));
@@ -344,7 +344,7 @@ void LineEngine::initialize(Application* app) {
     mBindingData[0].buffer = mOffsetBuffer.getBuffer();
     mBindingData[0].binding = 0;
     mBindingData[0].offset = 0;
-    mBindingData[0].size = 100 * sizeof(glm::vec4);
+    mBindingData[0].size = mMaxPoints * sizeof(glm::vec4);
 
     mCameraBindingData.push_back({});
     mCameraBindingData[0].nextInChain = nullptr;
@@ -356,30 +356,6 @@ void LineEngine::initialize(Application* app) {
     mBindGroup.create(app, mBindingData);
     mCameraBindGroup.create(app, mCameraBindingData);
 }
-
-/*
-void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
-    (void)app;
-
-    wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindGroup.getBindGroup(), 0, nullptr);
-    wgpuRenderPassEncoderSetBindGroup(encoder, 1, mCameraBindGroup.getBindGroup(), 0, nullptr);
-
-    wgpuRenderPassEncoderSetPipeline(encoder, mPipeline->getPipeline());
-    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mVertexBuffer.getBuffer(), 0, sizeof(mLineInstance));
-    // wgpuRenderPassEncoderDraw(encoder, 6, (mLineList.size()) - 1, 0, 0);
-
-    // We need to issue draw  for rounded joints
-    // wgpuRenderPassEncoderSetPipeline(encoder, mCirclePipeline->getPipeline());
-    // wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mCircleVertexBuffer.getBuffer(), 0,
-    //                                      mCircleVertexData.size() * sizeof(glm::vec3));
-    //
-    // wgpuRenderPassEncoderSetIndexBuffer(encoder, mCircleIndexBuffer.getBuffer(), WGPUIndexFormat_Uint16, 0,
-    //                                     mCircleIndexData.size());
-    //
-    // wgpuRenderPassEncoderDrawIndexed(encoder, mCircleIndexData.size() / 2, mLineList.size() * 2, 0, 0, 0);
-}
-
-*/
 
 void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
     // Calculate total points needed
@@ -428,23 +404,13 @@ void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
             wgpuRenderPassEncoderDraw(encoder, 6, instanceCount, 0, group.buffer_offset);
         }
     }
-
-    // Circle/joint drawing (uncomment and adapt similarly if needed)
-    // ...
-}
-
-void LineEngine::refill(const std::vector<glm::vec4> newData) {
-    //     mLineList.clear();
-    //     mLineList = std::move(newData);
-    //
-    //     wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mOffsetBuffer.getBuffer(), 0, mLineList.data(),
-    //                          sizeof(glm::vec4) * mLineList.size());
 }
 
 // Returns a handle for the new group
 uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points) {
     if (points.size() < 2) return UINT32_MAX;  // Invalid; need at least one segment
 
+    std::cout << mNextGroupId << " " << mLineGroups.size() << std::endl;
     uint32_t id = mNextGroupId++;
     mLineGroups[id] = {points, 0, true};
     mGlobalDirty = true;

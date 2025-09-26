@@ -121,8 +121,8 @@ BindingGroup::~BindingGroup() {}
 
 void BindingGroup::add(WGPUBindGroupLayoutEntry entry) { mEntries.push_back(entry); }
 
-void BindingGroup::addTexture(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo, TextureSampleType sampleType,
-                              TextureViewDimension viewDim) {
+BindingGroup& BindingGroup::addTexture(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo,
+                                       TextureSampleType sampleType, TextureViewDimension viewDim) {
     WGPUBindGroupLayoutEntry entry_layout = {};
     setDefaultValue(entry_layout);
     entry_layout.binding = bindingNumber;
@@ -131,10 +131,11 @@ void BindingGroup::addTexture(uint32_t bindingNumber, BindGroupEntryVisibility v
     entry_layout.texture.viewDimension = viewDimensionFrom(viewDim);
     std::cout << "binding at " << bindingNumber << " " << entry_layout.buffer.type << std::endl;
     this->add(entry_layout);
+    return *this;
 }
 
-void BindingGroup::addBuffer(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo, BufferBindingType type,
-                             uint64_t minBindingSize) {
+BindingGroup& BindingGroup::addBuffer(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo,
+                                      BufferBindingType type, uint64_t minBindingSize) {
     WGPUBindGroupLayoutEntry entry_layout = {};
     setDefaultValue(entry_layout);
     entry_layout.binding = bindingNumber;
@@ -142,15 +143,17 @@ void BindingGroup::addBuffer(uint32_t bindingNumber, BindGroupEntryVisibility vi
     entry_layout.buffer.type = bufferTypeFrom(type);
     entry_layout.buffer.minBindingSize = minBindingSize;
     this->add(entry_layout);
+    return *this;
 }
 
-void BindingGroup::addSampler(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo, SampleType type) {
+BindingGroup& BindingGroup::addSampler(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo, SampleType type) {
     WGPUBindGroupLayoutEntry entry_layout = {};
     setDefaultValue(entry_layout);
     entry_layout.binding = bindingNumber;
     entry_layout.visibility = visibilityFrom(visibleTo);
     entry_layout.sampler.type = sampleTypeFrom(type);
     this->add(entry_layout);
+    return *this;
 }
 
 WGPUBindGroupLayout BindingGroup::createLayout(Application* app, const char* label) {

@@ -19,11 +19,11 @@ class BindingGroup {
         ~BindingGroup();
 
         void add(WGPUBindGroupLayoutEntry entry);
-        void addTexture(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo, TextureSampleType sampleType,
-                        TextureViewDimension viewDim);
-        void addBuffer(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo, BufferBindingType type,
-                       uint64_t minBindingSize);
-        void addSampler(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo, SampleType type);
+        BindingGroup& addTexture(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo,
+                                 TextureSampleType sampleType, TextureViewDimension viewDim);
+        BindingGroup& addBuffer(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo, BufferBindingType type,
+                                uint64_t minBindingSize);
+        BindingGroup& addSampler(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo, SampleType type);
 
         // --- Getter functions
         size_t getEntryCount() const;

@@ -65,7 +65,6 @@ struct alignas(16) Line {
 struct LineEngine {
         void initialize(Application* app);
         void draw(Application* app, WGPURenderPassEncoder encoder);
-        void refill(const std::vector<glm::vec4> newData);
 
         std::array<float, 12> mLineInstance = {0, -0.5, 1, -0.5, 1, 0.5, 0, -0.5, 1, 0.5, 0, 0.5};
         WGPURenderPipeline mRenderPipeline;

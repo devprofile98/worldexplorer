@@ -156,87 +156,46 @@ void Application::initializePipeline() {
     mDefaultNormalMap->uploadToGPU(mRendererResource.queue);
 
     // Initializing Default bindgroups
-    mBindingGroup.addBuffer(0,  //
-                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
-                            sizeof(MyUniform) * 10);
-
-    mBindingGroup.addBuffer(1,  //
-                            BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t));
-
-    mBindingGroup.addSampler(2,  //
-                             BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
-
-    mBindingGroup.addBuffer(3,  //
-                            BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(LightingUniforms));
-
-    mBindingGroup.addBuffer(4,  //
-                            BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(Light) * 10);
-
-    mBindingGroup.addBuffer(5,  //
-                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float));
-
-    mBindingGroup.addTexture(6,  //
-                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-                             TextureViewDimension::VIEW_2D);
-
-    mBindingGroup.addTexture(7,  //
-                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-                             TextureViewDimension::VIEW_2D);
-
-    mBindingGroup.addTexture(8,  //
-                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-                             TextureViewDimension::VIEW_2D);
-
-    mBindingGroup.addTexture(9,  //
-                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-                             TextureViewDimension::VIEW_2D);
-
-    mBindingGroup.addTexture(10,  //
-                             BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
-                             TextureViewDimension::ARRAY_2D);
-
-    mBindingGroup.addBuffer(11,  //
-                            BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 5);
-
-    mBindingGroup.addSampler(12,  //
-                             BindGroupEntryVisibility::FRAGMENT, SampleType::Compare);
-
-    mBindingGroup.addBuffer(13,  //
-                            BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
-                            mInstanceManager->mBufferSize);
+    mBindingGroup
+        .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(MyUniform) * 10)
+        .addBuffer(1, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t))
+        .addSampler(2, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering)
+        .addBuffer(3, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(LightingUniforms))
+        .addBuffer(4, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(Light) * 10)
+        .addBuffer(5, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float))
+        .addTexture(6, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
+        .addTexture(7, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
+        .addTexture(8, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
+        .addTexture(9, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
+        .addTexture(10, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH, TextureViewDimension::ARRAY_2D)
+        .addBuffer(11, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 5)
+        .addSampler(12, BindGroupEntryVisibility::FRAGMENT, SampleType::Compare)
+        .addBuffer(13, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+                   mInstanceManager->mBufferSize);
 
     /* Default textures for the render pass, if a model doenst have textures, these will be used */
-    mDefaultTextureBindingGroup.addTexture(0,  //
-                                           BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-                                           TextureViewDimension::VIEW_2D);
-
-    mDefaultTextureBindingGroup.addTexture(1,  //
-                                           BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-                                           TextureViewDimension::VIEW_2D);
-    mDefaultTextureBindingGroup.addTexture(2,  //
-                                           BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
-                                           TextureViewDimension::VIEW_2D);
+    mDefaultTextureBindingGroup
+        .addTexture(0,  //
+                    BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
+        .addTexture(1, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
+        .addTexture(2, BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
+                    TextureViewDimension::VIEW_2D);
 
     /* Default camera index buffer
      * Each render pass could have its own camear index to use a different camera in shader
      * */
     mDefaultCameraIndexBindgroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
                                            sizeof(uint32_t));
-
-    mDefaultClipPlaneBG.addBuffer(0,  //
-                                  BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
+    mDefaultClipPlaneBG.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
                                   sizeof(glm::vec4));
-
-    mDefaultVisibleBuffer.addBuffer(0,  //
-                                    BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+    mDefaultVisibleBuffer.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                                     sizeof(uint32_t) * 13000);
 
     /* Default Object Detail bindgroup*/
     BindingGroup object_information;
-    object_information.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
-                                 sizeof(ObjectInfo));
-    object_information.addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM,
-                                 100 * sizeof(glm::mat4));
+    object_information
+        .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(ObjectInfo))
+        .addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4));
 
     /* Creating bindgroup layouts */
     /* ************************** */

@@ -79,7 +79,15 @@ void LightManager::renderGUI() {
         std::format("{} color # {}", mPointlight->type == SPOT ? "Spot" : "Point", mSelectedLightInGui).c_str(),
         glm::value_ptr(tmp_light.mAmbient));
 
-    ImGui::SliderFloat3("Position", glm::value_ptr(tmp_light.mPosition), -20.0f, 20.0f);
+    if (ImGui::SliderFloat3("Position", glm::value_ptr(tmp_light.mPosition), -20.0f, 20.0f)) {
+        if (boxId < 1024) {
+            mApp->mLineEngine->updateLines(boxId, generateAABBLines(glm::vec3{tmp_light.mPosition} - glm::vec3{0.3},
+                                                                    glm::vec3{tmp_light.mPosition} + glm::vec3{0.3}));
+        } else {
+            boxId = mApp->mLineEngine->addLines(generateAABBLines(glm::vec3{tmp_light.mPosition} - glm::vec3{0.3},
+                                                                  glm::vec3{tmp_light.mPosition} + glm::vec3{0.3}));
+        }
+    }
 
     if (tmp_light.type == SPOT) {
         ImGui::SliderFloat3("Direction", glm::value_ptr(tmp_light.mDirection), -1.0, 1.0f);
@@ -110,8 +118,13 @@ void LightManager::renderGUI() {
         if (ImGui::Selectable(mLightsNames[i].c_str(), light == &getLights()[mSelectedLightInGui])) {
             ImGui::Text("%s", glm::to_string(light->mPosition).c_str());
             mSelectedLightInGui = i;
-            mApp->mLineEngine->addLines(generateAABBLines(glm::vec3{light->mPosition} - glm::vec3{0.3},
-                                                          glm::vec3{light->mPosition} + glm::vec3{0.3}));
+            if (boxId < 1024) {
+                mApp->mLineEngine->updateLines(boxId, generateAABBLines(glm::vec3{light->mPosition} - glm::vec3{0.3},
+                                                                        glm::vec3{light->mPosition} + glm::vec3{0.3}));
+            } else {
+                boxId = mApp->mLineEngine->addLines(generateAABBLines(glm::vec3{light->mPosition} - glm::vec3{0.3},
+                                                                      glm::vec3{light->mPosition} + glm::vec3{0.3}));
+            }
         }
 
         ImGui::PopID();  // Pop the unique ID for this item

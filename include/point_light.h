@@ -4,6 +4,7 @@
 #include <webgpu/webgpu.h>
 
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 #include "glm/ext.hpp"
@@ -45,6 +46,7 @@ class LightManager {
         void nextLight();
         Buffer& getCountBuffer();
         std::vector<Light>& getLights();
+        uint32_t boxId = std::numeric_limits<uint32_t>().max();
 
     private:
         Application* mApp;

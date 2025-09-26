@@ -44,7 +44,6 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
         transform = objectTranformation.transformations;
     }
 
-
     var skinned_position = vec4f(0.0, 0.0, 0.0, 0.0);
     skinned_position += bonesFinalTransform[in.boneIds.x] * vec4f(in.position, 1.0) * in.boneWeights.x;
     skinned_position += bonesFinalTransform[in.boneIds.y] * vec4f(in.position, 1.0) * in.boneWeights.y;
