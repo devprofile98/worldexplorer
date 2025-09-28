@@ -115,9 +115,8 @@ void Application::initializePipeline() {
 
     Texture grass_texture =
         Texture{mRendererResource.device,
-                std::vector<std::filesystem::path>{RESOURCE_DIR "/mud/brown_mud_leaves_01_diff_1k.jpg",
-                                                   RESOURCE_DIR "/mud/brown_mud_leaves_01_nor_gl_1k.jpg",
-                                                   RESOURCE_DIR "/mud/brown_mud_leaves_01_rough_1k.jpg"},
+                std::vector<std::filesystem::path>{RESOURCE_DIR "/mud/diffuse.jpg", RESOURCE_DIR "/mud/normal.jpg",
+                                                   RESOURCE_DIR "/mud/roughness.jpg"},
                 WGPUTextureFormat_RGBA8Unorm, 3};
     grass_texture.createViewArray(0, 3);
     grass_texture.uploadToGPU(mRendererResource.queue);

@@ -127,12 +127,34 @@ fn calculateTerrainColor(level: f32, uv: vec2f, index: i32) -> vec3f {
     return color;
 }
 
-fn calculatePointLight(curr_light: PointLight, normal: vec3f, dir: vec3f) -> vec3f {
-    let distance = length(dir);
-    let attenuation = 1.0 / (curr_light.constant + curr_light.linear * distance + curr_light.quadratic * (distance * distance));
-    let light_dir = normalize(dir);
-    return curr_light.ambient.xyz * attenuation * max(dot(normal, light_dir), 0.0);
+//fn calculatePointLight(curr_light: PointLight, normal: vec3f, dir: vec3f) -> vec3f {
+//    let distance = length(dir);
+//    let attenuation = 1.0 / (curr_light.constant + curr_light.linear * distance + curr_light.quadratic * (distance * distance));
+//    let light_dir = normalize(dir);
+//    return curr_light.ambient.xyz * attenuation * max(dot(normal, light_dir), 0.0);
+//}
+
+fn calculatePointLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo: vec3f, metallic_roughness: f32) -> vec3f {
+    let L = normalize(light.position.xyz - pos);
+    let distance = length(light.position.xyz - pos);
+    //let attenuation = 1.0 / (distance * distance); // Quadratic falloff
+    let attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+    let radiance = light.ambient.rgb * attenuation ; // Scale intensity
+
+    // Diffuse term
+    let NdotL = max(dot(N, L), 0.0);
+    let diffuse = albedo / PI * NdotL * radiance;
+
+    // Specular term (Phong)
+    let reflection = reflect(-L, N);
+    let shininess = mix(8.0, 128.0, 1.0 - metallic_roughness); // Higher shininess range
+    let specular_factor = pow(max(0.0, dot(reflection, V)), shininess);
+    let specular_norm = (shininess + 2.0) / (2.0 * PI); // Normalize for energy conservation
+    let specular = radiance * specular_factor * specular_norm;
+
+    return diffuse + specular;
 }
+
 
 fn calculateSpotLight(currLight: PointLight, normal: vec3f, dir: vec3f) -> vec3f {
     let lightDir = normalize(dir);
@@ -149,85 +171,86 @@ fn calculateSpotLight(currLight: PointLight, normal: vec3f, dir: vec3f) -> vec3f
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    //let face_normal = normalize(in.normal);
-    //var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
-    //var normal = calculateTerrainColor(in.color.r, in.uv, 1);
-    //normal = normal * 2.0 - 1.0;
-
     let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
     if d > 0.0 {
 	    discard;
     }
 
-    //let normal = normalize(in.normal);
-    //var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
     var normal = normalize(calculateTerrainColor(in.color.r, in.uv, 1));
+    normal = normal * 2.0 - 1.0;
     let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
     normal = normalize(TBN * normal);
 
 
     let view_direction = normalize(in.viewDirection);
-    let metallic_roughness = calculateTerrainColor(in.color.r, in.uv, 2).g;
+
 
     var shading = vec3f(0.0);
-    // first, put directional light here
-    var color = lightingInfos.colors[0].rgb;
-    let direction = normalize(lightingInfos.directions[0].xyz);
-    let reflection = reflect(-direction, normal);
-        // The closer the cosine is to 1.0, the closer V is to R
-    let RoV = max(0.0, dot(reflection, view_direction));
-    let hardness = 16.0;
-    let specular = pow(RoV, hardness) ;
-    let intensity = dot(direction, normal);
-    var min_intensity = 0.6;
 
-    //if objectTranformation.isFoliage != 1 {
-    //    min_intensity = 0.3;
-    //}
 
-    let diffuse = intensity * color;// max(min_intensity, intensity) * color;
-    shading += diffuse + vec3f(0.1, 0.1, 0.15) ;
+    ///////////////////////// Ambient ///////////////////////////////
+    let terrain_color = calculateTerrainColor(in.color.r, in.uv, 0);
+    let ambient = terrain_color * vec3f(0.1, 0.1, 0.2);
 
-    if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
-        shading += specular;
-    }
+    let metallic_roughness = calculateTerrainColor(in.color.r, in.uv, 2).b;
+
+
+    var sun_color = lightingInfos.colors[0].rgb;
+    let sun_direction = normalize(lightingInfos.directions[0].xyz);
+    let diffuse_factor = max(0, dot(sun_direction, normal));
+
+    let sun_diffuse = terrain_color * sun_color * diffuse_factor;
+
+    //let reflection = reflect(-sun_direction, normal);
+    //let shininess = mix(0.0, 16.0, metallic_roughness);
+    //let shininess = mix(8.0, 128.0, 1.0 - metallic_roughness); // Inverse roughness, higher range
+    //let specular_factor = pow(max(0, dot(reflection, view_direction)), shininess);
+    //let specular_color = sun_color * specular_factor;
+
+    let reflection = reflect(-normalize(sun_direction), normalize(normal));
+    let shininess = mix(8.0, 128.0, 1.0 - metallic_roughness); // Inverse roughness, higher range
+    let specular_factor = pow(max(0.0, dot(reflection, normalize(view_direction))), shininess);
+    // Normalize specular to prevent excessive brightness
+    let specular_norm = (shininess + 2.0) / (2.0 * PI); // Normalization factor for Phong
+    let specular_color = sun_color * specular_factor * specular_norm * 0.1; // Scale down intensity
+
+
+    //let RoV = max(0.0, dot(sun_reflection, view_direction));
+    //let hardness = metallic_roughness;
+    //let specular = pow(RoV, hardness) ;
+    //let intensity = dot(direction, normal);
+    //var min_intensity = 0.6;
+
+    //let diffuse = color;// max(min_intensity, intensity) * color;
+    //shading += diffuse;
+
+    //shading += specular ;
 
 
     var point_light_color = vec3f(0.0f);
-    for (var i: i32 = 0; i < lightCount ; i++) {
+    for (var i: i32 = 0; i < 2 ; i++) {
         let curr_light = pointLight[i];
         let dir = curr_light.position.xyz - in.worldPos;
 
         if curr_light.ftype == 3 {
-            point_light_color += calculatePointLight(curr_light, normal, dir);
+            point_light_color += calculatePointLight(curr_light, normal, view_direction, in.worldPos, terrain_color, metallic_roughness);
         } else if curr_light.ftype == 2 {
             point_light_color += calculateSpotLight(curr_light, normal, dir);
         }
     }
 
-    let terrain_color = calculateTerrainColor(in.color.r, in.uv, 0);
-    color = pow(terrain_color * max(min_intensity, intensity), vec3f(1.2));
+    //color = terrain_color * intensity;
     let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
 
-    let ambient = color * shading;
-    let diffuse_final = point_light_color;
+    //let ambient = color * shading;
+    //let diffuse_final = point_light_color;
 
-    color = (diffuse_final + ambient);
+    var color = ambient + sun_diffuse + specular_color + point_light_color;
 
-    //if objectTranformation.isHovered == 1 {
-    //    let variation = abs(sin(1.0 * 2.0));
-    //    col = col * (vec3f(1.0 + variation * 2.0, 0.0, 0.0));
-    //}
-    //if length(in.viewSpacePos) > ElapsedTime {
-    //    return vec4f((col + vec3(1.0, 0.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
-    //}else{
-    //    return vec4f((col + vec3(0.0, 1.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
-    //}
 
-	// HDR tonemapping
-    color = color / (color + vec3f(1.0));
-	// gamma correct
-    color = pow(color, vec3(1.3));
+    color = color / (color + vec3f(1.1)); // HDR tonemapping
+    color = pow(color, vec3(1.3)); // gamma correct
+
     return vec4f(color * (1 - shadow * (0.75)), 1.0);
     //return vec4(intensity, 0.0, 0.0, 1.0);
 }

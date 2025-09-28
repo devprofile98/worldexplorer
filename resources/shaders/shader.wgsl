@@ -171,7 +171,6 @@ fn geometrySmith(N: vec3f, V: vec3f, L: vec3f, roughness: f32) -> f32 {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
-    //let d = in.worldPos.z + 3.5;
     let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
     if d > 0.0 {
 	    discard;
@@ -192,7 +191,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
 
     var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
-    // normal = normal * 2.0 - 1.0;
+    normal = normal * 2.0 - 1.0;
     let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
     var N = normalize(TBN * normal);
     let V = normalize(in.viewDirection);

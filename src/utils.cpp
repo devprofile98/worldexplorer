@@ -335,8 +335,8 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
     double min = std::numeric_limits<double>::max();
     double max = std::numeric_limits<double>::min();
 
-    for (size_t x = 0; x < gridSize; x++) {
-        for (size_t z = 0; z < gridSize; z++) {
+    for (size_t x = 0; x < gridSize; ++x) {
+        for (size_t z = 0; z < gridSize; ++z) {
             double pixel_result = test_perlin(x, z, persistence, octaves, gridSize);
 
             VertexAttributes attr = {};
@@ -399,8 +399,8 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
     }
 
     // std::vector<size_t> terrain.indices;
-    for (size_t x = 0; x < gridSize - 1; x++) {
-        for (size_t z = 0; z < gridSize - 1; z++) {
+    for (size_t x = 0; x < gridSize - 1; ++x) {
+        for (size_t z = 0; z < gridSize - 1; ++z) {
             size_t topLeft = x * gridSize + z;
             size_t topRight = topLeft + 1;
             size_t bottomLeft = topLeft + gridSize;
@@ -415,18 +415,37 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
         }
     }
 
-    // calculate normals
-    for (size_t t = 0; t < indices.size(); t += 3) {
-        auto a = vertices[indices[t]].position;
-        auto b = vertices[indices[t + 1]].position;
-        auto c = vertices[indices[t + 2]].position;
+    // calculate normals Using Cross product of 2 side of the triangle
 
-        auto ba = glm::vec3{b.x - a.x, b.y - a.y, b.z - a.z};
-        auto ca = glm::vec3{c.x - a.x, c.y - a.y, c.z - a.z};
-        auto normal = glm::cross(ba, ca);
-        vertices[indices[t]].normal = normal;
-        vertices[indices[t + 1]].normal = normal;
-        vertices[indices[t + 2]].normal = normal;
+    // for (size_t t = 0; t < indices.size(); t += 3) {
+    //     auto a = vertices[indices[t]].position;
+    //     auto b = vertices[indices[t + 1]].position;
+    //     auto c = vertices[indices[t + 2]].position;
+    //
+    //     auto ba = glm::vec3{b.x - a.x, b.y - a.y, b.z - a.z};
+    //     auto ca = glm::vec3{c.x - a.x, c.y - a.y, c.z - a.z};
+    //     auto normal = glm::cross(ba, ca);
+    //     vertices[indices[t]].normal = normal;
+    //     vertices[indices[t + 1]].normal = normal;
+    //     vertices[indices[t + 2]].normal = normal;
+    // }
+
+    // calculate normal using centeral derivative
+    auto gridSpacing_x = 1;
+    auto gridSpacing_z = 1;
+    for (size_t x = 1; x < gridSize - 1; ++x) {
+        for (size_t y = 1; y < gridSize - 1; ++y) {
+            float dfdx = (vertices[(x + 1) * gridSize + y].position.z - vertices[(x - 1) * gridSize + y].position.z) /
+                         (2.0f * gridSpacing_x);
+
+            float dfdz = (vertices[x * gridSize + (y + 1)].position.z - vertices[x * gridSize + (y - 1)].position.z) /
+                         (2.0f * gridSpacing_z);
+
+            glm::vec3 T = glm::normalize(glm::vec3(1.0f, 0.0, dfdx));
+            vertices[x * gridSize + y].normal = glm::normalize(glm::vec3(-dfdx, -dfdz, 1.0f));
+            vertices[x * gridSize + y].tangent = glm::normalize(T);
+            vertices[x * gridSize + y].biTangent = glm::normalize(glm::cross(vertices[x * gridSize + y].normal, T));
+        }
     }
 
     return *this;

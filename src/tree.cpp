@@ -657,19 +657,19 @@ struct StonesModel : public IModel {
 
 USER_REGISTER_MODEL("tree", TreeModel);
 USER_REGISTER_MODEL("boat", BoatModel);
-// USER_REGISTER_MODEL("car", CarModel);
-// USER_REGISTER_MODEL("tower", TowerModel);
+USER_REGISTER_MODEL("car", CarModel);
+USER_REGISTER_MODEL("tower", TowerModel);
 // USER_REGISTER_MODEL("desk", DeskModel);
 // USER_REGISTER_MODEL("arrow", ArrowModel);
 USER_REGISTER_MODEL("grass", GrassModel);
-// USER_REGISTER_MODEL("steampunk", Steampunk);
-// USER_REGISTER_MODEL("sheep", SheepModel);
+USER_REGISTER_MODEL("steampunk", Steampunk);
+USER_REGISTER_MODEL("sheep", SheepModel);
 USER_REGISTER_MODEL("water", WaterModel);
 // USER_REGISTER_MODEL("sphere", SphereModel);
-// USER_REGISTER_MODEL("human", HumanModel);
+USER_REGISTER_MODEL("human", HumanModel);
 USER_REGISTER_MODEL("robot", RobotModel);
-// USER_REGISTER_MODEL("stones", StonesModel);
+USER_REGISTER_MODEL("stones", StonesModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
-// USER_REGISTER_MODEL("house", HouseModel);
+USER_REGISTER_MODEL("house", HouseModel);
 // USER_REGISTER_MODEL("motor", Motor);
 /*USER_REGISTER_MODEL("jet", JetModel);*/
