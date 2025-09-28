@@ -67,7 +67,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     for (var i: u32 = 0u; i < numOfCascades; i = i + 1u) {
         if length(out.viewSpacePos) < lightSpaceTrans[i].farZ {
             index = i;
-		break;
+		    break;
         }
     }
     // if length(out.viewSpacePos) > ElapsedTime { index = 1;}
@@ -104,14 +104,14 @@ fn calculateTerrainColor(level: f32, uv: vec2f, index: i32) -> vec3f {
         color = mix(texture_col, vec3f(1.0, 0.0, 0.0), 0.05);
     } else if level >= 1.1 && level < 1.9 {
         let distance = level - 1.0;
-        let grass_color = textureSample(grass_ground_texture, textureSampler, uv * 0.2, index).rgb;
+        let grass_color = textureSample(grass_ground_texture, textureSampler, uv * 0.4, index).rgb;
         color = mix(textureSample(sand_lake_texture, textureSampler, uv, index).rgb, vec3f(1.0, 0.0, 0.0), 0.05);
         color = mix(color, grass_color, distance);
     } else if level >= 1.9 && level < 2.1 {
-        color = textureSample(grass_ground_texture, textureSampler, uv * 0.2, index).rgb;
+        color = textureSample(grass_ground_texture, textureSampler, uv * 0.4, index).rgb;
     } else if level >= 2.1 && level < 2.9 {
         let distance = level - 2.0;
-        let grass_color = textureSample(grass_ground_texture, textureSampler, uv * 0.2, index).rgb;
+        let grass_color = textureSample(grass_ground_texture, textureSampler, uv * 0.4, index).rgb;
         color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2, index).rgb;
         color = mix(grass_color, color, distance);
     } else if level >= 2.9 && level < 3.1 {
@@ -153,9 +153,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
     //var normal = calculateTerrainColor(in.color.r, in.uv, 1);
     //normal = normal * 2.0 - 1.0;
-    //let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
-    //normal = normalize(TBN * normal);
-    //normal = normalize(mix(in.normal, normal, 0.1));
 
     let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
     if d > 0.0 {
@@ -163,11 +160,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     }
 
     //let normal = normalize(in.normal);
-    //let normal = textureSample(normal_map, textureSampler, in.uv).rgb;
-    let normal = normalize(calculateTerrainColor(in.color.r, in.uv, 1));
+    //var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
+    var normal = normalize(calculateTerrainColor(in.color.r, in.uv, 1));
+    let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
+    normal = normalize(TBN * normal);
+
 
     let view_direction = normalize(in.viewDirection);
-    let metallic_roughness = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
+    let metallic_roughness = calculateTerrainColor(in.color.r, in.uv, 2).g;
 
     var shading = vec3f(0.0);
     // first, put directional light here
@@ -180,11 +180,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let specular = pow(RoV, hardness) ;
     let intensity = dot(direction, normal);
     var min_intensity = 0.6;
-    if objectTranformation.isFoliage != 1 {
-        min_intensity = 0.3;
-    }
-    let diffuse = max(min_intensity, intensity) * color;
+
+    //if objectTranformation.isFoliage != 1 {
+    //    min_intensity = 0.3;
+    //}
+
+    let diffuse = intensity * color;// max(min_intensity, intensity) * color;
     shading += diffuse + vec3f(0.1, 0.1, 0.15) ;
+
     if intensity > 0.0 && (objectTranformation.isFlat == 0 || objectTranformation.isFoliage == 1) {
         shading += specular;
     }
@@ -221,11 +224,239 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //    return vec4f((col + vec3(0.0, 1.0, 0.5)) * (1 - shadow * (0.75)), 1.0);
     //}
 
-	    // HDR tonemapping
+	// HDR tonemapping
     color = color / (color + vec3f(1.0));
-	    // gamma correct
-    color = pow(color, vec3(1.1));
+	// gamma correct
+    color = pow(color, vec3(1.3));
     return vec4f(color * (1 - shadow * (0.75)), 1.0);
-    //return vec4(normal, 1.0);
+    //return vec4(intensity, 0.0, 0.0, 1.0);
 }
 
+
+//@fragment
+//fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+//
+//    let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
+//    if d > 0.0 {
+//	    discard;
+//    }
+//
+//    var frag_ambient = calculateTerrainColor(in.color.r, in.uv, 0).rgba;
+//    if (in.materialProps & (1u << 0u)) != 1u {
+//        frag_ambient = vec4f(in.color.rgb, 1.0);
+//    }
+//    if frag_ambient.a < 0.001 {
+//		discard;
+//    }
+//    let albedo = pow(frag_ambient.rgb, vec3f(1.5f));
+//    let material = calculateTerrainColor(in.color.r, in.uv, 2).rgb;
+//    let ao = material.r;
+//    let roughness = material.g;
+//    var metallic = material.b;
+//
+//
+//    var normal = calculateTerrainColor(in.color.r, in.uv, 1).rgb;
+//    normal = normal * 2.0 - 1.0;
+//    let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
+//    var N = normalize(TBN * normal);
+//    let V = normalize(in.viewDirection);
+//
+//    //if (in.materialProps & (1u << 1u)) != 2u {
+//    //    N = in.aNormal;
+//    //}
+//
+//    //if (in.materialProps & (1u << 3u)) != 8u {
+//    //    metallic = in.userSpecular;
+//    //}
+//
+//    var F0 = vec3f(0.04f); //base reflectivity: default to 0.04 for even dieelectric material
+//    F0 = mix(F0, albedo, metallic);
+//
+//    var lo: vec3f = vec3f(0.0);
+//
+//
+//    ////////////// Calculations for point lights
+//    for (var i = 0u; i < 2; i += 1u) {
+//        let curr_light = pointLight[i];
+//        let diff = curr_light.position.xyz - in.worldPos;
+//        let distance = length(diff);
+//        if distance > 5.0f {
+//            continue;
+//        }
+//        let L = normalize(diff);
+//        let H = normalize(V + L);
+//        let attenuation = 1.0f / (distance * distance);
+//
+//        let radiance = curr_light.ambient.rgb * attenuation;
+//
+//        let NDF = distributionGGX(N, H, roughness);
+//        let G = geometrySmith(N, V, L, roughness);
+//        let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+//
+//        let numerator = NDF * G * F;
+//        let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+//        let specular = numerator / denominator;
+//
+//
+//        let kS = F;
+//
+//        var kD = vec3f(1.0) - kS;
+//        kD = kD * (1.0 - metallic);
+//
+//        let NdotL = max(dot(N, L), 0.0);
+//
+//        lo += (kD * albedo / PI + specular) * radiance * NdotL;
+//    }
+//
+//    ////////////// Calculations for sun light
+//        {
+//        let curr_light = lightingInfos.colors[0].rgb;
+//        let L = normalize(lightingInfos.directions[0].xyz); // normalize(curr_light.position.xyz - in.worldPos);
+//        let H = normalize(V + L);
+//
+//        let radiance = lightingInfos.colors[0].rgb;
+//
+//        let NDF = distributionGGX(N, H, roughness);
+//        let G = geometrySmith(N, V, L, roughness);
+//        let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+//
+//        let numerator = NDF * G * F;
+//        let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+//        let specular = numerator / denominator;
+//
+//
+//        let kS = F;
+//
+//        var kD = vec3f(1.0) - kS;
+//        kD = kD * (1.0 - metallic);
+//
+//        let NdotL = max(dot(N, L), 0.0);
+//
+//        lo += (kD * albedo / PI + specular) * radiance * NdotL;
+//    }
+//
+//    let ambient = vec3(0.03) * albedo * ao;
+//
+//    var color = ambient + lo;
+//
+//	    // HDR tonemapping
+//    color = color / (color + vec3f(1.0));
+//	    // gamma correct
+//    color = pow(color, vec3(1.1));
+//
+//    let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
+//
+//    return vec4f(color * (1 - shadow * (0.75)), 1.0);
+//}
+//@fragment
+//fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+//
+//    let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
+//    if d > 0.0 {
+//	    discard;
+//    }
+//
+//    var frag_ambient = calculateTerrainColor(in.color.r, in.uv, 0).rgba;
+//    //if (in.materialProps & (1u << 0u)) != 1u {
+//    //    frag_ambient = vec4f(in.color.rgb, 1.0);
+//    //}
+//    //if frag_ambient.a < 0.001 {
+//	//	discard;
+//    //}
+//    let albedo = pow(frag_ambient.rgb, vec3f(1.5f));
+//    let material = calculateTerrainColor(in.color.r, in.uv, 2).rgb;
+//    let ao = material.r;
+//    let roughness = material.g;
+//    var metallic = material.b;
+//
+//
+//    //var normal = normalize(vec4(in.normal, 1.0)).rgb;
+//    var normal = normalize(calculateTerrainColor(in.color.r, in.uv, 1).rgb);
+//    normal = normal * 2.0 - 1.0;
+//    let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
+//    var N = normalize(TBN * normal);
+//    let V = normalize(in.viewDirection);
+//
+//    var F0 = vec3f(0.04f); //base reflectivity: default to 0.04 for even dieelectric material
+//    F0 = mix(F0, albedo, metallic);
+//
+//    var lo: vec3f = vec3f(0.0);
+//
+//
+//    ////////////// Calculations for point lights
+//    //for (var i = 0u; i < 2; i += 1u) {
+//    //    let curr_light = pointLight[i];
+//    //    let diff = curr_light.position.xyz - in.worldPos;
+//    //    let distance = length(diff);
+//    //    if distance > 5.0f {
+//    //        continue;
+//    //    }
+//    //    let L = normalize(diff);
+//    //    let H = normalize(V + L);
+//    //    let attenuation = 1.0f / (distance * distance);
+//
+//    //    let radiance = curr_light.ambient.rgb * attenuation;
+//
+//    //    let NDF = distributionGGX(N, H, roughness);
+//    //    let G = geometrySmith(N, V, L, roughness);
+//    //    let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+//
+//    //    let numerator = NDF * G * F;
+//    //    let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+//    //    let specular = numerator / denominator;
+//
+//
+//    //    let kS = F;
+//
+//    //    var kD = vec3f(1.0) - kS;
+//    //    kD = kD * (1.0 - metallic);
+//
+//    //    let NdotL = max(dot(N, L), 0.0);
+//
+//    //    lo += (kD * albedo / PI + specular) * radiance * NdotL;
+//    //}
+//
+//    ////////////// Calculations for sun light
+//        //{
+//    let curr_light = lightingInfos.colors[0].rgb;
+//    let L = normalize(lightingInfos.directions[0].xyz); // normalize(curr_light.position.xyz - in.worldPos);
+//    let H = normalize(V + L);
+//
+//    let radiance = lightingInfos.colors[0].rgb;
+//
+//    let NDF = distributionGGX(N, H, roughness);
+//    let G = geometrySmith(N, V, L, roughness);
+//    let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+//
+//    let numerator = NDF * G * F;
+//    let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+//    let specular = numerator / denominator;
+//
+//    //return vec4f(numerator, 1.0);
+//
+//
+//    let kS = F;
+//
+//    var kD = vec3f(1.0) - kS;
+//    kD = kD * (1.0 - metallic);
+//
+//    let NdotL = max(dot(N, L), 0.0);
+//
+//    lo += (kD * albedo / PI + specular) * radiance * NdotL;
+////}
+//
+//    let ambient = albedo * ao;
+//
+//    var color = ambient + lo;
+//
+//	    // HDR tonemapping
+//    color = color / (color + vec3f(1.0));
+//	    // gamma correct
+//    color = pow(color, vec3(1.1));
+//
+//    let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
+//
+//    //return vec4f(color * (1 - shadow * (0.75)), 1.0);
+//    return vec4f(shadow, shadow, shadow, 1.0);
+//}
+//
