@@ -97,7 +97,7 @@ fn fs_main(in: VSOutput) -> @location(0) vec4f {
 
     var pos = in.position;
     let transparency = textureSample(diffuseMap, textureSampler, in.uv).a;
-    if objectTranformation.useTexture == 1 && transparency == 0.0 {
+    if objectTranformation.useTexture == 1 && transparency < 0.1 {
        discard;
     }
     return pos;

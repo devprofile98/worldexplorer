@@ -136,7 +136,7 @@ fn calculateTerrainColor(level: f32, uv: vec2f, index: i32) -> vec3f {
 
 fn calculatePointLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo: vec3f, metallic_roughness: f32) -> vec3f {
     let L = normalize(light.position.xyz - pos);
-    let distance = length(light.position.xyz - pos);
+    let distance = length(abs(light.position.xyz - pos));
     //let attenuation = 1.0 / (distance * distance); // Quadratic falloff
     let attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
     let radiance = light.ambient.rgb * attenuation ; // Scale intensity

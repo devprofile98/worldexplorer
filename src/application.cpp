@@ -48,12 +48,12 @@
 #include "shapes.h"
 #include "terrain_pass.h"
 #include "texture.h"
+#include "tracy/Tracy.hpp"
 #include "transparency_pass.h"
 #include "utils.h"
 #include "water_pass.h"
 #include "webgpu/webgpu.h"
 #include "wgpu_utils.h"
-
 // #define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
 
 static bool look_as_light = false;
@@ -730,6 +730,7 @@ bool Application::initialize() {
 
     initializeBuffers();
     initializePipeline();
+    terrain.createSomeBinding(this);
 
     return true;
 }
@@ -737,10 +738,20 @@ bool Application::initialize() {
 void Application::mainLoop() {
     glfwPollEvents();
 
+    ZoneScopedNC("Main Render Loop", 0x0000FF);
+
+    {
+        ZoneScopedNC("polling events", 0xF0F0F0);
+        glfwPollEvents();
+    }
     double time = glfwGetTime();
-    mCurrentTargetView = getNextSurfaceTextureView();
-    if (mCurrentTargetView == nullptr) {
-        return;
+
+    {
+        ZoneScopedNC("next surface", 0xFFFA00);
+        mCurrentTargetView = getNextSurfaceTextureView();
+        if (mCurrentTargetView == nullptr) {
+            return;
+        }
     }
 
     {
@@ -748,8 +759,11 @@ void Application::mainLoop() {
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
             model->mAnimationSecond = std::fmod(time, model->mAnimationDuration) * 1000.0f;
             model->ExtractBonePositions();
+            model->update(this, 0.0);
         }
     }
+
+    terrain.update(this, 0.0);
 
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
@@ -793,6 +807,7 @@ void Application::mainLoop() {
     }
 
     {
+        ZoneScoped;
         mShadowPass->renderAllCascades(encoder);
     }
     //-------------- End of shadow pass
@@ -924,6 +939,7 @@ void Application::mainLoop() {
     // ----------------------------------------------
 
     // ---------- Terrain Render Pass for Water Refraction
+
     beginPass(mTerrainForRefraction, encoder, [&](WGPURenderPassEncoder pass_encoder) {
         wgpuRenderPassEncoderSetPipeline(pass_encoder, mTerrainPass->getPipeline()->getPipeline());
         wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
@@ -1013,6 +1029,8 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
 
     {
+        // {
+        ZoneScopedNC("Color Pass", 0xFF);
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
         for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
             if (model->mName != "water") {
@@ -1032,6 +1050,7 @@ void Application::mainLoop() {
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
+
     // ---------------------------------------------------------------------
     {
         mLineRenderingPass->setColorAttachment(
@@ -1048,6 +1067,8 @@ void Application::mainLoop() {
     }
     // ---------------------------------------------------------------------
     {
+        // {
+        ZoneScopedNC("Water pass", 0x00F0FF);
         mWaterRenderPass->setColorAttachment(
             {mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
         mWaterRenderPass->setDepthStencilAttachment(
@@ -1077,6 +1098,8 @@ void Application::mainLoop() {
 
     // terrain pass
     {
+        // {
+        ZoneScopedNC("Last Terrain pass", 0xFF00FF);
         mTerrainPass->setColorAttachment(
             {mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
         mTerrainPass->setDepthStencilAttachment(
@@ -1128,11 +1151,14 @@ void Application::mainLoop() {
     // wgpuRenderPassEncoderEnd(outline_pass_encoder);
     // wgpuRenderPassEncoderRelease(outline_pass_encoder);
 
-    // 3D editor elements pass
-    m3DviewportPass->execute(encoder);
+    {
+        ZoneScopedNC("3D viewport and loader", 0xF0F00F);
+        // 3D editor elements pass
+        m3DviewportPass->execute(encoder);
 
-    // polling if any model loading process is done and append it to loaded model list
-    ModelRegistry::instance().tick(this);
+        // polling if any model loading process is done and append it to loaded model list
+        ModelRegistry::instance().tick(this);
+    }
 
     // ------------ 3- Transparent pass
     // Calculate the Accumulation Buffer from the transparent object, this pass does not draw
@@ -1166,6 +1192,9 @@ void Application::mainLoop() {
     /*wgpuRenderPassEncoderRelease(composition_pass_encoder);*/
 
     {
+        // {
+        ZoneScopedNC("terrain for refraction", 0x00F00F);
+        // }
         // PerfTimer timer{"test"};
 
         WGPUCommandBufferDescriptor command_buffer_descriptor = {};
@@ -1191,11 +1220,11 @@ void Application::mainLoop() {
         wgpuCommandEncoderRelease(encoder);
 
         wgpuTextureViewRelease(mCurrentTargetView);
-    }
 
 #ifndef __EMSCRIPTEN__
-    wgpuSurfacePresent(mRendererResource.surface);
+        wgpuSurfacePresent(mRendererResource.surface);
 #endif
+    }
 
 #if defined(WEBGPU_BACKEND_DAWN)
     wgpuDeviceTick(device);

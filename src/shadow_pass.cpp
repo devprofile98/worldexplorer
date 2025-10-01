@@ -325,33 +325,51 @@ WGPURenderPassDescriptor* ShadowPass::getRenderPassDescriptor(size_t index) {
 WGPURenderPassDescriptor* ShadowFrustum::getRenderPassDescriptor() { return &mRenderPassDesc; }
 
 void ShadowPass::renderAllCascades(WGPUCommandEncoder encoder) {
-    // ZoneScoped;
     auto& models = ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User);
-    for (auto& s : mScenes) {
-        s.projection = s.projection * s.view;
+    {
+        ZoneScopedN("Calculating scene data");
+
+        for (auto& s : mScenes) {
+            s.projection = s.projection * s.view;
+        }
     }
 
-    mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
-    mBindingData[3].sampler = mApp->getDefaultSampler();
-    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mSceneUniformBuffer.getBuffer(), 0, mScenes.data(),
-                         sizeof(Scene) * mNumOfCascades);
+    {
+        mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
+        mBindingData[3].sampler = mApp->getDefaultSampler();
+        wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mSceneUniformBuffer.getBuffer(), 0, mScenes.data(),
+                             sizeof(Scene) * mNumOfCascades);
+    }
 
     for (size_t c = 0; c < mNumOfCascades; ++c) {
-        WGPURenderPassEncoder shadow_pass_encoder =
-            wgpuCommandEncoderBeginRenderPass(encoder, getRenderPassDescriptor(c));
-        wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder, getPipeline()->getPipeline());
-        render(models, shadow_pass_encoder, c);
-        wgpuRenderPassEncoderEnd(shadow_pass_encoder);
-        wgpuRenderPassEncoderRelease(shadow_pass_encoder);
+        ZoneScopedN("Draw Cascade loops");
+        WGPURenderPassEncoder shadow_pass_encoder;
+        // TracyGpuZone("ShadowPass");
+        {
+            ZoneScopedN("Begining render pass");
+            shadow_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, getRenderPassDescriptor(c));
+            wgpuRenderPassEncoderSetPipeline(shadow_pass_encoder, getPipeline()->getPipeline());
+        }
+        {
+            ZoneScopedN("Shadow render call inside loop");
+            render(models, shadow_pass_encoder, c);
+        }
+        {
+            ZoneScopedN("Ending render pass");
+            wgpuRenderPassEncoderEnd(shadow_pass_encoder);
+            wgpuRenderPassEncoderRelease(shadow_pass_encoder);
+        }
     }
 }
 
 void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEncoder encoder, size_t which) {
+    ZoneScopedN("render body");
     mBindingData[0].buffer = mSceneUniformBuffer.getBuffer();
     mBindingData[2].buffer = mFrustuIndexBuffer[which].getBuffer();
     for (auto& model : models) {
         if (model->mName != "water") {
             for (auto& [mat_id, mesh] : model->mMeshes) {
+                ZoneScopedN("inner loop loop");
                 wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                                      wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
                 wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,

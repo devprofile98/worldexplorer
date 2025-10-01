@@ -126,6 +126,7 @@ class Transform {
 
         glm::mat4 mTransformMatrix;
         glm::quat mOrientation;
+        bool mDirty = true;
 
     private:
         glm::mat4 getGlobalTransform(BaseModel* parent);
@@ -207,6 +208,7 @@ class Model : public BaseModel {
 
         Model& setFoliage();
         Model& useTexture(bool use = true);
+        void update(Application* app, float dt);
 
         // Getters
         void createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData);

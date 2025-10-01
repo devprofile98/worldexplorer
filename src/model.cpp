@@ -67,6 +67,7 @@ Model::Model() : BaseModel() {
     mTransform.mObjectInfo.isFlat = 0;
     mTransform.mObjectInfo.useTexture = 1;
     mTransform.mObjectInfo.isFoliage = 0;
+    mTransform.mDirty = true;
 }
 
 glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
@@ -559,11 +560,13 @@ void BaseModel::addChildren(BaseModel* child) {
 }
 
 Model& Model::setFoliage() {
+    mTransform.mDirty = true;
     mTransform.mObjectInfo.isFoliage = 1;
     return *this;
 }
 
 Model& Model::useTexture(bool use) {
+    mTransform.mDirty = true;
     mTransform.mObjectInfo.useTexture = use ? 1 : 0;
     return *this;
 }
@@ -627,7 +630,10 @@ void BaseModel::setTransparent(bool value) {
 
 bool BaseModel::isTransparent() { return mIsTransparent; }
 
-void BaseModel::selected(bool selected) { mTransform.mObjectInfo.isSelected = selected; }
+void BaseModel::selected(bool selected) {
+    mTransform.mDirty = true;
+    mTransform.mObjectInfo.isSelected = selected;
+}
 bool BaseModel::isSelected() const { return mTransform.mObjectInfo.isSelected; }
 
 void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData) {
@@ -684,16 +690,22 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     }
 }
 
+void Model::update(Application* app, float dt) {
+    if (mScene->HasAnimations()) {
+        wgpuQueueWriteBuffer(app->getRendererResource().queue, mSkiningTransformationBuffer.getBuffer(),
+                             0 * sizeof(glm::mat4), mFinalTransformations.data(),
+                             mFinalTransformations.size() * sizeof(glm::mat4));
+    }
+    if (mTransform.mDirty) {
+        wgpuQueueWriteBuffer(app->getRendererResource().queue, Drawable::getUniformBuffer().getBuffer(), 0,
+                             &mTransform.mObjectInfo, sizeof(ObjectInfo));
+        mTransform.mDirty = false;
+    }
+}
+
 void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
     auto& render_resource = app->getRendererResource();
     WGPUBindGroup active_bind_group = nullptr;
-
-    if (mScene->HasAnimations()) {
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, mSkiningTransformationBuffer.getBuffer(),
-                             0 * sizeof(glm::mat4), mFinalTransformations.data(), 100 * sizeof(glm::mat4));
-    }
-    wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
-                         sizeof(ObjectInfo));
 
     for (auto& [mat_id, mesh] : mMeshes) {
         if (!mesh.isTransparent) {
@@ -780,16 +792,20 @@ void Model::userInterface() {
         bool has_normal = mTransform.mObjectInfo.hasFlag(MaterialProps::HasNormalMap);
         if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
             mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, has_normal);
+            mTransform.mDirty = true;
         }
         bool has_specular = mTransform.mObjectInfo.hasFlag(MaterialProps::HasRoughnessMap);
         if (ImGui::Checkbox("Has Specular Map", &has_specular)) {
             mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, has_specular);
+            mTransform.mDirty = true;
         }
         bool has_diffuse = mTransform.mObjectInfo.hasFlag(MaterialProps::HasDiffuseMap);
         if (ImGui::Checkbox("Has Diffuse Map", &has_diffuse)) {
             mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, has_diffuse);
+            mTransform.mDirty = true;
         }
         if (ImGui::SliderFloat("Diffuse Value", &mTransform.mObjectInfo.roughness, 0.0f, 1.0f)) {
+            mTransform.mDirty = true;
         }
     }
 }
@@ -888,6 +904,7 @@ Texture* BaseModel::getDiffuseTexture() { return mMeshes[0].mTexture; }
 glm::mat4 BaseModel::getGlobalTransform() { return mTransform.getGlobalTransform(mParent); }
 
 void BaseModel::update() {
+    mTransform.mDirty = true;
     for (auto* child : mChildrens) {
         child->update();
         child->mTransform.mObjectInfo.transformation = getGlobalTransform() * child->mTransform.mTransformMatrix;

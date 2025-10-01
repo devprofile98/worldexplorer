@@ -554,10 +554,17 @@ void Terrain::createSomeBinding(Application* app) {
     ggg = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);
 }
 
+void Terrain::update(Application* app, float dt) {
+    if (mDirty) {
+        wgpuQueueWriteBuffer(app->getRendererResource().queue, mUniformBuffer, 0, &mObjectInfo, sizeof(ObjectInfo));
+        mDirty = false;
+    }
+}
+
 void Terrain::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData) {
     (void)bindingData;
 
-    auto& render_resource = app->getRendererResource();
+    // auto& render_resource = app->getRendererResource();
     // mbidngroup = wgpuDeviceCreateBindGroup(render_resource.device, &desc);
 
     wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mVertexBuffer, 0, wgpuBufferGetSize(mVertexBuffer));
@@ -565,9 +572,6 @@ void Terrain::draw(Application* app, WGPURenderPassEncoder encoder, std::vector<
                                         wgpuBufferGetSize(mIndexBuffer));
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, app->getBindingGroup().getBindGroup(), 0, nullptr);
 
-    wgpuQueueWriteBuffer(render_resource.queue, mUniformBuffer, 0, &mObjectInfo, sizeof(ObjectInfo));
-
-    createSomeBinding(app);
     wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(encoder, 2, app->mDefaultTextureBindingGroup.getBindGroup(), 0, nullptr);
 

@@ -41,6 +41,8 @@ struct Terrain {
         void draw(Application* app, WGPURenderPassEncoder encoder, std::vector<WGPUBindGroupEntry>& bindingData);
         void createSomeBinding(Application* app);
         static float perlin(float x, float y);
+        void update(Application* app, float dt);
+        bool mDirty = true;
 
     private:
         WGPUBuffer mVertexBuffer;

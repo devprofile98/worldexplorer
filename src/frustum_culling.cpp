@@ -1,6 +1,7 @@
 
 #include "frustum_culling.h"
 
+#include <cstdint>
 #include <format>
 
 #include "application.h"
@@ -401,11 +402,10 @@ void runFrustumCullingTask(Application* app, WGPUCommandEncoder encoder) {
 
     for (auto& model : objs) {
         // Buffer* buffers[] = {&model->mIndirectDrawArgsBuffer};
-        if (model->instance == nullptr) continue;
         if (model->instance != nullptr) {
             auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
-            wgpuQueueWriteBuffer(app->getRendererResource().queue, model->mIndirectDrawArgsBuffer.getBuffer(), 0,
-                                 &indirect, sizeof(DrawIndexedIndirectArgs));
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, model->mIndirectDrawArgsBuffer.getBuffer(),
+                                 sizeof(uint32_t), &indirect, sizeof(uint32_t));
 
             WGPUComputePassDescriptor compute_pass_desc = {};
             compute_pass_desc.label = {"Simple Compute Pass", WGPU_STRLEN};
