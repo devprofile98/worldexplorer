@@ -180,11 +180,11 @@ struct TowerModel : public IModel {
         };
 };
 
-struct ArrowModel : public IModel {
-        ArrowModel(Application* app) {
+struct ConiferousModel : public IModel {
+        ConiferousModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("arrow", app, RESOURCE_DIR "/arrow.obj", app->getObjectBindGroupLayout())
+            mModel->load("coniferous", app, RESOURCE_DIR "/coniferous/scene.gltf", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{1.0f, 1.0f, 4.0f})
                 .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.2});
@@ -661,9 +661,9 @@ USER_REGISTER_MODEL("car", CarModel);
 USER_REGISTER_MODEL("tower", TowerModel);
 
 // USER_REGISTER_MODEL("desk", DeskModel);
-// USER_REGISTER_MODEL("arrow", ArrowModel);
+USER_REGISTER_MODEL("coniferous", ConiferousModel);
 //
-USER_REGISTER_MODEL("grass", GrassModel);
+// USER_REGISTER_MODEL("grass", GrassModel);
 USER_REGISTER_MODEL("steampunk", Steampunk);
 USER_REGISTER_MODEL("sheep", SheepModel);
 // USER_REGISTER_MODEL("water", WaterModel);

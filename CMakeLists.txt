@@ -20,7 +20,7 @@ add_subdirectory(extern/assmip)
  # set(CMAKE_BUILD_TYPE Release)
  set(CMAKE_BUILD_TYPE Debug)
 
- add_definitions(-DTRACY_ENABLE)
+ # add_definitions(-DTRACY_ENABLE)
 
 
  # configuring imgui

@@ -23,6 +23,7 @@
 #include "assimp/quaternion.h"
 #include "assimp/vector3.h"
 #include "glm/ext/matrix_common.hpp"
+#include "texture.h"
 #include "wgpu_utils.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -414,63 +415,46 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
         }
     }
 
-    mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, false);
-    mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, false);
-    mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, false);
-
     auto& render_resource = app->getRendererResource();
     auto& mmesh = mMeshes[mesh->mMaterialIndex];
-    if (mmesh.mTexture == nullptr) {
-        for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); i++) {
-            mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, true);
+
+    if (getName() == "steampunk") {
+        std::cout << "for debug\n";
+    }
+
+    auto load_texture = [&](aiTextureType type, MaterialProps flag, Texture** target) {
+        for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
+            mTransform.mObjectInfo.setFlag(flag, true);
             aiString str;
-            material->GetTexture(aiTextureType_DIFFUSE, i, &str);
+            material->GetTexture(type, i, &str);
             /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
             std::string texture_path = RESOURCE_DIR;
             texture_path += "/";
             texture_path += str.C_Str();
-            mmesh.mTexture = new Texture{render_resource.device, texture_path};
-            if (mmesh.mTexture->createView() == nullptr) {
+            *target = new Texture{render_resource.device, texture_path};
+            if ((*target)->createView() == nullptr) {
                 std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName, texture_path);
             }
-            mmesh.mTexture->uploadToGPU(render_resource.queue);
-            mmesh.isTransparent = mmesh.mTexture->isTransparent();
+            (*target)->uploadToGPU(render_resource.queue);
+            mmesh.isTransparent = (*target)->isTransparent();
         }
+    };
+
+    if (mmesh.mTexture == nullptr) {
+        load_texture(aiTextureType_DIFFUSE, MaterialProps::HasDiffuseMap, &mmesh.mTexture);
     }
     if (mmesh.mSpecularTexture == nullptr) {
-        for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_SPECULAR); i++) {
-            mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, true);
-            aiString str;
-            material->GetTexture(aiTextureType_SPECULAR, i, &str);
-            /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
-            std::string texture_path = RESOURCE_DIR;
-            texture_path += "/";
-            texture_path += str.C_Str();
-            mmesh.mSpecularTexture = new Texture{render_resource.device, texture_path};
-            if (mmesh.mSpecularTexture->createView() == nullptr) {
-                std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName, texture_path);
-            }
-            mmesh.mSpecularTexture->uploadToGPU(render_resource.queue);
-            mmesh.isTransparent = mmesh.mSpecularTexture->isTransparent();
-        }
+        load_texture(aiTextureType_SPECULAR, MaterialProps::HasRoughnessMap, &mmesh.mSpecularTexture);
     }
     if (mmesh.mNormalMapTexture == nullptr) {
-        for (uint32_t i = 0; i < material->GetTextureCount(aiTextureType_HEIGHT); i++) {
-            mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, true);
-            aiString str;
-            material->GetTexture(aiTextureType_HEIGHT, i, &str);
-            /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
-            std::string texture_path = RESOURCE_DIR;
-            texture_path += "/";
-            texture_path += str.C_Str();
-            mmesh.mNormalMapTexture = new Texture{render_resource.device, texture_path};
-            if (mmesh.mNormalMapTexture->createView() == nullptr) {
-                std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName, texture_path);
-            }
-            mmesh.mNormalMapTexture->uploadToGPU(render_resource.queue);
-            mmesh.isTransparent = mmesh.mNormalMapTexture->isTransparent();
-        }
+        load_texture(aiTextureType_HEIGHT, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
     }
+    if (mmesh.mNormalMapTexture == nullptr) {
+        load_texture(aiTextureType_NORMALS, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
+    }
+    // std::cout << getName() << " mesh texture status:\n base color: " << (mmesh.mTexture == nullptr) << '\n';
+    // std::cout << "\tspecular texture: " << (mmesh.mSpecularTexture == nullptr) << '\n';
+    // std::cout << "\tnormal texture: " << (mmesh.mNormalMapTexture == nullptr) << '\n';
 }
 
 Model& Model::load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout) {
@@ -533,6 +517,10 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
     ExtractBonePositions();
 
+    // Default to non textured
+    mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, false);
+    mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, false);
+    mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, false);
     processNode(app, scene->mRootNode, scene);
 
     return *this;
@@ -574,6 +562,7 @@ Model& Model::useTexture(bool use) {
 Transform& Transform::moveBy(const glm::vec3& translationVec) {
     // justify position by the factor `m`
     // (void)translationVec;
+    mDirty = true;
     mPosition += translationVec;
     mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
     getLocalTransform();
@@ -581,6 +570,7 @@ Transform& Transform::moveBy(const glm::vec3& translationVec) {
 }
 
 Transform& Transform::moveTo(const glm::vec3& moveVec) {
+    mDirty = true;
     mPosition = moveVec;
     mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
     getLocalTransform();
@@ -813,6 +803,7 @@ void Model::userInterface() {
 
 Transform& Transform::scale(const glm::vec3& s) {
     mScale = s;
+    mDirty = true;
     mScaleMatrix = glm::scale(glm::mat4{1.0}, s);
     getLocalTransform();
     return *this;
@@ -820,6 +811,7 @@ Transform& Transform::scale(const glm::vec3& s) {
 
 Transform& Transform::rotate(const glm::vec3& around, float degree) {
     (void)degree;
+    mDirty = true;
     mEulerRotation += around;
     glm::vec3 euler_radians = glm::radians(mEulerRotation);
     this->mRotationMatrix = glm::toMat4(glm::quat(euler_radians));
