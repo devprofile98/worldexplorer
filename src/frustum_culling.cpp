@@ -28,29 +28,29 @@ frustum::Plane makePlane(const glm::vec3& a, const glm::vec3& b, const glm::vec3
 
 void Frustum::createFrustumPlanesFromCorner(const std::vector<glm::vec4>& corners) {
     // calculate,
-    auto nlb = corners[0];
-    auto nlt = corners[2];
-    auto nrb = corners[4];
-    auto nrt = corners[6];
-
-    auto flb = corners[1];
-    auto flt = corners[3];
-    auto frb = corners[5];
-    auto frt = corners[7];
-
-    frustum::Plane left = makePlane(nlt, nlb, flb);
-    frustum::Plane right = makePlane(nrb, nrt, frt);
-    frustum::Plane top = makePlane(nlt, flt, frt);
-    frustum::Plane bottom = makePlane(nlb, frb, flb);
-    frustum::Plane near = makePlane(nlt, nrt, nrb);
-    frustum::Plane far = makePlane(frb, frt, flt);
-
-    (void)left;
-    (void)right;
-    (void)top;
-    (void)bottom;
-    (void)near;
-    (void)far;
+    // auto nlb = corners[0];
+    // auto nlt = corners[2];
+    // auto nrb = corners[4];
+    // auto nrt = corners[6];
+    //
+    // auto flb = corners[1];
+    // auto flt = corners[3];
+    // auto frb = corners[5];
+    // auto frt = corners[7];
+    //
+    // frustum::Plane left = makePlane(nlt, nlb, flb);
+    // frustum::Plane right = makePlane(nrb, nrt, frt);
+    // frustum::Plane top = makePlane(nlt, flt, frt);
+    // frustum::Plane bottom = makePlane(nlb, frb, flb);
+    // frustum::Plane near = makePlane(nlt, nrt, nrb);
+    // frustum::Plane far = makePlane(frb, frt, flt);
+    //
+    // (void)left;
+    // (void)right;
+    // (void)top;
+    // (void)bottom;
+    // (void)near;
+    // (void)far;
 
     /*std::cout << "left: " << left << "\n";*/
     /*std::cout << "right: " << right << "\n";*/

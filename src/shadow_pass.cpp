@@ -21,8 +21,6 @@
 
 float sunlength = 5.0;
 
-extern const char* model_name;
-
 ShadowPass::ShadowPass(Application* app, const std::string& name) : RenderPass(name) { mApp = app; }
 
 ShadowFrustum::ShadowFrustum(Application* app, WGPUTextureView renderTarget, WGPUTextureView depthTexture)

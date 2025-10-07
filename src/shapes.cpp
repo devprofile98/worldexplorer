@@ -255,7 +255,7 @@ void LineEngine::initialize(Application* app) {
                          mMaxPoints * sizeof(glm::vec4));
     mCameraBindGroup.addBuffer(0,  //
                                BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
-                               sizeof(MyUniform));
+                               sizeof(CameraInfo));
     initCirclePipeline();
 
     auto layout = mBindGroup.createLayout(app, "line rendering bindgroup");
@@ -351,7 +351,7 @@ void LineEngine::initialize(Application* app) {
     mCameraBindingData[0].binding = 0;
     mCameraBindingData[0].buffer = app->getUniformBuffer().getBuffer();
     mCameraBindingData[0].offset = 0;
-    mCameraBindingData[0].size = sizeof(MyUniform);
+    mCameraBindingData[0].size = sizeof(CameraInfo);
 
     mBindGroup.create(app, mBindingData);
     mCameraBindGroup.create(app, mCameraBindingData);

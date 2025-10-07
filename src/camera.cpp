@@ -4,6 +4,13 @@
 
 #include "glm/geometric.hpp"
 
+void CameraInfo::setCamera(Camera& camera) {
+    projectMatrix = camera.getProjection();
+    viewMatrix = camera.getView();
+    modelMatrix = camera.getModel();
+    cameraWorldPosition = camera.getPos();
+}
+
 Camera::Camera() : mRotationMatrix({}), mScaleMatrix({}), mTranslationMatrix({}) {
     // mModelMatrix = mRotationMatrix * mTranslationMatrix * mScaleMatrix;
 }

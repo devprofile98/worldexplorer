@@ -56,25 +56,15 @@
 #include "wgpu_utils.h"
 // #define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
 
-static bool look_as_light = false;
+// static bool look_as_light = false;
 static bool cull_frustum = true;
 
-static float fov = 60.0f;
-static float znear = 0.01f;
-static float zfar = 200.0f;
-static size_t which_frustum = 0;
+// static size_t which_frustum = 0;
 static float middle_plane_length = 15.0f;
 static float far_plane_length = 50.0f;
-static float ddistance = 2.0f;
-static float dd = 5.0f;
+// static float ddistance = 2.0f;
+// static float dd = 5.0f;
 bool should_update_csm = true;
-
-double lastClickTime = 0.0;
-double lastClickX = 0.0;
-double lastClickY = 0.0;
-Frustum frustumm{};
-
-float rotrot = 0.f;
 
 void beginPass(NewRenderPass* renderPass, WGPUCommandEncoder encoder,
                std::function<void(WGPURenderPassEncoder encoder)> drawFunc) {
@@ -84,12 +74,6 @@ void beginPass(NewRenderPass* renderPass, WGPUCommandEncoder encoder,
     drawFunc(terrain_pass_encoder);
 
     wgpuRenderPassEncoderRelease(terrain_pass_encoder);
-}
-
-void MyUniform::setCamera(Camera& camera) {
-    projectMatrix = camera.getProjection();
-    viewMatrix = camera.getView();
-    modelMatrix = camera.getModel();
 }
 
 WGPUTextureFormat Application::getTextureFormat() { return mSurfaceFormat; }
@@ -103,15 +87,6 @@ void Application::initializePipeline() {
     shaderDesc.hintCount = 0;
     shaderDesc.hints = nullptr;
 #endif
-
-    mLightViewSceneTexture = new Texture{
-        mRendererResource.device,
-        1920,
-        1022,
-        TextureDimension::TEX_2D,
-        WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
-    };
-    mLightViewSceneTexture->createView();
 
     Texture grass_texture =
         Texture{mRendererResource.device,
@@ -139,10 +114,6 @@ void Application::initializePipeline() {
     sand_texture.createViewArray(0, 3);
     sand_texture.uploadToGPU(mRendererResource.queue);
 
-    Texture grass_normal_texture = Texture{mRendererResource.device, RESOURCE_DIR "/gravelly_sand_diff.jpg"};
-    grass_normal_texture.createView();
-    grass_normal_texture.uploadToGPU(mRendererResource.queue);
-
     Texture snow_texture = Texture{mRendererResource.device,
                                    std::vector<std::filesystem::path>{RESOURCE_DIR "/snow/snow_02_diff_1k.jpg",
                                                                       RESOURCE_DIR "/snow/snow_02_nor_gl_1k.jpg",
@@ -150,8 +121,6 @@ void Application::initializePipeline() {
                                    WGPUTextureFormat_RGBA8Unorm, 3};
     snow_texture.createViewArray(0, 3);
     snow_texture.uploadToGPU(mRendererResource.queue);
-
-    mLineEngine = new LineEngine{};
 
     // creating default diffuse texture
     mDefaultDiffuse = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
@@ -163,83 +132,77 @@ void Application::initializePipeline() {
     // Creating default meatlic-roughness texture
     mDefaultMetallicRoughness = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_metallic_roughness_texture_view = mDefaultMetallicRoughness->createView();
-    texture_data = {255, 120, 10, 255};  // White color for Default specular texture
+    texture_data = {255, 120, 10, 255};
     mDefaultMetallicRoughness->setBufferData(texture_data);
     mDefaultMetallicRoughness->uploadToGPU(mRendererResource.queue);
 
     // Creating default normal-map texture
     mDefaultNormalMap = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_normal_map_view = mDefaultNormalMap->createView();
-    texture_data = {0, 255, 0, 255};  // White color for Default specular texture
+    texture_data = {0, 255, 0, 255};
     mDefaultNormalMap->setBufferData(texture_data);
     mDefaultNormalMap->uploadToGPU(mRendererResource.queue);
 
     // Initializing Default bindgroups
-    mBindingGroup
-        .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(MyUniform) * 10)
-        .addBuffer(1, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t))
-        .addSampler(2, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering)
-        .addBuffer(3, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(LightingUniforms))
-        .addBuffer(4, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(Light) * 10)
-        .addBuffer(5, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float))
-        .addTexture(6, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
-        .addTexture(7, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
-        .addTexture(8, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
-        .addTexture(9, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
-        .addTexture(10, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH, TextureViewDimension::ARRAY_2D)
-        .addBuffer(11, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 5)
-        .addSampler(12, BindGroupEntryVisibility::FRAGMENT, SampleType::Compare)
-        .addBuffer(13, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
-                   mInstanceManager->mBufferSize);
+    WGPUBindGroupLayout bind_group_layout =
+        mBindingGroup
+            .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
+                       sizeof(CameraInfo) * 10)
+            .addBuffer(1, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t))
+            .addSampler(2, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering)
+            .addBuffer(3, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(LightingUniforms))
+            .addBuffer(4, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(Light) * 10)
+            .addBuffer(5, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float))
+            .addTexture(6, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
+            .addTexture(7, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
+            .addTexture(8, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
+            .addTexture(9, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
+            .addTexture(10, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
+                        TextureViewDimension::ARRAY_2D)
+            .addBuffer(11, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 5)
+            .addSampler(12, BindGroupEntryVisibility::FRAGMENT, SampleType::Compare)
+            .addBuffer(13, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+                       mInstanceManager->mBufferSize)
+            .createLayout(this, "binding group layout");
 
     /* Default textures for the render pass, if a model doenst have textures, these will be used */
-    mDefaultTextureBindingGroup
-        .addTexture(0,  //
-                    BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
-        .addTexture(1, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
-        .addTexture(2, BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
-                    TextureViewDimension::VIEW_2D);
+    WGPUBindGroupLayout texture_bind_group_layout =
+        mDefaultTextureBindingGroup
+            .addTexture(0, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
+            .addTexture(1, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
+            .addTexture(2, BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
+                        TextureViewDimension::VIEW_2D)
+            .createLayout(this, "default texture bindgroup layout");
 
     /* Default camera index buffer
      * Each render pass could have its own camear index to use a different camera in shader
      * */
-    mDefaultCameraIndexBindgroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
-                                           sizeof(uint32_t));
-    mDefaultClipPlaneBG.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
-                                  sizeof(glm::vec4));
-    mDefaultVisibleBuffer.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
-                                    sizeof(uint32_t) * 13000);
+    WGPUBindGroupLayout camera_bind_group_layout =
+        mDefaultCameraIndexBindgroup
+            .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t))
+            .createLayout(this, "default camera index bindgroup layout");
+
+    WGPUBindGroupLayout clipplane_bind_group_layout =
+        mDefaultClipPlaneBG
+            .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(glm::vec4))
+            .createLayout(this, "default clip plane bindgroup layout");
+
+    WGPUBindGroupLayout visible_bind_group_layout =
+        mDefaultVisibleBuffer
+            .addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+                       sizeof(uint32_t) * 13000)
+            .createLayout(this, "default visible index layout");
 
     /* Default Object Detail bindgroup*/
     BindingGroup object_information;
-    object_information
-        .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(ObjectInfo))
-        .addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4));
-
-    /* Creating bindgroup layouts */
-    /* ************************** */
-    WGPUBindGroupLayout bind_group_layout = mBindingGroup.createLayout(this, "binding group layout");
-    WGPUBindGroupLayout texture_bind_group_layout =
-        mDefaultTextureBindingGroup.createLayout(this, "default texture bindgroup layout");
-
-    WGPUBindGroupLayout camera_bind_group_layout =
-        mDefaultCameraIndexBindgroup.createLayout(this, "default camera index bindgroup layout");
-
-    WGPUBindGroupLayout clipplane_bind_group_layout =
-        mDefaultClipPlaneBG.createLayout(this, "default clip plane bindgroup layout");
-
-    WGPUBindGroupLayout visible_bind_group_layout =
-        mDefaultVisibleBuffer.createLayout(this, "default visible index layout");
-
     WGPUBindGroupLayout obj_transform_layout =
-        object_information.createLayout(this, "Object Tranformation Matrix uniform");
+        object_information
+            .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(ObjectInfo))
+            .addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4))
+            .createLayout(this, "Object Tranformation Matrix uniform");
 
-    mBindGroupLayouts[0] = bind_group_layout;
-    mBindGroupLayouts[1] = obj_transform_layout;
-    mBindGroupLayouts[2] = texture_bind_group_layout;
-    mBindGroupLayouts[3] = camera_bind_group_layout;
-    mBindGroupLayouts[4] = clipplane_bind_group_layout;
-    mBindGroupLayouts[5] = visible_bind_group_layout;
+    mBindGroupLayouts = {bind_group_layout,        obj_transform_layout,        texture_bind_group_layout,
+                         camera_bind_group_layout, clipplane_bind_group_layout, visible_bind_group_layout};
 
     mPipeline = new Pipeline{this,
                              {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
@@ -369,9 +332,6 @@ void Application::initializePipeline() {
     mTerrainForReflection->setDepthStencilAttachment({mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Load,
                                                       false, StoreOp::Undefined, LoadOp::Undefined, false});
     mTerrainForReflection->init();
-    //
-    //
-    //
 
     mWaterRenderPass =
         new WaterPass{this, mWaterPass->mRenderTarget, mWaterRefractionPass->mRenderTarget, "Water pass"};
@@ -388,9 +348,7 @@ void Application::initializePipeline() {
     mBindingData[0].binding = 0;
     mBindingData[0].buffer = mUniformBuffer.getBuffer();
     mBindingData[0].offset = 0;
-    mBindingData[0].size = sizeof(MyUniform) * 10;
-
-    mLineEngine->initialize(this);
+    mBindingData[0].size = sizeof(CameraInfo) * 10;
 
     mBindingData[1] = {};
     mBindingData[1].nextInChain = nullptr;
@@ -520,19 +478,8 @@ void Application::initializeBuffers() {
     mLightManager = LightManager::init(this);
     mInstanceManager = new InstanceManager{this, sizeof(InstanceData) * 100000 * 10, 100000};
 
-    terrain.generate(200, 8, terrainData).uploadToGpu(this);
-    std::cout << "Generate is " << terrainData.size() << '\n';
-
-    shapes = new Cube{this};
-    shapes->mTransform.moveTo(glm::vec3{10.0f, 1.0f, 4.0f});
-
-    plane = new Plane{this};
-    plane->mName = "Plane";
-    plane->mTransform.moveTo(glm::vec3{3.0f, 1.0f, 4.0f}).scale(glm::vec3{0.01, 1.0, 1.0});
-    plane->setTransparent(false);
-
     mUniformBuffer.setLabel("MVP matrices matrix")
-        .setSize(sizeof(MyUniform) * 10)
+        .setSize(sizeof(CameraInfo) * 10)
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setMappedAtCraetion()
         .create(this);
@@ -540,9 +487,7 @@ void Application::initializeBuffers() {
     mUniforms.time = 1.0f;
     mUniforms.color = {0.0f, 1.0f, 0.4f, 1.0f};
     // setupCamera(mUniforms);
-    mCamera = Camera{{-0.0f, -0.0f, 0.0f}, glm::vec3{0.8f}, {1.0, 0.0, 0.0}, 0.0};
-    mUniforms.setCamera(mCamera);
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), 0, &mUniforms, sizeof(MyUniform) * 10);
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), 0, &mUniforms, sizeof(CameraInfo) * 10);
 
     mDirectionalLightBuffer.setLabel("Directional light buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
@@ -730,6 +675,15 @@ bool Application::initialize() {
 
     initializeBuffers();
     initializePipeline();
+
+    mLineEngine = new LineEngine{};
+    mLineEngine->initialize(this);
+
+    mCamera = Camera{{-0.0f, -0.0f, 0.0f}, glm::vec3{0.8f}, {1.0, 0.0, 0.0}, 0.0};
+    mUniforms.setCamera(mCamera);
+
+    terrain.generate(200, 8, terrainData).uploadToGpu(this);
+    std::cout << "Generate is " << terrainData.size() << '\n';
     terrain.createSomeBinding(this);
 
     return true;
@@ -788,7 +742,7 @@ void Application::mainLoop() {
 
     // ---------------- 1 - Preparing for shadow pass ---------------
     // The first pass is the shadow pass, only based on the opaque objects
-    if (!look_as_light && should_update_csm) {
+    if (should_update_csm) {
         auto all_scenes = mShadowPass->createFrustumSplits(
             corners,
             {
@@ -801,7 +755,6 @@ void Application::mainLoop() {
         uint32_t new_value = all_scenes.size();
         wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &new_value, sizeof(uint32_t));
 
-        frustumm.createFrustumPlanesFromCorner(corners);
         wgpuQueueWriteBuffer(mRendererResource.queue, mLightSpaceTransformation.getBuffer(), 0, all_scenes.data(),
                              sizeof(Scene) * all_scenes.size());
     }
@@ -813,9 +766,8 @@ void Application::mainLoop() {
     //-------------- End of shadow pass
 
     mUniforms.setCamera(mCamera);
-    mUniforms.cameraWorldPosition = getCamera().getPos();
 
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), 0, &mUniforms, sizeof(MyUniform));
+    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), 0, &mUniforms, sizeof(CameraInfo));
 
     // ---------------- 2 - begining of the opaque object color pass ---------------
 
@@ -826,7 +778,7 @@ void Application::mainLoop() {
             // if (model != ModelRegistry::instance().getLoadedModel(Visibility_User).end()) {
             static Camera camera = getCamera();
             camera = getCamera();
-            static MyUniform muniform = mUniforms;
+            static CameraInfo muniform = mUniforms;
             float diff = 2 * (camera.getPos().z - model->mTransform.getPosition().z);
             auto new_pos = camera.getPos();
             new_pos.z -= diff;
@@ -834,14 +786,14 @@ void Application::mainLoop() {
             camera.mPitch *= -1.0;
             camera.updateCamera();
             muniform.setCamera(camera);
-            muniform.cameraWorldPosition = camera.getPos();
-            wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), sizeof(MyUniform), &muniform,
-                                 sizeof(MyUniform));
+            wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), sizeof(CameraInfo), &muniform,
+                                 sizeof(CameraInfo));
             glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(muniform.viewMatrix));
             glm::mat4 mvp = muniform.projectMatrix * viewNoTranslation;
             auto reflected_camera = mvp;
             wgpuQueueWriteBuffer(mRendererResource.queue, mSkybox->mReflectedCameraMatrix.getBuffer(), 0,
                                  &reflected_camera, sizeof(glm::mat4));
+            break;
         }
     }
 
@@ -968,11 +920,8 @@ void Application::mainLoop() {
             wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mDepthPrePass->getPipeline()->getPipeline());
             for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
                 if (model->mName != "water") {
-                    // continue;
                     model->draw(this, render_pass_encoder);
                 }
-                // if (!model->isTransparent()) {
-                // }
             }
         }
 
@@ -1042,10 +991,6 @@ void Application::mainLoop() {
                 }
             }
         }
-
-        // for (const auto& model : mLines) {
-        //     model->draw(this, render_pass_encoder);
-        // }
     }
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);
@@ -1372,7 +1317,7 @@ void Application::updateProjectionMatrix() {
     int width, height;
     glfwGetFramebufferSize(mRendererResource.window, &width, &height);
     float ratio = width / (float)height;
-    mUniforms.projectMatrix = glm::perspective(fov * Camera::PI / 180, ratio, znear, zfar);
+    mUniforms.projectMatrix = glm::perspective(mCamera.mFov * Camera::PI / 180, ratio, mCamera.mZnear, mCamera.mZfar);
     mCamera.setProjection(mUniforms.projectMatrix);
 }
 
@@ -1416,16 +1361,16 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             if (ImGui::CollapsingHeader("Camera",
                                         ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
                                                                             //
-                if (ImGui::SliderFloat("z-near", &znear, 0.0, 180.0f) ||
-                    ImGui::SliderFloat("z-far", &zfar, 0.0, 1000.0f) ||
-                    ImGui::DragFloat("FOV", &fov, 0.1, 0.0, 1000.0f)) {
+                if (ImGui::SliderFloat("z-near", &mCamera.mZnear, 0.0, 180.0f) ||
+                    ImGui::SliderFloat("z-far", &mCamera.mZfar, 0.0, 1000.0f) ||
+                    ImGui::DragFloat("FOV", &mCamera.mFov, 0.1, 0.0, 1000.0f)) {
                     updateProjectionMatrix();
                 }
 
                 if (ImGui::Button("Reset to default Params")) {
-                    fov = 60.0f;
-                    znear = 0.01f;
-                    zfar = 200.0f;
+                    mCamera.mFov = 60.0f;
+                    mCamera.mZnear = 0.01f;
+                    mCamera.mZfar = 200.0f;
                     updateProjectionMatrix();
                 }
 
@@ -1447,10 +1392,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                 ImGui::SliderFloat("frustum split factor", &middle_plane_length, 1.0, 100);
                 ImGui::SliderFloat("far split factor", &far_plane_length, 1.0, 200);
                 ImGui::SliderFloat("visualizer", &mUniforms.time, -1.0, 1.0);
-                if (ImGui::InputInt("near far frstum", (int*)&which_frustum)) {
-                    /*auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());*/
-                }
-                ImGui::Text("Cascade number #%zu", which_frustum);
 
                 ImGui::Checkbox("shoud update csm", &should_update_csm);
 
@@ -1514,42 +1455,10 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
     static glm::vec3 start = glm::vec3{0.0f};
     static glm::vec3 end = glm::vec3{0.0f};
-    static glm::vec3 color = glm::vec3{0.0f};
 
     ImGui::InputFloat3("Start", glm::value_ptr(start));
     ImGui::InputFloat3("End", glm::value_ptr(end));
 
-    ImGui::ColorPicker3("lines color", glm::value_ptr(color));
-    if (ImGui::Button("Create", ImVec2(100, 30))) {
-        // auto& item = ModelRegistry::instance().getLoadedModel(Visibility_User);
-        // auto human = iter.find("human");
-        // auto sheep = iter.find("sheep");
-        // // auto sphere = iter.find("sphere");
-        // if (human != iter.end()) {
-        //     human->second->mAnimationSecond = std::fmod(time, human->second->mAnimationDuration) * 1000.0f;
-        //     human->second->ExtractBonePositions();
-        //     // loadSphereAtHumanBones(this, human->second, sphere->second);
-        //     // wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 *
-        //     // sizeof(glm::mat4),
-        //     //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
-        // }
-        // if (sheep != iter.end()) {
-        //     sheep->second->mAnimationSecond = std::fmod(time, sheep->second->mAnimationDuration) * 1000.0f;
-        //     sheep->second->ExtractBonePositions();
-        //     // loadSphereAtHumanBones(this, human->second, sphere->second);
-        //     // wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultBoneFinalTransformData.getBuffer(), 0 *
-        //     // sizeof(glm::mat4),
-        //     //                      human->second->mFinalTransformations.data(), 100 * sizeof(glm::mat4));
-        std::cout << "Line got created !";
-        // mLines.emplace_back(new Line(this, start, end, 100.0, color));
-    }
-    if (ImGui::Button("remove frustum", ImVec2(100, 30))) {
-        // for (int i = 0; i < 24; i++) {
-        //     mLoadedModel.pop_back();
-        // };
-    }
-    ImGui::SliderFloat("distance", &ddistance, 0.0, 30.0);
-    ImGui::SliderFloat("dd", &dd, 0.0, 120.0);
     ImGui::End();
 
     // Draw the UI
@@ -1568,7 +1477,7 @@ BindingGroup& Application::getBindingGroup() { return mBindingGroup; }
 
 Buffer& Application::getUniformBuffer() { return mUniformBuffer; }
 
-MyUniform& Application::getUniformData() { return mUniforms; }
+CameraInfo& Application::getUniformData() { return mUniforms; }
 
 const WGPUBindGroupLayout& Application::getObjectBindGroupLayout() const { return mBindGroupLayouts[1]; }
 const WGPUBindGroupLayout* Application::getBindGroupLayouts() const { return mBindGroupLayouts.data(); }

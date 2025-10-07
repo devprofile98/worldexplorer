@@ -9,6 +9,19 @@
 #include "glm/glm.hpp"
 #include "model.h"
 
+class Camera;
+struct CameraInfo {
+        glm::mat4 projectMatrix;
+        glm::mat4 viewMatrix;
+        glm::mat4 modelMatrix;
+        glm::vec4 color;
+        glm::vec3 cameraWorldPosition;
+        float time;
+        // float _padding[3];
+
+        void setCamera(Camera& camera);
+};
+
 struct CameraState {
         // angles.x is the rotation of the camera around the global vertical axis, affected by mouse.x
         // angles.y is the rotation of the camera around its local horizontal axis, affected by mouse.y
@@ -83,6 +96,9 @@ class Camera {
 
         float mYaw = -90.0f;
         float mPitch = 0;
+        float mFov = 60.0f;
+        float mZnear = 0.01f;
+        float mZfar = 200.0f;
 
         int mLastX = 0;
         int mLastY = 0;

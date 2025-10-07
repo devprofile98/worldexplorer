@@ -19,7 +19,7 @@ TransparencyPass::TransparencyPass(Application* app) : mApp(app) {
 
     mUniformBuffer.setLabel("Transparency Uniform buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-        .setSize(sizeof(MyUniform))
+        .setSize(sizeof(CameraInfo))
         .setMappedAtCraetion()
         .create(app);
 
@@ -72,7 +72,7 @@ void TransparencyPass::initializePass() {
         (1920 * 1080 * 4) * sizeof(LinkedListElement);  // (sizeof(glm::vec4) + sizeof(float) + sizeof(uint32_t));
     /*sizeof(LinkedListElement);*/
     std::cout << "the linkedlist size is" << linkedlist_size << '\n';
-    mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(MyUniform));
+    mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(CameraInfo));
     mBindingGroup.addBuffer(1, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::STORAGE, head_size);
     mBindingGroup.addBuffer(2, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::STORAGE, linkedlist_size);
     mBindingGroup.addTexture(3, BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::DEPTH,
@@ -105,7 +105,7 @@ void TransparencyPass::initializePass() {
     mRenderPipeline->setMultiSampleState().createPipeline(mApp);
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
-    mBindingData[0].size = sizeof(MyUniform);
+    mBindingData[0].size = sizeof(CameraInfo);
     mBindingData[0].buffer = mUniformBuffer.getBuffer();
 
     mBindingData[1].nextInChain = nullptr;

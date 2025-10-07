@@ -31,18 +31,6 @@
 
 class ShadowPass;
 
-struct MyUniform {
-        glm::mat4 projectMatrix;
-        glm::mat4 viewMatrix;
-        glm::mat4 modelMatrix;
-        glm::vec4 color;
-        glm::vec3 cameraWorldPosition;
-        float time;
-        // float _padding[3];
-
-        void setCamera(Camera& camera);
-};
-
 /*
  * A struct to gather primitives for our renderer
  * Note: Pipelines and bindgroups are not part of this struct
@@ -98,7 +86,7 @@ class Application {
         RendererResource& getRendererResource();
         BindingGroup& getBindingGroup();
         Buffer& getUniformBuffer();
-        MyUniform& getUniformData();
+        CameraInfo& getUniformData();
         const WGPUBindGroupLayout& getObjectBindGroupLayout() const;
         const WGPUBindGroupLayout* getBindGroupLayouts() const;
         const std::vector<WGPUBindGroupEntry> getDefaultTextureBindingData() const;
@@ -113,7 +101,6 @@ class Application {
         WGPUTextureFormat getTextureFormat();
         WGPUSampler getDefaultSampler();
         // textures
-        Texture* mLightViewSceneTexture = nullptr;
         Texture* mDefaultDiffuse = nullptr;
         Texture* mDefaultMetallicRoughness = nullptr;
         Texture* mDefaultNormalMap = nullptr;
@@ -149,8 +136,6 @@ class Application {
         LightManager* mLightManager;
         Pipeline* mPipeline;
         Pipeline* mStenctilEnabledPipeline;
-        Cube* shapes;
-        Plane* plane;
 
         ModelRegistry mViewportModelRegistery;
 
@@ -199,7 +184,7 @@ class Application {
         glm::vec4 mDefaultPlane{0.0, 0.0, 1.0, -100};
 
         // WGPUBuffer mPointlightBuffer = {};
-        MyUniform mUniforms;
+        CameraInfo mUniforms;
         uint32_t mIndexCount;
 
         WGPUTextureView mDepthTextureView;
