@@ -164,3 +164,10 @@ const glm::vec3& Camera::getPos() const { return mCameraPos; };
 DragState& Camera::getDrag() { return mDragState; }
 
 CameraState& Camera::getSate() { return mCameraState; }
+
+Camera& Camera::update(CameraInfo& cameraUniform, int width, int height) {
+    float ratio = width / (float)height;
+    cameraUniform.projectMatrix = glm::perspective(mFov * Camera::PI / 180, ratio, mZnear, mZfar);
+    setProjection(cameraUniform.projectMatrix);
+    return *this;
+}

@@ -95,3 +95,13 @@ WGPURenderPassDescriptor* NewRenderPass::init() {
     mRenderPassDesc.occlusionQuerySet = nullptr;
     return &mRenderPassDesc;
 }
+
+void NewRenderPass::beginPass(NewRenderPass* renderPass, WGPUCommandEncoder encoder,
+                              std::function<void(WGPURenderPassEncoder encoder)> drawFunc) {
+    WGPURenderPassEncoder terrain_pass_encoder =
+        wgpuCommandEncoderBeginRenderPass(encoder, &renderPass->mRenderPassDesc);
+
+    drawFunc(terrain_pass_encoder);
+
+    wgpuRenderPassEncoderRelease(terrain_pass_encoder);
+}

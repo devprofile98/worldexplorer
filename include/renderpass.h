@@ -111,6 +111,9 @@ struct NewRenderPass {
         ColorAttachment mColorAttachment;
         DepthStencilAttachment mDepthStencilAttachment;
         WGPURenderPassDescriptor mRenderPassDesc;
+
+        static void beginPass(NewRenderPass* renderPass, WGPUCommandEncoder encoder,
+                              std::function<void(WGPURenderPassEncoder encoder)> drawFunc);
 };
 
 #endif  // WEBGPUTEST_ABSTRACT_RENDER_PASS_H

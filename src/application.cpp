@@ -56,25 +56,11 @@
 #include "wgpu_utils.h"
 // #define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
 
-// static bool look_as_light = false;
 static bool cull_frustum = true;
 
-// static size_t which_frustum = 0;
 static float middle_plane_length = 15.0f;
 static float far_plane_length = 50.0f;
-// static float ddistance = 2.0f;
-// static float dd = 5.0f;
 bool should_update_csm = true;
-
-void beginPass(NewRenderPass* renderPass, WGPUCommandEncoder encoder,
-               std::function<void(WGPURenderPassEncoder encoder)> drawFunc) {
-    WGPURenderPassEncoder terrain_pass_encoder =
-        wgpuCommandEncoderBeginRenderPass(encoder, &renderPass->mRenderPassDesc);
-
-    drawFunc(terrain_pass_encoder);
-
-    wgpuRenderPassEncoderRelease(terrain_pass_encoder);
-}
 
 WGPUTextureFormat Application::getTextureFormat() { return mSurfaceFormat; }
 
@@ -766,83 +752,7 @@ void Application::mainLoop() {
     //-------------- End of shadow pass
 
     mUniforms.setCamera(mCamera);
-
     wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), 0, &mUniforms, sizeof(CameraInfo));
-
-    // ---------------- 2 - begining of the opaque object color pass ---------------
-
-    // inverting pitch and reflect camera based on the water plane
-    // auto water_plane = ModelRegistry::instance().getLoadedModel(Visibility_User).find("water");
-    for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-        if (model->mName == "water") {
-            // if (model != ModelRegistry::instance().getLoadedModel(Visibility_User).end()) {
-            static Camera camera = getCamera();
-            camera = getCamera();
-            static CameraInfo muniform = mUniforms;
-            float diff = 2 * (camera.getPos().z - model->mTransform.getPosition().z);
-            auto new_pos = camera.getPos();
-            new_pos.z -= diff;
-            camera.setPosition(new_pos);
-            camera.mPitch *= -1.0;
-            camera.updateCamera();
-            muniform.setCamera(camera);
-            wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), sizeof(CameraInfo), &muniform,
-                                 sizeof(CameraInfo));
-            glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(muniform.viewMatrix));
-            glm::mat4 mvp = muniform.projectMatrix * viewNoTranslation;
-            auto reflected_camera = mvp;
-            wgpuQueueWriteBuffer(mRendererResource.queue, mSkybox->mReflectedCameraMatrix.getBuffer(), 0,
-                                 &reflected_camera, sizeof(glm::mat4));
-            break;
-        }
-    }
-
-    {
-        WGPURenderPassDescriptor render_pass_descriptor = {};
-
-        {
-            render_pass_descriptor.nextInChain = nullptr;
-
-            static WGPURenderPassColorAttachment color_attachment = {};
-            color_attachment.view = mWaterPass->mRenderTargetView;
-            color_attachment.resolveTarget = nullptr;
-            color_attachment.loadOp = WGPULoadOp_Clear;
-            color_attachment.storeOp = WGPUStoreOp_Store;
-            color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
-#ifndef WEBGPU_BACKEND_WGPU
-            color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-#endif  // NOT WEBGPU_BACKEND_WGPU
-
-            render_pass_descriptor.colorAttachmentCount = 1;
-            render_pass_descriptor.colorAttachments = &color_attachment;
-
-            static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
-            depth_stencil_attachment.view = mWaterPass->mDepthTextureView;
-            depth_stencil_attachment.depthClearValue = 1.0f;
-            depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
-            depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
-            depth_stencil_attachment.depthReadOnly = false;
-            depth_stencil_attachment.stencilClearValue = 0;
-            depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Clear;
-            depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
-            depth_stencil_attachment.stencilReadOnly = false;
-            render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
-            render_pass_descriptor.timestampWrites = nullptr;
-        }
-
-        WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
-        glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mUniforms.viewMatrix));
-        glm::mat4 mvp = mUniforms.projectMatrix * viewNoTranslation;
-        wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mSkybox->getPipeline()->getPipeline());
-        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 0, mSkybox->mReflectedBindingGroup.getBindGroup(), 0,
-                                          nullptr);
-        mSkybox->draw(this, render_pass_encoder, mvp);
-
-        wgpuRenderPassEncoderEnd(render_pass_encoder);
-        wgpuRenderPassEncoderRelease(render_pass_encoder);
-    }
-
-    mWaterPass->execute(encoder);
 
     // Test for scene hirarchy
     // static bool reparenting = true;
@@ -871,38 +781,7 @@ void Application::mainLoop() {
     //     }
     // }
     // }
-
-    // ---------- Terrain Render Pass for Water Reflection
-    beginPass(mTerrainForReflection, encoder, [&](WGPURenderPassEncoder pass_encoder) {
-        wgpuRenderPassEncoderSetPipeline(pass_encoder, mTerrainPass->getPipeline()->getPipeline());
-        wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(), 0,
-                                          nullptr);
-
-        wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
-
-        terrain.draw(this, pass_encoder, mBindingData);
-
-        wgpuRenderPassEncoderEnd(pass_encoder);
-    });
-
-    //----------------------------  Water Refraction Pass
-    mWaterRefractionPass->execute(encoder);
-    // ----------------------------------------------
-
-    // ---------- Terrain Render Pass for Water Refraction
-
-    beginPass(mTerrainForRefraction, encoder, [&](WGPURenderPassEncoder pass_encoder) {
-        wgpuRenderPassEncoderSetPipeline(pass_encoder, mTerrainPass->getPipeline()->getPipeline());
-        wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0,
-                                          nullptr);
-        wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
-
-        terrain.draw(this, pass_encoder, mBindingData);
-
-        wgpuRenderPassEncoderEnd(pass_encoder);
-    });
+    drawWater(this);
 
     // Depth pre-pass to reduce number of overdraws
     {
@@ -1316,9 +1195,7 @@ void Application::terminateDepthBuffer() {
 void Application::updateProjectionMatrix() {
     int width, height;
     glfwGetFramebufferSize(mRendererResource.window, &width, &height);
-    float ratio = width / (float)height;
-    mUniforms.projectMatrix = glm::perspective(mCamera.mFov * Camera::PI / 180, ratio, mCamera.mZnear, mCamera.mZfar);
-    mCamera.setProjection(mUniforms.projectMatrix);
+    mCamera.update(mUniforms, width, height);
 }
 
 // called in onInit

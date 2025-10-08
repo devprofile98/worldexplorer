@@ -126,8 +126,9 @@ class Application {
         std::vector<WGPUBindGroupEntry> mBindingData{20};
         WGPUTextureView mCurrentTargetView;
         LineEngine* mLineEngine;
+        SkyBox* mSkybox;
 
-    private:
+        // private:
         size_t mWindowWidth = 1920;
         size_t mWindowHeight = 1080;
         Camera mCamera;
@@ -195,8 +196,6 @@ class Application {
         // WGPUTexture mShadowDepthTexture;
 
         WGPURenderPipelineDescriptor mPipelineDescriptor;
-
-        SkyBox* mSkybox;
 };
 
 #endif  // TEST_WGPU_APPLICTION_H

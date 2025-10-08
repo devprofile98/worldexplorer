@@ -666,7 +666,7 @@ USER_REGISTER_MODEL("coniferous", ConiferousModel);
 // USER_REGISTER_MODEL("grass", GrassModel);
 USER_REGISTER_MODEL("steampunk", Steampunk);
 USER_REGISTER_MODEL("sheep", SheepModel);
-// USER_REGISTER_MODEL("water", WaterModel);
+USER_REGISTER_MODEL("water", WaterModel);
 
 // USER_REGISTER_MODEL("sphere", SphereModel);
 //
