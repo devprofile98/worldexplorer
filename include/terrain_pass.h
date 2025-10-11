@@ -60,6 +60,4 @@ class ViewPort3DPass : public RenderPass {
         Application* mApp;
 };
 
-void drawWater(Application* app);
-
 #endif  // !WEBGPUTEST_TERRAIN_PASS_H

@@ -30,7 +30,7 @@ std::string readFile(const fs::path& path) {
     std::ifstream file{path};
     if (!file.is_open()) {
         std::cout << "Failed to open shader at " << path << std::endl;
-        return nullptr;
+        return {};
     }
 
     file.seekg(0, std::ios::end);

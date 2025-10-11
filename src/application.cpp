@@ -519,18 +519,25 @@ void wgpuPollEvents([[maybe_unused]] WGPUDevice device, [[maybe_unused]] bool yi
 }
 
 void Application::onResize() {
+    std::cout << "REsize called out of nowhere \n";
+
+    // mWindowWidth = mWindow.mWindowSize.x;
+    // mWindowHeight = mWindow.mWindowSize.y;
+    setWindowSize(mWindow.mWindowSize.x, mWindow.mWindowSize.y);
     // Terminate in reverse order
     terminateDepthBuffer();
     terminateSwapChain();
 
     // Re-init
 
-    initSwapChain();
+    auto res = initSwapChain();
+    std::cout << "init swapchain returend this " << res << '\n';
     initDepthBuffer();
 
     mOutlinePass->mTextureView = mDepthTexture->createViewDepthOnly();
     mOutlinePass->createSomeBinding();
     updateProjectionMatrix();
+    std::cout << "111REsize called out of nowhere \n";
 }
 
 void onWindowResize(GLFWwindow* window, int width, int height) {
@@ -547,32 +554,30 @@ void onWindowResize(GLFWwindow* window, int width, int height) {
 bool Application::initialize() {
     // We create a descriptor
 
-    glfwInit();
-
-    if (!glfwInit()) {
-        std::cerr << "Could not initialize GLFW!" << std::endl;
-        return false;
-    }
-
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);  // <-- extra info for glfwCreateWindow
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-
     auto [window_width, window_height] = getWindowSize();
-    GLFWwindow* provided_window = glfwCreateWindow(window_width, window_height, "World Explorer", nullptr, nullptr);
-    if (!provided_window) {
-        std::cerr << "Could not open window!" << std::endl;
-        glfwTerminate();
+    mWindow.mName = "World Explorer";
+    mWindow.mWindowSize = {mWindowWidth, mWindowHeight};
+    mWindow.mResizeCallback = [&]() {
+        this->setWindowSize(mWindow.mWindowSize.x, mWindow.mWindowSize.y);
+        this->onResize();
+    };
+    auto res = mWindow.create({window_width, window_height});
+
+    if (!res.has_value()) {
+        std::cout << "Faield to create windows\n";
         return false;
     }
-    glfwMakeContextCurrent(provided_window);  // window: your GLFWwindow*
-    glfwSwapInterval(0);
+    // GLFWwindow* provided_window = glfwCreateWindow(window_width, window_height, "World Explorer", nullptr, nullptr);
+    GLFWwindow* provided_window = res.value();
+
     // Set up Callbacks
-    glfwSetWindowUserPointer(provided_window, this);  // set user pointer to be used in the callback function
-    glfwSetFramebufferSizeCallback(provided_window, onWindowResize);
-    glfwSetCursorPosCallback(provided_window, InputManager::handleMouseMove);
-    glfwSetMouseButtonCallback(provided_window, InputManager::handleButton);
-    glfwSetScrollCallback(provided_window, InputManager::handleScroll);
-    glfwSetKeyCallback(provided_window, InputManager::handleKeyboard);
+    // TODO refactor these into their own files
+    glfwSetWindowUserPointer(mWindow.getWindow(), this);  // set user pointer to be used in the callback function
+    glfwSetFramebufferSizeCallback(mWindow.getWindow(), onWindowResize);
+    glfwSetCursorPosCallback(mWindow.getWindow(), InputManager::handleMouseMove);
+    glfwSetMouseButtonCallback(mWindow.getWindow(), InputManager::handleButton);
+    glfwSetScrollCallback(mWindow.getWindow(), InputManager::handleScroll);
+    glfwSetKeyCallback(mWindow.getWindow(), InputManager::handleKeyboard);
 
     Screen::instance().initialize(this);
     InputManager::instance().mMouseMoveListeners.push_back(&Screen::instance());
@@ -599,11 +604,12 @@ bool Application::initialize() {
     provided_surface = glfwCreateWindowWGPUSurface(instance, provided_window);
 
     {
-        int width, height;
-        // Use glfwGetFramebufferSize to get the dimensions of the window's framebuffer.
-        glfwGetFramebufferSize(provided_window, &width, &height);
-        std::cout << std::format("width: {} heigth: {}\n", width, height);
-        setWindowSize(width, height);
+        std::cout << provided_surface << "sdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdf\n";
+        // int width, height;
+        // // Use glfwGetFramebufferSize to get the dimensions of the window's framebuffer.
+        // glfwGetFramebufferSize(provided_window, &width, &height);
+        // std::cout << std::format("width: {} heigth: {}\n", width, height);
+        setWindowSize(mWindow.mWindowSize.x, mWindow.mWindowSize.y);
     }
 
     auto adapter = requestAdapterSync(instance, provided_surface);
@@ -890,35 +896,7 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderRelease(render_pass_encoder);
     }
     // ---------------------------------------------------------------------
-    {
-        // {
-        ZoneScopedNC("Water pass", 0x00F0FF);
-        mWaterRenderPass->setColorAttachment(
-            {mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-        mWaterRenderPass->setDepthStencilAttachment(
-            {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false, 1.0});
-        mWaterRenderPass->init();
-
-        WGPURenderPassEncoder water_render_pass_encoder =
-            wgpuCommandEncoderBeginRenderPass(encoder, mWaterRenderPass->getRenderPassDescriptor());
-        for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-            if (model->mName == "water") {
-                // continue;
-                wgpuRenderPassEncoderSetPipeline(water_render_pass_encoder,
-                                                 mWaterRenderPass->getPipeline()->getPipeline());
-                wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 3,
-                                                  mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
-
-                wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 4,
-                                                  mWaterRenderPass->mWaterTextureBindGroup.getBindGroup(), 0, nullptr);
-                if (!model->isTransparent() == true) {
-                    model->draw(this, water_render_pass_encoder);
-                }
-            }
-        }
-        wgpuRenderPassEncoderEnd(water_render_pass_encoder);
-        wgpuRenderPassEncoderRelease(water_render_pass_encoder);
-    }
+    waterBlend(this);
 
     // terrain pass
     {
@@ -1123,15 +1101,15 @@ WGPULimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
 
 bool Application::initSwapChain() {
     // Get the current size of the window's framebuffer:
-    int width, height;
-    glfwGetFramebufferSize(mRendererResource.window, &width, &height);
+    // int width, height;
+    // glfwGetFramebufferSize(mRendererResource.window, &width, &height);
 
     WGPUSurfaceConfiguration surface_configuration = {};
     surface_configuration.nextInChain = nullptr;
     // Configure the texture created for swap chain
 
-    surface_configuration.width = width;
-    surface_configuration.height = height;
+    surface_configuration.width = mWindow.mWindowSize.x;
+    surface_configuration.height = mWindow.mWindowSize.y;
     surface_configuration.usage = WGPUTextureUsage_RenderAttachment;
     surface_configuration.format = WGPUTextureFormat_BGRA8UnormSrgb;
     surface_configuration.viewFormatCount = 0;
@@ -1150,13 +1128,13 @@ void Application::terminateSwapChain() {
 
 bool Application::initDepthBuffer() {
     // Get the current size of the window's framebuffer:
-    int width, height;
-    glfwGetFramebufferSize(mRendererResource.window, &width, &height);
+    // int width, height;
+    // glfwGetFramebufferSize(mRendererResource.window, &width, &height);
 
     WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24PlusStencil8;
     mDepthTexture = new Texture{this->getRendererResource().device,
-                                static_cast<uint32_t>(width),
-                                static_cast<uint32_t>(height),
+                                static_cast<uint32_t>(mWindowWidth),
+                                static_cast<uint32_t>(mWindowHeight),
                                 TextureDimension::TEX_2D,
                                 WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
                                 depth_texture_format,
@@ -1193,9 +1171,9 @@ void Application::terminateDepthBuffer() {
 }
 
 void Application::updateProjectionMatrix() {
-    int width, height;
-    glfwGetFramebufferSize(mRendererResource.window, &width, &height);
-    mCamera.update(mUniforms, width, height);
+    // int width, height;
+    // glfwGetFramebufferSize(mWindow.getWindow(), &width, &height);
+    mCamera.update(mUniforms, mWindow.mWindowSize.x, mWindow.mWindowSize.y);
 }
 
 // called in onInit
@@ -1362,6 +1340,7 @@ const WGPUBindGroupLayout* Application::getBindGroupLayouts() const { return mBi
 std::pair<size_t, size_t> Application::getWindowSize() { return {mWindowWidth, mWindowHeight}; }
 
 void Application::setWindowSize(size_t width, size_t height) {
+    mWindow.mWindowSize = {width, height};
     mWindowWidth = width;
     mWindowHeight = height;
 }

@@ -28,6 +28,7 @@
 #include "utils.h"
 #include "water_pass.h"
 #include "webgpu/webgpu.h"
+#include "window.h"
 
 class ShadowPass;
 
@@ -127,6 +128,7 @@ class Application {
         WGPUTextureView mCurrentTargetView;
         LineEngine* mLineEngine;
         SkyBox* mSkybox;
+        Window<GLFWwindow> mWindow;
 
         // private:
         size_t mWindowWidth = 1920;

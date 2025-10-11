@@ -12,6 +12,9 @@
 
 class Application;
 
+void drawWater(Application* app);
+void waterBlend(Application* app);
+
 class WaterReflectionPass : public RenderPass {
     public:
         WaterReflectionPass(Application* app, const std::string& name);

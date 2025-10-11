@@ -8,7 +8,7 @@ project(
     LANGUAGES CXX C
 )
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF) #
 
@@ -79,6 +79,7 @@ add_executable(
     src/renderpass.cpp
     src/water_pass.cpp
     src/shader.cpp
+    src/window.cpp
 
     src/editor.cpp
     src/input_manager.cpp
@@ -120,7 +121,7 @@ target_include_directories(App PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}"
                                    )
 
 set_target_properties(App PROPERTIES
-    CXX_STANDARD 20
+    CXX_STANDARD 23
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
     COMPILE_WARNING_AS_ERROR OFF
