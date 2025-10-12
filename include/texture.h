@@ -25,6 +25,7 @@ class Texture {
         Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths,
                 WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm, uint32_t extent = 1);
         ~Texture();
+        float ff;
 
         // access function
         WGPUTexture getTexture();

@@ -9,42 +9,26 @@
 
 #include "binding_group.h"
 #include "camera.h"
-#include "composition_pass.h"
 #include "editor.h"
 #include "gpu_buffer.h"
-#include "input_manager.h"
-#include "instance.h"
-#include "model.h"
-#include "model_registery.h"
-#include "pipeline.h"
-#include "point_light.h"
-#include "renderpass.h"
-#include "shadow_pass.h"
-#include "shapes.h"
-#include "skybox.h"
 #include "terrain_pass.h"
-#include "texture.h"
-#include "transparency_pass.h"
 #include "utils.h"
 #include "water_pass.h"
 #include "webgpu/webgpu.h"
 #include "window.h"
 
+// Forward Declarations
 class ShadowPass;
-
-/*
- * A struct to gather primitives for our renderer
- * Note: Pipelines and bindgroups are not part of this struct
- *       they could be included in some pipeline struct for each
- *       models that defines its own pipeline and render pass
- */
-struct RendererResource {
-        WGPUQueue queue;
-        WGPUDevice device;
-        WGPUSurface surface;
-        GLFWwindow* window;
-        WGPUCommandEncoder commandEncoder;
-};
+class InstanceManager;
+class LightManager;
+class DepthPrePass;
+class TransparencyPass;
+class Texture;
+class LineEngine;
+class SkyBox;
+class Pipeline;
+class CompositionPass;
+struct RendererResource;
 
 /*
  * Corresponding data for wgsl struct representing Directional light in scene
@@ -54,11 +38,6 @@ struct LightingUniforms {
         std::array<glm::vec4, 2> colors;
 };
 
-/**
- * A structure that describes the data layout in the vertex buffer
- * We do not instantiate it but use it in `sizeof` and `offsetof`
- */
-
 class Application {
     public:
         bool initialize();
@@ -66,17 +45,9 @@ class Application {
         void mainLoop();
         bool isRunning();
         void onResize();
-        void updateProjectionMatrix();
 
-        bool initSwapChain();
-        bool initDepthBuffer();
         void terminateSwapChain();
         void terminateDepthBuffer();
-
-        InputManager* mInputManager;
-        InstanceManager* mInstanceManager;
-
-        std::vector<glm::vec3> terrainData = {};
 
         bool initGui();
         void terminateGui();
@@ -94,36 +65,39 @@ class Application {
         WGPUTextureView getDepthStencilTarget();
         WGPUTextureView getColorTarget();
 
-        // WGPUBindGroup bindGrouptrans = {};
-        glm::mat4 mtransmodel{1.0};
-        WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
-        std::array<WGPUBindGroupLayout, 6> mBindGroupLayouts;
         Camera& getCamera();
         WGPUTextureFormat getTextureFormat();
         WGPUSampler getDefaultSampler();
+
+        std::pair<size_t, size_t> getWindowSize();
+        void setWindowSize(size_t width, size_t height);
+
+        void initializePipeline();
+        void initializeBuffers();
+
+        InstanceManager* mInstanceManager;
+
+        std::vector<glm::vec3> terrainData = {};  // TODO move this to terrain related files
+
+        WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
+        std::array<WGPUBindGroupLayout, 6> mBindGroupLayouts;
+
         // textures
         Texture* mDefaultDiffuse = nullptr;
         Texture* mDefaultMetallicRoughness = nullptr;
         Texture* mDefaultNormalMap = nullptr;
-        std::pair<size_t, size_t> getWindowSize();
-        void setWindowSize(size_t width, size_t height);
 
         BindingGroup mDefaultSkiningData = {};
         BindingGroup mDefaultTextureBindingGroup = {};
         BindingGroup mDefaultCameraIndexBindgroup = {};
         BindingGroup mDefaultClipPlaneBG = {};
         BindingGroup mDefaultVisibleBuffer = {};
-        // BindingGroup mDefaultVisibleBuffer2 = {};
 
         Editor mEditor;
         BaseModel* mSelectedModel = nullptr;
-        // Buffer indirectDrawArgsBuffer;  // copy dst, map read
         Buffer mLightBuffer;
-        Buffer mVisibleIndexBuffer;             // copy src, storage
-        Buffer mVisibleIndexBuffer2;            // copy src, storage
-        Buffer mDefaultBoneFinalTransformData;  // copy src, storage
-        int ccounter = 0;
-        // std::vector<Line*> mLines;
+        Buffer mVisibleIndexBuffer;
+        Buffer mDefaultBoneFinalTransformData;
         std::vector<WGPUBindGroupEntry> mBindingData{20};
         WGPUTextureView mCurrentTargetView;
         LineEngine* mLineEngine;
@@ -140,13 +114,6 @@ class Application {
         Pipeline* mPipeline;
         Pipeline* mStenctilEnabledPipeline;
 
-        ModelRegistry mViewportModelRegistery;
-
-        NewRenderPass* mTerrainForRefraction;
-        NewRenderPass* mTerrainForReflection;
-        NewRenderPass* mLineRenderingPass;
-
-        /*Line* line;*/
         ShadowPass* mShadowPass;
         DepthPrePass* mDepthPrePass;
         TransparencyPass* mTransparencyPass;
@@ -158,27 +125,18 @@ class Application {
         WaterRefractionPass* mWaterRefractionPass;
         WaterPass* mWaterRenderPass;
         WGPUSampler mDefaultSampler;
-        WGPULimits GetRequiredLimits(WGPUAdapter adapter) const;
-        WGPUTextureView getNextSurfaceTextureView();
 
-        void initializePipeline();
-        void initializeBuffers();
-
-        RendererResource mRendererResource;
+        RendererResource* mRendererResource;
         WGPUTextureFormat mSurfaceFormat = WGPUTextureFormat_Undefined;
 
-        // WGPURenderPipeline mPipeline;
         BindingGroup mBindingGroup;
         std::vector<WGPUBindGroupEntry> mDefaultTextureBindingData{3};
         std::vector<WGPUBindGroupEntry> mDefaultCameraIndexBindingData{1};
         std::vector<WGPUBindGroupEntry> mDefaultClipPlaneBGData{1};
         std::vector<WGPUBindGroupEntry> mDefaultVisibleBGData{1};
-        // std::vector<WGPUBindGroupEntry> mDefaultVisibleBGData2{1};
         std::vector<WGPUBindGroupEntry> mDefaultBoneTransformations{1};
         WGPUBindGroupDescriptor mBindGroupDescriptor = {};
-        // WGPUBindGroup mBindGroup;
         Buffer mUniformBuffer;
-        // WGPUBuffer mUniformBufferTransform;
         Buffer mDirectionalLightBuffer;
         Buffer mLightSpaceTransformation;
         Buffer mTimeBuffer;
@@ -186,18 +144,16 @@ class Application {
         Buffer mDefaultClipPlaneBuf;
         glm::vec4 mDefaultPlane{0.0, 0.0, 1.0, -100};
 
-        // WGPUBuffer mPointlightBuffer = {};
         CameraInfo mUniforms;
-        uint32_t mIndexCount;
 
         WGPUTextureView mDepthTextureView;
         WGPUTextureView mDepthTextureViewDepthOnly;
-        // WGPUTextureView mShadowDepthTextureView;
         Texture* mDepthTexture;
 
-        // WGPUTexture mShadowDepthTexture;
-
         WGPURenderPipelineDescriptor mPipelineDescriptor;
+
+    private:
+        bool initDepthBuffer();
 };
 
 #endif  // TEST_WGPU_APPLICTION_H

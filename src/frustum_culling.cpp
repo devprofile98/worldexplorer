@@ -9,6 +9,7 @@
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/trigonometric.hpp"
+#include "rendererResource.h"
 #include "shapes.h"
 #include "webgpu/webgpu.h"
 
@@ -249,12 +250,6 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     wgpuQueueWriteBuffer(resources.queue, inputBuffer.getBuffer(), 0, input_values.data(), data_size_bytes);
     // one buffer for input, one for output
     app->mVisibleIndexBuffer.setLabel("visible index buffer")
-        .setUsage(WGPUBufferUsage_CopySrc | WGPUBufferUsage_Storage)
-        .setSize(sizeof(uint32_t) * 100000 * 5)
-        .setMappedAtCraetion()
-        .create(app);
-
-    app->mVisibleIndexBuffer2.setLabel("visible index buffer2")
         .setUsage(WGPUBufferUsage_CopySrc | WGPUBufferUsage_Storage)
         .setSize(sizeof(uint32_t) * 100000 * 5)
         .setMappedAtCraetion()

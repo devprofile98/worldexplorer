@@ -12,7 +12,9 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "gpu_buffer.h"
 #include "imgui.h"
-#include "texture.h"
+// #include "texture.h"
+
+class Texture;
 
 // Shader-equivalant struct for vertex data
 struct alignas(16) VertexAttributes {

@@ -1,6 +1,7 @@
 #include "gpu_buffer.h"
 
 #include "application.h"
+#include "rendererResource.h"
 
 Buffer::Buffer() : mBufferDescriptor({}) {}
 

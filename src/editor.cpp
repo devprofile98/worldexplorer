@@ -220,7 +220,14 @@ REGISTER_MODEL("gizmo_y", GizmoModelY, Visibility_Editor, &GizmoElement::y);
 
 Screen::Screen() {}
 
-void Screen::initialize(Application* app) { Screen::instance().mApp = app; }
+void Screen::initialize(Application* app) {
+    Screen::instance().mApp = app;
+    auto& input_manager = InputManager::instance();
+    input_manager.mMouseMoveListeners.push_back(&Screen::instance());
+    input_manager.mMouseButtonListeners.push_back(&Screen::instance());
+    input_manager.mMouseScrollListeners.push_back(&Screen::instance());
+    input_manager.mKeyListener.push_back(&Screen::instance());
+}
 
 Screen& Screen::instance() {
     static Screen instance;

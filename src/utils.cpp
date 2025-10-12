@@ -12,6 +12,7 @@
 #include "glm/ext/quaternion_geometric.hpp"
 #include "glm/fwd.hpp"
 #include "model.h"
+#include "rendererResource.h"
 #include "stb_image.h"
 #include "wgpu_utils.h"
 

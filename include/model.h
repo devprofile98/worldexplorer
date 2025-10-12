@@ -22,12 +22,13 @@
 #include "glm/glm.hpp"
 #include "instance.h"
 #include "mesh.h"
-#include "texture.h"
+// #include "texture.h"
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
 
 // forward declaration
 class Application;
+class Texture;
 class BaseModel;
 
 struct alignas(4) DrawIndexedIndirectArgs {

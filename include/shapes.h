@@ -13,6 +13,7 @@
 #include "utils.h"
 
 class Application;
+class NewRenderPass;
 
 class Cube : public BaseModel {
     public:
@@ -65,6 +66,7 @@ struct alignas(16) Line {
 struct LineEngine {
         void initialize(Application* app);
         void draw(Application* app, WGPURenderPassEncoder encoder);
+        void executePass();
 
         std::array<float, 12> mLineInstance = {0, -0.5, 1, -0.5, 1, 0.5, 0, -0.5, 1, 0.5, 0, 0.5};
         WGPURenderPipeline mRenderPipeline;
@@ -88,6 +90,7 @@ struct LineEngine {
         std::vector<WGPUBindGroupEntry> mBindingData;
         std::vector<WGPUBindGroupEntry> mCameraBindingData;
         Buffer mOffsetBuffer;
+        NewRenderPass* mLineRenderingPass;
 
         struct LineGroup {
                 std::vector<glm::vec4> points;

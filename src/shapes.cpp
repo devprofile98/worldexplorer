@@ -21,6 +21,8 @@
 #include "glm/gtx/string_cast.hpp"
 #include "imgui.h"
 #include "model.h"
+#include "rendererResource.h"
+#include "renderpass.h"
 #include "wgpu_utils.h"
 
 /*static float triangleVertexData[] = {*/
@@ -250,6 +252,14 @@ void LineEngine::initialize(Application* app) {
     // create pipeline
 
     mApp = app;
+
+    mLineRenderingPass = new NewRenderPass{"Line Rendering render pass"};
+    mLineRenderingPass->setColorAttachment(
+        {mApp->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    mLineRenderingPass->setDepthStencilAttachment(
+        {mApp->mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined, false});
+    mLineRenderingPass->init();
+
     //// create attribute vector
     mBindGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::STORAGE_READONLY,
                          mMaxPoints * sizeof(glm::vec4));
@@ -403,6 +413,22 @@ void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
         if (instanceCount > 0) {
             wgpuRenderPassEncoderDraw(encoder, 6, instanceCount, 0, group.buffer_offset);
         }
+    }
+}
+
+void LineEngine::executePass() {
+    {
+        mLineRenderingPass->setColorAttachment(
+            {mApp->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+        mLineRenderingPass->setDepthStencilAttachment({mApp->mDepthTextureView, StoreOp::Store, LoadOp::Load, false,
+                                                       StoreOp::Undefined, LoadOp::Undefined, false});
+        mLineRenderingPass->init();
+
+        WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(
+            mApp->getRendererResource().commandEncoder, &mLineRenderingPass->mRenderPassDesc);
+        draw(mApp, render_pass_encoder);
+        wgpuRenderPassEncoderEnd(render_pass_encoder);
+        wgpuRenderPassEncoderRelease(render_pass_encoder);
     }
 }
 

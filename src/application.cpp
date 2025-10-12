@@ -18,6 +18,8 @@
 #include "binding_group.h"
 #include "glm/matrix.hpp"
 #include "renderpass.h"
+#include "shapes.h"
+#include "skybox.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <imgui.h>
@@ -56,11 +58,17 @@
 #include "wgpu_utils.h"
 // #define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
 
+#include "rendererResource.h"
+
 static bool cull_frustum = true;
 
 static float middle_plane_length = 15.0f;
 static float far_plane_length = 50.0f;
 bool should_update_csm = true;
+
+WGPUTextureView getNextSurfaceTextureView(RendererResource& resources);
+WGPULimits GetRequiredLimits(WGPUAdapter adapter);
+bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height);
 
 WGPUTextureFormat Application::getTextureFormat() { return mSurfaceFormat; }
 
@@ -75,59 +83,59 @@ void Application::initializePipeline() {
 #endif
 
     Texture grass_texture =
-        Texture{mRendererResource.device,
+        Texture{this->getRendererResource().device,
                 std::vector<std::filesystem::path>{RESOURCE_DIR "/mud/diffuse.jpg", RESOURCE_DIR "/mud/normal.jpg",
                                                    RESOURCE_DIR "/mud/roughness.jpg"},
                 WGPUTextureFormat_RGBA8Unorm, 3};
     grass_texture.createViewArray(0, 3);
-    grass_texture.uploadToGPU(mRendererResource.queue);
+    grass_texture.uploadToGPU(this->getRendererResource().queue);
 
     Texture rock_texture =
-        Texture{mRendererResource.device,
+        Texture{this->getRendererResource().device,
                 std::vector<std::filesystem::path>{RESOURCE_DIR "/Rock/Rock060_1K-JPG_Color.jpg",
                                                    RESOURCE_DIR "/Rock/Rock060_1K-JPG_NormalGL.jpg",
                                                    RESOURCE_DIR "/Rock/Rock060_1K-JPG_Roughness.jpg"},
                 WGPUTextureFormat_RGBA8Unorm, 3};
     rock_texture.createViewArray(0, 3);
-    rock_texture.uploadToGPU(mRendererResource.queue);
+    rock_texture.uploadToGPU(this->getRendererResource().queue);
 
     Texture sand_texture =
-        Texture{mRendererResource.device,
+        Texture{this->getRendererResource().device,
                 std::vector<std::filesystem::path>{RESOURCE_DIR "/aerial/aerial_beach_01_diff_1k.jpg",
                                                    RESOURCE_DIR "/aerial/aerial_beach_01_nor_gl_1k.jpg",
                                                    RESOURCE_DIR "/aerial/aerial_beach_01_rough_1k.jpg"},
                 WGPUTextureFormat_RGBA8Unorm, 3};
     sand_texture.createViewArray(0, 3);
-    sand_texture.uploadToGPU(mRendererResource.queue);
+    sand_texture.uploadToGPU(this->getRendererResource().queue);
 
-    Texture snow_texture = Texture{mRendererResource.device,
+    Texture snow_texture = Texture{this->getRendererResource().device,
                                    std::vector<std::filesystem::path>{RESOURCE_DIR "/snow/snow_02_diff_1k.jpg",
                                                                       RESOURCE_DIR "/snow/snow_02_nor_gl_1k.jpg",
                                                                       RESOURCE_DIR "/snow/snow_02_rough_1k.jpg"},
                                    WGPUTextureFormat_RGBA8Unorm, 3};
     snow_texture.createViewArray(0, 3);
-    snow_texture.uploadToGPU(mRendererResource.queue);
+    snow_texture.uploadToGPU(this->getRendererResource().queue);
 
     // creating default diffuse texture
-    mDefaultDiffuse = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
+    mDefaultDiffuse = new Texture{this->getRendererResource().device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_diffuse_texture_view = mDefaultDiffuse->createView();
     std::vector<uint8_t> texture_data = {255, 0, 255, 255};  // Purple color for Default texture color
     mDefaultDiffuse->setBufferData(texture_data);
-    mDefaultDiffuse->uploadToGPU(mRendererResource.queue);
+    mDefaultDiffuse->uploadToGPU(this->getRendererResource().queue);
 
     // Creating default meatlic-roughness texture
-    mDefaultMetallicRoughness = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
+    mDefaultMetallicRoughness = new Texture{this->getRendererResource().device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_metallic_roughness_texture_view = mDefaultMetallicRoughness->createView();
     texture_data = {255, 120, 10, 255};
     mDefaultMetallicRoughness->setBufferData(texture_data);
-    mDefaultMetallicRoughness->uploadToGPU(mRendererResource.queue);
+    mDefaultMetallicRoughness->uploadToGPU(this->getRendererResource().queue);
 
     // Creating default normal-map texture
-    mDefaultNormalMap = new Texture{mRendererResource.device, 1, 1, TextureDimension::TEX_2D};
+    mDefaultNormalMap = new Texture{this->getRendererResource().device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_normal_map_view = mDefaultNormalMap->createView();
     texture_data = {0, 255, 0, 255};
     mDefaultNormalMap->setBufferData(texture_data);
-    mDefaultNormalMap->uploadToGPU(mRendererResource.queue);
+    mDefaultNormalMap->uploadToGPU(this->getRendererResource().queue);
 
     // Initializing Default bindgroups
     WGPUBindGroupLayout bind_group_layout =
@@ -229,7 +237,8 @@ void Application::initializePipeline() {
         .create(this);
 
     static uint32_t cidx = 0;
-    wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultCameraIndex.getBuffer(), 0, &cidx, sizeof(uint32_t));
+    wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultCameraIndex.getBuffer(), 0, &cidx,
+                         sizeof(uint32_t));
 
     mDefaultCameraIndexBindingData[0] = {};
     mDefaultCameraIndexBindingData[0].nextInChain = nullptr;
@@ -245,8 +254,8 @@ void Application::initializePipeline() {
         .create(this);
 
     // glm::vec4 default_clip_plane{0.0, 0.0, 1.0, 100};
-    wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultClipPlaneBuf.getBuffer(), 0, glm::value_ptr(mDefaultPlane),
-                         sizeof(glm::vec4));
+    wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
+                         glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
 
     WGPUSamplerDescriptor samplerDesc = {};
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
@@ -259,7 +268,7 @@ void Application::initializePipeline() {
     samplerDesc.lodMaxClamp = 8.0f;
     samplerDesc.compare = WGPUCompareFunction_Undefined;
     samplerDesc.maxAnisotropy = 16.0;
-    mDefaultSampler = wgpuDeviceCreateSampler(mRendererResource.device, &samplerDesc);
+    mDefaultSampler = wgpuDeviceCreateSampler(this->getRendererResource().device, &samplerDesc);
 
     mDefaultClipPlaneBGData[0].nextInChain = nullptr;
     mDefaultClipPlaneBGData[0].binding = 0;
@@ -271,9 +280,6 @@ void Application::initializePipeline() {
     mShadowPass = new ShadowPass{this, "Shadow pass"};
     mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm, 3);
 
-    // mDepthPrePass = new DepthPrePass{this, "Depth PrePass", mDepthTextureView};
-    // mDepthPrePass->createRenderPass(WGPUTextureFormat_RGBA8Unorm);
-    //
     mDepthPrePass = new DepthPrePass{this, "Depth PrePass", mDepthTextureView};
     mDepthPrePass->createRenderPass(WGPUTextureFormat_RGBA8Unorm);
 
@@ -281,13 +287,6 @@ void Application::initializePipeline() {
     mTerrainPass->create(mSurfaceFormat);
 
     m3DviewportPass = new ViewPort3DPass{this, "ViewPort 3D Render Pass"};
-
-    mLineRenderingPass = new NewRenderPass{"Line Rendering render pass"};
-    mLineRenderingPass->setColorAttachment(
-        {this->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    mLineRenderingPass->setDepthStencilAttachment(
-        {this->mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined, false});
-    mLineRenderingPass->init();
 
     initDepthBuffer();
 
@@ -301,23 +300,6 @@ void Application::initializePipeline() {
 
     mWaterRefractionPass = new WaterRefractionPass{this, "Water Refraction Pass"};
     mWaterRefractionPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
-
-    mTerrainForRefraction = new NewRenderPass{"Terrain for refraction"};
-
-    mTerrainForRefraction->setColorAttachment({mWaterRefractionPass->mRenderTargetView, nullptr,
-                                               WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    mTerrainForRefraction->setDepthStencilAttachment({mWaterRefractionPass->mDepthTextureView, StoreOp::Store,
-                                                      LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined,
-                                                      false});
-    mTerrainForRefraction->init();
-
-    //
-    mTerrainForReflection = new NewRenderPass{"Terrain for reflection"};
-    mTerrainForReflection->setColorAttachment(
-        {mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    mTerrainForReflection->setDepthStencilAttachment({mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Load,
-                                                      false, StoreOp::Undefined, LoadOp::Undefined, false});
-    mTerrainForReflection->init();
 
     mWaterRenderPass =
         new WaterPass{this, mWaterPass->mRenderTarget, mWaterRefractionPass->mRenderTarget, "Water pass"};
@@ -413,7 +395,7 @@ void Application::initializePipeline() {
     shadow_sampler_desc.lodMaxClamp = 1.0f;
     shadow_sampler_desc.compare = WGPUCompareFunction_Greater;
     shadow_sampler_desc.maxAnisotropy = 1;
-    WGPUSampler shadow_sampler = wgpuDeviceCreateSampler(mRendererResource.device, &shadow_sampler_desc);
+    WGPUSampler shadow_sampler = wgpuDeviceCreateSampler(this->getRendererResource().device, &shadow_sampler_desc);
 
     mBindingData[12] = {};
     mBindingData[12].nextInChain = nullptr;
@@ -473,7 +455,8 @@ void Application::initializeBuffers() {
     mUniforms.time = 1.0f;
     mUniforms.color = {0.0f, 1.0f, 0.4f, 1.0f};
     // setupCamera(mUniforms);
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), 0, &mUniforms, sizeof(CameraInfo) * 10);
+    wgpuQueueWriteBuffer(this->getRendererResource().queue, mUniformBuffer.getBuffer(), 0, &mUniforms,
+                         sizeof(CameraInfo) * 10);
 
     mDirectionalLightBuffer.setLabel("Directional light buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
@@ -490,7 +473,7 @@ void Application::initializeBuffers() {
 
     mLightingUniforms.directions = {glm::vec4{0.7, 0.4, 1.0, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
     mLightingUniforms.colors = {glm::vec4{0.99, 1.0, 0.88, 1.0}, glm::vec4{0.6, 0.9, 1.0, 1.0}};
-    wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer.getBuffer(), 0, &mLightingUniforms,
+    wgpuQueueWriteBuffer(this->getRendererResource().queue, mDirectionalLightBuffer.getBuffer(), 0, &mLightingUniforms,
                          sizeof(LightingUniforms));
 
     mLightBuffer.setLabel("Lights Buffer")
@@ -519,10 +502,8 @@ void wgpuPollEvents([[maybe_unused]] WGPUDevice device, [[maybe_unused]] bool yi
 }
 
 void Application::onResize() {
-    std::cout << "REsize called out of nowhere \n";
+    // std::cout << "REsize called out of nowhere \n";
 
-    // mWindowWidth = mWindow.mWindowSize.x;
-    // mWindowHeight = mWindow.mWindowSize.y;
     setWindowSize(mWindow.mWindowSize.x, mWindow.mWindowSize.y);
     // Terminate in reverse order
     terminateDepthBuffer();
@@ -530,13 +511,13 @@ void Application::onResize() {
 
     // Re-init
 
-    auto res = initSwapChain();
+    auto res = initSwapChain(getRendererResource(), mWindow.mWindowSize.x, mWindow.mWindowSize.y);
     std::cout << "init swapchain returend this " << res << '\n';
     initDepthBuffer();
 
     mOutlinePass->mTextureView = mDepthTexture->createViewDepthOnly();
     mOutlinePass->createSomeBinding();
-    updateProjectionMatrix();
+    mCamera.update(mUniforms, mWindow.mWindowSize.x, mWindow.mWindowSize.y);
     std::cout << "111REsize called out of nowhere \n";
 }
 
@@ -579,13 +560,11 @@ bool Application::initialize() {
     glfwSetScrollCallback(mWindow.getWindow(), InputManager::handleScroll);
     glfwSetKeyCallback(mWindow.getWindow(), InputManager::handleKeyboard);
 
+    auto& input_manager = InputManager::instance();
+    input_manager.mMouseMoveListeners.push_back(&mEditor.gizmo);
+    input_manager.mMouseButtonListeners.push_back(&mEditor.gizmo);
+
     Screen::instance().initialize(this);
-    InputManager::instance().mMouseMoveListeners.push_back(&Screen::instance());
-    InputManager::instance().mMouseButtonListeners.push_back(&Screen::instance());
-    InputManager::instance().mMouseMoveListeners.push_back(&mEditor.gizmo);
-    InputManager::instance().mMouseButtonListeners.push_back(&mEditor.gizmo);
-    InputManager::instance().mMouseScrollListeners.push_back(&Screen::instance());
-    InputManager::instance().mKeyListener.push_back(&Screen::instance());
 
     WGPUInstanceDescriptor desc = {};
     desc.nextInChain = nullptr;
@@ -603,14 +582,7 @@ bool Application::initialize() {
     std::cout << glfwGetPlatform() << std::endl;
     provided_surface = glfwCreateWindowWGPUSurface(instance, provided_window);
 
-    {
-        std::cout << provided_surface << "sdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdf\n";
-        // int width, height;
-        // // Use glfwGetFramebufferSize to get the dimensions of the window's framebuffer.
-        // glfwGetFramebufferSize(provided_window, &width, &height);
-        // std::cout << std::format("width: {} heigth: {}\n", width, height);
-        setWindowSize(mWindow.mWindowSize.x, mWindow.mWindowSize.y);
-    }
+    setWindowSize(mWindow.mWindowSize.x, mWindow.mWindowSize.y);
 
     auto adapter = requestAdapterSync(instance, provided_surface);
     std::cout << std::format("WGPU instance: {:p} {:p} {:p}", (void*)instance, (void*)adapter, (void*)provided_surface)
@@ -630,11 +602,13 @@ bool Application::initialize() {
     // relase the adapter
     WGPUQueue render_queue = getDeviceQueue(render_device);
 
+    mRendererResource = new RendererResource{};
+
     // initialize RenderResources
-    mRendererResource.device = render_device;
-    mRendererResource.queue = render_queue;
-    mRendererResource.surface = provided_surface;
-    mRendererResource.window = provided_window;
+    this->getRendererResource().device = render_device;
+    this->getRendererResource().queue = render_queue;
+    this->getRendererResource().surface = provided_surface;
+    this->getRendererResource().window = provided_window;
 
     // Configuring the surface
     WGPUSurfaceConfiguration surface_configuration = {};
@@ -646,9 +620,10 @@ bool Application::initialize() {
     surface_configuration.usage = WGPUTextureUsage_RenderAttachment;
 
     WGPUSurfaceCapabilities capabilities = {};
-    std::cout << std::format("Successfuly initialized GLFW and the surface is {:p}", (void*)mRendererResource.surface)
+    std::cout << std::format("Successfuly initialized GLFW and the surface is {:p}",
+                             (void*)this->getRendererResource().surface)
               << std::endl;
-    wgpuSurfaceGetCapabilities(mRendererResource.surface, adapter, &capabilities);
+    wgpuSurfaceGetCapabilities(this->getRendererResource().surface, adapter, &capabilities);
     surface_configuration.format = capabilities.formats[0];
     std::cout << "Surface texture format is : " << surface_configuration.format << std::endl;
     mSurfaceFormat = capabilities.formats[0];
@@ -656,11 +631,11 @@ bool Application::initialize() {
 
     surface_configuration.viewFormatCount = 0;
     surface_configuration.viewFormats = nullptr;
-    surface_configuration.device = mRendererResource.device;
+    surface_configuration.device = this->getRendererResource().device;
     surface_configuration.presentMode = WGPUPresentMode_Fifo;
     surface_configuration.alphaMode = WGPUCompositeAlphaMode_Auto;
 
-    wgpuSurfaceConfigure(mRendererResource.surface, &surface_configuration);
+    wgpuSurfaceConfigure(this->getRendererResource().surface, &surface_configuration);
     wgpuAdapterRelease(adapter);
 
     initGui();
@@ -694,7 +669,7 @@ void Application::mainLoop() {
 
     {
         ZoneScopedNC("next surface", 0xFFFA00);
-        mCurrentTargetView = getNextSurfaceTextureView();
+        mCurrentTargetView = getNextSurfaceTextureView(getRendererResource());
         if (mCurrentTargetView == nullptr) {
             return;
         }
@@ -715,15 +690,16 @@ void Application::mainLoop() {
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
     encoder_descriptor.nextInChain = nullptr;
     encoder_descriptor.label = createStringViewC("command encoder descriptor");
-    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(mRendererResource.device, &encoder_descriptor);
-    mRendererResource.commandEncoder = encoder;
+    WGPUCommandEncoder encoder =
+        wgpuDeviceCreateCommandEncoder(this->getRendererResource().device, &encoder_descriptor);
+    this->getRendererResource().commandEncoder = encoder;
 
     auto corners = getFrustumCornersWorldSpace(mCamera.getProjection(), mCamera.getView());
 
     // Dispaching Compute shaders to cull everything that is outside the frustum
     // -------------------------------------------------------------------------
     auto fp = create2FrustumPlanes(corners);
-    wgpuQueueWriteBuffer(mRendererResource.queue, getFrustumPlaneBuffer().getBuffer(), 0, fp.data(),
+    wgpuQueueWriteBuffer(this->getRendererResource().queue, getFrustumPlaneBuffer().getBuffer(), 0, fp.data(),
                          sizeof(FrustumPlanesUniform));
 
     if (cull_frustum) {
@@ -745,10 +721,11 @@ void Application::mainLoop() {
             });
 
         uint32_t new_value = all_scenes.size();
-        wgpuQueueWriteBuffer(mRendererResource.queue, mTimeBuffer.getBuffer(), 0, &new_value, sizeof(uint32_t));
+        wgpuQueueWriteBuffer(this->getRendererResource().queue, mTimeBuffer.getBuffer(), 0, &new_value,
+                             sizeof(uint32_t));
 
-        wgpuQueueWriteBuffer(mRendererResource.queue, mLightSpaceTransformation.getBuffer(), 0, all_scenes.data(),
-                             sizeof(Scene) * all_scenes.size());
+        wgpuQueueWriteBuffer(this->getRendererResource().queue, mLightSpaceTransformation.getBuffer(), 0,
+                             all_scenes.data(), sizeof(Scene) * all_scenes.size());
     }
 
     {
@@ -758,7 +735,8 @@ void Application::mainLoop() {
     //-------------- End of shadow pass
 
     mUniforms.setCamera(mCamera);
-    wgpuQueueWriteBuffer(mRendererResource.queue, mUniformBuffer.getBuffer(), 0, &mUniforms, sizeof(CameraInfo));
+    wgpuQueueWriteBuffer(this->getRendererResource().queue, mUniformBuffer.getBuffer(), 0, &mUniforms,
+                         sizeof(CameraInfo));
 
     // Test for scene hirarchy
     // static bool reparenting = true;
@@ -868,9 +846,6 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
         for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
             if (model->mName != "water") {
-                // continue;
-
-                // std::cout << mPipeline->getPipelineLayout  .depthStencil->depthCompare;
                 if (!model->isTransparent()) {
                     model->draw(this, render_pass_encoder);
                 }
@@ -882,19 +857,7 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderRelease(render_pass_encoder);
 
     // ---------------------------------------------------------------------
-    {
-        mLineRenderingPass->setColorAttachment(
-            {this->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-        mLineRenderingPass->setDepthStencilAttachment({this->mDepthTextureView, StoreOp::Store, LoadOp::Load, false,
-                                                       StoreOp::Undefined, LoadOp::Undefined, false});
-        mLineRenderingPass->init();
-
-        WGPURenderPassEncoder render_pass_encoder =
-            wgpuCommandEncoderBeginRenderPass(encoder, &mLineRenderingPass->mRenderPassDesc);
-        mLineEngine->draw(this, render_pass_encoder);
-        wgpuRenderPassEncoderEnd(render_pass_encoder);
-        wgpuRenderPassEncoderRelease(render_pass_encoder);
-    }
+    mLineEngine->executePass();
     // ---------------------------------------------------------------------
     waterBlend(this);
 
@@ -1004,27 +967,26 @@ void Application::mainLoop() {
         command_buffer_descriptor.label = createStringView("command buffer");
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &command_buffer_descriptor);
 
-        wgpuDevicePoll(mRendererResource.device, false, nullptr);  // This is good!
-        wgpuQueueSubmit(mRendererResource.queue, 1, &command);
+        wgpuDevicePoll(this->getRendererResource().device, false, nullptr);  // This is good!
+        wgpuQueueSubmit(this->getRendererResource().queue, 1, &command);
         // static WGPUQueueWorkDoneCallbackInfo cbinfo{};
         // cbinfo.nextInChain = nullptr;
         // cbinfo.callback = [](WGPUQueueWorkDoneStatus status, void* userdata1, void* userdata2) {
         //     Application* app = (Application*)userdata1;
         //     if (status == WGPUQueueWorkDoneStatus_Success) {
-        //         app->ccounter++;
         //     }
         // };
         //
         // cbinfo.userdata1 = this;
 
-        // wgpuQueueOnSubmittedWorkDone(mRendererResource.queue, cbinfo);
+        // wgpuQueueOnSubmittedWorkDone(this->getRendererResource().queue, cbinfo);
         wgpuCommandBufferRelease(command);
         wgpuCommandEncoderRelease(encoder);
 
         wgpuTextureViewRelease(mCurrentTargetView);
 
 #ifndef __EMSCRIPTEN__
-        wgpuSurfacePresent(mRendererResource.surface);
+        wgpuSurfacePresent(this->getRendererResource().surface);
 #endif
     }
 
@@ -1040,19 +1002,19 @@ void Application::terminate() {
     wgpuBufferRelease(mUniformBuffer.getBuffer());
     terminateGui();
     wgpuRenderPipelineRelease(mPipeline->getPipeline());
-    wgpuSurfaceUnconfigure(mRendererResource.surface);
-    wgpuQueueRelease(mRendererResource.queue);
-    wgpuSurfaceRelease(mRendererResource.surface);
-    wgpuDeviceRelease(mRendererResource.device);
-    glfwDestroyWindow(mRendererResource.window);
+    wgpuSurfaceUnconfigure(this->getRendererResource().surface);
+    wgpuQueueRelease(this->getRendererResource().queue);
+    wgpuSurfaceRelease(this->getRendererResource().surface);
+    wgpuDeviceRelease(this->getRendererResource().device);
+    glfwDestroyWindow(this->getRendererResource().window);
     glfwTerminate();
 }
 
-bool Application::isRunning() { return !glfwWindowShouldClose(mRendererResource.window); }
+bool Application::isRunning() { return !glfwWindowShouldClose(this->getRendererResource().window); }
 
-WGPUTextureView Application::getNextSurfaceTextureView() {
+WGPUTextureView getNextSurfaceTextureView(RendererResource& resources) {
     WGPUSurfaceTexture surface_texture = {};
-    wgpuSurfaceGetCurrentTexture(mRendererResource.surface, &surface_texture);
+    wgpuSurfaceGetCurrentTexture(resources.surface, &surface_texture);
     if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal &&
         surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal) {
         return nullptr;
@@ -1071,7 +1033,7 @@ WGPUTextureView Application::getNextSurfaceTextureView() {
     return wgpuTextureCreateView(surface_texture.texture, &descriptor);
 }
 
-WGPULimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
+WGPULimits GetRequiredLimits(WGPUAdapter adapter) {
     WGPULimits supported_limits = {};
     supported_limits.nextInChain = nullptr;
     wgpuAdapterGetLimits(adapter, &supported_limits);
@@ -1099,38 +1061,29 @@ WGPULimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     return required_limits;
 }
 
-bool Application::initSwapChain() {
-    // Get the current size of the window's framebuffer:
-    // int width, height;
-    // glfwGetFramebufferSize(mRendererResource.window, &width, &height);
-
+bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height) {
     WGPUSurfaceConfiguration surface_configuration = {};
-    surface_configuration.nextInChain = nullptr;
     // Configure the texture created for swap chain
-
-    surface_configuration.width = mWindow.mWindowSize.x;
-    surface_configuration.height = mWindow.mWindowSize.y;
+    surface_configuration.nextInChain = nullptr;
+    surface_configuration.width = width;
+    surface_configuration.height = height;
     surface_configuration.usage = WGPUTextureUsage_RenderAttachment;
     surface_configuration.format = WGPUTextureFormat_BGRA8UnormSrgb;
     surface_configuration.viewFormatCount = 0;
     surface_configuration.viewFormats = nullptr;
-    surface_configuration.device = mRendererResource.device;
+    surface_configuration.device = resources.device;
     surface_configuration.presentMode = WGPUPresentMode_Fifo;
     surface_configuration.alphaMode = WGPUCompositeAlphaMode_Auto;
 
-    wgpuSurfaceConfigure(mRendererResource.surface, &surface_configuration);
-    return mRendererResource.surface != nullptr;
+    wgpuSurfaceConfigure(resources.surface, &surface_configuration);
+    return resources.surface != nullptr;
 }
 
 void Application::terminateSwapChain() {
-    // wgpuSurfaceRelease(mRendererResource.surface);
+    // wgpuSurfaceRelease(this->getRendererResource().surface);
 }
 
 bool Application::initDepthBuffer() {
-    // Get the current size of the window's framebuffer:
-    // int width, height;
-    // glfwGetFramebufferSize(mRendererResource.window, &width, &height);
-
     WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24PlusStencil8;
     mDepthTexture = new Texture{this->getRendererResource().device,
                                 static_cast<uint32_t>(mWindowWidth),
@@ -1160,35 +1113,28 @@ bool Application::initDepthBuffer() {
 
     mDepthTextureViewDepthOnly = wgpuTextureCreateView(mDepthTexture->getTexture(), &depthViewDesc);
 
-    /*mDepthTextureViewDepthOnly = mDepthTexture->createViewDepthOnly();*/
     return mDepthTextureView != nullptr;
 }
 
 void Application::terminateDepthBuffer() {
-    // wgpuTextureViewRelease(mDepthTextureView);
-    // wgpuTextureDestroy(mDepthTexture->getTexture());
-    // delete mDepthTexture;
-}
-
-void Application::updateProjectionMatrix() {
-    // int width, height;
-    // glfwGetFramebufferSize(mWindow.getWindow(), &width, &height);
-    mCamera.update(mUniforms, mWindow.mWindowSize.x, mWindow.mWindowSize.y);
+    wgpuTextureViewRelease(mDepthTextureView);
+    wgpuTextureDestroy(mDepthTexture->getTexture());
+    delete mDepthTexture;
 }
 
 // called in onInit
 bool Application::initGui() {
     static ImGui_ImplWGPU_InitInfo imgui_device{};
-    imgui_device.Device = mRendererResource.device;
+    imgui_device.Device = this->getRendererResource().device;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::GetIO();
 
     // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOther(mRendererResource.window, true);
+    ImGui_ImplGlfw_InitForOther(this->getRendererResource().window, true);
     ImGui_ImplWGPU_InitInfo init_info;
-    init_info.Device = mRendererResource.device;
+    init_info.Device = this->getRendererResource().device;
     init_info.NumFramesInFlight = 3;
     init_info.RenderTargetFormat = WGPUTextureFormat_BGRA8UnormSrgb;
     init_info.DepthStencilFormat = WGPUTextureFormat_Depth24PlusStencil8;
@@ -1219,14 +1165,14 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                 if (ImGui::SliderFloat("z-near", &mCamera.mZnear, 0.0, 180.0f) ||
                     ImGui::SliderFloat("z-far", &mCamera.mZfar, 0.0, 1000.0f) ||
                     ImGui::DragFloat("FOV", &mCamera.mFov, 0.1, 0.0, 1000.0f)) {
-                    updateProjectionMatrix();
+                    mCamera.update(mUniforms, mWindow.mWindowSize.x, mWindow.mWindowSize.y);
                 }
 
                 if (ImGui::Button("Reset to default Params")) {
                     mCamera.mFov = 60.0f;
                     mCamera.mZnear = 0.01f;
                     mCamera.mZfar = 200.0f;
-                    updateProjectionMatrix();
+                    mCamera.update(mUniforms, mWindow.mWindowSize.x, mWindow.mWindowSize.y);
                 }
 
                 ImGui::Checkbox("cull frustum", &cull_frustum);
@@ -1239,7 +1185,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                 ImGui::Text("Directional Light");
                 if (ImGui::ColorEdit3("Color", glm::value_ptr(mLightingUniforms.colors[0])) ||
                     ImGui::DragFloat3("Direction", glm::value_ptr(mLightingUniforms.directions[0]), 0.1, -1.0, 1.0)) {
-                    wgpuQueueWriteBuffer(mRendererResource.queue, mDirectionalLightBuffer.getBuffer(), 0,
+                    wgpuQueueWriteBuffer(this->getRendererResource().queue, mDirectionalLightBuffer.getBuffer(), 0,
                                          &mLightingUniforms, sizeof(LightingUniforms));
                 }
                 static glm::vec3 new_ligth_position = {};
@@ -1259,7 +1205,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             }
             ImGui::Text("\nClip Plane");
             if (ImGui::DragFloat4("clip plane:", glm::value_ptr(mDefaultPlane))) {
-                wgpuQueueWriteBuffer(mRendererResource.queue, mDefaultClipPlaneBuf.getBuffer(), 0,
+                wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
                                      glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
             }
 
@@ -1326,7 +1272,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
 Camera& Application::getCamera() { return mCamera; }
 
-RendererResource& Application::getRendererResource() { return mRendererResource; }
+RendererResource& Application::getRendererResource() { return *mRendererResource; }
 
 BindingGroup& Application::getBindingGroup() { return mBindingGroup; }
 

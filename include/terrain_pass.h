@@ -10,11 +10,12 @@
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "model.h"
-#include "pipeline.h"
+// #include "pipeline.h"
 #include "renderpass.h"
-#include "shadow_pass.h"
+// #include "shadow_pass.h"
 
 class Application;
+class Pipeline;
 
 class TerrainPass : public RenderPass {
         void createRenderPass(WGPUTextureFormat textureFormat) override;

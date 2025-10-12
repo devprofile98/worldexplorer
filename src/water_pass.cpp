@@ -4,7 +4,10 @@
 #include <webgpu/webgpu.h>
 
 #include "application.h"
+#include "rendererResource.h"
 #include "renderpass.h"
+#include "skybox.h"
+#include "texture.h"
 #include "tracy/Tracy.hpp"
 
 WaterReflectionPass::WaterReflectionPass(Application* app, const std::string& name) : RenderPass(name), mApp(app) {
@@ -229,6 +232,24 @@ void WaterRefractionPass::createRenderPass(WGPUTextureFormat textureFormat) {
 
 WaterPass::WaterPass(Application* app, Texture* renderTarget, Texture* refractionTarget, const std::string& name)
     : RenderPass(name), mApp(app) {
+    mTerrainForRefraction = new NewRenderPass{"Terrain for refraction"};
+
+    mTerrainForRefraction->setColorAttachment({app->mWaterRefractionPass->mRenderTargetView, nullptr,
+                                               WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    mTerrainForRefraction->setDepthStencilAttachment({app->mWaterRefractionPass->mDepthTextureView, StoreOp::Store,
+                                                      LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined,
+                                                      false});
+    mTerrainForRefraction->init();
+
+    //
+    mTerrainForReflection = new NewRenderPass{"Terrain for reflection"};
+    mTerrainForReflection->setColorAttachment(
+        {app->mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    mTerrainForReflection->setDepthStencilAttachment({app->mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Load,
+                                                      false, StoreOp::Undefined, LoadOp::Undefined, false});
+    mTerrainForReflection->init();
+    /////////////////
+
     mWaterTextureBindGroup.addTexture(0,  //
                                       BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
                                       TextureViewDimension::VIEW_2D);
@@ -364,7 +385,8 @@ void drawWater(Application* app) {
 
     // ---------- Terrain Render Pass for Water Reflection
     NewRenderPass::beginPass(
-        app->mTerrainForReflection, app->getRendererResource().commandEncoder, [&](WGPURenderPassEncoder pass_encoder) {
+        app->mWaterRenderPass->mTerrainForReflection, app->getRendererResource().commandEncoder,
+        [&](WGPURenderPassEncoder pass_encoder) {
             wgpuRenderPassEncoderSetPipeline(pass_encoder, app->mTerrainPass->getPipeline()->getPipeline());
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3,
                                               app->mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
@@ -385,7 +407,8 @@ void drawWater(Application* app) {
     // ---------- Terrain Render Pass for Water Refraction
 
     NewRenderPass::beginPass(
-        app->mTerrainForRefraction, app->getRendererResource().commandEncoder, [&](WGPURenderPassEncoder pass_encoder) {
+        app->mWaterRenderPass->mTerrainForRefraction, app->getRendererResource().commandEncoder,
+        [&](WGPURenderPassEncoder pass_encoder) {
             wgpuRenderPassEncoderSetPipeline(pass_encoder, app->mTerrainPass->getPipeline()->getPipeline());
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, app->mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                               nullptr);

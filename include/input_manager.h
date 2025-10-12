@@ -66,10 +66,10 @@ class InputManager {
         static void handleKeyboard(GLFWwindow* window, int key, int scancode, int action, int mods);
 
         void setCursorPosition(GLFWwindow* window, double xPos, double yPos);
-        std::vector<MouseMoveListener*> mMouseMoveListeners;
-        std::vector<MouseButtonListener*> mMouseButtonListeners;
-        std::vector<MouseScrollListener*> mMouseScrollListeners;
-        std::vector<KeyboardListener*> mKeyListener;
+        std::vector<MouseMoveListener*> mMouseMoveListeners = {};
+        std::vector<MouseButtonListener*> mMouseButtonListeners = {};
+        std::vector<MouseScrollListener*> mMouseScrollListeners = {};
+        std::vector<KeyboardListener*> mKeyListener = {};
 
     private:
         explicit InputManager();

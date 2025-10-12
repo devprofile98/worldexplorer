@@ -4,7 +4,9 @@
 
 #include "application.h"
 #include "glm/fwd.hpp"
+#include "rendererResource.h"
 #include "stb_image.h"
+#include "texture.h"
 
 float cubeVertexData[] = {
 

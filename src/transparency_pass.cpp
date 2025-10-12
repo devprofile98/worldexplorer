@@ -8,6 +8,8 @@
 #include "binding_group.h"
 #include "glm/fwd.hpp"
 #include "model.h"
+#include "rendererResource.h"
+#include "texture.h"
 #include "wgpu_utils.h"
 
 TransparencyPass::TransparencyPass(Application* app) : mApp(app) {

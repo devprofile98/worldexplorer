@@ -9,6 +9,8 @@
 #include "application.h"
 #include "glm/fwd.hpp"
 #include "glm/gtx/string_cast.hpp"
+#include "rendererResource.h"
+#include "shapes.h"
 #include "utils.h"
 
 LightManager::LightManager(Application* app) {

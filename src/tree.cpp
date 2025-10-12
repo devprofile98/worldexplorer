@@ -6,6 +6,7 @@
 #include "instance.h"
 #include "model.h"
 #include "model_registery.h"
+#include "rendererResource.h"
 
 struct TreeModel : public IModel {
         TreeModel(Application* app) {

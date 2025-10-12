@@ -80,6 +80,9 @@ class WaterPass : public RenderPass {
         std::vector<WGPUBindGroupEntry> mWaterTextureBindngData{2};
         WGPUBindGroupLayout mBindGroupLayout;
 
+        NewRenderPass* mTerrainForRefraction;
+        NewRenderPass* mTerrainForReflection;
+
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 };
 

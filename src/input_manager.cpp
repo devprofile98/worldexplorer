@@ -7,7 +7,7 @@
 InputManager::InputManager() {}
 
 InputManager& InputManager::instance() {
-    static InputManager inst;
+    static InputManager inst = InputManager{};
     return inst;
 }
 

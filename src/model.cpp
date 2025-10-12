@@ -40,6 +40,7 @@
 #include "glm/gtx/string_cast.hpp"
 #include "glm/trigonometric.hpp"
 #include "imgui.h"
+#include "rendererResource.h"
 #include "webgpu/webgpu.h"
 
 const char* model_name = "cube1";
