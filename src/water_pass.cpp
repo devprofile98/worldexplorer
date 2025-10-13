@@ -230,13 +230,18 @@ void WaterRefractionPass::createRenderPass(WGPUTextureFormat textureFormat) {
     init();
 }
 
-WaterPass::WaterPass(Application* app, Texture* renderTarget, Texture* refractionTarget, const std::string& name)
-    : RenderPass(name), mApp(app) {
+WaterPass::WaterPass(Application* app, const std::string& name) : RenderPass(name), mApp(app) {
+    mWaterPass = new WaterReflectionPass{app, "Water Reflection Pass"};
+    mWaterPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
+
+    mWaterRefractionPass = new WaterRefractionPass{app, "Water Refraction Pass"};
+    mWaterRefractionPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
+
     mTerrainForRefraction = new NewRenderPass{"Terrain for refraction"};
 
-    mTerrainForRefraction->setColorAttachment({app->mWaterRefractionPass->mRenderTargetView, nullptr,
+    mTerrainForRefraction->setColorAttachment({mWaterRefractionPass->mRenderTargetView, nullptr,
                                                WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    mTerrainForRefraction->setDepthStencilAttachment({app->mWaterRefractionPass->mDepthTextureView, StoreOp::Store,
+    mTerrainForRefraction->setDepthStencilAttachment({mWaterRefractionPass->mDepthTextureView, StoreOp::Store,
                                                       LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined,
                                                       false});
     mTerrainForRefraction->init();
@@ -244,8 +249,8 @@ WaterPass::WaterPass(Application* app, Texture* renderTarget, Texture* refractio
     //
     mTerrainForReflection = new NewRenderPass{"Terrain for reflection"};
     mTerrainForReflection->setColorAttachment(
-        {app->mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    mTerrainForReflection->setDepthStencilAttachment({app->mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Load,
+        {mWaterPass->mRenderTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    mTerrainForReflection->setDepthStencilAttachment({mWaterPass->mDepthTextureView, StoreOp::Store, LoadOp::Load,
                                                       false, StoreOp::Undefined, LoadOp::Undefined, false});
     mTerrainForReflection->init();
     /////////////////
@@ -260,12 +265,12 @@ WaterPass::WaterPass(Application* app, Texture* renderTarget, Texture* refractio
     mWaterTextureBindngData[0] = {};
     mWaterTextureBindngData[0].nextInChain = nullptr;
     mWaterTextureBindngData[0].binding = 0;
-    mWaterTextureBindngData[0].textureView = renderTarget->getTextureView();
+    mWaterTextureBindngData[0].textureView = mWaterPass->mRenderTarget->getTextureView();
 
     mWaterTextureBindngData[1] = {};
     mWaterTextureBindngData[1].nextInChain = nullptr;
     mWaterTextureBindngData[1].binding = 1;
-    mWaterTextureBindngData[1].textureView = refractionTarget->getTextureView();
+    mWaterTextureBindngData[1].textureView = mWaterRefractionPass->mRenderTarget->getTextureView();
 
     mBindGroupLayout = mWaterTextureBindGroup.createLayout(mApp, "water refletcion bind group layout");
 
@@ -306,7 +311,7 @@ void WaterPass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline->createPipeline(mApp);
 }
 
-void drawWater(Application* app) {
+void WaterPass::drawWater() {
     // ---------------- 2 - begining of the opaque object color pass ---------------
 
     // inverting pitch and reflect camera based on the water plane
@@ -314,9 +319,9 @@ void drawWater(Application* app) {
     for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
         if (model->mName == "water") {
             // if (model != ModelRegistry::instance().getLoadedModel(Visibility_User).end()) {
-            static Camera camera = app->getCamera();
-            camera = app->getCamera();
-            static CameraInfo muniform = app->getUniformData();
+            static Camera camera = mApp->getCamera();
+            camera = mApp->getCamera();
+            static CameraInfo muniform = mApp->getUniformData();
             float diff = 2 * (camera.getPos().z - model->mTransform.getPosition().z);
             auto new_pos = camera.getPos();
             new_pos.z -= diff;
@@ -324,13 +329,13 @@ void drawWater(Application* app) {
             camera.mPitch *= -1.0;
             camera.updateCamera();
             muniform.setCamera(camera);
-            wgpuQueueWriteBuffer(app->getRendererResource().queue, app->getUniformBuffer().getBuffer(),
+            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->getUniformBuffer().getBuffer(),
                                  sizeof(CameraInfo), &muniform, sizeof(CameraInfo));
             glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(muniform.viewMatrix));
             glm::mat4 mvp = muniform.projectMatrix * viewNoTranslation;
             auto reflected_camera = mvp;
-            wgpuQueueWriteBuffer(app->getRendererResource().queue, app->mSkybox->mReflectedCameraMatrix.getBuffer(), 0,
-                                 &reflected_camera, sizeof(glm::mat4));
+            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->mSkybox->mReflectedCameraMatrix.getBuffer(),
+                                 0, &reflected_camera, sizeof(glm::mat4));
             break;
         }
     }
@@ -342,7 +347,7 @@ void drawWater(Application* app) {
             render_pass_descriptor.nextInChain = nullptr;
 
             static WGPURenderPassColorAttachment color_attachment = {};
-            color_attachment.view = app->mWaterPass->mRenderTargetView;
+            color_attachment.view = mWaterPass->mRenderTargetView;
             color_attachment.resolveTarget = nullptr;
             color_attachment.loadOp = WGPULoadOp_Clear;
             color_attachment.storeOp = WGPUStoreOp_Store;
@@ -355,7 +360,7 @@ void drawWater(Application* app) {
             render_pass_descriptor.colorAttachments = &color_attachment;
 
             static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
-            depth_stencil_attachment.view = app->mWaterPass->mDepthTextureView;
+            depth_stencil_attachment.view = mWaterPass->mDepthTextureView;
             depth_stencil_attachment.depthClearValue = 1.0f;
             depth_stencil_attachment.depthLoadOp = WGPULoadOp_Clear;
             depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
@@ -369,54 +374,54 @@ void drawWater(Application* app) {
         }
 
         WGPURenderPassEncoder render_pass_encoder =
-            wgpuCommandEncoderBeginRenderPass(app->getRendererResource().commandEncoder, &render_pass_descriptor);
-        glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(app->getUniformData().viewMatrix));
-        glm::mat4 mvp = app->getUniformData().projectMatrix * viewNoTranslation;
-        wgpuRenderPassEncoderSetPipeline(render_pass_encoder, app->mSkybox->getPipeline()->getPipeline());
-        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 0, app->mSkybox->mReflectedBindingGroup.getBindGroup(),
+            wgpuCommandEncoderBeginRenderPass(mApp->getRendererResource().commandEncoder, &render_pass_descriptor);
+        glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(mApp->getUniformData().viewMatrix));
+        glm::mat4 mvp = mApp->getUniformData().projectMatrix * viewNoTranslation;
+        wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mApp->mSkybox->getPipeline()->getPipeline());
+        wgpuRenderPassEncoderSetBindGroup(render_pass_encoder, 0, mApp->mSkybox->mReflectedBindingGroup.getBindGroup(),
                                           0, nullptr);
-        app->mSkybox->draw(app, render_pass_encoder, mvp);
+        mApp->mSkybox->draw(mApp, render_pass_encoder, mvp);
 
         wgpuRenderPassEncoderEnd(render_pass_encoder);
         wgpuRenderPassEncoderRelease(render_pass_encoder);
     }
 
-    app->mWaterPass->execute(app->getRendererResource().commandEncoder);
+    mWaterPass->execute(mApp->getRendererResource().commandEncoder);
 
     // ---------- Terrain Render Pass for Water Reflection
     NewRenderPass::beginPass(
-        app->mWaterRenderPass->mTerrainForReflection, app->getRendererResource().commandEncoder,
+        mApp->mWaterRenderPass->mTerrainForReflection, mApp->getRendererResource().commandEncoder,
         [&](WGPURenderPassEncoder pass_encoder) {
-            wgpuRenderPassEncoderSetPipeline(pass_encoder, app->mTerrainPass->getPipeline()->getPipeline());
-            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3,
-                                              app->mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
+            wgpuRenderPassEncoderSetPipeline(pass_encoder, mApp->mTerrainPass->getPipeline()->getPipeline());
+            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(),
+                                              0, nullptr);
 
-            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, app->mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
+            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
                                               nullptr);
-            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, app->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
 
-            app->terrain.draw(app, pass_encoder, app->mBindingData);
+            mApp->terrain.draw(mApp, pass_encoder, mApp->mBindingData);
 
             wgpuRenderPassEncoderEnd(pass_encoder);
         });
 
     //----------------------------  Water Refraction Pass
-    app->mWaterRefractionPass->execute(app->getRendererResource().commandEncoder);
+    mWaterRefractionPass->execute(mApp->getRendererResource().commandEncoder);
     // ----------------------------------------------
 
     // ---------- Terrain Render Pass for Water Refraction
 
     NewRenderPass::beginPass(
-        app->mWaterRenderPass->mTerrainForRefraction, app->getRendererResource().commandEncoder,
+        mApp->mWaterRenderPass->mTerrainForRefraction, mApp->getRendererResource().commandEncoder,
         [&](WGPURenderPassEncoder pass_encoder) {
-            wgpuRenderPassEncoderSetPipeline(pass_encoder, app->mTerrainPass->getPipeline()->getPipeline());
-            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, app->mDefaultCameraIndexBindgroup.getBindGroup(), 0,
+            wgpuRenderPassEncoderSetPipeline(pass_encoder, mApp->mTerrainPass->getPipeline()->getPipeline());
+            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mApp->mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                               nullptr);
-            wgpuRenderPassEncoderSetBindGroup(
-                pass_encoder, 4, app->mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
-            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, app->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(),
+                                              0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
 
-            app->terrain.draw(app, pass_encoder, app->mBindingData);
+            mApp->terrain.draw(mApp, pass_encoder, mApp->mBindingData);
 
             wgpuRenderPassEncoderEnd(pass_encoder);
         });

@@ -12,7 +12,6 @@
 
 class Application;
 
-void drawWater(Application* app);
 void waterBlend(Application* app);
 
 class WaterReflectionPass : public RenderPass {
@@ -67,7 +66,7 @@ class WaterRefractionPass : public RenderPass {
 
 class WaterPass : public RenderPass {
     public:
-        WaterPass(Application* app, Texture* renderTarget, Texture* refractionTarget, const std::string& name);
+        WaterPass(Application* app, const std::string& name);
 
         // Texture* mRenderTarget;
         // Texture* mDepthTexture;
@@ -83,6 +82,10 @@ class WaterPass : public RenderPass {
         NewRenderPass* mTerrainForRefraction;
         NewRenderPass* mTerrainForReflection;
 
+        WaterReflectionPass* mWaterPass;
+        WaterRefractionPass* mWaterRefractionPass;
+
+        void drawWater();
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 };
 

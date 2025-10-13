@@ -17,7 +17,7 @@ int main(int, char**) {
     // At the end of the program, destroy the window
 
     Application app;
-    if (app.initialize()) {
+    if (app.initialize("World Explorer", 1920 * 3 / 4, 1080 * 3 / 4)) {
         while (app.isRunning()) {
             app.mainLoop();
         }

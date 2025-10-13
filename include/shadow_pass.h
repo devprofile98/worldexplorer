@@ -6,6 +6,7 @@
 #include "../webgpu/webgpu.h"
 #include "../webgpu/wgpu.h"
 #include "binding_group.h"
+#include "frustum_culling.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 #include "gpu_buffer.h"
@@ -48,7 +49,7 @@ class ShadowPass : public RenderPass {
         std::vector<glm::vec4> mNear;
         std::vector<glm::vec4> mFar;
 
-        std::vector<Scene> createFrustumSplits(std::vector<glm::vec4>& corners, std::vector<FrustumParams> params);
+        std::vector<Scene> createFrustumSplits(const FrustumCorners& corners, std::vector<FrustumParams> params);
         ColorAttachment mRenderPassColorAttachment = {};
         ColorAttachment mRenderPassColorAttachment2;
         DepthStencilAttachment mRenderPassDepthStencil2;

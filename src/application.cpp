@@ -1,17 +1,13 @@
 #include "application.h"
 
 #include <array>
-#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <format>
-#include <functional>
-#include <future>
 #include <iostream>
-#include <random>
 #include <string>
 #include <vector>
 
@@ -46,6 +42,7 @@
 #include "model_registery.h"
 #include "pipeline.h"
 #include "point_light.h"
+#include "rendererResource.h"
 #include "shadow_pass.h"
 #include "shapes.h"
 #include "terrain_pass.h"
@@ -56,9 +53,7 @@
 #include "water_pass.h"
 #include "webgpu/webgpu.h"
 #include "wgpu_utils.h"
-// #define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
-
-#include "rendererResource.h"
+#include "window.h"
 
 static bool cull_frustum = true;
 
@@ -295,14 +290,7 @@ void Application::initializePipeline() {
     mOutlinePass = new OutlinePass{this, "Outline Render Pass"};
     mOutlinePass->create(mSurfaceFormat, mDepthTextureViewDepthOnly);
 
-    mWaterPass = new WaterReflectionPass{this, "Water Reflection Pass"};
-    mWaterPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
-
-    mWaterRefractionPass = new WaterRefractionPass{this, "Water Refraction Pass"};
-    mWaterRefractionPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
-
-    mWaterRenderPass =
-        new WaterPass{this, mWaterPass->mRenderTarget, mWaterRefractionPass->mRenderTarget, "Water pass"};
+    mWaterRenderPass = new WaterPass{this, "Water pass"};
     mWaterRenderPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
 
     /*mTransparencyPass = new TransparencyPass{this};*/
@@ -496,29 +484,25 @@ void Application::initializeBuffers() {
     setupComputePass(this, mInstanceManager->getInstancingBuffer().getBuffer());
 }
 
-// We define a function that hides implementation-specific variants of device polling:
-void wgpuPollEvents([[maybe_unused]] WGPUDevice device, [[maybe_unused]] bool yieldToWebBrowser) {
-    wgpuDevicePoll(device, false, nullptr);
-}
-
 void Application::onResize() {
-    // std::cout << "REsize called out of nowhere \n";
+    size_t width = mWindow->mWindowSize.x;
+    size_t height = mWindow->mWindowSize.y;
+    setWindowSize(width, height);
 
-    setWindowSize(mWindow.mWindowSize.x, mWindow.mWindowSize.y);
     // Terminate in reverse order
     terminateDepthBuffer();
     terminateSwapChain();
 
-    // Re-init
+    // imgui
 
-    auto res = initSwapChain(getRendererResource(), mWindow.mWindowSize.x, mWindow.mWindowSize.y);
-    std::cout << "init swapchain returend this " << res << '\n';
+    // Re-init
+    initSwapChain(getRendererResource(), width, height);
     initDepthBuffer();
 
     mOutlinePass->mTextureView = mDepthTexture->createViewDepthOnly();
     mOutlinePass->createSomeBinding();
-    mCamera.update(mUniforms, mWindow.mWindowSize.x, mWindow.mWindowSize.y);
-    std::cout << "111REsize called out of nowhere \n";
+
+    mCamera.update(mUniforms, width, height);
 }
 
 void onWindowResize(GLFWwindow* window, int width, int height) {
@@ -532,17 +516,17 @@ void onWindowResize(GLFWwindow* window, int width, int height) {
     if (that != nullptr) that->onResize();
 }
 
-bool Application::initialize() {
-    // We create a descriptor
-
-    auto [window_width, window_height] = getWindowSize();
-    mWindow.mName = "World Explorer";
-    mWindow.mWindowSize = {mWindowWidth, mWindowHeight};
-    mWindow.mResizeCallback = [&]() {
-        this->setWindowSize(mWindow.mWindowSize.x, mWindow.mWindowSize.y);
+bool Application::initialize(const char* windowName, uint16_t width, uint16_t height) {
+    // Creating the window
+    mWindow = new Window<GLFWwindow>();
+    // auto [window_width, window_height] = getWindowSize();
+    mWindow->mName = windowName;
+    mWindow->mWindowSize = {width, height};
+    mWindow->mResizeCallback = [&]() {
+        this->setWindowSize(mWindow->mWindowSize.x, mWindow->mWindowSize.y);
         this->onResize();
     };
-    auto res = mWindow.create({window_width, window_height});
+    auto res = mWindow->create({width, height});
 
     if (!res.has_value()) {
         std::cout << "Faield to create windows\n";
@@ -553,12 +537,12 @@ bool Application::initialize() {
 
     // Set up Callbacks
     // TODO refactor these into their own files
-    glfwSetWindowUserPointer(mWindow.getWindow(), this);  // set user pointer to be used in the callback function
-    glfwSetFramebufferSizeCallback(mWindow.getWindow(), onWindowResize);
-    glfwSetCursorPosCallback(mWindow.getWindow(), InputManager::handleMouseMove);
-    glfwSetMouseButtonCallback(mWindow.getWindow(), InputManager::handleButton);
-    glfwSetScrollCallback(mWindow.getWindow(), InputManager::handleScroll);
-    glfwSetKeyCallback(mWindow.getWindow(), InputManager::handleKeyboard);
+    glfwSetWindowUserPointer(mWindow->getWindow(), this);  // set user pointer to be used in the callback function
+    glfwSetFramebufferSizeCallback(mWindow->getWindow(), onWindowResize);
+    glfwSetCursorPosCallback(mWindow->getWindow(), InputManager::handleMouseMove);
+    glfwSetMouseButtonCallback(mWindow->getWindow(), InputManager::handleButton);
+    glfwSetScrollCallback(mWindow->getWindow(), InputManager::handleScroll);
+    glfwSetKeyCallback(mWindow->getWindow(), InputManager::handleKeyboard);
 
     auto& input_manager = InputManager::instance();
     input_manager.mMouseMoveListeners.push_back(&mEditor.gizmo);
@@ -582,7 +566,7 @@ bool Application::initialize() {
     std::cout << glfwGetPlatform() << std::endl;
     provided_surface = glfwCreateWindowWGPUSurface(instance, provided_window);
 
-    setWindowSize(mWindow.mWindowSize.x, mWindow.mWindowSize.y);
+    setWindowSize(mWindow->mWindowSize.x, mWindow->mWindowSize.y);
 
     auto adapter = requestAdapterSync(instance, provided_surface);
     std::cout << std::format("WGPU instance: {:p} {:p} {:p}", (void*)instance, (void*)adapter, (void*)provided_surface)
@@ -765,7 +749,7 @@ void Application::mainLoop() {
     //     }
     // }
     // }
-    drawWater(this);
+    mWaterRenderPass->drawWater();
 
     // Depth pre-pass to reduce number of overdraws
     {
@@ -1086,8 +1070,8 @@ void Application::terminateSwapChain() {
 bool Application::initDepthBuffer() {
     WGPUTextureFormat depth_texture_format = WGPUTextureFormat_Depth24PlusStencil8;
     mDepthTexture = new Texture{this->getRendererResource().device,
-                                static_cast<uint32_t>(mWindowWidth),
-                                static_cast<uint32_t>(mWindowHeight),
+                                static_cast<uint32_t>(mWindow->mWindowSize.x),
+                                static_cast<uint32_t>(mWindow->mWindowSize.y),
                                 TextureDimension::TEX_2D,
                                 WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
                                 depth_texture_format,
@@ -1165,14 +1149,14 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                 if (ImGui::SliderFloat("z-near", &mCamera.mZnear, 0.0, 180.0f) ||
                     ImGui::SliderFloat("z-far", &mCamera.mZfar, 0.0, 1000.0f) ||
                     ImGui::DragFloat("FOV", &mCamera.mFov, 0.1, 0.0, 1000.0f)) {
-                    mCamera.update(mUniforms, mWindow.mWindowSize.x, mWindow.mWindowSize.y);
+                    mCamera.update(mUniforms, mWindow->mWindowSize.x, mWindow->mWindowSize.y);
                 }
 
                 if (ImGui::Button("Reset to default Params")) {
                     mCamera.mFov = 60.0f;
                     mCamera.mZnear = 0.01f;
                     mCamera.mZfar = 200.0f;
-                    mCamera.update(mUniforms, mWindow.mWindowSize.x, mWindow.mWindowSize.y);
+                    mCamera.update(mUniforms, mWindow->mWindowSize.x, mWindow->mWindowSize.y);
                 }
 
                 ImGui::Checkbox("cull frustum", &cull_frustum);
@@ -1251,8 +1235,10 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
     ImGui::Begin("Add Line");
 
-    ImGui::Image((ImTextureID)(intptr_t)mWaterRefractionPass->mRenderTargetView, ImVec2(1920 / 4.0, 1022 / 4.0));
-    ImGui::Image((ImTextureID)(intptr_t)mWaterPass->mRenderTargetView, ImVec2(1920 / 4.0, 1022 / 4.0));
+    ImGui::Image((ImTextureID)(intptr_t)mWaterRenderPass->mWaterRefractionPass->mRenderTargetView,
+                 ImVec2(1920 / 4.0, 1022 / 4.0));
+    ImGui::Image((ImTextureID)(intptr_t)mWaterRenderPass->mWaterPass->mRenderTargetView,
+                 ImVec2(1920 / 4.0, 1022 / 4.0));
 
     static glm::vec3 start = glm::vec3{0.0f};
     static glm::vec3 end = glm::vec3{0.0f};
@@ -1283,13 +1269,9 @@ CameraInfo& Application::getUniformData() { return mUniforms; }
 const WGPUBindGroupLayout& Application::getObjectBindGroupLayout() const { return mBindGroupLayouts[1]; }
 const WGPUBindGroupLayout* Application::getBindGroupLayouts() const { return mBindGroupLayouts.data(); }
 
-std::pair<size_t, size_t> Application::getWindowSize() { return {mWindowWidth, mWindowHeight}; }
+std::pair<size_t, size_t> Application::getWindowSize() { return {mWindow->mWindowSize.x, mWindow->mWindowSize.y}; }
 
-void Application::setWindowSize(size_t width, size_t height) {
-    mWindow.mWindowSize = {width, height};
-    mWindowWidth = width;
-    mWindowHeight = height;
-}
+void Application::setWindowSize(size_t width, size_t height) { mWindow->mWindowSize = {width, height}; }
 
 const std::vector<WGPUBindGroupEntry> Application::getDefaultTextureBindingData() const {
     return mDefaultTextureBindingData;

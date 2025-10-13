@@ -274,16 +274,16 @@ glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corner
     return glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 }
 
-std::vector<glm::vec4> calculateSplit(std::vector<glm::vec4>& corners, float begin, float end) {
-    auto near0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * begin);
-    auto near1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * begin);
-    auto near2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * begin);
-    auto near3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * begin);
+std::vector<glm::vec4> calculateSplit(const FrustumCorners& corners, float begin, float end) {
+    auto near0 = corners.nearBottomLeft + (glm::normalize(corners.farBottomLeft - corners.nearBottomLeft) * begin);
+    auto near1 = corners.nearTopLeft + (glm::normalize(corners.farTopLeft - corners.nearTopLeft) * begin);
+    auto near2 = corners.nearBottomRight + (glm::normalize(corners.farBottomRight - corners.nearBottomRight) * begin);
+    auto near3 = corners.nearTopRight + (glm::normalize(corners.farTopRight - corners.nearTopRight) * begin);
 
-    auto far0 = corners[0] + (glm::normalize(corners[1] - corners[0]) * end);
-    auto far1 = corners[2] + (glm::normalize(corners[3] - corners[2]) * end);
-    auto far2 = corners[4] + (glm::normalize(corners[5] - corners[4]) * end);
-    auto far3 = corners[6] + (glm::normalize(corners[7] - corners[6]) * end);
+    auto far0 = corners.nearBottomLeft + (glm::normalize(corners.farBottomLeft - corners.nearBottomLeft) * end);
+    auto far1 = corners.nearTopLeft + (glm::normalize(corners.farTopLeft - corners.nearTopLeft) * end);
+    auto far2 = corners.nearBottomRight + (glm::normalize(corners.farBottomRight - corners.nearBottomRight) * end);
+    auto far3 = corners.nearTopRight + (glm::normalize(corners.farTopRight - corners.nearTopRight) * end);
 
     return {near0, far0, near1, far1, near2, far2, near3, far3};
 }
@@ -304,7 +304,7 @@ Scene ShadowPass::calculateFrustumScene(const std::vector<glm::vec4> frustum, fl
     return Scene{projection, glm::mat4{1.0}, view, farZ};
 }
 
-std::vector<Scene> ShadowPass::createFrustumSplits(std::vector<glm::vec4>& corners, std::vector<FrustumParams> params) {
+std::vector<Scene> ShadowPass::createFrustumSplits(const FrustumCorners& corners, std::vector<FrustumParams> params) {
     mScenes.clear();
     size_t counter = 0;
     for (const auto& param : params) {

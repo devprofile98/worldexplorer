@@ -17,6 +17,17 @@ struct alignas(16) FrustumPlanesUniform {
         FrustumPlane planes[2];  // Left, Right, Bottom, Top, Near, Far
 };
 
+struct FrustumCorners {
+        glm::vec4 nearBottomLeft;
+        glm::vec4 farBottomLeft;
+        glm::vec4 nearTopLeft;
+        glm::vec4 farTopLeft;
+        glm::vec4 nearBottomRight;
+        glm::vec4 farBottomRight;
+        glm::vec4 nearTopRight;
+        glm::vec4 farTopRight;
+};
+
 void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer);
 WGPUBindGroup createObjectInfoBindGroupForComputePass(Application* app, WGPUBuffer objetcInfoBuffer,
                                                       WGPUBuffer indirectDrawArgsBuffer);
@@ -24,9 +35,12 @@ void runFrustumCullingTask(Application* app, WGPUCommandEncoder encoder);
 
 Buffer& getFrustumPlaneBuffer();
 
-std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view);
-std::vector<FrustumPlane> create2FrustumPlanes(const std::vector<glm::vec4>& corners);
-bool isInFrustum(const std::vector<glm::vec4>& corners, BaseModel* model);
+// std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view);
+FrustumCorners getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view);
+// std::vector<FrustumPlane> create2FrustumPlanes(const std::vector<glm::vec4>& corners);
+std::vector<FrustumPlane> create2FrustumPlanes(const FrustumCorners& corners);
+// bool isInFrustum(const std::vector<glm::vec4>& corners, BaseModel* model);
+bool isInFrustum(const FrustumCorners& corners, BaseModel* model);
 
 namespace frustum {
 
@@ -54,10 +68,10 @@ class Frustum {
         frustum::Plane farFace;
         frustum::Plane nearFace;
         frustum::Plane faces[6];
-        void extractPlanes(glm::mat4x4 projectionMatrix);
+        // void extractPlanes(glm::mat4x4 projectionMatrix);
         bool AABBTest(const glm::vec3& min, const glm::vec3& max);
-        void createFrustumFromCamera(const Camera& cam, float aspect, float fovY, float zNear, float zFar);
-        void createFrustumPlanesFromCorner(const std::vector<glm::vec4>& corners);
+        // void createFrustumFromCamera(const Camera& cam, float aspect, float fovY, float zNear, float zFar);
+        // void createFrustumPlanesFromCorner(const std::vector<glm::vec4>& corners);
 };
 
 #endif  // WEBGPUTEST_FRUSTUM_CULLING_H

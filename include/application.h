@@ -15,7 +15,7 @@
 #include "utils.h"
 #include "water_pass.h"
 #include "webgpu/webgpu.h"
-#include "window.h"
+// #include "window.h"
 
 // Forward Declarations
 class ShadowPass;
@@ -28,6 +28,9 @@ class LineEngine;
 class SkyBox;
 class Pipeline;
 class CompositionPass;
+//
+template <typename W>
+class Window;
 struct RendererResource;
 
 /*
@@ -40,7 +43,7 @@ struct LightingUniforms {
 
 class Application {
     public:
-        bool initialize();
+        bool initialize(const char* windowName, uint16_t width, uint16_t height);
         void terminate();
         void mainLoop();
         bool isRunning();
@@ -102,11 +105,9 @@ class Application {
         WGPUTextureView mCurrentTargetView;
         LineEngine* mLineEngine;
         SkyBox* mSkybox;
-        Window<GLFWwindow> mWindow;
+        Window<GLFWwindow>* mWindow;
 
         // private:
-        size_t mWindowWidth = 1920;
-        size_t mWindowHeight = 1080;
         Camera mCamera;
         Terrain terrain;
         LightingUniforms mLightingUniforms;
@@ -121,8 +122,7 @@ class Application {
         TerrainPass* mTerrainPass;
         OutlinePass* mOutlinePass;
         ViewPort3DPass* m3DviewportPass;
-        WaterReflectionPass* mWaterPass;
-        WaterRefractionPass* mWaterRefractionPass;
+
         WaterPass* mWaterRenderPass;
         WGPUSampler mDefaultSampler;
 

@@ -30,11 +30,8 @@ Camera::Camera(glm::vec3 translate, glm::vec3 scale, glm::vec3 rotationAxis, flo
     // Projection Matrix ------------------
     float ratio = 1920.0f / 1080.0f;
     float focal_length = 2.0;
-    float near = 0.01f;
-    float far = 10.0f;
-    // float divider = 1.0f / (focal_length * (far - near));
-    float fov = 2 * glm::atan(1 / focal_length);
-    mProjectionMatrix = glm::perspective(fov, ratio, near, far);
+    mProjectionMatrix = glm::perspective(mFov * Camera::PI / 180, ratio, mZnear, mZfar);
+    updateCamera();
 }
 
 Camera& Camera::setTarget(glm::vec3 target) {
@@ -95,11 +92,6 @@ void Camera::processMouse(int x, int y) {
     if (mPitch > 89.0f) mPitch = 89.0f;
     if (mPitch < -89.0f) mPitch = -89.0f;
 
-    // glm::vec3 front;
-    // front.x = cos(glm::radians(mYaw)) * cos(glm::radians(mPitch));
-    // front.y = sin(glm::radians(mPitch));
-    // front.z = sin(glm::radians(mYaw)) * cos(glm::radians(mPitch));
-    // mCameraFront = glm::normalize(front);
     updateCamera();
 }
 
@@ -109,9 +101,6 @@ Camera& Camera::updateCamera() {
     mCameraFront.z = sin(glm::radians(mPitch));
 
     mCameraFront = glm::normalize(mCameraFront);
-    // mCameraFront.z += yoffset;
-    // std::cout << mCameraFront.x << " " << mCameraFront.y << " " << mCameraFront.z << std::endl;
-    // mRight = glm::vec3{std::cos(mPitch), 0.f, std::sin(mPitch)};
     mRight = glm::normalize(
         glm::cross(mCameraFront, mWorldUp));  // normalize the vectors, because their length gets closer to 0 the
     mCameraUp = glm::normalize(glm::cross(mRight, mCameraFront));
