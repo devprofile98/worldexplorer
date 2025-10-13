@@ -108,27 +108,15 @@ class DepthPrePass : public RenderPass {
 
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 
-        // Getters
-        // WGPURenderPassDescriptor* getRenderPassDescriptor();
-
-        // Pipeline* getPipeline();
-        // WGPUTextureView getShadowMapView();
         void render(ModelRegistry::ModelContainer& models, WGPURenderPassEncoder encoder);
         WGPURenderPassDescriptor mDesc;
         WGPURenderPassDescriptor& getRenderDesc(WGPUTextureView texture);
 
     private:
         Application* mApp;
-        // pipeline
-        // Pipeline* mRenderPipeline;
-        // render pass
-        // size_t mNumOfCascades;
-        // std::vector<Buffer> mFrustuIndexBuffer;
-        // Buffer mSceneUniformBuffer;
 
         // bindings
         BindingGroup mBindingGroup;
-        // std::vector<WGPUBindGroup> mSceneIndicesBindGroup;
         std::vector<WGPUBindGroupEntry> mBindingData;
         BindingGroup mTextureBindingGroup;
         std::vector<WGPUBindGroupEntry> mTextureBindingData{3};
@@ -140,14 +128,8 @@ class DepthPrePass : public RenderPass {
         Texture* mRenderTarget;
         ColorAttachment mColorAttachment{};
         DepthStencilAttachment mDepthStencilAttachment{};
-        // Texture* mShadowDepthTexture;
-        // Texture* mShadowDepthTexture2;
-        // buffers
-        // Buffer mSceneUniformBuffer;
 
         Scene calculateFrustumScene(const std::vector<glm::vec4> frustum, float farZ, size_t cascadeIdx);
-        // scene
-        // std::vector<Scene> mScenes;
 };
 
 #endif  // WEBGPUTEST_SHADOW_PASS_H

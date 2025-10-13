@@ -390,8 +390,7 @@ void WaterPass::drawWater() {
 
     // ---------- Terrain Render Pass for Water Reflection
     NewRenderPass::beginPass(
-        mApp->mWaterRenderPass->mTerrainForReflection, mApp->getRendererResource().commandEncoder,
-        [&](WGPURenderPassEncoder pass_encoder) {
+        mTerrainForReflection, mApp->getRendererResource().commandEncoder, [&](WGPURenderPassEncoder pass_encoder) {
             wgpuRenderPassEncoderSetPipeline(pass_encoder, mApp->mTerrainPass->getPipeline()->getPipeline());
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(),
                                               0, nullptr);
@@ -412,8 +411,7 @@ void WaterPass::drawWater() {
     // ---------- Terrain Render Pass for Water Refraction
 
     NewRenderPass::beginPass(
-        mApp->mWaterRenderPass->mTerrainForRefraction, mApp->getRendererResource().commandEncoder,
-        [&](WGPURenderPassEncoder pass_encoder) {
+        mTerrainForRefraction, mApp->getRendererResource().commandEncoder, [&](WGPURenderPassEncoder pass_encoder) {
             wgpuRenderPassEncoderSetPipeline(pass_encoder, mApp->mTerrainPass->getPipeline()->getPipeline());
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mApp->mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                               nullptr);
@@ -427,29 +425,27 @@ void WaterPass::drawWater() {
         });
 }
 
-void waterBlend(Application* app) {
+void WaterPass::waterBlend() {
     // {
     ZoneScopedNC("Water pass", 0x00F0FF);
-    app->mWaterRenderPass->setColorAttachment(
-        {app->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-    app->mWaterRenderPass->setDepthStencilAttachment(
-        {app->mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false, 1.0});
-    app->mWaterRenderPass->init();
+    setColorAttachment(
+        {mApp->mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
+    setDepthStencilAttachment(
+        {mApp->mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Store, LoadOp::Load, false, 1.0});
+    init();
 
-    WGPURenderPassEncoder water_render_pass_encoder = wgpuCommandEncoderBeginRenderPass(
-        app->getRendererResource().commandEncoder, app->mWaterRenderPass->getRenderPassDescriptor());
+    WGPURenderPassEncoder water_render_pass_encoder =
+        wgpuCommandEncoderBeginRenderPass(mApp->getRendererResource().commandEncoder, getRenderPassDescriptor());
     for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
         if (model->mName == "water") {
-            // continue;
-            wgpuRenderPassEncoderSetPipeline(water_render_pass_encoder,
-                                             app->mWaterRenderPass->getPipeline()->getPipeline());
+            wgpuRenderPassEncoderSetPipeline(water_render_pass_encoder, getPipeline()->getPipeline());
             wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 3,
-                                              app->mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
+                                              mApp->mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
 
-            wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 4,
-                                              app->mWaterRenderPass->mWaterTextureBindGroup.getBindGroup(), 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 4, mWaterTextureBindGroup.getBindGroup(), 0,
+                                              nullptr);
             if (!model->isTransparent() == true) {
-                model->draw(app, water_render_pass_encoder);
+                model->draw(mApp, water_render_pass_encoder);
             }
         }
     }

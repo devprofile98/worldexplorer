@@ -843,7 +843,7 @@ void Application::mainLoop() {
     // ---------------------------------------------------------------------
     mLineEngine->executePass();
     // ---------------------------------------------------------------------
-    waterBlend(this);
+    mWaterRenderPass->waterBlend();
 
     // terrain pass
     {

@@ -12,8 +12,6 @@
 
 class Application;
 
-void waterBlend(Application* app);
-
 class WaterReflectionPass : public RenderPass {
     public:
         WaterReflectionPass(Application* app, const std::string& name);
@@ -56,22 +54,12 @@ class WaterRefractionPass : public RenderPass {
         std::vector<WGPUBindGroupEntry> mDefaultClipPlaneBGData{1};
         glm::vec4 mDefaultPlane{0.0, 0.0, 1.0, 3.5};
 
-        // BindingGroup mDefaultCameraIndexBindgroup = {};
-        // std::vector<WGPUBindGroupEntry> mDefaultCameraIndexBindingData{1};
-        // Buffer mDefaultCameraIndex;
-        // WGPUBindGroupLayout layout;
-
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 };
 
 class WaterPass : public RenderPass {
     public:
         WaterPass(Application* app, const std::string& name);
-
-        // Texture* mRenderTarget;
-        // Texture* mDepthTexture;
-        // WGPUTextureView mRenderTargetView;
-        // WGPUTextureView mDepthTextureView;
 
         Application* mApp;
 
@@ -86,6 +74,7 @@ class WaterPass : public RenderPass {
         WaterRefractionPass* mWaterRefractionPass;
 
         void drawWater();
+        void waterBlend();
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 };
 
