@@ -16,6 +16,7 @@
 
 class Application;
 class Pipeline;
+class Texture;
 
 class TerrainPass : public RenderPass {
         void createRenderPass(WGPUTextureFormat textureFormat) override;
@@ -24,9 +25,20 @@ class TerrainPass : public RenderPass {
         explicit TerrainPass(Application* app, const std::string& name);
 
         Pipeline* create(WGPUTextureFormat textureFormat);
+        void executePass();
+        BindingGroup mTexturesBindgroup;
+        Terrain terrain;
+        std::vector<glm::vec3> terrainData = {};
 
     private:
         Application* mApp;
+        WGPUBindGroupLayout mTextureBindgroupLayout;
+        std::vector<WGPUBindGroupEntry> mBindingData{4};
+        std::vector<Texture*> mTempTextures;
+        Texture* mGrass;
+        Texture* mRock;
+        Texture* mSand;
+        Texture* mSnow;
 };
 
 class OutlinePass : public RenderPass {

@@ -14,22 +14,14 @@
 
 @group(5) @binding(0) var<storage, read> visible_instances_indices: array<u32>;
 
+@group(6) @binding(0) var grass_ground_texture2: texture_2d_array<f32>;
+@group(6) @binding(1) var rock_mountain_texture2: texture_2d_array<f32>;
+@group(6) @binding(2) var sand_lake_texture2: texture_2d_array<f32>;
+@group(6) @binding(3) var snow_mountain_texture2: texture_2d_array<f32>;
+
+
 const PI: f32 = 3.141592653589793;
 
-fn degreeToRadians(degrees: f32) -> f32 {
-    return degrees * (PI / 180.0); // Convert 90 degrees to radians
-}
-
-fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
-
-    if is_flat == 1 {
-        if Y > 2.0 {
-            return vec3f(1.0, 0.0, 0.0);
-        }
-        return vec3f(0.0, 1.0, 0.0);
-    }
-    return default_color;
-}
 
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
@@ -100,29 +92,29 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, shadowIdx: u32) -> f
 fn calculateTerrainColor(level: f32, uv: vec2f, index: i32) -> vec3f {
     var color = vec3f(0.0f, 1.0f, 0.0f);
     if level <= 1.1 && level >= 0.9 {
-        let texture_col = textureSample(sand_lake_texture, textureSampler, uv, index).rgb;
+        let texture_col = textureSample(sand_lake_texture2, textureSampler, uv, index).rgb;
         color = mix(texture_col, vec3f(1.0, 0.0, 0.0), 0.05);
     } else if level >= 1.1 && level < 1.9 {
         let distance = level - 1.0;
-        let grass_color = textureSample(grass_ground_texture, textureSampler, uv * 0.4, index).rgb;
-        color = mix(textureSample(sand_lake_texture, textureSampler, uv, index).rgb, vec3f(1.0, 0.0, 0.0), 0.05);
+        let grass_color = textureSample(grass_ground_texture2, textureSampler, uv * 0.4, index).rgb;
+        color = mix(textureSample(sand_lake_texture2, textureSampler, uv, index).rgb, vec3f(1.0, 0.0, 0.0), 0.05);
         color = mix(color, grass_color, distance);
     } else if level >= 1.9 && level < 2.1 {
-        color = textureSample(grass_ground_texture, textureSampler, uv * 0.4, index).rgb;
+        color = textureSample(grass_ground_texture2, textureSampler, uv * 0.4, index).rgb;
     } else if level >= 2.1 && level < 2.9 {
         let distance = level - 2.0;
-        let grass_color = textureSample(grass_ground_texture, textureSampler, uv * 0.4, index).rgb;
-        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2, index).rgb;
+        let grass_color = textureSample(grass_ground_texture2, textureSampler, uv * 0.4, index).rgb;
+        color = textureSample(rock_mountain_texture2, textureSampler, uv * 0.2, index).rgb;
         color = mix(grass_color, color, distance);
     } else if level >= 2.9 && level < 3.1 {
-        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2, index).rgb;
+        color = textureSample(rock_mountain_texture2, textureSampler, uv * 0.2, index).rgb;
     } else if level >= 3.1 && level < 3.9 {
         let distance = level - 3.0;
-        let snow_color = textureSample(snow_mountain_texture, textureSampler, uv, index).rgb;
-        color = textureSample(rock_mountain_texture, textureSampler, uv * 0.2, index).rgb;
+        let snow_color = textureSample(snow_mountain_texture2, textureSampler, uv, index).rgb;
+        color = textureSample(rock_mountain_texture2, textureSampler, uv * 0.2, index).rgb;
         color = mix(color, snow_color, distance);
     } else if level >= 3.9 {
-        color = textureSample(snow_mountain_texture, textureSampler, uv, index).rgb;
+        color = textureSample(snow_mountain_texture2, textureSampler, uv, index).rgb;
     }
     return color;
 }

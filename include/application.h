@@ -80,8 +80,6 @@ class Application {
 
         InstanceManager* mInstanceManager;
 
-        std::vector<glm::vec3> terrainData = {};  // TODO move this to terrain related files
-
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
         std::array<WGPUBindGroupLayout, 6> mBindGroupLayouts;
 
@@ -109,7 +107,6 @@ class Application {
 
         // private:
         Camera mCamera;
-        Terrain terrain;
         LightingUniforms mLightingUniforms;
         LightManager* mLightManager;
         Pipeline* mPipeline;

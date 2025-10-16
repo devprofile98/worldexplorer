@@ -398,8 +398,10 @@ void WaterPass::drawWater() {
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
                                               nullptr);
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 6, mApp->mTerrainPass->mTexturesBindgroup.getBindGroup(), 0,
+                                              nullptr);
 
-            mApp->terrain.draw(mApp, pass_encoder, mApp->mBindingData);
+            mApp->mTerrainPass->terrain.draw(mApp, pass_encoder, mApp->mBindingData);
 
             wgpuRenderPassEncoderEnd(pass_encoder);
         });
@@ -418,8 +420,10 @@ void WaterPass::drawWater() {
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(),
                                               0, nullptr);
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 6, mApp->mTerrainPass->mTexturesBindgroup.getBindGroup(), 0,
+                                              nullptr);
 
-            mApp->terrain.draw(mApp, pass_encoder, mApp->mBindingData);
+            mApp->mTerrainPass->terrain.draw(mApp, pass_encoder, mApp->mBindingData);
 
             wgpuRenderPassEncoderEnd(pass_encoder);
         });

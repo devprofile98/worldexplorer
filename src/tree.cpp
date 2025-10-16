@@ -36,10 +36,11 @@ struct TreeModel : public IModel {
             degrees.reserve(5000);
             scales.reserve(5000);
 
-            for (size_t i = 0; i < app->terrainData.size(); i++) {
+            for (size_t i = 0; i < app->mTerrainPass->terrainData.size(); i++) {
                 if (i % 40 == 0) {
-                    positions.emplace_back(
-                        glm::vec3(app->terrainData[i].x, app->terrainData[i].y, app->terrainData[i].z));
+                    positions.emplace_back(glm::vec3(app->mTerrainPass->terrainData[i].x,
+                                                     app->mTerrainPass->terrainData[i].y,
+                                                     app->mTerrainPass->terrainData[i].z));
                     degrees.emplace_back(glm::radians(dist_for_rotation(gen)));
                     scales.emplace_back(glm::vec3{0.9f * dist(gen)});
                 }
@@ -254,10 +255,11 @@ struct GrassModel : public IModel {
             degrees.reserve(5000);
             scales.reserve(5000);
 
-            for (size_t i = 0; i < app->terrainData.size(); i++) {
+            for (size_t i = 0; i < app->mTerrainPass->terrainData.size(); i++) {
                 if (i % 5 == 0) {
-                    positions.emplace_back(
-                        glm::vec3{app->terrainData[i].x, app->terrainData[i].y, app->terrainData[i].z});
+                    positions.emplace_back(glm::vec3{app->mTerrainPass->terrainData[i].x,
+                                                     app->mTerrainPass->terrainData[i].y,
+                                                     app->mTerrainPass->terrainData[i].z});
                     degrees.emplace_back(glm::radians(dist_for_rotation(gen)));
                     scales.emplace_back(glm::vec3{0.15f * dist(gen)});
                 }

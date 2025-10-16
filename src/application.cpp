@@ -77,40 +77,6 @@ void Application::initializePipeline() {
     shaderDesc.hints = nullptr;
 #endif
 
-    Texture grass_texture =
-        Texture{this->getRendererResource().device,
-                std::vector<std::filesystem::path>{RESOURCE_DIR "/mud/diffuse.jpg", RESOURCE_DIR "/mud/normal.jpg",
-                                                   RESOURCE_DIR "/mud/roughness.jpg"},
-                WGPUTextureFormat_RGBA8Unorm, 3};
-    grass_texture.createViewArray(0, 3);
-    grass_texture.uploadToGPU(this->getRendererResource().queue);
-
-    Texture rock_texture =
-        Texture{this->getRendererResource().device,
-                std::vector<std::filesystem::path>{RESOURCE_DIR "/Rock/Rock060_1K-JPG_Color.jpg",
-                                                   RESOURCE_DIR "/Rock/Rock060_1K-JPG_NormalGL.jpg",
-                                                   RESOURCE_DIR "/Rock/Rock060_1K-JPG_Roughness.jpg"},
-                WGPUTextureFormat_RGBA8Unorm, 3};
-    rock_texture.createViewArray(0, 3);
-    rock_texture.uploadToGPU(this->getRendererResource().queue);
-
-    Texture sand_texture =
-        Texture{this->getRendererResource().device,
-                std::vector<std::filesystem::path>{RESOURCE_DIR "/aerial/aerial_beach_01_diff_1k.jpg",
-                                                   RESOURCE_DIR "/aerial/aerial_beach_01_nor_gl_1k.jpg",
-                                                   RESOURCE_DIR "/aerial/aerial_beach_01_rough_1k.jpg"},
-                WGPUTextureFormat_RGBA8Unorm, 3};
-    sand_texture.createViewArray(0, 3);
-    sand_texture.uploadToGPU(this->getRendererResource().queue);
-
-    Texture snow_texture = Texture{this->getRendererResource().device,
-                                   std::vector<std::filesystem::path>{RESOURCE_DIR "/snow/snow_02_diff_1k.jpg",
-                                                                      RESOURCE_DIR "/snow/snow_02_nor_gl_1k.jpg",
-                                                                      RESOURCE_DIR "/snow/snow_02_rough_1k.jpg"},
-                                   WGPUTextureFormat_RGBA8Unorm, 3};
-    snow_texture.createViewArray(0, 3);
-    snow_texture.uploadToGPU(this->getRendererResource().queue);
-
     // creating default diffuse texture
     mDefaultDiffuse = new Texture{this->getRendererResource().device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_diffuse_texture_view = mDefaultDiffuse->createView();
@@ -142,15 +108,10 @@ void Application::initializePipeline() {
             .addBuffer(3, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(LightingUniforms))
             .addBuffer(4, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(Light) * 10)
             .addBuffer(5, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float))
-            .addTexture(6, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
-            .addTexture(7, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
-            .addTexture(8, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
-            .addTexture(9, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
-            .addTexture(10, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
-                        TextureViewDimension::ARRAY_2D)
-            .addBuffer(11, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 5)
-            .addSampler(12, BindGroupEntryVisibility::FRAGMENT, SampleType::Compare)
-            .addBuffer(13, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+            .addTexture(6, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH, TextureViewDimension::ARRAY_2D)
+            .addBuffer(7, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 5)
+            .addSampler(8, BindGroupEntryVisibility::FRAGMENT, SampleType::Compare)
+            .addBuffer(9, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                        mInstanceManager->mBufferSize)
             .createLayout(this, "binding group layout");
 
@@ -344,33 +305,13 @@ void Application::initializePipeline() {
     mBindingData[6] = {};
     mBindingData[6].nextInChain = nullptr;
     mBindingData[6].binding = 6;
-    mBindingData[6].textureView = grass_texture.getTextureViewArray();
+    mBindingData[6].textureView = mShadowPass->getShadowMapView();
 
-    mBindingData[7] = {};
     mBindingData[7].nextInChain = nullptr;
     mBindingData[7].binding = 7;
-    mBindingData[7].textureView = rock_texture.getTextureViewArray();
-
-    mBindingData[8] = {};
-    mBindingData[8].nextInChain = nullptr;
-    mBindingData[8].binding = 8;
-    mBindingData[8].textureView = sand_texture.getTextureViewArray();
-
-    mBindingData[9] = {};
-    mBindingData[9].nextInChain = nullptr;
-    mBindingData[9].binding = 9;
-    mBindingData[9].textureView = snow_texture.getTextureViewArray();
-
-    mBindingData[10] = {};
-    mBindingData[10].nextInChain = nullptr;
-    mBindingData[10].binding = 10;
-    mBindingData[10].textureView = mShadowPass->getShadowMapView();
-
-    mBindingData[11].nextInChain = nullptr;
-    mBindingData[11].binding = 11;
-    mBindingData[11].buffer = mLightSpaceTransformation.getBuffer();
-    mBindingData[11].offset = 0;
-    mBindingData[11].size = sizeof(Scene) * 5;
+    mBindingData[7].buffer = mLightSpaceTransformation.getBuffer();
+    mBindingData[7].offset = 0;
+    mBindingData[7].size = sizeof(Scene) * 5;
 
     WGPUSamplerDescriptor shadow_sampler_desc = {};
     shadow_sampler_desc.addressModeU = WGPUAddressMode_ClampToEdge;
@@ -385,31 +326,17 @@ void Application::initializePipeline() {
     shadow_sampler_desc.maxAnisotropy = 1;
     WGPUSampler shadow_sampler = wgpuDeviceCreateSampler(this->getRendererResource().device, &shadow_sampler_desc);
 
-    mBindingData[12] = {};
-    mBindingData[12].nextInChain = nullptr;
-    mBindingData[12].binding = 12;
-    mBindingData[12].sampler = shadow_sampler;
+    mBindingData[8] = {};
+    mBindingData[8].nextInChain = nullptr;
+    mBindingData[8].binding = 8;
+    mBindingData[8].sampler = shadow_sampler;
 
-    mBindingData[13] = {};
-    mBindingData[13].nextInChain = nullptr;
-    mBindingData[13].buffer = mInstanceManager->getInstancingBuffer().getBuffer();
-    mBindingData[13].binding = 13;
-    mBindingData[13].offset = 0;
-    mBindingData[13].size = mInstanceManager->mBufferSize;
-
-    mDefaultBoneFinalTransformData.setLabel("default bone final transform")
-        .setSize(100 * sizeof(glm::mat4))
-        .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
-        .setMappedAtCraetion(false)
-        .create(this);
-
-    static std::vector<glm::mat4> bones;
-    bones.reserve(100);
-    for (int i = 0; i < 100; i++) {
-        bones.emplace_back(glm::mat4{1.0});
-    }
-    wgpuQueueWriteBuffer(getRendererResource().queue, mDefaultBoneFinalTransformData.getBuffer(), 0, bones.data(),
-                         sizeof(glm::mat4) * bones.size());
+    mBindingData[9] = {};
+    mBindingData[9].nextInChain = nullptr;
+    mBindingData[9].buffer = mInstanceManager->getInstancingBuffer().getBuffer();
+    mBindingData[9].binding = 9;
+    mBindingData[9].offset = 0;
+    mBindingData[9].size = mInstanceManager->mBufferSize;
 
     mDefaultVisibleBGData[0] = {};
     mDefaultVisibleBGData[0].nextInChain = nullptr;
@@ -452,7 +379,6 @@ void Application::initializeBuffers() {
         .setMappedAtCraetion()
         .create(this);
 
-    std::cout << "Generate is " << terrainData.size() << '\n';
     mLightSpaceTransformation.setLabel("Light space transform buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setSize(sizeof(Scene) * 5)
@@ -482,6 +408,20 @@ void Application::initializeBuffers() {
     mLightManager->uploadToGpu(this, mLightBuffer.getBuffer());
 
     setupComputePass(this, mInstanceManager->getInstancingBuffer().getBuffer());
+
+    mDefaultBoneFinalTransformData.setLabel("default bone final transform")
+        .setSize(100 * sizeof(glm::mat4))
+        .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
+        .setMappedAtCraetion(false)
+        .create(this);
+
+    static std::vector<glm::mat4> bones;
+    bones.reserve(100);
+    for (int i = 0; i < 100; i++) {
+        bones.emplace_back(glm::mat4{1.0});
+    }
+    wgpuQueueWriteBuffer(getRendererResource().queue, mDefaultBoneFinalTransformData.getBuffer(), 0, bones.data(),
+                         sizeof(glm::mat4) * bones.size());
 }
 
 void Application::onResize() {
@@ -633,10 +573,6 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     mCamera = Camera{{-0.0f, -0.0f, 0.0f}, glm::vec3{0.8f}, {1.0, 0.0, 0.0}, 0.0};
     mUniforms.setCamera(mCamera);
 
-    terrain.generate(200, 8, terrainData).uploadToGpu(this);
-    std::cout << "Generate is " << terrainData.size() << '\n';
-    terrain.createSomeBinding(this);
-
     return true;
 }
 
@@ -667,8 +603,6 @@ void Application::mainLoop() {
             model->update(this, 0.0);
         }
     }
-
-    terrain.update(this, 0.0);
 
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
@@ -844,34 +778,11 @@ void Application::mainLoop() {
     mLineEngine->executePass();
     // ---------------------------------------------------------------------
     mWaterRenderPass->waterBlend();
-
-    // terrain pass
-    {
-        // {
-        ZoneScopedNC("Last Terrain pass", 0xFF00FF);
-        mTerrainPass->setColorAttachment(
-            {mCurrentTargetView, nullptr, WGPUColor{0.52, 0.80, 0.92, 1.0}, StoreOp::Store, LoadOp::Load});
-        mTerrainPass->setDepthStencilAttachment(
-            {mDepthTextureView, StoreOp::Store, LoadOp::Load, false, StoreOp::Undefined, LoadOp::Undefined, false});
-        mTerrainPass->init();
-
-        WGPURenderPassEncoder terrain_pass_encoder =
-            wgpuCommandEncoderBeginRenderPass(encoder, mTerrainPass->getRenderPassDescriptor());
-        wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());
-
-        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
-                                          nullptr);
-
-        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
-        terrain.draw(this, terrain_pass_encoder, mBindingData);
-
-        updateGui(terrain_pass_encoder, time);
-
-        wgpuRenderPassEncoderEnd(terrain_pass_encoder);
-        wgpuRenderPassEncoderRelease(terrain_pass_encoder);
-    }
-
     // ---------------------------------------------------------------------
+    mTerrainPass->executePass();
+    // ---------------------------------------------------------------------
+
+    // updateGui(terrain_pass_encoder, time);
 
     // outline pass
     // mOutlinePass->setColorAttachment(
