@@ -660,7 +660,7 @@ struct StonesModel : public IModel {
 };
 
 USER_REGISTER_MODEL("tree", TreeModel);
-// USER_REGISTER_MODEL("boat", BoatModel);
+USER_REGISTER_MODEL("boat", BoatModel);
 USER_REGISTER_MODEL("car", CarModel);
 // USER_REGISTER_MODEL("tower", TowerModel);
 
