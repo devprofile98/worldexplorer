@@ -775,7 +775,53 @@ void Application::mainLoop() {
     mTerrainPass->executePass();
     // ---------------------------------------------------------------------
 
-    // updateGui(terrain_pass_encoder, time);
+    {
+        WGPURenderPassDescriptor render_pass_descriptor = {};
+        render_pass_descriptor.nextInChain = nullptr;
+
+        static WGPURenderPassColorAttachment color_attachment = {};
+        color_attachment.view = mCurrentTargetView;
+        color_attachment.resolveTarget = nullptr;
+        color_attachment.loadOp = WGPULoadOp_Load;
+        color_attachment.storeOp = WGPUStoreOp_Store;
+        color_attachment.clearValue = WGPUColor{0.52, 0.80, 0.92, 1.0};
+#ifndef WEBGPU_BACKEND_WGPU
+        color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif  // NOT WEBGPU_BACKEND_WGPU
+
+        render_pass_descriptor.colorAttachmentCount = 1;
+        render_pass_descriptor.colorAttachments = &color_attachment;
+
+        static WGPURenderPassDepthStencilAttachment depth_stencil_attachment;
+        depth_stencil_attachment.view = mDepthTextureView;
+        depth_stencil_attachment.depthClearValue = 1.0f;
+        depth_stencil_attachment.depthLoadOp = WGPULoadOp_Load;
+        depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Store;
+        depth_stencil_attachment.depthReadOnly = false;
+        depth_stencil_attachment.stencilClearValue = 0;
+        depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Load;
+        depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
+        depth_stencil_attachment.stencilReadOnly = false;
+        render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
+        render_pass_descriptor.timestampWrites = nullptr;
+
+        WGPURenderPassEncoder terrain_pass_encoder =
+            wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
+        wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());
+
+        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
+                                          nullptr);
+
+        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+
+        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 6, mTerrainPass->mTexturesBindgroup.getBindGroup(), 0,
+                                          nullptr);
+        updateGui(terrain_pass_encoder, time);
+
+        wgpuRenderPassEncoderEnd(terrain_pass_encoder);
+        wgpuRenderPassEncoderRelease(terrain_pass_encoder);
+    }
 
     // outline pass
     // mOutlinePass->setColorAttachment(

@@ -94,6 +94,38 @@ add_executable(
     "${CMAKE_CURRENT_SOURCE_DIR}/extern/glfw3webgpu/glfw3webgpu.c"
 )
 
+
+if (UNIX AND NOT APPLE)
+    # For Linux/Unix systems
+    if (DEFINED ENV{WAYLAND_DISPLAY})
+        # Prefer Wayland if WAYLAND_DISPLAY is set
+        target_compile_definitions(App PRIVATE
+            GLFW_EXPOSE_NATIVE_WAYLAND
+            _GLFW_WAYLAND
+        )
+    else()
+        # Default to X11
+        target_compile_definitions(App PRIVATE
+            GLFW_EXPOSE_NATIVE_X11
+            _GLFW_X11
+        )
+    endif()
+elseif (APPLE)
+    # For macOS
+    target_compile_definitions(App PRIVATE
+        GLFW_EXPOSE_NATIVE_COCOA
+        _GLFW_COCOA
+    )
+elseif (WIN32)
+    # For Windows
+    target_compile_definitions(App PRIVATE
+        GLFW_EXPOSE_NATIVE_WIN32
+        _GLFW_WIN32
+    )
+else()
+    message(FATAL_ERROR "Unsupported platform for glfw3webgpu")
+endif()
+
 # if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 #     # For GCC and Clang, the flag is -S
 #     target_compile_options(App PRIVATE -S -fverbose-asm)

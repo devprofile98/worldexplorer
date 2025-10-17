@@ -469,6 +469,7 @@ void WaterPass::waterBlend() {
         wgpuCommandEncoderBeginRenderPass(mApp->getRendererResource().commandEncoder, getRenderPassDescriptor());
 
     if (mWaterModel != nullptr) {
+        mWaterModel->update(mApp, 0.0);
         wgpuRenderPassEncoderSetPipeline(water_render_pass_encoder, getPipeline()->getPipeline());
         wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 3,
                                           mApp->mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
@@ -476,7 +477,6 @@ void WaterPass::waterBlend() {
         wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 4, mWaterTextureBindGroup.getBindGroup(), 0,
                                           nullptr);
         if (!mWaterModel->isTransparent() == true) {
-            std::cout << "water model is " << (mWaterModel == nullptr ? "not loaded" : mWaterModel->mName) << '\n';
             mWaterModel->draw(mApp, water_render_pass_encoder);
         }
     }
