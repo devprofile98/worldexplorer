@@ -4,11 +4,37 @@
 #include <webgpu/webgpu.h>
 
 #include "application.h"
+#include "model.h"
+#include "model_registery.h"
 #include "rendererResource.h"
 #include "renderpass.h"
 #include "skybox.h"
 #include "texture.h"
 #include "tracy/Tracy.hpp"
+
+struct WaterModel : public IModel {
+        WaterModel(Application* app) {
+            mModel = new Model{};
+
+            mModel->load("water", app, RESOURCE_DIR "/waterplane.glb", app->getObjectBindGroupLayout())
+                .mTransform.moveTo(glm::vec3{52.275, 56.360, -3.5})
+                .scale(glm::vec3{100.0, 100.0, 1.0});
+            mModel->uploadToGPU(app);
+            mModel->setTransparent(false);
+
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+        }
+
+        Model* getModel() override { return mModel; }
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+            auto p = reinterpret_cast<Model**>(params);
+
+            (*p) = mModel;
+            std::cout << "Water model gets loaded!\n";
+        };
+};
 
 WaterReflectionPass::WaterReflectionPass(Application* app, const std::string& name) : RenderPass(name), mApp(app) {
     // create render target
@@ -196,9 +222,7 @@ void WaterRefractionPass::execute(WGPUCommandEncoder encoder) {
 
     {
         for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-            if (model->mName != "water") {
-                model->draw(mApp, pass_encoder);
-            }
+            model->draw(mApp, pass_encoder);
         }
     }
     wgpuRenderPassEncoderEnd(pass_encoder);
@@ -210,11 +234,8 @@ void WaterRefractionPass::createRenderPass(WGPUTextureFormat textureFormat) {
 
     auto* layouts = mApp->getBindGroupLayouts();
     mRenderPipeline = new Pipeline{
-        mApp,
-        {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4], layouts[5] /*, layouts[6] , mLayerThree*/},
-        "Water Render Pass1"};
+        mApp, {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4], layouts[5]}, "Water Render Pass1"};
     mRenderPipeline->defaultConfiguration(mApp, textureFormat);
-    // mRenderPipeline->setShader(RESOURCE_DIR "/editor.wgsl");
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     setDefault(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->getDepthStencilState().format = WGPUTextureFormat_Depth24PlusStencil8;
@@ -231,6 +252,12 @@ void WaterRefractionPass::createRenderPass(WGPUTextureFormat textureFormat) {
 }
 
 WaterPass::WaterPass(Application* app, const std::string& name) : RenderPass(name), mApp(app) {
+    ModelRegistry::instance().registerModel("water", [&](Application* app) -> LoadModelResult {
+        WaterModel model = WaterModel{app};
+        model.onLoad(app, &mWaterModel);
+        return {model.getModel(), Visibility_Other};
+    });
+
     mWaterPass = new WaterReflectionPass{app, "Water Reflection Pass"};
     mWaterPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
 
@@ -316,29 +343,29 @@ void WaterPass::drawWater() {
 
     // inverting pitch and reflect camera based on the water plane
     // auto water_plane = ModelRegistry::instance().getLoadedModel(Visibility_User).find("water");
-    for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-        if (model->mName == "water") {
-            // if (model != ModelRegistry::instance().getLoadedModel(Visibility_User).end()) {
-            static Camera camera = mApp->getCamera();
-            camera = mApp->getCamera();
-            static CameraInfo muniform = mApp->getUniformData();
-            float diff = 2 * (camera.getPos().z - model->mTransform.getPosition().z);
-            auto new_pos = camera.getPos();
-            new_pos.z -= diff;
-            camera.setPosition(new_pos);
-            camera.mPitch *= -1.0;
-            camera.updateCamera();
-            muniform.setCamera(camera);
-            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->getUniformBuffer().getBuffer(),
-                                 sizeof(CameraInfo), &muniform, sizeof(CameraInfo));
-            glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(muniform.viewMatrix));
-            glm::mat4 mvp = muniform.projectMatrix * viewNoTranslation;
-            auto reflected_camera = mvp;
-            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->mSkybox->mReflectedCameraMatrix.getBuffer(),
-                                 0, &reflected_camera, sizeof(glm::mat4));
-            break;
-        }
+
+    // for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+    if (mWaterModel != nullptr) {
+        // if (model != ModelRegistry::instance().getLoadedModel(Visibility_User).end()) {
+        static Camera camera = mApp->getCamera();
+        camera = mApp->getCamera();
+        static CameraInfo muniform = mApp->getUniformData();
+        float diff = 2 * (camera.getPos().z - mWaterModel->mTransform.getPosition().z);
+        auto new_pos = camera.getPos();
+        new_pos.z -= diff;
+        camera.setPosition(new_pos);
+        camera.mPitch *= -1.0;
+        camera.updateCamera();
+        muniform.setCamera(camera);
+        wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->getUniformBuffer().getBuffer(),
+                             sizeof(CameraInfo), &muniform, sizeof(CameraInfo));
+        glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(muniform.viewMatrix));
+        glm::mat4 mvp = muniform.projectMatrix * viewNoTranslation;
+        auto reflected_camera = mvp;
+        wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->mSkybox->mReflectedCameraMatrix.getBuffer(), 0,
+                             &reflected_camera, sizeof(glm::mat4));
     }
+    // }
 
     {
         WGPURenderPassDescriptor render_pass_descriptor = {};
@@ -440,19 +467,20 @@ void WaterPass::waterBlend() {
 
     WGPURenderPassEncoder water_render_pass_encoder =
         wgpuCommandEncoderBeginRenderPass(mApp->getRendererResource().commandEncoder, getRenderPassDescriptor());
-    for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-        if (model->mName == "water") {
-            wgpuRenderPassEncoderSetPipeline(water_render_pass_encoder, getPipeline()->getPipeline());
-            wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 3,
-                                              mApp->mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
 
-            wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 4, mWaterTextureBindGroup.getBindGroup(), 0,
-                                              nullptr);
-            if (!model->isTransparent() == true) {
-                model->draw(mApp, water_render_pass_encoder);
-            }
+    if (mWaterModel != nullptr) {
+        wgpuRenderPassEncoderSetPipeline(water_render_pass_encoder, getPipeline()->getPipeline());
+        wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 3,
+                                          mApp->mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);
+
+        wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 4, mWaterTextureBindGroup.getBindGroup(), 0,
+                                          nullptr);
+        if (!mWaterModel->isTransparent() == true) {
+            std::cout << "water model is " << (mWaterModel == nullptr ? "not loaded" : mWaterModel->mName) << '\n';
+            mWaterModel->draw(mApp, water_render_pass_encoder);
         }
     }
+    // }
     wgpuRenderPassEncoderEnd(water_render_pass_encoder);
     wgpuRenderPassEncoderRelease(water_render_pass_encoder);
 }

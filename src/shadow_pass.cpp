@@ -3,9 +3,11 @@
 #include <cstdint>
 #include <cstring>
 #include <format>
+#include <string>
 
 #include "binding_group.h"
 #include "utils.h"
+#include "wgpu_utils.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <webgpu/webgpu.h>
 
@@ -24,13 +26,15 @@ float sunlength = 5.0;
 
 ShadowPass::ShadowPass(Application* app, const std::string& name) : RenderPass(name) { mApp = app; }
 
-ShadowFrustum::ShadowFrustum(Application* app, WGPUTextureView renderTarget, WGPUTextureView depthTexture)
-    : mShadowDepthTexture(depthTexture), mRenderTarget(renderTarget), mApp(app) {
+ShadowFrustum::ShadowFrustum(Application* app, WGPUTextureView renderTarget, WGPUTextureView depthTexture,
+                             const std::string& name)
+    : mShadowDepthTexture(depthTexture), mRenderTarget(renderTarget), mApp(app), cascadeName(name) {
     mColorAttachment =
         ColorAttachment{mRenderTarget, nullptr, WGPUColor{0.02, 0.80, 0.92, 1.0}, StoreOp::Discard, LoadOp::Load};
 
     mRenderPassDesc = {};
     mRenderPassDesc.nextInChain = nullptr;
+    mRenderPassDesc.label = createStringView(cascadeName);
     mRenderPassDesc.colorAttachmentCount = 1;
     mRenderPassDesc.colorAttachments = mColorAttachment.get();
 
@@ -42,6 +46,7 @@ ShadowFrustum::ShadowFrustum(Application* app, WGPUTextureView renderTarget, WGP
 }
 
 void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat) { (void)textureFormat; }
+
 void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascadeNumber) {
     constexpr uint32_t screen = 2048;
     mNumOfCascades = cascadeNumber;
@@ -60,39 +65,29 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
 
     mShadowDepthTexture->createViewArray(0, 5);
     for (size_t c = 0; c < mNumOfCascades; c++) {
-        mSubFrustums.push_back(
-            new ShadowFrustum{mApp, mRenderTarget->getTextureView(), mShadowDepthTexture->createViewDepthOnly2(c, 1)});
+        mSubFrustums.push_back(new ShadowFrustum{mApp, mRenderTarget->getTextureView(),
+                                                 mShadowDepthTexture->createViewDepthOnly2(c, 1),
+                                                 "cascade" + std::to_string(c)});
     }
     // for projection
-    mBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM,
-                            sizeof(Scene) * mNumOfCascades);
-    mBindingGroup.addBuffer(1,  //
-                            BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
-                            mApp->mInstanceManager->mBufferSize);
+    auto bind_group_layout =
+        mBindingGroup
+            .addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(Scene) * mNumOfCascades)
+            .addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+                       mApp->mInstanceManager->mBufferSize)
+            .addSampler(2, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering)
+            .createLayout(mApp, "shadow pass pipeline");
 
-    // mBindingGroup.addBuffer(2,  //
-    //                         BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(uint32_t));
+    auto texture_bind_group_layout =
+        mTextureBindingGroup
+            .addTexture(0, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
+            .addTexture(1, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
+            .addTexture(2, BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
+                        TextureViewDimension::VIEW_2D)
+            .createLayout(mApp, "shadow pass pipeline");
 
-    mBindingGroup.addSampler(2,  //
-                             BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering);
-
-    mTextureBindingGroup.addTexture(0,  //
-                                    BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-                                    TextureViewDimension::VIEW_2D);
-
-    mTextureBindingGroup.addTexture(1,  //
-                                    BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT,
-                                    TextureViewDimension::VIEW_2D);
-    mTextureBindingGroup.addTexture(2,  //
-                                    BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
-                                    TextureViewDimension::VIEW_2D);
-
-    mVisibleBindingGroup.addBuffer(0,  //
-                                   BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
+    mVisibleBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                                    sizeof(uint32_t) * 100'000 * 5);
-
-    auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
-    auto texture_bind_group_layout = mTextureBindingGroup.createLayout(mApp, "shadow pass pipeline");
 
     WGPUBindGroupLayoutEntry ot = {};
     setDefault(ot);
@@ -288,8 +283,9 @@ std::vector<glm::vec4> calculateSplit(const FrustumCorners& corners, float begin
     return {near0, far0, near1, far1, near2, far2, near3, far3};
 }
 
-Scene ShadowPass::calculateFrustumScene(const std::vector<glm::vec4> frustum, float farZ, size_t cascadeIdx) {
+Scene ShadowPass::calculateFrustumScene(const std::vector<glm::vec4>& frustum, float farZ, size_t cascadeIdx) {
     glm::vec3 center = glm::vec3(0, 0, 0);
+
     for (const auto& v : frustum) {
         center += glm::vec3(v);
     }
@@ -366,29 +362,27 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
     mBindingData[0].buffer = mSceneUniformBuffer.getBuffer();
     mBindingData[2].buffer = mFrustuIndexBuffer[which].getBuffer();
     for (auto& model : models) {
-        if (model->mName != "water") {
-            for (auto& [mat_id, mesh] : model->mMeshes) {
-                ZoneScopedN("inner loop loop");
-                wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
-                                                     wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
-                wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
-                                                    wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
-                wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindingGroup.getBindGroup(), 0, nullptr);
-                wgpuRenderPassEncoderSetBindGroup(encoder, 1,
-                                                  mesh.mTextureBindGroup == nullptr
-                                                      ? mApp->mDefaultTextureBindingGroup.getBindGroup()
-                                                      : mesh.mTextureBindGroup,
-                                                  0, nullptr);
+        for (auto& [mat_id, mesh] : model->mMeshes) {
+            ZoneScopedN("inner loop loop");
+            wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
+                                                 wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
+            wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
+                                                wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
+            wgpuRenderPassEncoderSetBindGroup(encoder, 0, mBindingGroup.getBindGroup(), 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(encoder, 1,
+                                              mesh.mTextureBindGroup == nullptr
+                                                  ? mApp->mDefaultTextureBindingGroup.getBindGroup()
+                                                  : mesh.mTextureBindGroup,
+                                              0, nullptr);
 
-                wgpuRenderPassEncoderSetBindGroup(encoder, 2, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
-                wgpuRenderPassEncoderSetBindGroup(encoder, 3, model->getObjectInfoBindGroup(), 0, nullptr);
-                wgpuRenderPassEncoderSetBindGroup(encoder, 4, mSceneIndicesBindGroup[which], 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(encoder, 2, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(encoder, 3, model->getObjectInfoBindGroup(), 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(encoder, 4, mSceneIndicesBindGroup[which], 0, nullptr);
 
-                if (model->instance == nullptr) {
-                    wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
-                } else {
-                    wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
-                }
+            if (model->instance == nullptr) {
+                wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
+            } else {
+                wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
             }
         }
     }

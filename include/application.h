@@ -13,7 +13,7 @@
 #include "gpu_buffer.h"
 #include "terrain_pass.h"
 #include "utils.h"
-#include "water_pass.h"
+// #include "water_pass.h"
 #include "webgpu/webgpu.h"
 // #include "window.h"
 
@@ -28,6 +28,7 @@ class LineEngine;
 class SkyBox;
 class Pipeline;
 class CompositionPass;
+class WaterPass;
 //
 template <typename W>
 class Window;

@@ -83,14 +83,15 @@ class ShadowPass : public RenderPass {
         // buffers
         // Buffer mSceneUniformBuffer;
 
-        Scene calculateFrustumScene(const std::vector<glm::vec4> frustum, float farZ, size_t cascadeIdx);
+        Scene calculateFrustumScene(const std::vector<glm::vec4>& frustum, float farZ, size_t cascadeIdx);
         // scene
         std::vector<Scene> mScenes;
 };
 
 class ShadowFrustum {
     public:
-        ShadowFrustum(Application* app, WGPUTextureView renderTarget, WGPUTextureView depthTexture);
+        ShadowFrustum(Application* app, WGPUTextureView renderTarget, WGPUTextureView depthTexture,
+                      const std::string& name);
         WGPURenderPassDescriptor* getRenderPassDescriptor();
 
         WGPUTextureView mShadowDepthTexture;
@@ -99,6 +100,7 @@ class ShadowFrustum {
         Application* mApp;
         ColorAttachment mColorAttachment{};
         DepthStencilAttachment mDepthStencilAttachment{};
+        std::string cascadeName;
 };
 
 class DepthPrePass : public RenderPass {

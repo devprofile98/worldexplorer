@@ -12,7 +12,7 @@
 class Model;  // Forward declaration
 class Application;
 
-enum ModelVisibility { Visibility_Editor = 0, Visibility_User = 1 };
+enum ModelVisibility { Visibility_Editor = 0, Visibility_User = 1, Visibility_Other = 100 };
 
 struct LoadModelResult {
         Model* model;
@@ -31,22 +31,16 @@ class IModel {
 class ModelRegistry {
     public:
         using FactoryFunc = std::function<LoadModelResult(Application* app)>;
-        // using ModelContainer = std::unordered_map<std::string, Model*>;
         using ModelContainer = std::vector<Model*>;
 
         static ModelRegistry& instance();
         void registerModel(const std::string& name, FactoryFunc func);
         void tick(Application* app);
 
-        // std::vector<std::string> getRegisteredNames() const;
-        // LoadModelResult create(Application* app, const std::string& name) const;
-
         std::unordered_map<std::string, FactoryFunc> factories;
         ModelContainer& getLoadedModel(ModelVisibility visibility);
 
     private:
-        // ModelContainer mLoadedModel;
-        // std::unordered_map<ModelVisibility, ModelContainer> mLoadedModels;
         ModelContainer mUserLoadedModel;
         ModelContainer mEditorLoadedModel;
         std::vector<std::future<LoadModelResult>> futures;

@@ -8,6 +8,7 @@
 #include <string>
 
 #include "gpu_buffer.h"
+#include "model.h"
 #include "renderpass.h"
 
 class Application;
@@ -72,6 +73,7 @@ class WaterPass : public RenderPass {
 
         WaterReflectionPass* mWaterPass;
         WaterRefractionPass* mWaterRefractionPass;
+        Model* mWaterModel = nullptr;
 
         void drawWater();
         void waterBlend();

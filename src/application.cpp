@@ -630,16 +630,12 @@ void Application::mainLoop() {
     // The first pass is the shadow pass, only based on the opaque objects
     if (should_update_csm) {
         auto all_scenes = mShadowPass->createFrustumSplits(
-            corners,
-            {
-                {0.0, middle_plane_length},
-                {middle_plane_length, middle_plane_length + far_plane_length},
-                {middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 100} /*{0, 60},*/
-                                                                                                       /*{0, 160}*/
-            });
+            corners, {{0.0, middle_plane_length},
+                      {middle_plane_length, middle_plane_length + far_plane_length},
+                      {middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 100}});
 
-        uint32_t new_value = all_scenes.size();
-        wgpuQueueWriteBuffer(this->getRendererResource().queue, mTimeBuffer.getBuffer(), 0, &new_value,
+        uint32_t cascades_count = all_scenes.size();
+        wgpuQueueWriteBuffer(this->getRendererResource().queue, mTimeBuffer.getBuffer(), 0, &cascades_count,
                              sizeof(uint32_t));
 
         wgpuQueueWriteBuffer(this->getRendererResource().queue, mLightSpaceTransformation.getBuffer(), 0,
@@ -648,10 +644,11 @@ void Application::mainLoop() {
 
     {
         ZoneScoped;
+        mShadowPass->lightPos = mLightingUniforms.directions[0];
         mShadowPass->renderAllCascades(encoder);
     }
+    //
     //-------------- End of shadow pass
-
     mUniforms.setCamera(mCamera);
     wgpuQueueWriteBuffer(this->getRendererResource().queue, mUniformBuffer.getBuffer(), 0, &mUniforms,
                          sizeof(CameraInfo));
@@ -700,9 +697,7 @@ void Application::mainLoop() {
             // PerfTimer timer{"test"};
             wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mDepthPrePass->getPipeline()->getPipeline());
             for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-                if (model->mName != "water") {
-                    model->draw(this, render_pass_encoder);
-                }
+                model->draw(this, render_pass_encoder);
             }
         }
 
@@ -763,10 +758,8 @@ void Application::mainLoop() {
         ZoneScopedNC("Color Pass", 0xFF);
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
         for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-            if (model->mName != "water") {
-                if (!model->isTransparent()) {
-                    model->draw(this, render_pass_encoder);
-                }
+            if (!model->isTransparent()) {
+                model->draw(this, render_pass_encoder);
             }
         }
     }
