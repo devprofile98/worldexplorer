@@ -5,6 +5,7 @@
 #include <format>
 
 #include "application.h"
+#include "binding_group.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -60,6 +61,8 @@ std::vector<uint32_t> input_values = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
 
 Buffer& getFrustumPlaneBuffer() { return frustumPlanesBuffer; }
 
+BindingGroup mBindingGroup;
+BindingGroup mObjectInfoBindgroup;
 void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     data_size_bytes = input_values.size() * sizeof(uint32_t);
     auto& resources = app->getRendererResource();
@@ -99,10 +102,20 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
 	    offset3: u32
 	}
 
+    struct Camera {
+        projectionMatrix: mat4x4f,
+        viewMatrix: mat4x4f,
+        modelMatrix: mat4x4f,
+        color: vec4f,
+        cameraWorldPosition: vec3f,
+        time: f32,
+    };
+
     @group(0) @binding(0) var<storage, read> input_data: array<u32>;
     @group(0) @binding(1) var<storage, read_write> visible_instances_indices: array<u32>;
 	@group(0) @binding(2) var<storage, read> instanceData: array<OffsetData>;
 	@group(0) @binding(3) var<uniform> uFrustumPlanes: FrustumPlanesUniform;
+    @group(0) @binding(4) var<uniform> uCamera: array<Camera, 10>;
 	
 	@group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 	@group(1) @binding(1) var<storage, read_write> indirect_draw_args: DrawIndexedIndirectArgs;
@@ -113,22 +126,24 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
             let index = global_id.x;
 
 	        let off_id: u32 = objectTranformation.offsetId * 100000u;
-		let transform = instanceData[index + off_id].transformation;
-		let minAABB = instanceData[index + off_id].minAABB;
-		let maxAABB = instanceData[index + off_id].maxAABB;
+		    let transform = instanceData[index + off_id].transformation;
+		    let minAABB = instanceData[index + off_id].minAABB;
+		    let maxAABB = instanceData[index + off_id].maxAABB;
 
-		let left = dot(normalize(uFrustumPlanes.planes[0].N_D.xyz), minAABB.xyz) + uFrustumPlanes.planes[0].N_D.w;
-		let right = dot(normalize(uFrustumPlanes.planes[1].N_D.xyz), minAABB.xyz) + uFrustumPlanes.planes[1].N_D.w;
+		    let left = dot(normalize(uFrustumPlanes.planes[0].N_D.xyz), minAABB.xyz) + uFrustumPlanes.planes[0].N_D.w;
+		    let right = dot(normalize(uFrustumPlanes.planes[1].N_D.xyz), minAABB.xyz) + uFrustumPlanes.planes[1].N_D.w;
 
-		let max_left = dot(normalize(uFrustumPlanes.planes[0].N_D.xyz),  maxAABB.xyz) + uFrustumPlanes.planes[0].N_D.w;
-		let max_right = dot(normalize(uFrustumPlanes.planes[1].N_D.xyz), maxAABB.xyz) + uFrustumPlanes.planes[1].N_D.w;
+		    let max_left = dot(normalize(uFrustumPlanes.planes[0].N_D.xyz),  maxAABB.xyz) + uFrustumPlanes.planes[0].N_D.w;
+		    let max_right = dot(normalize(uFrustumPlanes.planes[1].N_D.xyz), maxAABB.xyz) + uFrustumPlanes.planes[1].N_D.w;
 
-	        if (left >= -1.0 && max_left > -1.0 && right >= -1.0 && max_right >= -1.0){
-		  let write_idx = atomicAdd(&indirect_draw_args.instanceCount, 1u);
-		  //if (write_idx < arrayLength(&visible_instances_indices)) {
-		      visible_instances_indices[off_id + write_idx] = index; // Store the original global_id.x as the visible index
-	          //}
-		}
+		    let is_lod0 = uCamera[0].cameraWorldPosition - maxAABB.xyz;
+
+	        if (left >= -1.0 && max_left > -1.0 && right >= -1.0 && max_right >= -1.0 && length(is_lod0) < 23.0) {
+		        let write_idx = atomicAdd(&indirect_draw_args.instanceCount, 1u);
+		        //if (write_idx < arrayLength(&visible_instances_indices)) {
+		            visible_instances_indices[off_id + write_idx] = index; // Store the original global_id.x as the visible index
+	            //}
+		    }
         }
     )";
 
@@ -169,51 +184,18 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     shader_module_desc.label = {"Simple Compute Shader Module", WGPU_STRLEN};
     WGPUShaderModule shader_module = wgpuDeviceCreateShaderModule(resources.device, &shader_module_desc);
 
-    // 4. Create Bind Group Layout
-    WGPUBindGroupLayoutEntry bind_group_layout_entries[4] = {};
-    // Binding 0: input_data (ReadOnlyStorage)
-    bind_group_layout_entries[0].binding = 0;
-    bind_group_layout_entries[0].visibility = WGPUShaderStage_Compute;  // Only visible to compute stage
-    bind_group_layout_entries[0].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    // Binding 1: output_data (Storage)
-    bind_group_layout_entries[1].binding = 1;
-    bind_group_layout_entries[1].visibility = WGPUShaderStage_Compute;
-    bind_group_layout_entries[1].buffer.type = WGPUBufferBindingType_Storage;  // Writable storage
+    WGPUBindGroupLayout bind_group_layout =
+        mBindingGroup.addBuffer(0, BindGroupEntryVisibility::COMPUTE, BufferBindingType::STORAGE_READONLY, 0)
+            .addBuffer(1, BindGroupEntryVisibility::COMPUTE, BufferBindingType::STORAGE, 0)
+            .addBuffer(2, BindGroupEntryVisibility::COMPUTE, BufferBindingType::STORAGE_READONLY, 0)
+            .addBuffer(3, BindGroupEntryVisibility::COMPUTE, BufferBindingType::UNIFORM, 0)
+            .addBuffer(4, BindGroupEntryVisibility::COMPUTE, BufferBindingType::UNIFORM, sizeof(CameraInfo) * 10)
+            .createLayout(app, "Compute bind group layout");
 
-    bind_group_layout_entries[2].nextInChain = nullptr;
-    bind_group_layout_entries[2].binding = 2;
-    bind_group_layout_entries[2].visibility = WGPUShaderStage_Compute;
-    bind_group_layout_entries[2].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;  // Writable storage
-                                                                                       //
-    bind_group_layout_entries[3].nextInChain = nullptr;
-    bind_group_layout_entries[3].binding = 3;
-    bind_group_layout_entries[3].visibility = WGPUShaderStage_Compute;
-    bind_group_layout_entries[3].buffer.type = WGPUBufferBindingType_Uniform;  // Writable storage
-
-    WGPUBindGroupLayoutDescriptor bind_group_layout_desc = {};
-    bind_group_layout_desc.label = {"Compute Bind Group Layout", WGPU_STRLEN};
-    bind_group_layout_desc.entryCount = 4;
-    bind_group_layout_desc.entries = bind_group_layout_entries;
-    WGPUBindGroupLayout bind_group_layout = wgpuDeviceCreateBindGroupLayout(resources.device, &bind_group_layout_desc);
-
-    // Create object infor bind group entries
-    WGPUBindGroupLayoutEntry object_info_bg_entries[2] = {};
-
-    object_info_bg_entries[0].nextInChain = nullptr;
-    object_info_bg_entries[0].binding = 0;
-    object_info_bg_entries[0].visibility = WGPUShaderStage_Compute;
-    object_info_bg_entries[0].buffer.type = WGPUBufferBindingType_Uniform;  // Writable storage
-                                                                            //
-    object_info_bg_entries[1].nextInChain = nullptr;
-    object_info_bg_entries[1].binding = 1;
-    object_info_bg_entries[1].visibility = WGPUShaderStage_Compute;
-    object_info_bg_entries[1].buffer.type = WGPUBufferBindingType_Storage;  // Writable storage
-
-    WGPUBindGroupLayoutDescriptor objectinfo_bg_layout_desc = {};
-    objectinfo_bg_layout_desc.label = {"Compute Bind Group Layout For Objectinfo", WGPU_STRLEN};
-    objectinfo_bg_layout_desc.entryCount = 2;
-    objectinfo_bg_layout_desc.entries = object_info_bg_entries;
-    objectinfo_bg_layout = wgpuDeviceCreateBindGroupLayout(resources.device, &objectinfo_bg_layout_desc);
+    objectinfo_bg_layout =
+        mObjectInfoBindgroup.addBuffer(0, BindGroupEntryVisibility::COMPUTE, BufferBindingType::UNIFORM, 0)
+            .addBuffer(1, BindGroupEntryVisibility::COMPUTE, BufferBindingType::STORAGE, 0)
+            .createLayout(app, "Compute Bind Group For Object info");
 
     // 5. Create Pipeline Layout
     WGPUBindGroupLayout bind_group_layouts[] = {bind_group_layout, objectinfo_bg_layout};
@@ -232,7 +214,7 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     computePipeline = wgpuDeviceCreateComputePipeline(resources.device, &compute_pipeline_desc);
 
     // 7. Create Bind Group (linking actual buffers to shader bindings)
-    WGPUBindGroupEntry bind_group_entries[4] = {};
+    WGPUBindGroupEntry bind_group_entries[5] = {};
     bind_group_entries[0].binding = 0;
     bind_group_entries[0].buffer = inputBuffer.getBuffer();
     bind_group_entries[0].offset = 0;
@@ -253,10 +235,16 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     bind_group_entries[3].offset = 0;
     bind_group_entries[3].size = sizeof(FrustumPlanesUniform);
 
+    bind_group_entries[4].nextInChain = nullptr;
+    bind_group_entries[4].binding = 4;
+    bind_group_entries[4].buffer = app->mUniformBuffer.getBuffer();
+    bind_group_entries[4].offset = 0;
+    bind_group_entries[4].size = sizeof(CameraInfo) * 10;
+
     WGPUBindGroupDescriptor bind_group_desc = {};
     bind_group_desc.label = {"Compute Bind Group", WGPU_STRLEN};
     bind_group_desc.layout = bind_group_layout;
-    bind_group_desc.entryCount = 4;
+    bind_group_desc.entryCount = 5;
     bind_group_desc.entries = bind_group_entries;
     computeBindGroup = wgpuDeviceCreateBindGroup(resources.device, &bind_group_desc);
 };
@@ -285,10 +273,8 @@ WGPUBindGroup createObjectInfoBindGroupForComputePass(Application* app, WGPUBuff
 
 void runFrustumCullingTask(Application* app, WGPUCommandEncoder encoder) {
     auto& objs = ModelRegistry::instance().getLoadedModel(Visibility_User);
-    // auto grass = objs.find("grass");
 
     for (auto& model : objs) {
-        // Buffer* buffers[] = {&model->mIndirectDrawArgsBuffer};
         if (model->instance != nullptr) {
             auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
             wgpuQueueWriteBuffer(app->getRendererResource().queue, model->mIndirectDrawArgsBuffer.getBuffer(),

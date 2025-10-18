@@ -69,6 +69,7 @@ Model::Model() : BaseModel() {
     mTransform.mObjectInfo.isFlat = 0;
     mTransform.mObjectInfo.useTexture = 1;
     mTransform.mObjectInfo.isFoliage = 0;
+    mTransform.mObjectInfo.isAnimated = 0;
     mTransform.mDirty = true;
 }
 
@@ -513,6 +514,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
             aiNodeAnim* channel = anim->mChannels[i];
             channelMap[channel->mNodeName.C_Str()] = channel;
         }
+        mTransform.mObjectInfo.setFlag(MaterialProps::IsAnimated, true);
     }
     // craeting the bindgropu for skining data
 
@@ -780,6 +782,12 @@ void Model::userInterface() {
     }
     if (ImGui::CollapsingHeader("Materials",
                                 ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+                                                                    //
+        bool is_animated = mTransform.mObjectInfo.hasFlag(MaterialProps::IsAnimated);
+        if (ImGui::Checkbox("Is Animated", &is_animated)) {
+            mTransform.mObjectInfo.setFlag(MaterialProps::IsAnimated, is_animated);
+            mTransform.mDirty = true;
+        }
         bool has_normal = mTransform.mObjectInfo.hasFlag(MaterialProps::HasNormalMap);
         if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
             mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, has_normal);

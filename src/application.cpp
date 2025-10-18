@@ -556,7 +556,7 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     surface_configuration.viewFormatCount = 0;
     surface_configuration.viewFormats = nullptr;
     surface_configuration.device = this->getRendererResource().device;
-    surface_configuration.presentMode = WGPUPresentMode_Fifo;
+    surface_configuration.presentMode = WGPUPresentMode_Immediate;
     surface_configuration.alphaMode = WGPUCompositeAlphaMode_Auto;
 
     wgpuSurfaceConfigure(this->getRendererResource().surface, &surface_configuration);
@@ -1006,7 +1006,7 @@ bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height)
     surface_configuration.viewFormatCount = 0;
     surface_configuration.viewFormats = nullptr;
     surface_configuration.device = resources.device;
-    surface_configuration.presentMode = WGPUPresentMode_Fifo;
+    surface_configuration.presentMode = WGPUPresentMode_Immediate;
     surface_configuration.alphaMode = WGPUCompositeAlphaMode_Auto;
 
     wgpuSurfaceConfigure(resources.surface, &surface_configuration);
