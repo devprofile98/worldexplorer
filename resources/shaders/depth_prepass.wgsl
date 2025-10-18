@@ -26,23 +26,29 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     }
 
 
-    var skinned_position = vec4f(0.0, 0.0, 0.0, 0.0);
-    skinned_position += bonesFinalTransform[in.boneIds.x] * vec4f(in.position, 1.0) * in.boneWeights.x;
-    skinned_position += bonesFinalTransform[in.boneIds.y] * vec4f(in.position, 1.0) * in.boneWeights.y;
-    skinned_position += bonesFinalTransform[in.boneIds.z] * vec4f(in.position, 1.0) * in.boneWeights.z;
-    skinned_position += bonesFinalTransform[in.boneIds.w] * vec4f(in.position, 1.0) * in.boneWeights.w;
+    var world_position: vec4f;
+    if (objectTranformation.materialProps >> 6) == 0u {
 
-    //let world_position = transform * vec4f(in.position, 1.0);
-    let world_position = transform * skinned_position;
+        world_position = transform * vec4f(in.position, 1.0);
+        out.normal = (transform * vec4f(in.normal, 0.0f)).xyz;
+    } else {
 
-    var skinned_normal = vec4f(0.0, 0.0, 0.0, 0.0);
-    skinned_normal += bonesFinalTransform[in.boneIds.x] * vec4f(in.normal, 0.0) * in.boneWeights.x;
-    skinned_normal += bonesFinalTransform[in.boneIds.y] * vec4f(in.normal, 0.0) * in.boneWeights.y;
-    skinned_normal += bonesFinalTransform[in.boneIds.z] * vec4f(in.normal, 0.0) * in.boneWeights.z;
-    skinned_normal += bonesFinalTransform[in.boneIds.w] * vec4f(in.normal, 0.0) * in.boneWeights.w;
+        var skinned_position = vec4f(0.0, 0.0, 0.0, 0.0);
+        skinned_position += bonesFinalTransform[in.boneIds.x] * vec4f(in.position, 1.0) * in.boneWeights.x;
+        skinned_position += bonesFinalTransform[in.boneIds.y] * vec4f(in.position, 1.0) * in.boneWeights.y;
+        skinned_position += bonesFinalTransform[in.boneIds.z] * vec4f(in.position, 1.0) * in.boneWeights.z;
+        skinned_position += bonesFinalTransform[in.boneIds.w] * vec4f(in.position, 1.0) * in.boneWeights.w;
 
-    //out.normal = (transform * vec4f(in.normal, 0.0f)).xyz;
-    out.normal = (transform * skinned_normal).xyz;
+        world_position = transform * skinned_position;
+
+        var skinned_normal = vec4f(0.0, 0.0, 0.0, 0.0);
+        skinned_normal += bonesFinalTransform[in.boneIds.x] * vec4f(in.normal, 0.0) * in.boneWeights.x;
+        skinned_normal += bonesFinalTransform[in.boneIds.y] * vec4f(in.normal, 0.0) * in.boneWeights.y;
+        skinned_normal += bonesFinalTransform[in.boneIds.z] * vec4f(in.normal, 0.0) * in.boneWeights.z;
+        skinned_normal += bonesFinalTransform[in.boneIds.w] * vec4f(in.normal, 0.0) * in.boneWeights.w;
+
+        out.normal = (transform * skinned_normal).xyz;
+    }
 
     out.viewSpacePos = uMyUniform[myuniformindex].viewMatrix * world_position;
     out.position = uMyUniform[myuniformindex].projectionMatrix * out.viewSpacePos;

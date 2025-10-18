@@ -52,7 +52,7 @@ struct ObjectInfo {
     isHovered: u32,
     materialProps: u32,
     metallicness: f32,
-    offset3: u32
+    isAnimated: u32
 }
 
 

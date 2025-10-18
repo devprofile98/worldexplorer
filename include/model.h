@@ -47,6 +47,7 @@ enum class MaterialProps : uint32_t {
     HasRoughnessMap = (1u << 3),  // Bit 3: Does it have a roughness map?
     HasEmissiveMap = (1u << 4),   // Bit 4: Does it have an emissive map?
     IsDoubleSided = (1u << 5),    // Bit 5: Is it double-sided?
+    IsAnimated = (1u << 6),       // Bit 5: Is it animated?
 
 };
 
@@ -86,7 +87,7 @@ struct ObjectInfo {
         uint32_t isSelected;
         uint32_t materialProps;
         float roughness;
-        std::array<uint32_t, 1> offset;
+        uint32_t isAnimated;
 
         inline bool hasFlag(MaterialProps checkFlag) {
             return (static_cast<uint32_t>(materialProps) & static_cast<uint32_t>(checkFlag)) != 0;

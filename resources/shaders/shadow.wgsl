@@ -36,9 +36,9 @@ struct ObjectInfo {
     isFoliage: i32,
     offsetId: u32,
     isHovered: u32,
-    offset1: u32,
-    offset2: u32,
-    offset3: u32
+    materialProps: u32,
+    metallicness: f32,
+    isAnimated: u32
 }
 
 @group(0) @binding(0) var<uniform> scene: array<Scene, 3>;
@@ -72,19 +72,25 @@ fn vs_main(vertex: Vertex) -> VSOutput {
     }
 
 
-    var bone_matrix = mat4x4<f32>(
-        vec4<f32>(0.0, 0.0, 0.0, 0.0), // Column 0
-        vec4<f32>(0.0, 0.0, 0.0, 0.0), // Column 1
-        vec4<f32>(0.0, 0.0, 0.0, 0.0), // Column 2
-        vec4<f32>(0.0, 0.0, 0.0, 0.0)  // Column 3
-    );
+    var world_position: vec4f;
+    if (objectTranformation.materialProps >> 6) == 0u {
 
-    bone_matrix += bonesFinalTransform[vertex.boneIds.x] * normalize(vertex.boneWeights).x;
-    bone_matrix += bonesFinalTransform[vertex.boneIds.y] * normalize(vertex.boneWeights).y;
-    bone_matrix += bonesFinalTransform[vertex.boneIds.z] * normalize(vertex.boneWeights).z;
-    bone_matrix += bonesFinalTransform[vertex.boneIds.w] * normalize(vertex.boneWeights).w;
+        world_position = transform * vec4f(vertex.position, 1.0);
+    } else {
+        var bone_matrix = mat4x4<f32>(
+            vec4<f32>(0.0, 0.0, 0.0, 0.0), // Column 0
+            vec4<f32>(0.0, 0.0, 0.0, 0.0), // Column 1
+            vec4<f32>(0.0, 0.0, 0.0, 0.0), // Column 2
+            vec4<f32>(0.0, 0.0, 0.0, 0.0)  // Column 3
+        );
 
-    let world_position = transform * bone_matrix * vec4f(vertex.position, 1.0);
+        bone_matrix += bonesFinalTransform[vertex.boneIds.x] * normalize(vertex.boneWeights).x;
+        bone_matrix += bonesFinalTransform[vertex.boneIds.y] * normalize(vertex.boneWeights).y;
+        bone_matrix += bonesFinalTransform[vertex.boneIds.z] * normalize(vertex.boneWeights).z;
+        bone_matrix += bonesFinalTransform[vertex.boneIds.w] * normalize(vertex.boneWeights).w;
+        world_position = transform * bone_matrix * vec4f(vertex.position, 1.0);
+    }
+
 
     var vsOut: VSOutput;
     vsOut.position = scene[sceneIndex].projection * world_position;

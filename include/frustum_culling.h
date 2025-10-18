@@ -35,11 +35,8 @@ void runFrustumCullingTask(Application* app, WGPUCommandEncoder encoder);
 
 Buffer& getFrustumPlaneBuffer();
 
-// std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view);
 FrustumCorners getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view);
-// std::vector<FrustumPlane> create2FrustumPlanes(const std::vector<glm::vec4>& corners);
 std::vector<FrustumPlane> create2FrustumPlanes(const FrustumCorners& corners);
-// bool isInFrustum(const std::vector<glm::vec4>& corners, BaseModel* model);
 bool isInFrustum(const FrustumCorners& corners, BaseModel* model);
 
 namespace frustum {
@@ -68,10 +65,7 @@ class Frustum {
         frustum::Plane farFace;
         frustum::Plane nearFace;
         frustum::Plane faces[6];
-        // void extractPlanes(glm::mat4x4 projectionMatrix);
         bool AABBTest(const glm::vec3& min, const glm::vec3& max);
-        // void createFrustumFromCamera(const Camera& cam, float aspect, float fovY, float zNear, float zFar);
-        // void createFrustumPlanesFromCorner(const std::vector<glm::vec4>& corners);
 };
 
 #endif  // WEBGPUTEST_FRUSTUM_CULLING_H
