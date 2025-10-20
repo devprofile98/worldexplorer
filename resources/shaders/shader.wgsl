@@ -216,7 +216,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
 
     ////////////// Calculations for point lights
-    for (var i = 0u; i < 2; i += 1u) {
+    for (var i = 0u; i < 4; i += 1u) {
         let curr_light = pointLight[i];
         let diff = curr_light.position.xyz - in.worldPos;
         let distance = length(diff);

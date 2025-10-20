@@ -42,12 +42,12 @@
 #include "model_registery.h"
 #include "pipeline.h"
 #include "point_light.h"
+#include "profiling.h"
 #include "rendererResource.h"
 #include "shadow_pass.h"
 #include "shapes.h"
 #include "terrain_pass.h"
 #include "texture.h"
-#include "tracy/Tracy.hpp"
 #include "transparency_pass.h"
 #include "utils.h"
 #include "water_pass.h"
@@ -680,7 +680,7 @@ void Application::mainLoop() {
     //     }
     // }
     // }
-    mWaterRenderPass->drawWater();
+    // mWaterRenderPass->drawWater();
 
     // Depth pre-pass to reduce number of overdraws
     {
@@ -770,7 +770,7 @@ void Application::mainLoop() {
     // ---------------------------------------------------------------------
     mLineEngine->executePass();
     // ---------------------------------------------------------------------
-    mWaterRenderPass->waterBlend();
+    // mWaterRenderPass->waterBlend();
     // ---------------------------------------------------------------------
     mTerrainPass->executePass();
     // ---------------------------------------------------------------------
@@ -901,7 +901,7 @@ void Application::mainLoop() {
         command_buffer_descriptor.label = createStringView("command buffer");
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &command_buffer_descriptor);
 
-        wgpuDevicePoll(this->getRendererResource().device, false, nullptr);  // This is good!
+        wgpuDevicePoll(this->getRendererResource().device, true, nullptr);  // This is good!
         wgpuQueueSubmit(this->getRendererResource().queue, 1, &command);
         // static WGPUQueueWorkDoneCallbackInfo cbinfo{};
         // cbinfo.nextInChain = nullptr;

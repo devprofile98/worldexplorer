@@ -6,10 +6,10 @@
 #include <cstdint>
 
 #include "application.h"
+#include "profiling.h"
 #include "rendererResource.h"
 #include "renderpass.h"
 #include "texture.h"
-#include "tracy/Tracy.hpp"
 #include "utils.h"
 
 // ifdef WEBGPU_BACKEND

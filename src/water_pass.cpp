@@ -6,11 +6,11 @@
 #include "application.h"
 #include "model.h"
 #include "model_registery.h"
+#include "profiling.h"
 #include "rendererResource.h"
 #include "renderpass.h"
 #include "skybox.h"
 #include "texture.h"
-#include "tracy/Tracy.hpp"
 
 struct WaterModel : public IModel {
         WaterModel(Application* app) {

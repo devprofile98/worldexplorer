@@ -157,7 +157,7 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     wgpuQueueWriteBuffer(resources.queue, inputBuffer.getBuffer(), 0, input_values.data(), data_size_bytes);
     // one buffer for input, one for output
     app->mVisibleIndexBuffer.setLabel("visible index buffer")
-        .setUsage(WGPUBufferUsage_CopySrc | WGPUBufferUsage_Storage)
+        .setUsage(WGPUBufferUsage_CopySrc | WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect)
         .setSize(sizeof(uint32_t) * 100000 * 5)
         .setMappedAtCraetion()
         .create(app);
@@ -281,7 +281,8 @@ void runFrustumCullingTask(Application* app, WGPUCommandEncoder encoder) {
                                  sizeof(uint32_t), &indirect, sizeof(uint32_t));
 
             WGPUComputePassDescriptor compute_pass_desc = {};
-            compute_pass_desc.label = {"Simple Compute Pass", WGPU_STRLEN};
+            std::string compute_name = "Simple Compute Pass for " + model->getName();
+            compute_pass_desc.label = {compute_name.c_str(), WGPU_STRLEN};
             compute_pass_desc.nextInChain = nullptr;
             WGPUComputePassEncoder compute_pass_encoder =
                 wgpuCommandEncoderBeginComputePass(encoder, &compute_pass_desc);

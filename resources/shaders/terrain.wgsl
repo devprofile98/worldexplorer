@@ -220,7 +220,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
 
     var point_light_color = vec3f(0.0f);
-    for (var i: i32 = 0; i < 2 ; i++) {
+    for (var i: i32 = 0; i < 4 ; i++) {
         let curr_light = pointLight[i];
         let dir = curr_light.position.xyz - in.worldPos;
 

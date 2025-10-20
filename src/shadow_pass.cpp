@@ -18,9 +18,9 @@
 #include "glm/gtx/string_cast.hpp"
 #include "gpu_buffer.h"
 #include "model.h"
+#include "profiling.h"
 #include "rendererResource.h"
 #include "renderpass.h"
-#include "tracy/Tracy.hpp"
 
 float sunlength = 5.0;
 

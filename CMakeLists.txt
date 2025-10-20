@@ -19,9 +19,8 @@ add_subdirectory(extern/assmip)
  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
  # set(CMAKE_BUILD_TYPE Release)
  set(CMAKE_BUILD_TYPE Debug)
-
  # add_definitions(-DTRACY_ENABLE)
-
+set(TRACY_ENABLE ON CACHE BOOL "Enable Tracy profiling in Debug builds" FORCE)
 
  # configuring imgui
 set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/imgui")
@@ -51,6 +50,12 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(glm)
 
+
+if (TRACY_ENABLE)
+    file(GLOB TRACY_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/tracy_external/TracyClient.cpp"
+)
+endif()
 
 add_executable(
     App 
@@ -87,7 +92,7 @@ add_executable(
 
     src/tree.cpp
 
-    tracy_external/TracyClient.cpp
+    ${TRACY_SOURCES}
     
     ${IMGUI_SOURCES}
     ${IMGUI_BACKEND_SOURCES}
