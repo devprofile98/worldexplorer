@@ -371,7 +371,7 @@ void Application::initializeBuffers() {
     mUniforms.color = {0.0f, 1.0f, 0.4f, 1.0f};
     // setupCamera(mUniforms);
     wgpuQueueWriteBuffer(this->getRendererResource().queue, mUniformBuffer.getBuffer(), 0, &mUniforms,
-                         sizeof(CameraInfo) * 10);
+                         sizeof(CameraInfo) * 1);
 
     mDirectionalLightBuffer.setLabel("Directional light buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
@@ -401,9 +401,9 @@ void Application::initializeBuffers() {
     mLightManager->createPointLight({-2.5, -5.833, 0.184, 1.0}, red, red, red, 1.0, -3.0, 1.8, "red light 1");
     mLightManager->createPointLight({-1.0, -0.833, 1.0, 1.0}, blue, blue, blue, 1.0, -0.922, 1.8, "blue light 1");
     mLightManager->createPointLight({-5.0, -3.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8, "blue light 2");
-    mLightManager->createPointLight({2.0, 2.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8, "blue light 3");
+    mLightManager->createPointLight({2.0, 2.0, 1.0, 1.0}, red, red, red, 1.0, 0.7, 1.8, "blue light 3");
     mLightManager->createSpotLight({1.0, 2.0, 1.0, 1.0}, {0.0, 0.0, -1.0f, 1.0f}, glm::cos(glm::radians(12.5f)),
-                                   glm::cos(glm::radians(17.5f)), "spotlight ");
+                                   glm::cos(glm::radians(17.5f)), "spotlight");
 
     mLightManager->uploadToGpu(this, mLightBuffer.getBuffer());
 
@@ -772,7 +772,7 @@ void Application::mainLoop() {
     // ---------------------------------------------------------------------
     // mWaterRenderPass->waterBlend();
     // ---------------------------------------------------------------------
-    mTerrainPass->executePass();
+    // mTerrainPass->executePass();
     // ---------------------------------------------------------------------
 
     {

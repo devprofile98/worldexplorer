@@ -124,26 +124,28 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
         @compute @workgroup_size(32)
         fn main(@builtin(global_invocation_id) global_id: vec3u) {
             let index = global_id.x;
+            // if (indirect_draw_args.instanceCount < 2u){
+            //if (index < 31u){
+	            let off_id: u32 = objectTranformation.offsetId * 100000u;
+		        let transform = instanceData[index + off_id].transformation;
+		        let minAABB = instanceData[index + off_id].minAABB;
+		        let maxAABB = instanceData[index + off_id].maxAABB;
 
-	        let off_id: u32 = objectTranformation.offsetId * 100000u;
-		    let transform = instanceData[index + off_id].transformation;
-		    let minAABB = instanceData[index + off_id].minAABB;
-		    let maxAABB = instanceData[index + off_id].maxAABB;
+		        let left = dot(normalize(uFrustumPlanes.planes[0].N_D.xyz), minAABB.xyz) + uFrustumPlanes.planes[0].N_D.w;
+		        let right = dot(normalize(uFrustumPlanes.planes[1].N_D.xyz), minAABB.xyz) + uFrustumPlanes.planes[1].N_D.w;
 
-		    let left = dot(normalize(uFrustumPlanes.planes[0].N_D.xyz), minAABB.xyz) + uFrustumPlanes.planes[0].N_D.w;
-		    let right = dot(normalize(uFrustumPlanes.planes[1].N_D.xyz), minAABB.xyz) + uFrustumPlanes.planes[1].N_D.w;
+		        let max_left = dot(normalize(uFrustumPlanes.planes[0].N_D.xyz),  maxAABB.xyz) + uFrustumPlanes.planes[0].N_D.w;
+		        let max_right = dot(normalize(uFrustumPlanes.planes[1].N_D.xyz), maxAABB.xyz) + uFrustumPlanes.planes[1].N_D.w;
 
-		    let max_left = dot(normalize(uFrustumPlanes.planes[0].N_D.xyz),  maxAABB.xyz) + uFrustumPlanes.planes[0].N_D.w;
-		    let max_right = dot(normalize(uFrustumPlanes.planes[1].N_D.xyz), maxAABB.xyz) + uFrustumPlanes.planes[1].N_D.w;
-
-		    let is_lod0 = uCamera[0].cameraWorldPosition - maxAABB.xyz;
-
-	        if (left >= -1.0 && max_left > -1.0 && right >= -1.0 && max_right >= -1.0 && length(is_lod0) < 23.0) {
-		        let write_idx = atomicAdd(&indirect_draw_args.instanceCount, 1u);
-		        //if (write_idx < arrayLength(&visible_instances_indices)) {
-		            visible_instances_indices[off_id + write_idx] = index; // Store the original global_id.x as the visible index
-	            //}
-		    }
+		        let is_lod0 = uCamera[0].cameraWorldPosition - maxAABB.xyz;
+                // if (length(is_lod0) < 23.0){
+	            if (left >= -1.0 && max_left > -1.0 && right >= -1.0 && max_right >= -1.0) {
+		            let write_idx = atomicAdd(&indirect_draw_args.instanceCount, 1u);
+		            // if (write_idx < arrayLength(&visible_instances_indices)) {
+		                visible_instances_indices[off_id + write_idx] = index; // Store the original global_id.x as the visible index
+	                // }
+		        }
+            // }
         }
     )";
 
@@ -298,8 +300,13 @@ void runFrustumCullingTask(Application* app, WGPUCommandEncoder encoder) {
             uint32_t workgroup_size_x = 32;  // Must match shader's @workgroup_size(32)
             uint32_t num_workgroups_x =
                 (model->instance->getInstanceCount() + workgroup_size_x - 1) / workgroup_size_x;  // Ceil division
+            // std::cout << num_workgroups_x << '\n';
 
             wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, num_workgroups_x, 1, 1);
+            //
+            // uint32_t workgroup_size_x = 32;  // Must match shader's @workgroup_size(32)
+            // uint32_t num_workgroups_x = ((31 * 3) + workgroup_size_x - 1) / workgroup_size_x;  // Ceil division
+            // wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, 2, 1, 1);
 
             // End the compute pass
             wgpuComputePassEncoderEnd(compute_pass_encoder);

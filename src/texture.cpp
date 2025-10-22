@@ -203,11 +203,12 @@ Texture::Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths
         mHasAlphaChannel = (channels == 4);
         // Copy pixel data into mBufferData
         for (size_t i = 0, j = 0; i < (size_t)width * height * channels; i += channels, j += 4) {
+            // std::cout << image_byte_size << " " << i << " " << j << '\n';
             mBufferData[k][j] = pixel_data[i];          // Red
             mBufferData[k][j + 1] = pixel_data[i + 1];  // Green
             mBufferData[k][j + 2] = pixel_data[i + 2];  // Blue
             mBufferData[k][j + 3] =
-                (channels == 4) ? pixel_data[i + 3] : 255.0;  // Alpha (default to 255 if no alpha channel)
+                mHasAlphaChannel ? pixel_data[i + 3] : 255.0;  // Alpha (default to 255 if no alpha channel)
         }
 
         stbi_image_free(pixel_data);

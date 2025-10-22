@@ -117,25 +117,70 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, cascadeIdx: u32) -> 
     return shadow;
 }
 
-fn calculatePointLight(curr_light: PointLight, normal: vec3f, dir: vec3f) -> vec3f {
-    let distance = length(dir);
-    let attenuation = 1.0 / (curr_light.constant + curr_light.linear * distance + curr_light.quadratic * (distance * distance));
-    let light_dir = normalize(dir);
-    return curr_light.ambient.xyz * attenuation * max(dot(normal, light_dir), 0.0);
+fn calculateSpotLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo: vec3f, roughness: f32, metallic: f32, F0: vec3f) -> vec3f {
+    if light.ftype != 2i {
+        return vec3f(0.0);
+    }
+    let diff = light.position.xyz - pos;
+    let distance = length(diff);
+    if distance > 5.0 {
+        return vec3f(0.0);
+    }
+    let L = normalize(diff);
+    let H = normalize(V + L);
+    let attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+    let theta = dot(L, normalize(-light.direction.xyz));
+    let epsilon = light.cutOff - light.outerCutOff;
+    let intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
+    let radiance = light.ambient.rgb * attenuation * intensity;
+    let NDF = distributionGGX(N, H, roughness);
+    let G = geometrySmith(N, V, L, roughness);
+    let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+    let numerator = NDF * G * F;
+    let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    let specular = numerator / denominator;
+    let kS = F;
+    var kD = vec3f(1.0) - kS;
+    kD = kD * (1.0 - metallic);
+    let NdotL = max(dot(N, L), 0.0);
+    return (kD * albedo / 3.1415926535 + specular) * radiance * NdotL;
 }
 
-fn calculateSpotLight(currLight: PointLight, normal: vec3f, dir: vec3f) -> vec3f {
-    let lightDir = normalize(dir);
-    let diff = max(dot(normal, lightDir), 0.0);
-    let diffuse = currLight.diffuse.xyz * diff;
-    let theta = dot(lightDir, normalize(-currLight.direction).xyz);
-    let epsilon = (currLight.cutOff - currLight.outerCutOff);
-    let intensity = clamp((theta - currLight.outerCutOff) / epsilon, 0.0, 1.0);
-    let distance = length(dir);
-    let attenuation = 1.0 / (1.0 + currLight.linear * distance + currLight.quadratic * distance * distance);
 
-    return diffuse * intensity * attenuation;
+fn calculatePointLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo: vec3f, roughness: f32, metallic: f32, F0: vec3f) -> vec3f {
+    // Only process point lights (type == 3)
+    if light.ftype != 3i {
+        return vec3f(0.0);
+    }
+
+    let diff = light.position.xyz - pos;
+    let distance = length(diff);
+    if distance > 5.0 {
+        return vec3f(0.0);
+    }
+    let L = normalize(diff);
+    let H = normalize(V + L);
+    let attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+    let radiance = light.ambient.rgb * attenuation;
+
+    let NDF = distributionGGX(N, H, roughness);
+    let G = geometrySmith(N, V, L, roughness);
+    let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+    let numerator = NDF * G * F;
+    let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    let specular = numerator / denominator;
+
+    let kS = F;
+    var kD = vec3f(1.0) - kS;
+    kD = kD * (1.0 - metallic);
+
+    let NdotL = max(dot(N, L), 0.0);
+
+    return (kD * albedo / 3.1415926535 + specular) * radiance * NdotL;
 }
+
+
 
 fn fresnelSchlick(cosTheta: f32, F0: vec3f) -> vec3f {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
@@ -216,36 +261,41 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
 
     ////////////// Calculations for point lights
-    for (var i = 0u; i < 4; i += 1u) {
-        let curr_light = pointLight[i];
-        let diff = curr_light.position.xyz - in.worldPos;
-        let distance = length(diff);
-        if distance > 5.0f {
-            continue;
+    for (var i = 0u; i < 5; i += 1u) {
+        //let diff = curr_light.position.xyz - in.worldPos;
+        //let distance = length(diff);
+        //if distance > 5.0f {
+        //    continue;
+        //}
+        //let L = normalize(diff);
+        //let H = normalize(V + L);
+        //let attenuation = 1.0f / (distance * distance);
+
+        //let radiance = curr_light.ambient.rgb * attenuation;
+
+        //let NDF = distributionGGX(N, H, roughness);
+        //let G = geometrySmith(N, V, L, roughness);
+        //let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+        //let numerator = NDF * G * F;
+        //let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+        //let specular = numerator / denominator;
+
+
+        //let kS = F;
+
+        //var kD = vec3f(1.0) - kS;
+        //kD = kD * (1.0 - metallic);
+
+        //let NdotL = max(dot(N, L), 0.0);
+
+        let light = pointLight[i];
+        if light.ftype == 3i {
+            //lo += calculatePointLight(light, in.normal, V, in.worldPos, in.albedo, in.roughness, in.metallic, F0);
+            lo += calculatePointLight(light, N, V, in.worldPos, albedo, roughness, metallic, F0);
+        } else if light.ftype == 2i {
+            lo += calculateSpotLight(light, N, V, in.worldPos, albedo, roughness, metallic, F0);
         }
-        let L = normalize(diff);
-        let H = normalize(V + L);
-        let attenuation = 1.0f / (distance * distance);
-
-        let radiance = curr_light.ambient.rgb * attenuation;
-
-        let NDF = distributionGGX(N, H, roughness);
-        let G = geometrySmith(N, V, L, roughness);
-        let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
-
-        let numerator = NDF * G * F;
-        let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        let specular = numerator / denominator;
-
-
-        let kS = F;
-
-        var kD = vec3f(1.0) - kS;
-        kD = kD * (1.0 - metallic);
-
-        let NdotL = max(dot(N, L), 0.0);
-
-        lo += (kD * albedo / PI + specular) * radiance * NdotL;
     }
 
     ////////////// Calculations for sun light

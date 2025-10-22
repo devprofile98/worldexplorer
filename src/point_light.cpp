@@ -92,9 +92,9 @@ void LightManager::renderGUI() {
     }
 
     if (tmp_light.type == SPOT) {
-        ImGui::SliderFloat3("Direction", glm::value_ptr(tmp_light.mDirection), -1.0, 1.0f);
-        ImGui::SliderFloat("Inner Cutoff", &tmp_light.mInnerCutoff, 0, 360.0);
-        ImGui::SliderFloat("outer Cutoff", &tmp_light.mOuterCutoff, 0, 360.0);
+        ImGui::SliderFloat3("sDirection", glm::value_ptr(tmp_light.mDirection), -1.0, 1.0f);
+        ImGui::SliderFloat("Inner Cutoff", &tmp_light.mInnerCutoff, 0, 1.0);
+        ImGui::SliderFloat("outer Cutoff", &tmp_light.mOuterCutoff, 0, 1.0);
     }
     ImGui::SliderFloat("Linear", &tmp_light.mLinear, -10.0f, 10.0f);
     ImGui::SliderFloat("Quadratic", &tmp_light.mQuadratic, -10.0f, 10.0f);

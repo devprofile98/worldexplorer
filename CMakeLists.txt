@@ -131,13 +131,17 @@ else()
     message(FATAL_ERROR "Unsupported platform for glfw3webgpu")
 endif()
 
-# if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-#     # For GCC and Clang, the flag is -S
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU" AND CMAKE_BUILD_TYPE MATCHES Debug)
+    # Set compile flags
+    # target_compile_options(App PRIVATE -fsanitize=address)
+    # target_link_options(App PRIVATE -fsanitize=address)
 #     target_compile_options(App PRIVATE -S -fverbose-asm)
-# elseif(MSVC)
 #     # For MSVC, the flag is /Fa
 #     target_compile_options(App PRIVATE /Fa)
-# endif()
+
+endif()
+
 
 target_compile_definitions(App PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
 # Adding ImGui include directories

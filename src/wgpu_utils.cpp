@@ -122,14 +122,14 @@ void inspectProperties(WGPUAdapter adapter) {
     std::cout << "Adapter properties:" << std::endl;
     std::cout << " - vendorID: " << info.vendorID << std::endl;
     if (info.vendor.length) {
-        std::cout << " - vendorName: " << info.vendor.data << std::endl;
+        // std::cout << " - vendorName: " << info.vendor.data << std::endl;
     }
     if (info.architecture.length) {
         std::cout << " - architecture: " << info.architecture.data << std::endl;
     }
     std::cout << " - deviceID: " << info.deviceID << std::endl;
     if (info.description.length) {
-        std::cout << " - driverDescription: " << info.description.data << std::endl;
+        // std::cout << " - driverDescription: " << info.description.data << std::endl;
     }
     std::cout << std::hex;
     std::cout << " - adapterType: 0x" << info.adapterType << std::endl;
