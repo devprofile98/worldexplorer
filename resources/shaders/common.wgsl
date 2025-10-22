@@ -52,7 +52,8 @@ struct ObjectInfo {
     isHovered: u32,
     materialProps: u32,
     metallicness: f32,
-    isAnimated: u32
+    isAnimated: u32,
+    uvMultiplier: vec3f,
 }
 
 

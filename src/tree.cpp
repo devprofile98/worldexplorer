@@ -642,6 +642,24 @@ struct StonesModel : public IModel {
         };
 };
 
+struct PlatformModel : public IModel {
+        PlatformModel(Application* app) {
+            mModel = new Model{};
+
+            mModel->load("platform", app, RESOURCE_DIR "/platform.gltf", app->getObjectBindGroupLayout())
+                .mTransform.moveTo(glm::vec3{-2.0, -1.0, -2.58})
+                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
+                .scale(glm::vec3{0.5});
+            mModel->uploadToGPU(app);
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+        }
+
+        Model* getModel() override { return mModel; }
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
+};
 // USER_REGISTER_MODEL("tree", TreeModel);
 // USER_REGISTER_MODEL("boat", BoatModel);
 // USER_REGISTER_MODEL("car", CarModel);
@@ -655,9 +673,10 @@ struct StonesModel : public IModel {
 // USER_REGISTER_MODEL("sheep", SheepModel);
 
 // USER_REGISTER_MODEL("sphere", SphereModel);
+USER_REGISTER_MODEL("platform", PlatformModel);
 //
 USER_REGISTER_MODEL("human", HumanModel);
-// USER_REGISTER_MODEL("robot", RobotModel);
+USER_REGISTER_MODEL("robot", RobotModel);
 // USER_REGISTER_MODEL("stones", StonesModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
 //

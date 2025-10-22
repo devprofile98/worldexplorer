@@ -30,6 +30,7 @@ struct alignas(16) VertexAttributes {
 
 class Mesh {
     public:
+        unsigned int meshId;
         std::vector<VertexAttributes> mVertexData;
         std::vector<uint32_t> mIndexData;
         Texture* mTexture = nullptr;

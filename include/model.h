@@ -78,7 +78,7 @@ inline MaterialProps operator~(MaterialProps a) { return static_cast<MaterialPro
 /*
  * hold the object specific configuration for rendering in shader
  */
-struct ObjectInfo {
+struct alignas(16) ObjectInfo {
         glm::mat4 transformation;
         uint32_t isFlat;
         uint32_t useTexture;
@@ -88,6 +88,7 @@ struct ObjectInfo {
         uint32_t materialProps;
         float roughness;
         uint32_t isAnimated;
+        glm::vec3 uvMultiplier;
 
         inline bool hasFlag(MaterialProps checkFlag) {
             return (static_cast<uint32_t>(materialProps) & static_cast<uint32_t>(checkFlag)) != 0;
@@ -202,8 +203,11 @@ class Model : public BaseModel {
     public:
         Model();
 
-        void processMesh(Application* app, aiMesh* mesh, const aiScene* scene);
-        void processNode(Application* app, aiNode* node, const aiScene* scene);
+        // void processMesh(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId);
+        void processMesh(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId,
+                         const glm::mat4& globalTransform);
+        // void processNode(Application* app, aiNode* node, const aiScene* scene);
+        void processNode(Application* app, aiNode* node, const aiScene* scene, const glm::mat4& parentTransform);
         Model& load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout);
         Model& uploadToGPU(Application* app);
         void draw(Application* app, WGPURenderPassEncoder encoder) override;
@@ -224,7 +228,7 @@ class Model : public BaseModel {
         std::unordered_map<std::string, glm::mat4> mOffsetMatrixCache;
         std::vector<glm::mat4> mFinalTransformations;
         std::map<std::string, size_t> boneToIdx;
-        void ExtractBonePositions();
+        void updateAnimation();
         void buildNodeCache(aiNode* node);
         std::vector<glm::vec3> mBonePosition;
         const aiScene* mScene;

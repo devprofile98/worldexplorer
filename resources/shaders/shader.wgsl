@@ -221,12 +221,13 @@ fn geometrySmith(N: vec3f, V: vec3f, L: vec3f, roughness: f32) -> f32 {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
+    let uv = in.uv * objectTranformation.uvMultiplier.xy;
     let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
     if d > 0.0 {
 	    discard;
     }
 
-    var frag_ambient = textureSample(diffuse_map, textureSampler, in.uv).rgba;
+    var frag_ambient = textureSample(diffuse_map, textureSampler, uv).rgba;
     if (in.materialProps & (1u << 0u)) != 1u {
         frag_ambient = vec4f(in.color.rgb, 1.0);
     }
@@ -234,13 +235,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 		discard;
     }
     let albedo = pow(frag_ambient.rgb, vec3f(1.5f));
-    let material = textureSample(metalic_roughness_texture, textureSampler, in.uv).rgb;
+    let material = textureSample(metalic_roughness_texture, textureSampler, uv).rgb;
     let ao = material.r;
     let roughness = material.g;
     var metallic = material.b;
 
 
-    var normal = textureSample(normal_map, textureSampler, in.uv).rgb;
+    var normal = textureSample(normal_map, textureSampler, uv).rgb;
     normal = normal * 2.0 - 1.0;
     let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
     var N = normalize(TBN * normal);

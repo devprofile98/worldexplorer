@@ -70,6 +70,7 @@ Model::Model() : BaseModel() {
     mTransform.mObjectInfo.useTexture = 1;
     mTransform.mObjectInfo.isFoliage = 0;
     mTransform.mObjectInfo.isAnimated = 0;
+    mTransform.mObjectInfo.uvMultiplier = {1.0, 1.0, 1.0};
     mTransform.mDirty = true;
 }
 
@@ -280,7 +281,7 @@ void ComputeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, 
     }
 }
 
-void Model::ExtractBonePositions() {
+void Model::updateAnimation() {
     if (mScene->mAnimations) {
         const aiMatrix4x4 rootTransform = mScene->mRootNode->mTransformation;
 
@@ -296,7 +297,7 @@ void Model::ExtractBonePositions() {
     }
 
     // TODO: fix this rotation, we need a 90 degree rotation to be aligned with z-up coordinate system of the mesh data
-    auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(90.0f), glm::vec3{1.0, 0.0, 0.0});
+    auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(180.0f), glm::vec3{1.0, 0.0, 0.0});
 
     for (const std::string& boneName : uniqueBones) {
         if (boneToIdx.find(boneName) != boneToIdx.end()) {
@@ -304,32 +305,59 @@ void Model::ExtractBonePositions() {
         }
     }
 }
+glm::mat4 aiMatrix4x4ToGlm(const aiMatrix4x4& from) {
+    glm::mat4 to;
+    // Assimp is row-major, GLM is column-major, so transpose
+    to[0][0] = from.a1;
+    to[0][1] = from.b1;
+    to[0][2] = from.c1;
+    to[0][3] = from.d1;
+    to[1][0] = from.a2;
+    to[1][1] = from.b2;
+    to[1][2] = from.c2;
+    to[1][3] = from.d2;
+    to[2][0] = from.a3;
+    to[2][1] = from.b3;
+    to[2][2] = from.c3;
+    to[2][3] = from.d3;
+    to[3][0] = from.a4;
+    to[3][1] = from.b4;
+    to[3][2] = from.c4;
+    to[3][3] = from.d4;
+    return to;
+}
+// Modified processNode to pass parent transformation
+void Model::processNode(Application* app, aiNode* node, const aiScene* scene, const glm::mat4& parentTransform) {
+    // Compute global transformation for this node
+    glm::mat4 nodeTransform = aiMatrix4x4ToGlm(node->mTransformation);
+    glm::mat4 globalTransform = parentTransform * nodeTransform;
 
-void Model::processNode(Application* app, aiNode* node, const aiScene* scene) {
+    // Process meshes in this node
     for (uint32_t i = 0; i < node->mNumMeshes; i++) {
-        aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        processMesh(app, mesh, scene);
+        unsigned int mid = node->mMeshes[i];
+        aiMesh* mesh = scene->mMeshes[mid];
+        processMesh(app, mesh, scene, mid, globalTransform);
     }
+
+    // Recursively process child nodes
     for (uint32_t i = 0; i < node->mNumChildren; i++) {
-        processNode(app, node->mChildren[i], scene);
+        processNode(app, node->mChildren[i], scene, globalTransform);
     }
 }
 
-// size_t boneIdx = 0;
-
-void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
+// Modified processMesh to accept global transformation
+void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId,
+                        const glm::mat4& globalTransform) {
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
     std::map<size_t, std::vector<std::pair<size_t, float>>> bonemap;
 
     size_t index_offset = mMeshes[mesh->mMaterialIndex].mVertexData.size();
+    std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << meshId << " " << mesh->mMaterialIndex << '\n';
+
     if (mesh->HasBones()) {
         std::cout << " ))))))))))))))))) has bone " << mesh->HasBones() << " and " << mesh->mNumBones << std::endl;
-
         for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
             auto bone = mesh->mBones[i];
-            std::cout << bone->mName.C_Str() << " " << bone->mNumWeights << std::endl;
-            std::cout << "------- " << bone->mWeights[bone->mNumWeights - 1].mVertexId << ": "
-                      << bone->mWeights[bone->mNumWeights - 1].mWeight << " " << mesh->mNumVertices << std::endl;
             for (size_t j = 0; j < bone->mNumWeights; ++j) {
                 if (boneToIdx.count(bone->mName.C_Str()) == 0) {
                     boneToIdx[bone->mName.C_Str()] = boneToIdx.size();
@@ -343,41 +371,46 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
         }
     }
 
+    // Compute normal transformation (inverse transpose for normals)
+    glm::mat4 normalTransform = glm::transpose(glm::inverse(globalTransform));
+
     for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
         VertexAttributes vertex;
-        glm::vec3 vector;
 
-        vector.x = mesh->mVertices[i].x;
-        vector.y = mesh->mVertices[i].z;
-        vector.z = -mesh->mVertices[i].y;
+        // Transform vertex position
+        glm::vec4 pos(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z, 1.0f);
+        pos = globalTransform * pos;
+        glm::vec3 vector(pos.x, pos.y, pos.z);
+
+        // Adjust coordinate system (as in your original code)
+        vertex.position.x = vector.x;
+        vertex.position.y = vector.z;
+        vertex.position.z = -vector.y;
 
         size_t bid_cnt = 0;
         if (mesh->HasBones()) {
             for (const auto& [bid, bwg] : bonemap[i]) {
-                // if (bid_cnt > 3) {
-                //     break;
-                // }
                 vertex.boneIds[bid_cnt % 4] = bid;
                 vertex.weights[bid_cnt % 4] = bwg;
                 ++bid_cnt;
             }
         }
 
-        min.x = std::min(min.x, vector.x);
-        min.y = std::min(min.y, vector.y);
-        min.z = std::min(min.z, vector.z);
-        /**/
-        max.x = std::max(max.x, vector.x);
-        max.y = std::max(max.y, vector.y);
-        max.z = std::max(max.z, vector.z);
-
-        vertex.position = vector;
+        // Update bounding box
+        min.x = std::min(min.x, vertex.position.x);
+        min.y = std::min(min.y, vertex.position.y);
+        min.z = std::min(min.z, vertex.position.z);
+        max.x = std::max(max.x, vertex.position.x);
+        max.y = std::max(max.y, vertex.position.y);
+        max.z = std::max(max.z, vertex.position.z);
 
         if (mesh->HasNormals()) {
-            vector.x = mesh->mNormals[i].x;
-            vector.y = mesh->mNormals[i].z;
-            vector.z = -mesh->mNormals[i].y;
-            vertex.normal = vector;
+            // Transform normal
+            glm::vec3 normal(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
+            normal = glm::mat3(normalTransform) * normal;
+            vertex.normal.x = normal.x;
+            vertex.normal.y = normal.z;
+            vertex.normal.z = -normal.y;
         }
 
         aiColor4D baseColor(1.0f, 0.0f, 1.0f, 1.0f);
@@ -390,17 +423,19 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
             vec.y = mesh->mTextureCoords[0][i].y;
             vertex.uv = vec;
             if (mesh->mTangents && mesh->mBitangents) {
-                // // tangent
-                vector.x = mesh->mTangents[i].x;
-                vector.y = mesh->mTangents[i].z;
-                vector.z = mesh->mTangents[i].y;
-                vertex.tangent = vector;
+                // Transform tangent
+                glm::vec3 tangent(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);
+                tangent = glm::mat3(globalTransform) * tangent;
+                vertex.tangent.x = tangent.x;
+                vertex.tangent.y = tangent.z;
+                vertex.tangent.z = -tangent.y;
 
-                // // bitangent
-                vector.x = mesh->mBitangents[i].x;
-                vector.y = mesh->mBitangents[i].z;
-                vector.z = mesh->mBitangents[i].y;
-                vertex.biTangent = vector;
+                // Transform bitangent
+                glm::vec3 bitangent(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z);
+                bitangent = glm::mat3(globalTransform) * bitangent;
+                vertex.biTangent.x = bitangent.x;
+                vertex.biTangent.y = bitangent.z;
+                vertex.biTangent.z = -bitangent.y;
             }
         } else {
             vertex.uv = glm::vec2{0.0f, 0.0f};
@@ -412,7 +447,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
     for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
         aiFace face = mesh->mFaces[i];
         for (uint32_t j = 0; j < face.mNumIndices; j++) {
-            /*indices.push_back(face.mIndices[j]);*/
             mMeshes[mesh->mMaterialIndex].mIndexData.push_back((uint32_t)face.mIndices[j] + index_offset);
         }
     }
@@ -420,16 +454,11 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
     auto& render_resource = app->getRendererResource();
     auto& mmesh = mMeshes[mesh->mMaterialIndex];
 
-    if (getName() == "steampunk") {
-        std::cout << "for debug\n";
-    }
-
     auto load_texture = [&](aiTextureType type, MaterialProps flag, Texture** target) {
         for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
             mTransform.mObjectInfo.setFlag(flag, true);
             aiString str;
             material->GetTexture(type, i, &str);
-            /*std::cout << "texture for this part is at " << str.C_Str() << std::endl;*/
             std::string texture_path = RESOURCE_DIR;
             texture_path += "/";
             texture_path += str.C_Str();
@@ -454,9 +483,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene) {
     if (mmesh.mNormalMapTexture == nullptr) {
         load_texture(aiTextureType_NORMALS, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
     }
-    // std::cout << getName() << " mesh texture status:\n base color: " << (mmesh.mTexture == nullptr) << '\n';
-    // std::cout << "\tspecular texture: " << (mmesh.mSpecularTexture == nullptr) << '\n';
-    // std::cout << "\tnormal texture: " << (mmesh.mNormalMapTexture == nullptr) << '\n';
 }
 
 Model& Model::load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout) {
@@ -518,13 +544,13 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     }
     // craeting the bindgropu for skining data
 
-    ExtractBonePositions();
+    updateAnimation();
 
     // Default to non textured
     mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, false);
     mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, false);
     mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, false);
-    processNode(app, scene->mRootNode, scene);
+    processNode(app, scene->mRootNode, scene, glm::mat4{1.0});
 
     return *this;
 }
@@ -804,6 +830,10 @@ void Model::userInterface() {
             mTransform.mDirty = true;
         }
         if (ImGui::SliderFloat("Diffuse Value", &mTransform.mObjectInfo.roughness, 0.0f, 1.0f)) {
+            mTransform.mDirty = true;
+        }
+
+        if (ImGui::SliderFloat3("Uv Values", glm::value_ptr(mTransform.mObjectInfo.uvMultiplier), 0.0f, 10.0f)) {
             mTransform.mDirty = true;
         }
     }

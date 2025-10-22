@@ -599,7 +599,7 @@ void Application::mainLoop() {
         // PerfTimer timer{"tick"};
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
             model->mAnimationSecond = std::fmod(time, model->mAnimationDuration) * 1000.0f;
-            model->ExtractBonePositions();
+            model->updateAnimation();
             model->update(this, 0.0);
         }
     }
@@ -630,9 +630,11 @@ void Application::mainLoop() {
     // The first pass is the shadow pass, only based on the opaque objects
     if (should_update_csm) {
         auto all_scenes = mShadowPass->createFrustumSplits(
-            corners, {{0.0, middle_plane_length},
-                      {middle_plane_length, middle_plane_length + far_plane_length},
-                      {middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 100}});
+            corners, {
+                         {0.0, middle_plane_length}
+                         // {middle_plane_length, middle_plane_length + far_plane_length},
+                         // {middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 100}});
+                     });
 
         uint32_t cascades_count = all_scenes.size();
         wgpuQueueWriteBuffer(this->getRendererResource().queue, mTimeBuffer.getBuffer(), 0, &cascades_count,
