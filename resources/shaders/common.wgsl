@@ -45,15 +45,19 @@ struct LightingUniforms {
 
 struct ObjectInfo {
     transformations: mat4x4f,
-    isFlat: i32,
-    useTexture: i32,
-    isFoliage: i32,
     offsetId: u32,
     isHovered: u32,
-    materialProps: u32,
-    metallicness: f32,
     isAnimated: u32,
-    uvMultiplier: vec3f,
+}
+
+struct Material {
+    isFlat: u32,
+    useTexture: u32,
+    isFoliage: u32,
+    materialProps: u32, // <-- Offset 12 (16 bytes total)
+    metallicness: f32,  // <-- Offset 16 (4 bytes)
+    // 12 bytes of padding needed here to make the next offset 32
+    uvMultiplier: vec3f, // <-- Offset 32 (12 bytes)
 }
 
 
@@ -104,3 +108,4 @@ struct OffsetData {
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 @group(1) @binding(1) var<uniform> bonesFinalTransform: array<mat4x4f, 100>;
+

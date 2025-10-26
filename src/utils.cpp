@@ -11,6 +11,7 @@
 #include "application.h"
 #include "glm/ext/quaternion_geometric.hpp"
 #include "glm/fwd.hpp"
+#include "mesh.h"
 #include "model.h"
 #include "rendererResource.h"
 #include "stb_image.h"
@@ -300,7 +301,7 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
     mScaleMatrix = glm::mat4{1.0};
     mScaleMatrix = glm::scale(mScaleMatrix, glm::vec3{1.0});
     mObjectInfo.transformation = mScaleMatrix * mRotationMatrix * mTranslationMatrix;
-    mObjectInfo.isFlat = 1;
+    // mObjectInfo.isFlat = 1;
     std::vector<VertexAttributes> foliage_positions;
 
     std::array<glm::vec3, 5> height_color = {
@@ -544,6 +545,12 @@ void Terrain::createSomeBinding(Application* app) {
     mBindGroupEntry[1].binding = 1;
     mBindGroupEntry[1].offset = 0;
     mBindGroupEntry[1].size = 100 * sizeof(glm::mat4);
+
+    // mBindGroupEntry[2].nextInChain = nullptr;
+    // mBindGroupEntry[2].buffer = app->mDefaultBoneFinalTransformData.getBuffer();
+    // mBindGroupEntry[2].binding = 2;
+    // mBindGroupEntry[2].offset = 0;
+    // mBindGroupEntry[2].size = sizeof(Material);
 
     WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
     mTrasBindGroupDesc.nextInChain = nullptr;

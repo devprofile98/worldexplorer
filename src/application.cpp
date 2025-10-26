@@ -13,6 +13,7 @@
 
 #include "binding_group.h"
 #include "glm/matrix.hpp"
+#include "mesh.h"
 #include "renderpass.h"
 #include "shapes.h"
 #include "skybox.h"
@@ -151,12 +152,19 @@ void Application::initializePipeline() {
             .addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4))
             .createLayout(this, "Object Tranformation Matrix uniform");
 
+    BindingGroup default_mesh_information;
+    WGPUBindGroupLayout default_mesh_mat_layout =
+        default_mesh_information
+            .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Material))
+            .createLayout(this, "mesh material Matrix uniform");
+
     mBindGroupLayouts = {bind_group_layout,        obj_transform_layout,        texture_bind_group_layout,
-                         camera_bind_group_layout, clipplane_bind_group_layout, visible_bind_group_layout};
+                         camera_bind_group_layout, clipplane_bind_group_layout, visible_bind_group_layout,
+                         default_mesh_mat_layout};
 
     mPipeline = new Pipeline{this,
                              {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
-                              mBindGroupLayouts[4], mBindGroupLayouts[5]},
+                              mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
                              "standard pipeline"};
 
     mPipeline->defaultConfiguration(this, mSurfaceFormat);
@@ -164,10 +172,11 @@ void Application::initializePipeline() {
     mPipeline->setDepthStencilState(mPipeline->getDepthStencilState());
     mPipeline->createPipeline(this);
 
-    mStenctilEnabledPipeline = new Pipeline{this,
-                                            {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2],
-                                             mBindGroupLayouts[3], mBindGroupLayouts[4], mBindGroupLayouts[5]},
-                                            "Draw outline pipe"};
+    mStenctilEnabledPipeline =
+        new Pipeline{this,
+                     {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
+                      mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
+                     "Draw outline pipe"};
     mStenctilEnabledPipeline->defaultConfiguration(this, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8)
         .createPipeline(this);
 
@@ -251,8 +260,8 @@ void Application::initializePipeline() {
     mOutlinePass = new OutlinePass{this, "Outline Render Pass"};
     mOutlinePass->create(mSurfaceFormat, mDepthTextureViewDepthOnly);
 
-    mWaterRenderPass = new WaterPass{this, "Water pass"};
-    mWaterRenderPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
+    // mWaterRenderPass = new WaterPass{this, "Water pass"};
+    // mWaterRenderPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
 
     /*mTransparencyPass = new TransparencyPass{this};*/
     /*mTransparencyPass->initializePass();*/
@@ -1216,10 +1225,10 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
     ImGui::Begin("Add Line");
 
-    ImGui::Image((ImTextureID)(intptr_t)mWaterRenderPass->mWaterRefractionPass->mRenderTargetView,
-                 ImVec2(1920 / 4.0, 1022 / 4.0));
-    ImGui::Image((ImTextureID)(intptr_t)mWaterRenderPass->mWaterPass->mRenderTargetView,
-                 ImVec2(1920 / 4.0, 1022 / 4.0));
+    // ImGui::Image((ImTextureID)(intptr_t)mWaterRenderPass->mWaterRefractionPass->mRenderTargetView,
+    //              ImVec2(1920 / 4.0, 1022 / 4.0));
+    // ImGui::Image((ImTextureID)(intptr_t)mWaterRenderPass->mWaterPass->mRenderTargetView,
+    //              ImVec2(1920 / 4.0, 1022 / 4.0));
 
     static glm::vec3 start = glm::vec3{0.0f};
     static glm::vec3 end = glm::vec3{0.0f};

@@ -82,7 +82,7 @@ class Application {
         InstanceManager* mInstanceManager;
 
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
-        std::array<WGPUBindGroupLayout, 6> mBindGroupLayouts;
+        std::array<WGPUBindGroupLayout, 7> mBindGroupLayouts;
 
         // textures
         Texture* mDefaultDiffuse = nullptr;

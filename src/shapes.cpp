@@ -187,7 +187,7 @@ void Cube::draw(Application* app, WGPURenderPassEncoder encoder) {
     auto& render_resource = app->getRendererResource();
 
     mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
-    mTransform.mObjectInfo.isFlat = false;
+    // mTransform.mObjectInfo.isFlat = false;
     wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
                          sizeof(ObjectInfo));
 

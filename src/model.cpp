@@ -23,6 +23,7 @@
 #include "assimp/quaternion.h"
 #include "assimp/vector3.h"
 #include "glm/ext/matrix_common.hpp"
+#include "mesh.h"
 #include "texture.h"
 #include "wgpu_utils.h"
 
@@ -66,11 +67,11 @@ Model::Model() : BaseModel() {
     mTransform.mScaleMatrix = glm::scale(mTransform.mScaleMatrix, mTransform.mScale);
     mTransform.mTransformMatrix = mTransform.mRotationMatrix * mTransform.mTranslationMatrix * mTransform.mScaleMatrix;
     mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
-    mTransform.mObjectInfo.isFlat = 0;
-    mTransform.mObjectInfo.useTexture = 1;
-    mTransform.mObjectInfo.isFoliage = 0;
+    // mTransform.mObjectInfo.isFlat = 0;
+    // mTransform.mObjectInfo.useTexture = 1;
+    // mTransform.mObjectInfo.isFoliage = 0;
+    // mTransform.mObjectInfo.uvMultiplier = {1.0, 1.0, 1.0};
     mTransform.mObjectInfo.isAnimated = 0;
-    mTransform.mObjectInfo.uvMultiplier = {1.0, 1.0, 1.0};
     mTransform.mDirty = true;
 }
 
@@ -456,7 +457,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
     auto load_texture = [&](aiTextureType type, MaterialProps flag, Texture** target) {
         for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
-            mTransform.mObjectInfo.setFlag(flag, true);
+            mmesh.mMaterial.setFlag(flag, true);
             aiString str;
             material->GetTexture(type, i, &str);
             std::string texture_path = RESOURCE_DIR;
@@ -543,16 +544,16 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
             aiNodeAnim* channel = anim->mChannels[i];
             channelMap[channel->mNodeName.C_Str()] = channel;
         }
-        mTransform.mObjectInfo.setFlag(MaterialProps::IsAnimated, true);
+        mTransform.mObjectInfo.isAnimated = true;
     }
     // craeting the bindgropu for skining data
 
     updateAnimation();
 
     // Default to non textured
-    mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, false);
-    mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, false);
-    mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, false);
+    // mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, false);
+    // mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, false);
+    // mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, false);
     processNode(app, scene->mRootNode, scene, glm::mat4{1.0});
 
     return *this;
@@ -581,13 +582,13 @@ void BaseModel::addChildren(BaseModel* child) {
 
 Model& Model::setFoliage() {
     mTransform.mDirty = true;
-    mTransform.mObjectInfo.isFoliage = 1;
+    // mTransform.mObjectInfo.isFoliage = 1;
     return *this;
 }
 
 Model& Model::useTexture(bool use) {
     mTransform.mDirty = true;
-    mTransform.mObjectInfo.useTexture = use ? 1 : 0;
+    // mTransform.mObjectInfo.useTexture = use ? 1 : 0;
     return *this;
 }
 
@@ -687,10 +688,8 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
         // if (mesh.isTransparent) {
         //     continue;
         // }
-
-        if (getName() == "platform") {
-            std::cout << "here" << std::endl;
-        }
+        //
+        //
 
         if (mesh.mTexture != nullptr) {
             if (mesh.mTexture->getTextureView() != nullptr) {
@@ -713,6 +712,31 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
             desc.entryCount = mesh.binding_data.size();
             mesh.mTextureBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &desc);
         }
+
+        // Also create and initialize material buffer
+        mesh.mMaterialBuffer.setLabel("")
+            .setSize(sizeof(Material))
+            .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
+            .setMappedAtCraetion(false)
+            .create(app);
+        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial,
+                             sizeof(Material));
+
+        std::array<WGPUBindGroupEntry, 1> material_bg_entries = {};
+        material_bg_entries[0].nextInChain = nullptr;
+        material_bg_entries[0].buffer = mesh.mMaterialBuffer.getBuffer();
+        material_bg_entries[0].binding = 0;
+        material_bg_entries[0].offset = 0;
+        material_bg_entries[0].size = sizeof(Material);
+
+        WGPUBindGroupDescriptor mat_desc = {};
+        mat_desc.nextInChain = nullptr;
+        mat_desc.entries = material_bg_entries.data();
+        mat_desc.entryCount = 1;
+        mat_desc.label = createStringView("mesh material bind group");
+        mat_desc.layout = app->mBindGroupLayouts[6];
+
+        mesh.mMaterialBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mat_desc);
     }
 }
 
@@ -725,6 +749,10 @@ void Model::update(Application* app, float dt) {
     if (mTransform.mDirty) {
         wgpuQueueWriteBuffer(app->getRendererResource().queue, Drawable::getUniformBuffer().getBuffer(), 0,
                              &mTransform.mObjectInfo, sizeof(ObjectInfo));
+        for (auto& [id, mesh] : mMeshes) {
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial,
+                                 sizeof(Material));
+        }
         mTransform.mDirty = false;
     }
 }
@@ -750,6 +778,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
                                               : mesh.mTextureBindGroup,
                                           0, nullptr);
 
+        wgpuRenderPassEncoderSetBindGroup(encoder, 6, mesh.mMaterialBindGroup, 0, nullptr);
         if (this->instance != nullptr) {
             wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
         } else {
@@ -813,39 +842,50 @@ void Model::userInterface() {
         mTransform.scale(mTransform.mScale);
         mTransform.getLocalTransform();
     }
-    if (ImGui::CollapsingHeader("Materials",
-                                ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
-                                                                    //
-        bool is_animated = mTransform.mObjectInfo.hasFlag(MaterialProps::IsAnimated);
-        if (ImGui::Checkbox("Is Animated", &is_animated)) {
-            mTransform.mObjectInfo.setFlag(MaterialProps::IsAnimated, is_animated);
-            mTransform.mDirty = true;
-        }
-        bool has_normal = mTransform.mObjectInfo.hasFlag(MaterialProps::HasNormalMap);
-        if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
-            mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, has_normal);
-            mTransform.mDirty = true;
-        }
-        bool has_specular = mTransform.mObjectInfo.hasFlag(MaterialProps::HasRoughnessMap);
-        if (ImGui::Checkbox("Has Specular Map", &has_specular)) {
-            mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, has_specular);
-            mTransform.mDirty = true;
-        }
-        bool has_diffuse = mTransform.mObjectInfo.hasFlag(MaterialProps::HasDiffuseMap);
-        if (ImGui::Checkbox("Has Diffuse Map", &has_diffuse)) {
-            mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, has_diffuse);
-            mTransform.mDirty = true;
-        }
-        if (ImGui::SliderFloat("Diffuse Value", &mTransform.mObjectInfo.roughness, 0.0f, 1.0f)) {
-            mTransform.mDirty = true;
+
+    bool is_animated = mTransform.mObjectInfo.isAnimated;
+    if (ImGui::Checkbox("Is Animated", &is_animated)) {
+        // mesh.mMaterial.setFlag(MaterialProps::IsAnimated, is_animated);
+        // mTransform.mDirty = true;
+    }
+    bool dirty = false;
+    for (auto& [id, mesh] : mMeshes) {
+        ImGui::PushID((void*)&mesh);
+        if (ImGui::CollapsingHeader("Materials",
+                                    ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+                                                                        //
+            // bool is_animated = mesh.mMaterial.hasFlag(MaterialProps::IsAnimated);
+            // if (ImGui::Checkbox("Is Animated", &is_animated)) {
+            //     mesh.mMaterial.setFlag(MaterialProps::IsAnimated, is_animated);
+            //     // mTransform.mDirty = true;
+            // }
+            bool has_normal = mesh.mMaterial.hasFlag(MaterialProps::HasNormalMap);
+            if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
+                mesh.mMaterial.setFlag(MaterialProps::HasNormalMap, has_normal);
+                mTransform.mDirty = true;
+            }
+            bool has_specular = mesh.mMaterial.hasFlag(MaterialProps::HasRoughnessMap);
+            if (ImGui::Checkbox("Has Specular Map", &has_specular)) {
+                mesh.mMaterial.setFlag(MaterialProps::HasRoughnessMap, has_specular);
+                mTransform.mDirty = true;
+            }
+            bool has_diffuse = mesh.mMaterial.hasFlag(MaterialProps::HasDiffuseMap);
+            if (ImGui::Checkbox("Has Diffuse Map", &has_diffuse)) {
+                mesh.mMaterial.setFlag(MaterialProps::HasDiffuseMap, has_diffuse);
+                mTransform.mDirty = true;
+            }
+            if (ImGui::SliderFloat("Diffuse Value", &mesh.mMaterial.roughness, 0.0f, 1.0f)) {
+                mTransform.mDirty = true;
+            }
+
+            if (ImGui::DragFloat3("Uv Values", glm::value_ptr(mesh.mMaterial.uvMultiplier), drag_speed, 100.0f)) {
+                mTransform.mDirty = true;
+            }
         }
 
-        if (ImGui::DragFloat3("Uv Values", glm::value_ptr(mTransform.mObjectInfo.uvMultiplier), drag_speed, 100.0f)) {
-            // if (ImGui::SliderFloat3("Uv Values", glm::value_ptr(mTransform.mObjectInfo.uvMultiplier), 0.0f, 100.0f))
-            // {
-            mTransform.mDirty = true;
-        }
+        ImGui::PopID();  // Pop the unique ID for this item
     }
+    // }
 }
 #endif  // DEVELOPMENT_BUILD
 

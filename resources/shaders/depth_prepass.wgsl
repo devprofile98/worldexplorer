@@ -27,8 +27,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 
 
     var world_position: vec4f;
-    if (objectTranformation.materialProps >> 6) == 0u {
-
+    if objectTranformation.isAnimated == 0u {
         world_position = transform * vec4f(in.position, 1.0);
         out.normal = (transform * vec4f(in.normal, 0.0f)).xyz;
     } else {
@@ -75,8 +74,8 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     // if length(out.viewSpacePos) > ElapsedTime { index = 1;}
     out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
     out.shadowIdx = index;
-    out.materialProps = objectTranformation.materialProps;
-    out.userSpecular = objectTranformation.metallicness;
+    out.materialProps = 0u; //objectTranformation.materialProps;
+    out.userSpecular = 0.0f;//objectTranformation.metallicness;
     return out;
 }
 
@@ -87,7 +86,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     var pos = in.position;
     let transparency = textureSample(diffuse_map, textureSampler, in.uv).a;
-    if objectTranformation.useTexture == 1 && transparency < 0.001 {
+    if /*objectTranformation.useTexture == 1 &&*/ transparency < 0.001 {
        discard;
     }
     pos.z += 0.001;

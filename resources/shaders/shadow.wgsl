@@ -31,16 +31,21 @@ struct OffsetData {
 
 struct ObjectInfo {
     transformations: mat4x4f,
+    offsetId: u32,
+    isHovered: u32,
+    isAnimated: u32,
+}
+
+struct Material {
     isFlat: i32,
     useTexture: i32,
     isFoliage: i32,
-    offsetId: u32,
-    isHovered: u32,
     materialProps: u32,
     metallicness: f32,
-    isAnimated: u32,
     uvMultiplier: vec3f,
 }
+
+
 
 @group(0) @binding(0) var<uniform> scene: array<Scene, 2>;
 @group(0) @binding(1) var<storage, read> offsetInstance: array<OffsetData>;
@@ -55,6 +60,7 @@ struct ObjectInfo {
 
 @group(3) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 @group(3) @binding(1) var<uniform> bonesFinalTransform: array<mat4x4f, 100>;
+@group(3) @binding(2) var<uniform> meshMaterial: Material;
 
 
 @group(4) @binding(0) var<uniform> sceneIndex: u32;
@@ -74,8 +80,8 @@ fn vs_main(vertex: Vertex) -> VSOutput {
 
 
     var world_position: vec4f;
-    if (objectTranformation.materialProps >> 6) == 0u {
-
+    //if (objectTranformation.materialProps >> 6) == 0u {
+    if objectTranformation.isAnimated == 0u {
         world_position = transform * vec4f(vertex.position, 1.0);
     } else {
         var bone_matrix = mat4x4<f32>(
@@ -104,7 +110,7 @@ fn fs_main(in: VSOutput) -> @location(0) vec4f {
 
     var pos = in.position;
     let transparency = textureSample(diffuseMap, textureSampler, in.uv).a;
-    if objectTranformation.useTexture == 1 && transparency < 0.1 {
+    if /*objectTranformation.useTexture == 1  && */ transparency < 0.1 {
        discard;
     }
     return pos;

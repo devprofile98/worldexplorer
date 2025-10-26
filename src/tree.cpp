@@ -658,7 +658,7 @@ struct PlatformModel : public IModel {
         void onLoad(Application* app, void* params) override {
             (void)params;
             (void)app;
-            mModel->mTransform.mObjectInfo.uvMultiplier = {50, 50.0, 1.0};
+            // mModel->mTransform.mObjectInfo.uvMultiplier = {50, 50.0, 1.0};
             mModel->mTransform.mDirty = true;
         };
 };

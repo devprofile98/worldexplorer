@@ -11,6 +11,8 @@
 
 @group(5) @binding(0) var<storage, read> visible_instances_indices: array<u32>;
 
+@group(6) @binding(0) var<uniform> meshMaterial: Material;
+
 const PI: f32 = 3.141592653589793;
 
 fn degreeToRadians(degrees: f32) -> f32 {
@@ -44,7 +46,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     }
 
     var world_position: vec4f;
-    if (objectTranformation.materialProps >> 6) == 0u {
+    if objectTranformation.isAnimated == 0u {
 
         world_position = transform * vec4f(in.position, 1.0);
         out.normal = (transform * vec4f(in.normal, 0.0f)).xyz;
@@ -93,8 +95,8 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     // if length(out.viewSpacePos) > ElapsedTime { index = 1;}
     out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
     out.shadowIdx = index;
-    out.materialProps = objectTranformation.materialProps;
-    out.userSpecular = objectTranformation.metallicness;
+    out.materialProps = meshMaterial.materialProps;
+    out.userSpecular = meshMaterial.metallicness;
     return out;
 }
 
@@ -225,7 +227,7 @@ fn geometrySmith(N: vec3f, V: vec3f, L: vec3f, roughness: f32) -> f32 {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
-    let uv = in.uv * objectTranformation.uvMultiplier.xy;
+    let uv = in.uv * meshMaterial.uvMultiplier.xy;
     let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
     if d > 0.0 {
 	    discard;

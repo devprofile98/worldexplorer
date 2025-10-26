@@ -46,7 +46,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     }
 
     var world_position: vec4f;
-    if (objectTranformation.materialProps >> 6) == 0u {
+    if objectTranformation.isAnimated == 0u {
 
         world_position = transform * vec4f(in.position, 1.0);
         out.normal = (transform * vec4f(in.normal, 0.0f)).xyz;
