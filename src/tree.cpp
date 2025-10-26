@@ -519,7 +519,7 @@ struct HouseModel : public IModel {
 
             // mModel->load("house", app, RESOURCE_DIR "/house/scene.gltf", app->getObjectBindGroupLayout())
             // mModel->load("house2", app, RESOURCE_DIR "/house2/house3.gltf", app->getObjectBindGroupLayout())
-            mModel->load("house2", app, RESOURCE_DIR "/house.glb", app->getObjectBindGroupLayout())
+            mModel->load("house2", app, RESOURCE_DIR "/ourhome.gltf", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{-0.483, 2.048, -3.309})
                 .rotate(glm::vec3{0.0, 180.0, 0.0}, 0.0)
                 .scale(glm::vec3{.601f});
@@ -647,9 +647,9 @@ struct PlatformModel : public IModel {
             mModel = new Model{};
 
             mModel->load("platform", app, RESOURCE_DIR "/platform.gltf", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{-2.0, -1.0, -2.58})
+                .mTransform.moveTo(glm::vec3{-2.0, -1.0, -3.68})
                 .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
-                .scale(glm::vec3{0.5});
+                .scale(glm::vec3{3.370, 3.370, 0.860});
             mModel->uploadToGPU(app);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
@@ -658,6 +658,8 @@ struct PlatformModel : public IModel {
         void onLoad(Application* app, void* params) override {
             (void)params;
             (void)app;
+            mModel->mTransform.mObjectInfo.uvMultiplier = {50, 50.0, 1.0};
+            mModel->mTransform.mDirty = true;
         };
 };
 // USER_REGISTER_MODEL("tree", TreeModel);
@@ -670,7 +672,7 @@ struct PlatformModel : public IModel {
 //
 // USER_REGISTER_MODEL("grass", GrassModel);
 // USER_REGISTER_MODEL("steampunk", Steampunk);
-// USER_REGISTER_MODEL("sheep", SheepModel);
+USER_REGISTER_MODEL("sheep", SheepModel);
 
 // USER_REGISTER_MODEL("sphere", SphereModel);
 USER_REGISTER_MODEL("platform", PlatformModel);

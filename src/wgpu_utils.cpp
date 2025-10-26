@@ -7,6 +7,7 @@
 #include <cstring>
 #include <format>
 #include <iostream>
+#include <vector>
 
 WGPUStringView createStringView(const std::string &str) {
     // std::cout << "String receive is " << str << " with size " << str.size() << std::endl;
@@ -63,10 +64,11 @@ void func(const WGPUDevice *device, WGPUDeviceLostReason reason, WGPUStringView 
 WGPUDevice requestDeviceSync(WGPUAdapter adapter, WGPULimits limits) {
     (void)adapter;
     WGPUDeviceDescriptor descriptor = {};
-    /*std::vector<WGPUFeatureName> features = {WGPUNativeFeature_VertexWritableStorage};*/
+    std::vector<WGPUFeatureName> features = {WGPUFeatureName_TimestampQuery};
     descriptor.nextInChain = nullptr;
     descriptor.label = {"My Device", sizeof("My Device")};  // anything works here, that's your
-    descriptor.requiredFeatureCount = 0;                    // we do not require any
+    descriptor.requiredFeatures = features.data();
+    descriptor.requiredFeatureCount = features.size();  // we do not require any
     /*descriptor.requiredFeatures;*/
     descriptor.requiredLimits = &limits;  // we do not require any
     descriptor.defaultQueue.nextInChain = nullptr;

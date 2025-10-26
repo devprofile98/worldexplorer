@@ -38,10 +38,11 @@ struct ObjectInfo {
     isHovered: u32,
     materialProps: u32,
     metallicness: f32,
-    isAnimated: u32
+    isAnimated: u32,
+    uvMultiplier: vec3f,
 }
 
-@group(0) @binding(0) var<uniform> scene: array<Scene, 3>;
+@group(0) @binding(0) var<uniform> scene: array<Scene, 2>;
 @group(0) @binding(1) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(2) var textureSampler: sampler;
 

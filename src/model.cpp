@@ -465,6 +465,8 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             *target = new Texture{render_resource.device, texture_path};
             if ((*target)->createView() == nullptr) {
                 std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName, texture_path);
+            } else {
+                std::cout << std::format("succesfully create view for {} at {}\n", mName, texture_path);
             }
             (*target)->uploadToGPU(render_resource.queue);
             mmesh.isTransparent = (*target)->isTransparent();
@@ -475,7 +477,8 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
         load_texture(aiTextureType_DIFFUSE, MaterialProps::HasDiffuseMap, &mmesh.mTexture);
     }
     if (mmesh.mSpecularTexture == nullptr) {
-        load_texture(aiTextureType_SPECULAR, MaterialProps::HasRoughnessMap, &mmesh.mSpecularTexture);
+        load_texture(aiTextureType_DIFFUSE_ROUGHNESS, MaterialProps::HasRoughnessMap, &mmesh.mSpecularTexture);
+        // aiTextureType_SPECULAR
     }
     if (mmesh.mNormalMapTexture == nullptr) {
         load_texture(aiTextureType_HEIGHT, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
@@ -681,8 +684,12 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
 
     for (auto& [mat_id, mesh] : mMeshes) {
         mesh.binding_data = bindingData;
-        if (mesh.isTransparent) {
-            continue;
+        // if (mesh.isTransparent) {
+        //     continue;
+        // }
+
+        if (getName() == "platform") {
+            std::cout << "here" << std::endl;
         }
 
         if (mesh.mTexture != nullptr) {
@@ -727,30 +734,30 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
     WGPUBindGroup active_bind_group = nullptr;
 
     for (auto& [mat_id, mesh] : mMeshes) {
-        if (!mesh.isTransparent) {
-            active_bind_group = app->getBindingGroup().getBindGroup();
+        // if (!mesh.isTransparent) {
+        active_bind_group = app->getBindingGroup().getBindGroup();
 
-            wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
-                                                 wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
-            wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
-                                                wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
-            wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
+        wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
+                                             wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
+        wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
+                                            wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
+        wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
 
-            wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
-            wgpuRenderPassEncoderSetBindGroup(encoder, 2,
-                                              mesh.mTextureBindGroup == nullptr
-                                                  ? app->mDefaultTextureBindingGroup.getBindGroup()
-                                                  : mesh.mTextureBindGroup,
-                                              0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(encoder, 2,
+                                          mesh.mTextureBindGroup == nullptr
+                                              ? app->mDefaultTextureBindingGroup.getBindGroup()
+                                              : mesh.mTextureBindGroup,
+                                          0, nullptr);
 
-            if (this->instance != nullptr) {
-                wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
-            } else {
-                wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
-            }
-
-            // continue;
+        if (this->instance != nullptr) {
+            wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
+        } else {
+            wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
         }
+
+        // continue;
+        // }
     }
 }
 
@@ -833,7 +840,9 @@ void Model::userInterface() {
             mTransform.mDirty = true;
         }
 
-        if (ImGui::SliderFloat3("Uv Values", glm::value_ptr(mTransform.mObjectInfo.uvMultiplier), 0.0f, 10.0f)) {
+        if (ImGui::DragFloat3("Uv Values", glm::value_ptr(mTransform.mObjectInfo.uvMultiplier), drag_speed, 100.0f)) {
+            // if (ImGui::SliderFloat3("Uv Values", glm::value_ptr(mTransform.mObjectInfo.uvMultiplier), 0.0f, 100.0f))
+            // {
             mTransform.mDirty = true;
         }
     }

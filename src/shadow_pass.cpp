@@ -326,6 +326,8 @@ void ShadowPass::renderAllCascades(WGPUCommandEncoder encoder) {
 
         for (auto& s : mScenes) {
             s.projection = s.projection * s.view;
+            // printMatrix(s.projection);
+            // std::cout << "===============================\n";
         }
     }
 

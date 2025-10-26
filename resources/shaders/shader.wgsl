@@ -1,6 +1,5 @@
 #include "common.wgsl"
 
-//@group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 
 @group(2) @binding(0) var diffuse_map: texture_2d<f32>;
 @group(2) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
@@ -89,6 +88,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
         	break;
         }
     }
+    //index = 1u;
 
     // if length(out.viewSpacePos) > ElapsedTime { index = 1;}
     out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
@@ -106,6 +106,10 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, cascadeIdx: u32) -> 
         projCoords.xy * vec2(0.5, -0.5) + vec2(0.5),
         projCoords.z
     );
+
+    if projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0 {
+        return 0.0; // No shadow for out-of-bounds
+    }
 
     var shadow = 0.0;
     for (var i: i32 = -1; i <= 1; i++) {
@@ -340,5 +344,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     return vec4f(color * (1 - shadow * (0.75)), 1.0);
     //let animated = f32(in.materialProps >> 6);
-    //return vec4f(animated, animated, animated, 1.0);
+    //return vec4f(f32(in.shadowIdx) * 255.0, f32(in.shadowIdx) * 255.0, f32(in.shadowIdx) * 255.0, 1.0);
+    // return vec4f(in.position.xyz, 1.0);
 }

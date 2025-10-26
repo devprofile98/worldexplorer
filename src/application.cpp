@@ -107,7 +107,7 @@ void Application::initializePipeline() {
             .addSampler(2, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering)
             .addBuffer(3, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(LightingUniforms))
             .addBuffer(4, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::UNIFORM, sizeof(Light) * 10)
-            .addBuffer(5, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(float))
+            .addBuffer(5, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t))
             .addTexture(6, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH, TextureViewDimension::ARRAY_2D)
             .addBuffer(7, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Scene) * 5)
             .addSampler(8, BindGroupEntryVisibility::FRAGMENT, SampleType::Compare)
@@ -234,7 +234,7 @@ void Application::initializePipeline() {
 
     /* Initializing Render Passes */
     mShadowPass = new ShadowPass{this, "Shadow pass"};
-    mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm, 3);
+    mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm, 2);
 
     mDepthPrePass = new DepthPrePass{this, "Depth PrePass", mDepthTextureView};
     mDepthPrePass->createRenderPass(WGPUTextureFormat_RGBA8Unorm);
@@ -456,6 +456,10 @@ void onWindowResize(GLFWwindow* window, int width, int height) {
     if (that != nullptr) that->onResize();
 }
 
+// WGPUBuffer resolveBuffer;
+// Create staging buffer for CPU read (WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst)
+// WGPUBuffer stagingBuffer;
+
 bool Application::initialize(const char* windowName, uint16_t width, uint16_t height) {
     // Creating the window
     mWindow = new Window<GLFWwindow>();
@@ -567,6 +571,19 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     initializeBuffers();
     initializePipeline();
 
+    // WGPUBufferDescriptor resolveBufferDesc{};
+    // resolveBufferDesc.label = {"timing buffer", WGPU_STRLEN};
+    // resolveBufferDesc.size = 4 * sizeof(uint64_t);  // Matches querySet.count
+    // resolveBufferDesc.usage = WGPUBufferUsage_QueryResolve | WGPUBufferUsage_CopySrc;
+    // resolveBuffer = wgpuDeviceCreateBuffer(getRendererResource().device, &resolveBufferDesc);
+    //
+    // // Create staging buffer for CPU read (WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst)
+    // WGPUBufferDescriptor stagingBufferDesc{};
+    // stagingBufferDesc.label = {"timing buffer2", WGPU_STRLEN};
+    // stagingBufferDesc.size = resolveBufferDesc.size;
+    // stagingBufferDesc.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
+    // stagingBuffer = wgpuDeviceCreateBuffer(getRendererResource().device, &stagingBufferDesc);
+
     mLineEngine = new LineEngine{};
     mLineEngine->initialize(this);
 
@@ -631,8 +648,7 @@ void Application::mainLoop() {
     if (should_update_csm) {
         auto all_scenes = mShadowPass->createFrustumSplits(
             corners, {
-                         {0.0, middle_plane_length}
-                         // {middle_plane_length, middle_plane_length + far_plane_length},
+                         {0.0, middle_plane_length}  //, {middle_plane_length, middle_plane_length + far_plane_length}
                          // {middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 100}});
                      });
 
@@ -708,7 +724,12 @@ void Application::mainLoop() {
     }
     // ----------------------------------------------
 
+    static int frameCounter = 0;
     // ---- Skybox and PBR render pass
+    // WGPUQuerySetDescriptor querySetDesc{};
+    // querySetDesc.type = WGPUQueryType_Timestamp;
+    // querySetDesc.count = 4;  // e.g., 2 passes * 2 timestamps each
+    // WGPUQuerySet querySet = wgpuDeviceCreateQuerySet(getRendererResource().device, &querySetDesc);
 
     WGPURenderPassDescriptor render_pass_descriptor = {};
 
@@ -740,6 +761,13 @@ void Application::mainLoop() {
         depth_stencil_attachment.stencilReadOnly = false;
         render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
         render_pass_descriptor.timestampWrites = nullptr;
+
+        // Timestamp writes: querySet, starting index, count (2: begin + end)
+        // WGPURenderPassTimestampWrites timestampWrites[2];
+        // timestampWrites[0].querySet = querySet;
+        // timestampWrites[0].beginningOfPassWriteIndex = 0;  // Start timestamp index
+        // timestampWrites[0].endOfPassWriteIndex = 1;        // End timestamp index
+        // render_pass_descriptor.timestampWrites = timestampWrites;  // Array of writes
     }
 
     WGPURenderPassEncoder render_pass_encoder = wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
@@ -760,15 +788,16 @@ void Application::mainLoop() {
         ZoneScopedNC("Color Pass", 0xFF);
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
         for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-            if (!model->isTransparent()) {
-                model->draw(this, render_pass_encoder);
-            }
+            // if (!model->isTransparent()) {
+            model->draw(this, render_pass_encoder);
+            // }
         }
     }
 
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
 
+    // wgpuQuerySetRelease(querySet);
     // ---------------------------------------------------------------------
     mLineEngine->executePass();
     // ---------------------------------------------------------------------
