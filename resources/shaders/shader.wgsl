@@ -129,9 +129,9 @@ fn calculateSpotLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo:
     }
     let diff = light.position.xyz - pos;
     let distance = length(diff);
-    if distance > 5.0 {
-        return vec3f(0.0);
-    }
+    //if distance > 5.0 {
+    //    return vec3f(0.0);
+    //}
     let L = normalize(diff);
     let H = normalize(V + L);
     let attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
@@ -161,9 +161,9 @@ fn calculatePointLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo
 
     let diff = light.position.xyz - pos;
     let distance = length(diff);
-    if distance > 5.0 {
-        return vec3f(0.0);
-    }
+    //if distance > 5.0 {
+     //   return vec3f(0.0);
+    //}
     let L = normalize(diff);
     let H = normalize(V + L);
     let attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
