@@ -13,7 +13,7 @@ struct TreeModel : public IModel {
             mModel = new Model{};
             mModel->load("tree", app, RESOURCE_DIR "/tree3.gltf", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{0.725, -7.640, 1.125})
-                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
+                .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.9});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
@@ -149,8 +149,7 @@ struct CarModel : public IModel {
                 .mTransform
                 .moveTo(glm::vec3{-2.883, -6.280, -1.709})
                 // .scale(glm::vec3{1.0})
-                .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.0f)
-                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0);
+                .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0);
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->useTexture(false);
@@ -171,7 +170,7 @@ struct TowerModel : public IModel {
 
             mModel->load("tower", app, RESOURCE_DIR "/tower.obj", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{-2.0, -1.0, -2.58})
-                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
+                .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.5});
             mModel->uploadToGPU(app);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
@@ -190,7 +189,7 @@ struct ConiferousModel : public IModel {
 
             mModel->load("coniferous", app, RESOURCE_DIR "/coniferous/scene.gltf", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{1.0f, 1.0f, 4.0f})
-                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
+                .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.2});
             mModel->uploadToGPU(app);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
@@ -210,7 +209,7 @@ struct DeskModel : public IModel {
 
             mModel->load("desk", app, RESOURCE_DIR "/desk.obj", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{0.725, 0.333, 0.72})
-                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
+                .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.3});
             mModel->uploadToGPU(app);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
@@ -428,7 +427,7 @@ struct Steampunk : public IModel {
 
             mModel->load("steampunk", app, RESOURCE_DIR "/steampunk.obj", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{-1.45, -3.239, -0.810})
-                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
+                .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.002f});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
@@ -448,7 +447,7 @@ struct Motor : public IModel {
 
             mModel->load("motor", app, RESOURCE_DIR "/motor.obj", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{-2.45, -3.239, -0.810})
-                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
+                .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{1.0f});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
@@ -521,7 +520,7 @@ struct HouseModel : public IModel {
             // mModel->load("house2", app, RESOURCE_DIR "/house2/house3.gltf", app->getObjectBindGroupLayout())
             mModel->load("house2", app, RESOURCE_DIR "/ourhome.gltf", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{-0.483, 2.048, -3.309})
-                .rotate(glm::vec3{0.0, 180.0, 0.0}, 0.0)
+                .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.0)
                 .scale(glm::vec3{.601f});
             mModel->uploadToGPU(app);
             // mModel->setTransparent(false);
@@ -571,7 +570,7 @@ struct HumanModel : public IModel {
                 .setMappedAtCraetion(false)
                 .create(app);
 
-            static std::vector<glm::mat4> bones;
+            std::vector<glm::mat4> bones;
             for (int i = 0; i < 100; i++) {
                 bones.emplace_back(glm::mat4{1.0});
             }
@@ -629,7 +628,7 @@ struct StonesModel : public IModel {
 
             mModel->load("stones", app, RESOURCE_DIR "/stones/stones.gltf", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{-2.0, -1.0, -2.58})
-                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
+                .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.5});
             mModel->uploadToGPU(app);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
@@ -648,7 +647,7 @@ struct PlatformModel : public IModel {
 
             mModel->load("platform", app, RESOURCE_DIR "/platform.gltf", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{-2.0, -1.0, -3.68})
-                .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
+                .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{3.370, 3.370, 0.860});
             mModel->uploadToGPU(app);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());

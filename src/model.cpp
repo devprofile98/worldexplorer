@@ -298,7 +298,7 @@ void Model::updateAnimation() {
     }
 
     // TODO: fix this rotation, we need a 90 degree rotation to be aligned with z-up coordinate system of the mesh data
-    auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(180.0f), glm::vec3{1.0, 0.0, 0.0});
+    auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(0.0f), glm::vec3{1.0, 0.0, 0.0});
 
     for (const std::string& boneName : uniqueBones) {
         if (boneToIdx.find(boneName) != boneToIdx.end()) {
@@ -306,6 +306,7 @@ void Model::updateAnimation() {
         }
     }
 }
+
 glm::mat4 aiMatrix4x4ToGlm(const aiMatrix4x4& from) {
     glm::mat4 to;
     // Assimp is row-major, GLM is column-major, so transpose
@@ -385,8 +386,8 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
         // Adjust coordinate system (as in your original code)
         vertex.position.x = vector.x;
-        vertex.position.y = vector.z;
-        vertex.position.z = -vector.y;
+        vertex.position.z = vector.y;
+        vertex.position.y = -vector.z;
 
         size_t bid_cnt = 0;
         if (mesh->HasBones()) {
@@ -411,7 +412,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             normal = glm::mat3(normalTransform) * normal;
             vertex.normal.x = normal.x;
             vertex.normal.y = normal.z;
-            vertex.normal.z = -normal.y;
+            vertex.normal.z = normal.y;
         }
 
         aiColor4D baseColor(1.0f, 0.0f, 1.0f, 1.0f);
@@ -429,14 +430,14 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 tangent = glm::mat3(globalTransform) * tangent;
                 vertex.tangent.x = tangent.x;
                 vertex.tangent.y = tangent.z;
-                vertex.tangent.z = -tangent.y;
+                vertex.tangent.z = tangent.y;
 
                 // Transform bitangent
                 glm::vec3 bitangent(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z);
                 bitangent = glm::mat3(globalTransform) * bitangent;
                 vertex.biTangent.x = bitangent.x;
                 vertex.biTangent.y = bitangent.z;
-                vertex.biTangent.z = -bitangent.y;
+                vertex.biTangent.z = bitangent.y;
             }
         } else {
             vertex.uv = glm::vec2{0.0f, 0.0f};
@@ -845,8 +846,8 @@ void Model::userInterface() {
 
     bool is_animated = mTransform.mObjectInfo.isAnimated;
     if (ImGui::Checkbox("Is Animated", &is_animated)) {
-        // mesh.mMaterial.setFlag(MaterialProps::IsAnimated, is_animated);
-        // mTransform.mDirty = true;
+        mTransform.mObjectInfo.isAnimated = is_animated;
+        mTransform.mDirty = true;
     }
     bool dirty = false;
     for (auto& [id, mesh] : mMeshes) {

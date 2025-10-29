@@ -29,7 +29,6 @@ Camera::Camera(glm::vec3 translate, glm::vec3 scale, glm::vec3 rotationAxis, flo
 
     // Projection Matrix ------------------
     float ratio = 1920.0f / 1080.0f;
-    float focal_length = 2.0;
     mProjectionMatrix = glm::perspective(mFov * Camera::PI / 180, ratio, mZnear, mZfar);
     updateCamera();
 }
@@ -86,6 +85,9 @@ void Camera::processMouse(int x, int y) {
     xoffset *= sensitivity;
     yoffset *= sensitivity;
 
+    // here
+    // xoffset *= -1;
+
     mYaw += xoffset;
     mPitch += yoffset;
 
@@ -99,6 +101,10 @@ Camera& Camera::updateCamera() {
     mCameraFront.x = cos(glm::radians(mYaw));
     mCameraFront.y = -sin(glm::radians(mYaw));
     mCameraFront.z = sin(glm::radians(mPitch));
+
+    // mCameraFront.x = cos(glm::radians(mYaw));
+    // mCameraFront.z = -sin(glm::radians(mYaw));
+    // mCameraFront.y = sin(glm::radians(mPitch));
 
     mCameraFront = glm::normalize(mCameraFront);
     mRight = glm::normalize(
@@ -148,6 +154,7 @@ glm::mat4 Camera::getScale() const { return mScaleMatrix; };
 glm::mat4 Camera::getTranslate() const { return mTranslationMatrix; };
 
 glm::mat4 Camera::getRotation() const { return mRotationMatrix; };
+
 const glm::vec3& Camera::getPos() const { return mCameraPos; };
 
 DragState& Camera::getDrag() { return mDragState; }
