@@ -7,6 +7,7 @@
 #include "../webgpu/wgpu.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
+#include "rendererResource.h"
 
 class Application;
 
@@ -30,6 +31,7 @@ class Buffer {
         WGPUBufferDescriptor mBufferDescriptor;
         WGPUBuffer mBuffer;
         std::string mName;
+        RendererResource* mResources;
 };
 
 #endif  // !WEBGPUTEST_GPU_BUFFER_H

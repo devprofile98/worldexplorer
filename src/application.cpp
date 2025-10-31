@@ -624,7 +624,7 @@ void Application::mainLoop() {
     {
         // PerfTimer timer{"tick"};
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            model->mAnimationSecond = std::fmod(time, model->mAnimationDuration) * 1000.0f;
+            model->anim.mAnimationSecond = std::fmod(time, model->anim.mAnimationDuration) * 1000.0f;
             if (cull_frustum) {
                 model->updateAnimation();
             } else {

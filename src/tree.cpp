@@ -465,7 +465,7 @@ struct SheepModel : public IModel {
         SheepModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("sheep", app, RESOURCE_DIR "/body.dae", app->getObjectBindGroupLayout())
+            mModel->load("sheep", app, RESOURCE_DIR "/fox.dae", app->getObjectBindGroupLayout())
                 .mTransform
                 .moveTo(glm::vec3{5.125, 2.239, -2.859})
                 // .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
@@ -557,7 +557,7 @@ struct HumanModel : public IModel {
         HumanModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("human", app, RESOURCE_DIR "/model2.dae", app->getObjectBindGroupLayout())
+            mModel->load("human", app, RESOURCE_DIR "/model2.gltf", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{1.0, 9.0, -3.7})
                 .scale(glm::vec3{0.3})
                 .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.);
@@ -567,7 +567,6 @@ struct HumanModel : public IModel {
             mModel->mSkiningTransformationBuffer.setLabel("default skining data transform")
                 .setSize(100 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
-                .setMappedAtCraetion(false)
                 .create(app);
 
             std::vector<glm::mat4> bones;
@@ -674,13 +673,13 @@ struct PlatformModel : public IModel {
 USER_REGISTER_MODEL("sheep", SheepModel);
 
 // USER_REGISTER_MODEL("sphere", SphereModel);
-USER_REGISTER_MODEL("platform", PlatformModel);
+// USER_REGISTER_MODEL("platform", PlatformModel);
 //
 USER_REGISTER_MODEL("human", HumanModel);
 USER_REGISTER_MODEL("robot", RobotModel);
 // USER_REGISTER_MODEL("stones", StonesModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
 //
-USER_REGISTER_MODEL("house", HouseModel);
+// USER_REGISTER_MODEL("house", HouseModel);
 // USER_REGISTER_MODEL("motor", Motor);
 /*USER_REGISTER_MODEL("jet", JetModel);*/

@@ -6,6 +6,7 @@
 #include <limits>
 #include <unordered_map>
 
+#include "animation.h"
 #include "glm/fwd.hpp"
 #include "gpu_buffer.h"
 #define DEVELOPMENT_BUILD 1
@@ -149,10 +150,8 @@ class Model : public BaseModel {
     public:
         Model();
 
-        // void processMesh(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId);
         void processMesh(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId,
                          const glm::mat4& globalTransform);
-        // void processNode(Application* app, aiNode* node, const aiScene* scene);
         void processNode(Application* app, aiNode* node, const aiScene* scene, const glm::mat4& parentTransform);
         Model& load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout);
         Model& uploadToGPU(Application* app);
@@ -166,26 +165,19 @@ class Model : public BaseModel {
         void createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData);
         // size_t getInstaceCount();
         WGPUBindGroup getObjectInfoBindGroup();
+        void updateAnimation();
 
         Buffer mIndirectDrawArgsBuffer;
         Buffer mSkiningTransformationBuffer;
 
-        std::unordered_map<std::string, aiNode*> mNodeCache;
-        std::unordered_map<std::string, glm::mat4> mOffsetMatrixCache;
-        std::vector<glm::mat4> mFinalTransformations;
-        std::map<std::string, size_t> boneToIdx;
-        void updateAnimation();
-        void buildNodeCache(aiNode* node);
-        std::vector<glm::vec3> mBonePosition;
+        // std::unordered_map<std::string, aiNode*> mNodeCache;
+        // void buildNodeCache(aiNode* node);
+
         const aiScene* mScene;
         Assimp::Importer mImport;
-        std::map<std::string, glm::mat4> globalMap;
-        std::unordered_set<std::string> uniqueBones;  // Avoid duplicate spheres if bones are shared
-        std::map<std::string, aiNodeAnim*> channelMap;
-        // size_t mAnimationPoseCounter = 0;
-        double mAnimationSecond = 0.0;
-        double mAnimationDuration = 0.0;
-        // WGPUBindGroup mSkiningBindGroup = {};
+
+        Animation anim;
+        std::vector<glm::vec3> mBonePosition;
         WGPUBindGroupEntry mSkiningDataEntry;
 
 #ifdef DEVELOPMENT_BUILD

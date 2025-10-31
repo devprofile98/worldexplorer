@@ -44,8 +44,6 @@
 #include "rendererResource.h"
 #include "webgpu/webgpu.h"
 
-const char* model_name = "cube1";
-
 Drawable::Drawable() {}
 
 void Drawable::configure(Application* app) {
@@ -117,192 +115,37 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
     return glm::mat3x3(tangent, bitangent, cnormal);
 }
 
-void printMeshBoneData(aiMesh* mesh) {
-    std::cout << "has bone " << mesh->HasBones() << " and " << mesh->mNumBones << std::endl;
-}
-
-void printAnimationInfos(const std::string& name, const aiScene* scene) {
-    if (scene->mAnimations != nullptr) {
-        std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ There are animations " << name << " " << scene->mNumAnimations
-                  << std::endl;
-        for (size_t i = 0; i < scene->mNumAnimations; i++) {
-            const aiAnimation* anim = scene->mAnimations[i];
-            std::cout << "@@@@@@@@@@@@@@@@@@@@@ " << anim->mName.C_Str() << " " << anim->mNumChannels << std::endl;
-            for (size_t j = 0; j < anim->mNumChannels; j++) {
-                const aiNodeAnim* nodeAnim = anim->mChannels[j];
-                for (size_t k = 0; k < nodeAnim->mNumPositionKeys; k++) {
-                    std::cout << std::format("at: {}\n", nodeAnim->mPositionKeys[k].mTime / anim->mTicksPerSecond);
-                }
-            }
-        }
-    }
-}
-
-inline glm::vec3 assimpToGlmVec3(aiVector3D vec) { return glm::vec3(vec.x, vec.y, vec.z); }
-
-inline glm::quat assimpToGlmQuat(aiQuaternion quat) {
-    glm::quat q;
-    q.x = quat.x;
-    q.y = quat.y;
-    q.z = quat.z;
-    q.w = quat.w;
-
-    return q;
-}
-
-size_t findPositionKey(double time, const aiNodeAnim* channel) {
-    for (size_t i = 0; i < channel->mNumPositionKeys; i++) {
-        if (time < channel->mPositionKeys[i].mTime) {
-            return i;
-        }
-    }
-    return channel->mNumPositionKeys - 1;
-}
-
-size_t findRotationKey(double time, const aiNodeAnim* channel) {
-    for (size_t i = 0; i < channel->mNumRotationKeys; ++i) {
-        if (time < channel->mRotationKeys[i].mTime) {
-            return i;
-        }
-    }
-    return channel->mNumRotationKeys - 1;
-}
-
-glm::vec3 calculateInterpolatedPosition(double time, const aiNodeAnim* channel) {
-    if (channel->mNumPositionKeys == 1) {
-        return assimpToGlmVec3(channel->mPositionKeys[0].mValue);
-    }
-
-    size_t pose_idx = findPositionKey(time, channel);
-    if (pose_idx == channel->mNumPositionKeys - 1) {
-        return assimpToGlmVec3(channel->mPositionKeys[pose_idx].mValue);
-    }
-
-    double deltatime = channel->mPositionKeys[pose_idx + 1].mTime - channel->mPositionKeys[pose_idx].mTime;
-    double factor = (time - channel->mPositionKeys[pose_idx].mTime) / deltatime;
-    const glm::vec3& start = assimpToGlmVec3(channel->mPositionKeys[pose_idx].mValue);
-    const glm::vec3& end = assimpToGlmVec3(channel->mPositionKeys[pose_idx + 1].mValue);
-    // std::cout << "the fatcor is " << factor << std::endl;
-    return glm::mix(start, end, factor);
-}
-
-glm::vec3 calculateInterpolatedScale(double time, const aiNodeAnim* channel) {
-    if (channel->mNumScalingKeys == 1) {
-        return assimpToGlmVec3(channel->mScalingKeys[0].mValue);
-    }
-
-    size_t pose_idx = findPositionKey(time, channel);
-    if (pose_idx == channel->mNumScalingKeys - 1) {
-        return assimpToGlmVec3(channel->mScalingKeys[pose_idx].mValue);
-    }
-
-    double deltatime = channel->mScalingKeys[pose_idx + 1].mTime - channel->mScalingKeys[pose_idx].mTime;
-    double factor = (time - channel->mScalingKeys[pose_idx].mTime) / deltatime;
-    const glm::vec3& start = assimpToGlmVec3(channel->mScalingKeys[pose_idx].mValue);
-    const glm::vec3& end = assimpToGlmVec3(channel->mScalingKeys[pose_idx + 1].mValue);
-    // std::cout << "the fatcor is " << factor << std::endl;
-    return glm::mix(start, end, factor);
-}
-
-glm::quat CalcInterpolatedRotation(double time, const aiNodeAnim* channel) {
-    if (channel->mNumRotationKeys == 1) {
-        return assimpToGlmQuat(channel->mRotationKeys[0].mValue);
-    }
-
-    unsigned int idx = findRotationKey(time, channel);
-    if (idx == channel->mNumRotationKeys - 1) {
-        return assimpToGlmQuat(channel->mRotationKeys[idx].mValue);
-    }
-
-    double deltaTime = channel->mRotationKeys[idx + 1].mTime - channel->mRotationKeys[idx].mTime;
-    double factor = (time - channel->mRotationKeys[idx].mTime) / deltaTime;
-    auto start = assimpToGlmQuat(channel->mRotationKeys[idx].mValue);
-    auto end = assimpToGlmQuat(channel->mRotationKeys[idx + 1].mValue);
-    glm::quat out = glm::slerp(start, end, (float)factor);
-
-    return out;
-}
-
-void Model::buildNodeCache(aiNode* node) {
-    if (node == nullptr) {
-        return;
-    } else {
-        mNodeCache[node->mName.C_Str()] = node;
-        for (size_t i = 0; i < node->mNumChildren; ++i) {
-            buildNodeCache(node->mChildren[i]);
-        }
-    }
-}
-
-aiMatrix4x4 GetGlobalTransform(aiNode* node) {
-    aiMatrix4x4 transform = node->mTransformation;
-    aiNode* parent = node->mParent;
-    while (parent != nullptr) {
-        transform =
-            parent->mTransformation * transform;  // Note: Assimp matrices are row-major, multiplication order matters
-        parent = parent->mParent;
-    }
-    return transform;
-}
-
-glm::mat4 AiToGlm(const aiMatrix4x4& aiMat) {
-    return glm::mat4(aiMat.a1, aiMat.b1, aiMat.c1, aiMat.d1, aiMat.a2, aiMat.b2, aiMat.c2, aiMat.d2, aiMat.a3, aiMat.b3,
-                     aiMat.c3, aiMat.d3, aiMat.a4, aiMat.b4, aiMat.c4, aiMat.d4);
-}
-
-glm::mat4 GetLocalTransformAtTime(const aiNode* node, double time,
-                                  const std::map<std::string, aiNodeAnim*>& channelMap) {
-    auto it = channelMap.find(node->mName.C_Str());
-    if (it != channelMap.end()) {
-        // find a pose and use it
-        aiNodeAnim* channel = it->second;
-
-        glm::vec3 pos = calculateInterpolatedPosition(time, channel);
-        glm::quat rotation = CalcInterpolatedRotation(time, channel);
-        glm::vec3 scale = calculateInterpolatedScale(time, channel);
-
-        glm::mat4 translation_mat = glm::translate(glm::mat4(1.0f), pos);
-        glm::mat4 rotation_mat = glm::mat4(rotation);
-        glm::mat4 scale_mat = glm::scale(glm::mat4(1.0f), scale);
-
-        return translation_mat * rotation_mat * scale_mat;
-    }
-    return AiToGlm(node->mTransformation);
-}
-
-void ComputeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, double time,
-                             const std::map<std::string, aiNodeAnim*>& channelMap,
-                             std::map<std::string, glm::mat4>& outGlobalMap) {
-    glm::mat4 local = GetLocalTransformAtTime(node, time, channelMap);
-    glm::mat4 global = parentGlobal * local;
-    outGlobalMap[node->mName.C_Str()] = global;
-
-    for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-        ComputeGlobalTransforms(node->mChildren[i], global, time, channelMap, outGlobalMap);
-    }
-}
-
 void Model::updateAnimation() {
     if (mScene->mAnimations) {
-        const aiMatrix4x4 rootTransform = mScene->mRootNode->mTransformation;
-
-        // 2. Convert to glm and invert
-        // Use a helper function for conversion from Assimp's aiMatrix4x4 to glm::mat4
-        glm::mat4 globalInverseMatrix = AiToGlm(rootTransform);
-        globalInverseMatrix = glm::inverse(globalInverseMatrix);
-
-        ComputeGlobalTransforms(mScene->mRootNode, globalInverseMatrix, mAnimationSecond, channelMap, globalMap);
-
+        anim.update(mScene->mRootNode);
     } else {
         return;
     }
 
     // TODO: fix this rotation, we need a 90 degree rotation to be aligned with z-up coordinate system of the mesh data
-    auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(0.0f), glm::vec3{1.0, 0.0, 0.0});
+    auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(0.0f), glm::vec3{0.0, 0.0, 1.0});
 
-    for (const std::string& boneName : uniqueBones) {
-        if (boneToIdx.find(boneName) != boneToIdx.end()) {
-            mFinalTransformations[boneToIdx[boneName]] = globalMap[boneName] * mOffsetMatrixCache[boneName] * rot;
+    for (const std::string& boneName : anim.uniqueBones) {
+        if (anim.boneToIdx.find(boneName) != anim.boneToIdx.end()) {
+            // anim.mFinalTransformations[anim.boneToIdx[boneName]] =
+            //     anim.globalMap[boneName] * anim.mOffsetMatrixCache[boneName] * rot;
+
+            const auto& global = anim.globalMap[boneName];
+            const auto& offset = anim.mOffsetMatrixCache[boneName];
+
+            auto temp1 = global * offset;
+            auto final = temp1 * rot;
+
+            if (!std::isfinite(final[0][0])) {
+                // std::cerr << "NaN detected in final transform for bone: " << boneName << std::endl;
+                // std::cerr << "  global:\n" << glm::to_string(global) << "\n";
+                // std::cerr << "  offset:\n" << glm::to_string(offset) << "\n";
+                // std::cerr << "  rot:\n" << rot << "\n";
+                // std::cerr << "  temp1 (global*offset):\n" << temp1 << "\n";
+                // std::cerr << "  final (temp1*rot):\n" << final << "\n";
+            } else {
+                anim.mFinalTransformations[anim.boneToIdx[boneName]] = final;
+            }
         }
     }
 }
@@ -361,14 +204,14 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
         for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
             auto bone = mesh->mBones[i];
             for (size_t j = 0; j < bone->mNumWeights; ++j) {
-                if (boneToIdx.count(bone->mName.C_Str()) == 0) {
-                    boneToIdx[bone->mName.C_Str()] = boneToIdx.size();
+                if (anim.boneToIdx.count(bone->mName.C_Str()) == 0) {
+                    anim.boneToIdx[bone->mName.C_Str()] = anim.boneToIdx.size();
                 }
                 if (bonemap.count(bone->mWeights[j].mVertexId) == 0) {
                     bonemap[bone->mWeights[j].mVertexId] = {};
                 }
                 bonemap[bone->mWeights[j].mVertexId].push_back(
-                    {boneToIdx[bone->mName.C_Str()], bone->mWeights[j].mWeight});
+                    {anim.boneToIdx[bone->mName.C_Str()], bone->mWeights[j].mWeight});
             }
         }
     }
@@ -464,6 +307,13 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             std::string texture_path = RESOURCE_DIR;
             texture_path += "/";
             texture_path += str.C_Str();
+
+            size_t pos = 0;
+            while ((pos = texture_path.find("%20", pos)) != std::string::npos) {
+                texture_path.replace(pos, 3, " ");  // replace 3 chars ("%20") with 1 space
+                pos += 1;                           // move past the inserted space
+            }
+
             *target = new Texture{render_resource.device, texture_path};
             if ((*target)->createView() == nullptr) {
                 std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName, texture_path);
@@ -499,10 +349,6 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
     std::string warn;
     std::string err;
-    tinyobj::ObjReader reader;
-    tinyobj::ObjReaderConfig reader_config;
-    reader_config.triangulate = true;
-    reader_config.mtl_search_path = "/home/ahmad/Documents/project/cpp/wgputest/resources";
 
     const aiScene* const scene =
         mImport.ReadFile(path.string().c_str(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace |
@@ -514,47 +360,9 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         std::cout << std::format("Assimp - Succesfully loaded model {}\n", (const char*)path.c_str());
     }
     mScene = scene;
-
-    mNodeCache.clear();
-    mFinalTransformations.reserve(100);
-    mFinalTransformations.resize(100);
-    buildNodeCache(mScene->mRootNode);
-
-    for (unsigned int m = 0; m < mScene->mNumMeshes; ++m) {
-        aiMesh* mesh = mScene->mMeshes[m];
-        for (unsigned int b = 0; b < mesh->mNumBones; ++b) {
-            aiBone* bone = mesh->mBones[b];
-            std::string boneName = bone->mName.C_Str();
-
-            if (uniqueBones.find(boneName) != uniqueBones.end()) continue;
-            uniqueBones.insert(boneName);
-
-            if (mOffsetMatrixCache.find(boneName) != mOffsetMatrixCache.end()) continue;
-            mOffsetMatrixCache[boneName] = AiToGlm(bone->mOffsetMatrix);
-        }
-    }
-
-    /* Create a mapping from [name] -> [channel data]*/
-    if (mScene->HasAnimations()) {
-        aiAnimation* anim = mScene->mAnimations[0];
-        std::cout << " -----**************************************************** " << getName() << " "
-                  << mScene->mNumAnimations << std::endl;
-        mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
-        for (size_t i = 0; i < anim->mNumChannels; ++i) {
-            std::cout << " ----- " << anim->mChannels[i]->mNumPositionKeys << std::endl;
-            aiNodeAnim* channel = anim->mChannels[i];
-            channelMap[channel->mNodeName.C_Str()] = channel;
-        }
-        mTransform.mObjectInfo.isAnimated = true;
-    }
-    // craeting the bindgropu for skining data
-
+    mTransform.mObjectInfo.isAnimated = anim.initAnimation(mScene);
     updateAnimation();
 
-    // Default to non textured
-    // mTransform.mObjectInfo.setFlag(MaterialProps::HasNormalMap, false);
-    // mTransform.mObjectInfo.setFlag(MaterialProps::HasRoughnessMap, false);
-    // mTransform.mObjectInfo.setFlag(MaterialProps::HasDiffuseMap, false);
     processNode(app, scene->mRootNode, scene, glm::mat4{1.0});
 
     return *this;
@@ -595,7 +403,6 @@ Model& Model::useTexture(bool use) {
 
 Transform& Transform::moveBy(const glm::vec3& translationVec) {
     // justify position by the factor `m`
-    // (void)translationVec;
     mDirty = true;
     mPosition += translationVec;
     mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
@@ -624,7 +431,6 @@ Model& Model::uploadToGPU(Application* app) {
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mVertexBuffer.getBuffer(), 0,
                              mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
 
-        /*if (getName() == "steampunk") {*/
         mesh.mIndexBuffer.setLabel("index buffer for object info")
             .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex | WGPUBufferUsage_Index)
             .setSize((mesh.mIndexData.size()) * sizeof(uint32_t))
@@ -633,15 +439,11 @@ Model& Model::uploadToGPU(Application* app) {
 
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndexBuffer.getBuffer(), 0, mesh.mIndexData.data(),
                              mesh.mIndexData.size() * sizeof(uint32_t));
-        /*}*/
     }
-    /*createSomeBinding(app);*/
     return *this;
 };
 
 size_t BaseModel::getVertexCount() const { return mMeshes.at(0).mVertexData.size(); }
-
-/*Buffer BaseModel::getVertexBuffer() { return mVertexBuffer; }*/
 
 Buffer BaseModel::getIndexBuffer() { return mIndexBuffer; }
 
@@ -744,8 +546,8 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
 void Model::update(Application* app, float dt) {
     if (mScene->HasAnimations()) {
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mSkiningTransformationBuffer.getBuffer(),
-                             0 * sizeof(glm::mat4), mFinalTransformations.data(),
-                             mFinalTransformations.size() * sizeof(glm::mat4));
+                             0 * sizeof(glm::mat4), anim.mFinalTransformations.data(),
+                             anim.mFinalTransformations.size() * sizeof(glm::mat4));
     }
     if (mTransform.mDirty) {
         wgpuQueueWriteBuffer(app->getRendererResource().queue, Drawable::getUniformBuffer().getBuffer(), 0,
@@ -785,13 +587,8 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
         } else {
             wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
         }
-
-        // continue;
-        // }
     }
 }
-
-// size_t Model::getInstaceCount() { return this->instances; }
 
 #ifdef DEVELOPMENT_BUILD
 void Model::userInterface() {
