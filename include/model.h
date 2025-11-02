@@ -6,7 +6,7 @@
 #include <limits>
 #include <unordered_map>
 
-#include "animation.h"
+// #include "animation.h"
 #include "glm/fwd.hpp"
 #include "gpu_buffer.h"
 #define DEVELOPMENT_BUILD 1
@@ -31,6 +31,7 @@
 class Application;
 class Texture;
 class BaseModel;
+class Animation;
 
 struct alignas(4) DrawIndexedIndirectArgs {
         uint32_t indexCount;
@@ -176,7 +177,7 @@ class Model : public BaseModel {
         const aiScene* mScene;
         Assimp::Importer mImport;
 
-        Animation anim;
+        Animation* anim;
         std::vector<glm::vec3> mBonePosition;
         WGPUBindGroupEntry mSkiningDataEntry;
 

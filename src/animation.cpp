@@ -11,31 +11,6 @@
 #include "glm/gtc/quaternion.hpp"
 #include "glm/gtx/string_cast.hpp"
 
-// void getFinalTransformationList
-
-// Bone Animation::parseAnimationData(aiScene scene) {
-//     if (!scene.HasAnimations()) {
-//         return Bone{};
-//     }
-//
-//     Bone root_bone{};
-//
-//     const aiAnimation* anim = scene.mAnimations[0];
-//     for (size_t i = 0; i < anim->mNumChannels; ++i) {
-//         const aiNodeAnim* channel = anim->mChannels[i];
-//         // positions
-//         for (size_t j = 0; j < channel->mNumPositionKeys; ++j) {
-//         }
-//         // rotations
-//         for (size_t j = 0; j < channel->mNumRotationKeys; ++j) {
-//         }
-//         // scales
-//         for (size_t j = 0; j < channel->mNumScalingKeys; ++j) {
-//         }
-//     }
-//     return root_bone;
-// }
-
 glm::mat4 AiToGlm(const aiMatrix4x4& aiMat) {
     return glm::mat4(aiMat.a1, aiMat.b1, aiMat.c1, aiMat.d1, aiMat.a2, aiMat.b2, aiMat.c2, aiMat.d2, aiMat.a3, aiMat.b3,
                      aiMat.c3, aiMat.d3, aiMat.a4, aiMat.b4, aiMat.c4, aiMat.d4);
@@ -73,31 +48,34 @@ inline glm::quat assimpToGlmQuat(aiQuaternion quat) {
     return q;
 }
 
-size_t findPositionKey(double time, const aiNodeAnim* channel) {
-    for (size_t i = 0; i < channel->mNumPositionKeys; i++) {
-        if (time < channel->mPositionKeys[i].mTime) {
+size_t findPositionKey(double time, const Bone* bone) {
+    const auto& t = bone->channel.translations;
+    for (size_t i = 0; i < t.size(); i++) {
+        if (time < t[i].time) {
             return i;
         }
     }
-    return channel->mNumPositionKeys - 1;
+    return t.size() - 1;
 }
 
-size_t findScaleKey(double time, const aiNodeAnim* channel) {
-    for (size_t i = 0; i < channel->mNumScalingKeys; i++) {
-        if (time < channel->mScalingKeys[i].mTime) {
+size_t findScaleKey(double time, const Bone* bone) {
+    const auto& s = bone->channel.scales;
+    for (size_t i = 0; i < s.size(); i++) {
+        if (time < s[i].time) {
             return i;
         }
     }
-    return channel->mNumScalingKeys - 1;
+    return s.size() - 1;
 }
 
-size_t findRotationKey(double time, const aiNodeAnim* channel) {
-    for (size_t i = 0; i < channel->mNumRotationKeys; ++i) {
-        if (time < channel->mRotationKeys[i].mTime) {
+size_t findRotationKey(double time, const Bone* bone) {
+    const auto& r = bone->channel.quats;
+    for (size_t i = 0; i < r.size(); ++i) {
+        if (time < r[i].time) {
             return i;
         }
     }
-    return channel->mNumRotationKeys - 1;
+    return r.size() - 1;
 }
 
 static void decompose(const aiMatrix4x4& m, glm::vec3& t, glm::quat& r, glm::vec3& s) {
@@ -109,132 +87,106 @@ static void decompose(const aiMatrix4x4& m, glm::vec3& t, glm::quat& r, glm::vec
     s = glm::vec3(aiS.x, aiS.y, aiS.z);
 }
 
-glm::vec3 calculateInterpolatedPosition(double time, const aiNodeAnim* channel, const aiNode* node) {
+glm::vec3 calculateInterpolatedPosition(double time, const Bone* bone, const aiNode* node) {
     glm::vec3 t;
     glm::quat r;
     glm::vec3 s{};
     decompose(node->mTransformation, t, r, s);
 
-    if (!channel) {
+    if (!bone) {
         // Static bone: extract translation from rest pose
         // return glm::vec3(node->mTransformation.d1, node->mTransformation.d2, node->mTransformation.d3);
         return t;
     }
 
-    if (channel->mNumPositionKeys == 0) {
-        return glm::vec3(node->mTransformation.d1, node->mTransformation.d2, node->mTransformation.d3);
+    if (bone->channel.translations.size() == 0) {
+        // return glm::vec3(node->mTransformation.d1, node->mTransformation.d2, node->mTransformation.d3);
+        return t;
     }
 
-    if (channel->mNumPositionKeys == 1) {
-        return assimpToGlmVec3(channel->mPositionKeys[0].mValue);
+    if (bone->channel.translations.size() == 1) {
+        return bone->channel.translations[0].value;
     }
 
-    size_t pose_idx = findPositionKey(time, channel);
-    if (pose_idx == channel->mNumPositionKeys - 1) {
-        auto v = assimpToGlmVec3(channel->mPositionKeys[pose_idx].mValue);
+    size_t pose_idx = findPositionKey(time, bone);
+    if (pose_idx == bone->channel.translations.size() - 1) {
+        auto v = bone->channel.translations[pose_idx].value;
 
         return v;
     }
 
-    double deltatime = channel->mPositionKeys[pose_idx + 1].mTime - channel->mPositionKeys[pose_idx].mTime;
-    double factor = (time - channel->mPositionKeys[pose_idx].mTime) / deltatime;
-    const glm::vec3& start = assimpToGlmVec3(channel->mPositionKeys[pose_idx].mValue);
-    const glm::vec3& end = assimpToGlmVec3(channel->mPositionKeys[pose_idx + 1].mValue);
+    double deltatime = bone->channel.translations[pose_idx + 1].time - bone->channel.translations[pose_idx].time;
+    double factor = (time - bone->channel.translations[pose_idx].time) / deltatime;
+    const glm::vec3& start = bone->channel.translations[pose_idx].value;
+    const glm::vec3& end = bone->channel.translations[pose_idx + 1].value;
 
     return glm::mix(start, end, factor);
 }
 
-glm::vec3 calculateInterpolatedScale(double time, const aiNodeAnim* channel, const aiNode* node) {
+glm::vec3 calculateInterpolatedScale(double time, const Bone* bone, const aiNode* node) {
     glm::vec3 t;
     glm::quat r;
     glm::vec3 s{};
     decompose(node->mTransformation, t, r, s);
 
-    if (!channel) {
-        // aiVector3D scale, pos;
-        // aiQuaternion rot;
-        // node->mTransformation.Decompose(scale, rot, pos);
+    if (!bone) {
         return s;
     }
 
-    if (channel->mNumScalingKeys == 0) {
+    auto& scales = bone->channel.scales;
+    if (scales.size() == 0) {
         return glm::vec3(1.0f);  // default scale
     }
 
-    if (channel->mNumScalingKeys == 1) {
-        return assimpToGlmVec3(channel->mScalingKeys[0].mValue);
+    if (scales.size() == 1) {
+        return scales[0].value;
     }
 
-    size_t pose_idx = findScaleKey(time, channel);
-    if (pose_idx == channel->mNumScalingKeys - 1) {
-        return assimpToGlmVec3(channel->mScalingKeys[pose_idx].mValue);
+    size_t pose_idx = findScaleKey(time, bone);
+    if (pose_idx == scales.size() - 1) {
+        return scales[pose_idx].value;
     }
 
-    double deltatime = channel->mScalingKeys[pose_idx + 1].mTime - channel->mScalingKeys[pose_idx].mTime;
-    double factor = (time - channel->mScalingKeys[pose_idx].mTime) / deltatime;
-    const glm::vec3& start = assimpToGlmVec3(channel->mScalingKeys[pose_idx].mValue);
-    const glm::vec3& end = assimpToGlmVec3(channel->mScalingKeys[pose_idx + 1].mValue);
+    double deltatime = scales[pose_idx + 1].time - scales[pose_idx].time;
+    double factor = (time - scales[pose_idx].time) / deltatime;
+    const glm::vec3& start = scales[pose_idx].value;
+    const glm::vec3& end = scales[pose_idx + 1].value;
     return glm::mix(start, end, factor);
 }
 
-glm::quat CalcInterpolatedRotation(double time, const aiNodeAnim* channel, const aiNode* node) {
+glm::quat CalcInterpolatedRotation(double time, const Bone* bone, const aiNode* node) {
     glm::vec3 t;
     glm::quat r{};
     glm::vec3 s;
     decompose(node->mTransformation, t, r, s);
-    if (!channel) {
+
+    if (!bone) {
         return r;
     }
 
-    if (channel->mNumRotationKeys == 0) {
+    auto& quats = bone->channel.quats;
+    if (quats.size() == 0) {
         return r;
     }
 
-    if (channel->mNumRotationKeys == 1) {
-        return assimpToGlmQuat(channel->mRotationKeys[0].mValue);
+    if (quats.size() == 1) {
+        return quats[0].value;
     }
 
-    unsigned int idx = findRotationKey(time, channel);
-    if (idx == channel->mNumRotationKeys - 1) {
-        auto v = assimpToGlmQuat(channel->mRotationKeys[idx].mValue);
+    unsigned int idx = findRotationKey(time, bone);
+    if (idx == quats.size() - 1) {
+        auto v = quats[idx].value;
         // std::cout << "here " << glm::to_string(v) << std::endl;
         return v;
     }
 
-    double deltaTime = channel->mRotationKeys[idx + 1].mTime - channel->mRotationKeys[idx].mTime;
-    double factor = (time - channel->mRotationKeys[idx].mTime) / deltaTime;
-    auto start = assimpToGlmQuat(channel->mRotationKeys[idx].mValue);
-    auto end = assimpToGlmQuat(channel->mRotationKeys[idx + 1].mValue);
+    double deltaTime = quats[idx + 1].time - quats[idx].time;
+    double factor = (time - quats[idx].time) / deltaTime;
+    auto start = quats[idx].value;
+    auto end = quats[idx + 1].value;
     glm::quat out = glm::slerp(start, end, (float)factor);
 
-    // std::cout << node->mName.C_Str() << " start and end are " << std::endl;
-    // std::cout << glm::to_string(start) << std::endl;
-    // std::cout << "+++++++++++++++++++++++++++++++" << std::endl;
-    // std::cout << glm::to_string(end) << std::endl;
-    // std::cout << "---------------------------------------" << std::endl;
     return out;
-}
-
-// void Model::buildNodeCache(aiNode* node) {
-//     if (node == nullptr) {
-//         return;
-//     } else {
-//         // mNodeCache[node->mName.C_Str()] = node;
-//         for (size_t i = 0; i < node->mNumChildren; ++i) {
-//             buildNodeCache(node->mChildren[i]);
-//         }
-//     }
-// }
-//
-
-const aiNodeAnim* getChannel(const std::map<std::string, aiNodeAnim*>& channelMap, const std::string& name,
-                             const aiNode* node)  // node is needed for the rest-pose
-{
-    auto it = channelMap.find(name);
-    if (it != channelMap.end()) return it->second;
-
-    // No channel → bone is static, return nullptr (caller will use node->mTransformation)
-    return nullptr;
 }
 
 aiMatrix4x4 GetGlobalTransform(aiNode* node) {
@@ -248,134 +200,104 @@ aiMatrix4x4 GetGlobalTransform(aiNode* node) {
     return transform;
 }
 
-glm::mat4 Animation::getLocalTransformAtTime(const aiNode* node, double time,
-                                             const std::map<std::string, aiNodeAnim*>& channelMap) {
-    const aiNodeAnim* channel = getChannel(channelMap, node->mName.C_Str(), node);
-    // if (channel == nullptr) {
-    //     std::cout << node->mName.C_Str() << " doesnt have a channel\n";
-    // } else {
-    //     std::cout << node->mName.C_Str() << " DOES have a channel\n";
+glm::mat4 Animation::getLocalTransformAtTime(const aiNode* node, double time) {
+    const Bone* bone = nullptr;
+    if (Bonemap.find(node->mName.C_Str()) != Bonemap.end()) {
+        bone = Bonemap[node->mName.C_Str()];
+    }
+
+    glm::vec3 pos = calculateInterpolatedPosition(time, bone, node);
+
+    // if (std::strcmp(node->mName.C_Str(), "Upper_Arm.L") == 0 ||
+    //     std::strcmp(node->mName.C_Str(), "Armature_Upper_Arm_L") == 0) {
+    //     std::cout << "For pos2 is " << glm::to_string(pos2) << " and channel is null?" << (channel == nullptr)
+    //               << std::endl;
+    //     std::cout << "For pos is " << glm::to_string(pos) << std::endl;
+    //     std::cout << " ---------------------------------------- " << std::endl;
     // }
 
-    glm::vec3 pos = calculateInterpolatedPosition(time, channel, node);
-    glm::quat rotation = CalcInterpolatedRotation(time, channel, node);
-    // rotation = glm::quat(rotation.w, -rotation.x, -rotation.y, -rotation.z);
-    glm::vec3 scale = calculateInterpolatedScale(time, channel, node);
+    glm::quat rotation = CalcInterpolatedRotation(time, bone, node);
+    glm::vec3 scale = calculateInterpolatedScale(time, bone, node);
 
     glm::mat4 translation_mat = glm::translate(glm::mat4(1.0f), pos);
     glm::mat4 rotation_mat = glm::mat4(rotation);
     glm::mat4 scale_mat = glm::scale(glm::mat4(1.0f), scale);
 
     return translation_mat * rotation_mat * scale_mat;
-    // }
-    // return AiToGlm(node->mTransformation);
 }
 
-// void writeParentTransform(aiNode* node) {
-//     auto* n = node;
-//     while (n != nullptr) {
-//         std::cout << node->mName.C_Str() << std::endl;
-//         std::cout << glm::to_string(pos) << std::endl;
-//         std::cout << glm::to_string(rotation) << std::endl;
-//         std::cout << glm::to_string(scale) << std::endl;
-//         std::cout << "---------------------------------------" << std::endl;
-//         n = n->mParent;
-//     }
-// }
-
 void Animation::computeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, double time,
-                                        const std::map<std::string, aiNodeAnim*>& channelMap,
                                         std::map<std::string, glm::mat4>& outGlobalMap) {
     glm::mat4 yzSwap(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f);
-    glm::mat4 local = getLocalTransformAtTime(node, time, channelMap);
+    glm::mat4 local = getLocalTransformAtTime(node, time);
     glm::mat4 global = parentGlobal * local;
-    // global = yzSwap * global;
 
-    // if (std::strcmp(node->mName.C_Str(), "Upper_Arm.L") == 0 ||
-    //     std::strcmp(node->mName.C_Str(), "Armature_Upper_Arm_L") == 0) {
-    //     auto* n = node;
-    //     while (n != nullptr) {
-    //         glm::mat4 local = getLocalTransformAtTime(n, time, channelMap);
-    //         std::cerr << "  local for :" << n->mName.C_Str() << glm::to_string(local) << "\n";
-    //         std::cout << "---------------------------------------" << std::endl;
-    //         n = n->mParent;
-    //     }
-    //     std::cout << "End For " << node->mName.C_Str() << std::endl;
-    // }
-    // if (!std::isfinite(local[0][0])) {
-    //     std::cerr << "  local:" << glm::to_string(local) << "\n";
-    //     std::cerr << "  global:" << glm::to_string(global) << "\n";
-    //     std::cerr << "  time : " << time << "\n";
-    //     // std::cerr << "  rot:\n" << rot << "\n";
-    //     // std::cerr << "  temp1 (global*offset):\n" << temp1 << "\n";
-    //     // std::cerr << "  final (temp1*rot):\n" << final << "\n";
-    //     // } else {
-    //     //     anim.mFinalTransformations[anim.boneToIdx[boneName]] = final;
-    // }
     outGlobalMap[node->mName.C_Str()] = global;
 
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-        computeGlobalTransforms(node->mChildren[i], global, time, channelMap, outGlobalMap);
+        computeGlobalTransforms(node->mChildren[i], global, time, outGlobalMap);
     }
 }
 
 bool Animation::initAnimation(const aiScene* scene) {
-    // mNodeCache.clear();
     mFinalTransformations.reserve(100);
     mFinalTransformations.resize(100);
-    // buildNodeCache(mScene->mRootNode);
-    // printAnimationInfos("", scene);
-    //
-    //
-    auto d = glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,   // Col 0
-                       0.0f, 0.0f, -1.0f, 0.0f,  // Col 1
-                       0.0f, 1.0f, 0.0f, 0.0f,   // Col 2
-                       0.0f, 0.0f, 0.0f, 1.0f    // Col 3
-    );
 
     if (scene->HasAnimations()) {
+        aiAnimation* anim = scene->mAnimations[0];
+        std::cout << "-----+++++++ Model: " << scene->mNumAnimations << " Animations " << std::endl;
+        mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
+        for (size_t i = 0; i < anim->mNumChannels; ++i) {
+            aiNodeAnim* channel = anim->mChannels[i];
+
+            // storing bone datas
+            Bone* b = new Bone{};
+            for (size_t i = 0; i < channel->mNumPositionKeys; ++i) {
+                auto [time, value, interpolation] = channel->mPositionKeys[i];
+                b->channel.translations.push_back({(float)time, assimpToGlmVec3(value)});
+            }
+            for (size_t i = 0; i < channel->mNumRotationKeys; ++i) {
+                auto [time, value, interpolation] = channel->mRotationKeys[i];
+                b->channel.quats.push_back({(float)time, assimpToGlmQuat(value)});
+            }
+            for (size_t i = 0; i < channel->mNumScalingKeys; ++i) {
+                auto [time, value, interpolation] = channel->mScalingKeys[i];
+                b->channel.scales.push_back({(float)time, assimpToGlmVec3(value)});
+            }
+            Bonemap[channel->mNodeName.C_Str()] = b;
+        }
+
         for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
             aiMesh* mesh = scene->mMeshes[m];
             for (unsigned int b = 0; b < mesh->mNumBones; ++b) {
                 aiBone* bone = mesh->mBones[b];
                 std::string boneName = bone->mName.C_Str();
 
-                if (uniqueBones.find(boneName) != uniqueBones.end()) continue;
-                uniqueBones.insert(boneName);
+                // if (uniqueBones.find(boneName) != uniqueBones.end()) continue;
+                // uniqueBones.insert(boneName);
 
-                // if (mOffsetMatrixCache.find(boneName) != mOffsetMatrixCache.end()) continue;
-                mOffsetMatrixCache[boneName] = AiToGlm(bone->mOffsetMatrix);
-            }
-        }
-        for (const auto& [name, mat] : globalMap) {
-            if (!std::isfinite(mat[0][0])) {  // Check any element
-                std::cerr << "NaN in globalMap for bone: " << name << std::endl;
-            }
-        }
-        for (const auto& [name, mat] : mOffsetMatrixCache) {
-            if (!std::isfinite(mat[0][0])) {
-                std::cerr << "NaN in offset for bone: " << name << std::endl;
+                if (Bonemap.contains(boneName)) {
+                    Bonemap[boneName]->offsetMatrix = AiToGlm(bone->mOffsetMatrix);
+                } else {
+                    std::cout << "################################3  " << boneName << std::endl;
+                }
             }
         }
 
-        std::function<void(const aiNode*)> visit = [&](const aiNode* n) {
-            std::string name = n->mName.C_Str();
-            if (uniqueBones.count(name) == 0) {
-                uniqueBones.insert(name);
-                // offset matrix is identity for non-skinned nodes – you can keep it empty
-            }
-            for (unsigned i = 0; i < n->mNumChildren; ++i) visit(n->mChildren[i]);
-        };
-        visit(scene->mRootNode);
+        // loading bone data
+
+        // std::function<void(const aiNode*)> visit = [&](const aiNode* n) {
+        //     std::string name = n->mName.C_Str();
+        //     if (uniqueBones.count(name) == 0) {
+        //         uniqueBones.insert(name);
+        //         // offset matrix is identity for non-skinned nodes – you can keep it empty
+        //     }
+        //     for (unsigned i = 0; i < n->mNumChildren; ++i) visit(n->mChildren[i]);
+        // };
+        // visit(scene->mRootNode);
 
         /* Create a mapping from [name] -> [channel data]*/
-        aiAnimation* anim = scene->mAnimations[1];
-        std::cout << "-----+++++++ Model: " << scene->mNumAnimations << " Animations " << std::endl;
-        mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
-        for (size_t i = 0; i < anim->mNumChannels; ++i) {
-            aiNodeAnim* channel = anim->mChannels[i];
-            channelMap[channel->mNodeName.C_Str()] = channel;
-        }
+
         return true;
     }
     return false;
@@ -389,5 +311,5 @@ void Animation::update(aiNode* root) {
     glm::mat4 globalInverseMatrix = AiToGlm(rootTransform);
     globalInverseMatrix = glm::inverse(globalInverseMatrix);
 
-    computeGlobalTransforms(root, globalInverseMatrix, mAnimationSecond, channelMap, globalMap);
+    computeGlobalTransforms(root, globalInverseMatrix, mAnimationSecond, calculatedTransform);
 }

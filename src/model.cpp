@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "animation.h"
 #include "assimp/matrix4x4.h"
 #include "assimp/mesh.h"
 #include "assimp/quaternion.h"
@@ -71,6 +72,7 @@ Model::Model() : BaseModel() {
     // mTransform.mObjectInfo.uvMultiplier = {1.0, 1.0, 1.0};
     mTransform.mObjectInfo.isAnimated = 0;
     mTransform.mDirty = true;
+    anim = new Animation{};
 }
 
 glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
@@ -117,7 +119,7 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
 
 void Model::updateAnimation() {
     if (mScene->mAnimations) {
-        anim.update(mScene->mRootNode);
+        anim->update(mScene->mRootNode);
     } else {
         return;
     }
@@ -125,30 +127,17 @@ void Model::updateAnimation() {
     // TODO: fix this rotation, we need a 90 degree rotation to be aligned with z-up coordinate system of the mesh data
     auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(0.0f), glm::vec3{0.0, 0.0, 1.0});
 
-    for (const std::string& boneName : anim.uniqueBones) {
-        if (anim.boneToIdx.find(boneName) != anim.boneToIdx.end()) {
-            // anim.mFinalTransformations[anim.boneToIdx[boneName]] =
-            //     anim.globalMap[boneName] * anim.mOffsetMatrixCache[boneName] * rot;
-
-            const auto& global = anim.globalMap[boneName];
-            const auto& offset = anim.mOffsetMatrixCache[boneName];
+    // for (const std::string& boneName : anim->uniqueBones) {
+    for (const auto& [boneName, _] : anim->Bonemap) {
+        if (anim->boneToIdx.find(boneName) != anim->boneToIdx.end()) {
+            const auto& global = anim->calculatedTransform[boneName];
+            const auto& offset = anim->Bonemap[boneName]->offsetMatrix;
 
             auto temp1 = global * offset;
             auto final = temp1 * rot;
 
-            if (!std::isfinite(final[0][0])) {
-                // std::cerr << "NaN detected in final transform for bone: " << boneName << std::endl;
-                // std::cerr << "  global:\n" << glm::to_string(global) << "\n";
-                // std::cerr << "  offset:\n" << glm::to_string(offset) << "\n";
-                // std::cerr << "  rot:\n" << rot << "\n";
-                // std::cerr << "  temp1 (global*offset):\n" << temp1 << "\n";
-                // std::cerr << "  final (temp1*rot):\n" << final << "\n";
-            } else {
-                // if (boneName == "Upper_Arm.L" || boneName == "Armature_Upper_Arm_L") {
-                //     std::cerr << boneName << "\n";
-                //     std::cerr << "  final (temp1*rot):\n" << glm::to_string(final) << "\n";
-                // }
-                anim.mFinalTransformations[anim.boneToIdx[boneName]] = final;
+            if (std::isfinite(final[0][0])) {
+                anim->mFinalTransformations[anim->boneToIdx[boneName]] = final;
             }
         }
     }
@@ -208,14 +197,14 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
         for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
             auto bone = mesh->mBones[i];
             for (size_t j = 0; j < bone->mNumWeights; ++j) {
-                if (anim.boneToIdx.count(bone->mName.C_Str()) == 0) {
-                    anim.boneToIdx[bone->mName.C_Str()] = anim.boneToIdx.size();
+                if (anim->boneToIdx.count(bone->mName.C_Str()) == 0) {
+                    anim->boneToIdx[bone->mName.C_Str()] = anim->boneToIdx.size();
                 }
                 if (bonemap.count(bone->mWeights[j].mVertexId) == 0) {
                     bonemap[bone->mWeights[j].mVertexId] = {};
                 }
                 bonemap[bone->mWeights[j].mVertexId].push_back(
-                    {anim.boneToIdx[bone->mName.C_Str()], bone->mWeights[j].mWeight});
+                    {anim->boneToIdx[bone->mName.C_Str()], bone->mWeights[j].mWeight});
             }
         }
     }
@@ -365,7 +354,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     }
     mScene = scene;
     std::cout << "----------------------------------------\n " << getName() << std::endl;
-    mTransform.mObjectInfo.isAnimated = anim.initAnimation(mScene);
+    mTransform.mObjectInfo.isAnimated = anim->initAnimation(mScene);
     updateAnimation();
 
     processNode(app, scene->mRootNode, scene, glm::mat4{1.0});
@@ -551,8 +540,8 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
 void Model::update(Application* app, float dt) {
     if (mScene->HasAnimations()) {
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mSkiningTransformationBuffer.getBuffer(),
-                             0 * sizeof(glm::mat4), anim.mFinalTransformations.data(),
-                             anim.mFinalTransformations.size() * sizeof(glm::mat4));
+                             0 * sizeof(glm::mat4), anim->mFinalTransformations.data(),
+                             anim->mFinalTransformations.size() * sizeof(glm::mat4));
     }
     if (mTransform.mDirty) {
         wgpuQueueWriteBuffer(app->getRendererResource().queue, Drawable::getUniformBuffer().getBuffer(), 0,
