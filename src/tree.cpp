@@ -564,7 +564,41 @@ struct HumanModel : public IModel {
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
 
-            mModel->mSkiningTransformationBuffer.setLabel("default skining data transform")
+            mModel->mSkiningTransformationBuffer.setLabel("default skining data transform for human")
+                .setSize(100 * sizeof(glm::mat4))
+                .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
+                .create(app);
+
+            std::vector<glm::mat4> bones;
+            for (int i = 0; i < 100; i++) {
+                bones.emplace_back(glm::mat4{1.0});
+            }
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mSkiningTransformationBuffer.getBuffer(), 0,
+                                 bones.data(), sizeof(glm::mat4) * bones.size());
+
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+        }
+
+        Model* getModel() override { return mModel; }
+
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
+};
+
+struct HumanModel2 : public IModel {
+        HumanModel2(Application* app) {
+            mModel = new Model{};
+
+            mModel->load("human2", app, RESOURCE_DIR "/model2.dae", app->getObjectBindGroupLayout())
+                .mTransform.moveTo(glm::vec3{1.0, 9.0, -3.7})
+                .scale(glm::vec3{0.3})
+                .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.);
+            mModel->uploadToGPU(app);
+            mModel->setTransparent(false);
+
+            mModel->mSkiningTransformationBuffer.setLabel("default skining data transform for human 2")
                 .setSize(100 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
                 .create(app);
@@ -670,13 +704,14 @@ struct PlatformModel : public IModel {
 //
 // USER_REGISTER_MODEL("grass", GrassModel);
 // USER_REGISTER_MODEL("steampunk", Steampunk);
-USER_REGISTER_MODEL("sheep", SheepModel);
+// USER_REGISTER_MODEL("sheep", SheepModel);
 
 // USER_REGISTER_MODEL("sphere", SphereModel);
 // USER_REGISTER_MODEL("platform", PlatformModel);
 //
-USER_REGISTER_MODEL("human", HumanModel);
-USER_REGISTER_MODEL("robot", RobotModel);
+USER_REGISTER_MODEL("human", HumanModel);  // Upper_Arm.L
+// USER_REGISTER_MODEL("human2", HumanModel2);
+// USER_REGISTER_MODEL("robot", RobotModel);
 // USER_REGISTER_MODEL("stones", StonesModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
 //

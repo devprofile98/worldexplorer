@@ -1,6 +1,7 @@
 
 #include "animation.h"
 
+#include <cstring>
 #include <functional>
 #include <iostream>
 
@@ -109,9 +110,15 @@ static void decompose(const aiMatrix4x4& m, glm::vec3& t, glm::quat& r, glm::vec
 }
 
 glm::vec3 calculateInterpolatedPosition(double time, const aiNodeAnim* channel, const aiNode* node) {
+    glm::vec3 t;
+    glm::quat r;
+    glm::vec3 s{};
+    decompose(node->mTransformation, t, r, s);
+
     if (!channel) {
         // Static bone: extract translation from rest pose
-        return glm::vec3(node->mTransformation.d1, node->mTransformation.d2, node->mTransformation.d3);
+        // return glm::vec3(node->mTransformation.d1, node->mTransformation.d2, node->mTransformation.d3);
+        return t;
     }
 
     if (channel->mNumPositionKeys == 0) {
@@ -124,13 +131,16 @@ glm::vec3 calculateInterpolatedPosition(double time, const aiNodeAnim* channel, 
 
     size_t pose_idx = findPositionKey(time, channel);
     if (pose_idx == channel->mNumPositionKeys - 1) {
-        return assimpToGlmVec3(channel->mPositionKeys[pose_idx].mValue);
+        auto v = assimpToGlmVec3(channel->mPositionKeys[pose_idx].mValue);
+
+        return v;
     }
 
     double deltatime = channel->mPositionKeys[pose_idx + 1].mTime - channel->mPositionKeys[pose_idx].mTime;
     double factor = (time - channel->mPositionKeys[pose_idx].mTime) / deltatime;
     const glm::vec3& start = assimpToGlmVec3(channel->mPositionKeys[pose_idx].mValue);
     const glm::vec3& end = assimpToGlmVec3(channel->mPositionKeys[pose_idx + 1].mValue);
+
     return glm::mix(start, end, factor);
 }
 
@@ -186,7 +196,9 @@ glm::quat CalcInterpolatedRotation(double time, const aiNodeAnim* channel, const
 
     unsigned int idx = findRotationKey(time, channel);
     if (idx == channel->mNumRotationKeys - 1) {
-        return assimpToGlmQuat(channel->mRotationKeys[idx].mValue);
+        auto v = assimpToGlmQuat(channel->mRotationKeys[idx].mValue);
+        // std::cout << "here " << glm::to_string(v) << std::endl;
+        return v;
     }
 
     double deltaTime = channel->mRotationKeys[idx + 1].mTime - channel->mRotationKeys[idx].mTime;
@@ -195,6 +207,11 @@ glm::quat CalcInterpolatedRotation(double time, const aiNodeAnim* channel, const
     auto end = assimpToGlmQuat(channel->mRotationKeys[idx + 1].mValue);
     glm::quat out = glm::slerp(start, end, (float)factor);
 
+    // std::cout << node->mName.C_Str() << " start and end are " << std::endl;
+    // std::cout << glm::to_string(start) << std::endl;
+    // std::cout << "+++++++++++++++++++++++++++++++" << std::endl;
+    // std::cout << glm::to_string(end) << std::endl;
+    // std::cout << "---------------------------------------" << std::endl;
     return out;
 }
 
@@ -233,14 +250,16 @@ aiMatrix4x4 GetGlobalTransform(aiNode* node) {
 
 glm::mat4 Animation::getLocalTransformAtTime(const aiNode* node, double time,
                                              const std::map<std::string, aiNodeAnim*>& channelMap) {
-    // auto it = channelMap.find(node->mName.C_Str());
-    // if (it != channelMap.end()) {
-    // find a pose and use it
-    // aiNodeAnim* channel = it->second;
     const aiNodeAnim* channel = getChannel(channelMap, node->mName.C_Str(), node);
+    // if (channel == nullptr) {
+    //     std::cout << node->mName.C_Str() << " doesnt have a channel\n";
+    // } else {
+    //     std::cout << node->mName.C_Str() << " DOES have a channel\n";
+    // }
 
     glm::vec3 pos = calculateInterpolatedPosition(time, channel, node);
     glm::quat rotation = CalcInterpolatedRotation(time, channel, node);
+    // rotation = glm::quat(rotation.w, -rotation.x, -rotation.y, -rotation.z);
     glm::vec3 scale = calculateInterpolatedScale(time, channel, node);
 
     glm::mat4 translation_mat = glm::translate(glm::mat4(1.0f), pos);
@@ -252,11 +271,37 @@ glm::mat4 Animation::getLocalTransformAtTime(const aiNode* node, double time,
     // return AiToGlm(node->mTransformation);
 }
 
+// void writeParentTransform(aiNode* node) {
+//     auto* n = node;
+//     while (n != nullptr) {
+//         std::cout << node->mName.C_Str() << std::endl;
+//         std::cout << glm::to_string(pos) << std::endl;
+//         std::cout << glm::to_string(rotation) << std::endl;
+//         std::cout << glm::to_string(scale) << std::endl;
+//         std::cout << "---------------------------------------" << std::endl;
+//         n = n->mParent;
+//     }
+// }
+
 void Animation::computeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, double time,
                                         const std::map<std::string, aiNodeAnim*>& channelMap,
                                         std::map<std::string, glm::mat4>& outGlobalMap) {
+    glm::mat4 yzSwap(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f);
     glm::mat4 local = getLocalTransformAtTime(node, time, channelMap);
     glm::mat4 global = parentGlobal * local;
+    // global = yzSwap * global;
+
+    // if (std::strcmp(node->mName.C_Str(), "Upper_Arm.L") == 0 ||
+    //     std::strcmp(node->mName.C_Str(), "Armature_Upper_Arm_L") == 0) {
+    //     auto* n = node;
+    //     while (n != nullptr) {
+    //         glm::mat4 local = getLocalTransformAtTime(n, time, channelMap);
+    //         std::cerr << "  local for :" << n->mName.C_Str() << glm::to_string(local) << "\n";
+    //         std::cout << "---------------------------------------" << std::endl;
+    //         n = n->mParent;
+    //     }
+    //     std::cout << "End For " << node->mName.C_Str() << std::endl;
+    // }
     // if (!std::isfinite(local[0][0])) {
     //     std::cerr << "  local:" << glm::to_string(local) << "\n";
     //     std::cerr << "  global:" << glm::to_string(global) << "\n";
@@ -280,6 +325,14 @@ bool Animation::initAnimation(const aiScene* scene) {
     mFinalTransformations.resize(100);
     // buildNodeCache(mScene->mRootNode);
     // printAnimationInfos("", scene);
+    //
+    //
+    auto d = glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,   // Col 0
+                       0.0f, 0.0f, -1.0f, 0.0f,  // Col 1
+                       0.0f, 1.0f, 0.0f, 0.0f,   // Col 2
+                       0.0f, 0.0f, 0.0f, 1.0f    // Col 3
+    );
+
     if (scene->HasAnimations()) {
         for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
             aiMesh* mesh = scene->mMeshes[m];
@@ -316,7 +369,7 @@ bool Animation::initAnimation(const aiScene* scene) {
         visit(scene->mRootNode);
 
         /* Create a mapping from [name] -> [channel data]*/
-        aiAnimation* anim = scene->mAnimations[0];
+        aiAnimation* anim = scene->mAnimations[1];
         std::cout << "-----+++++++ Model: " << scene->mNumAnimations << " Animations " << std::endl;
         mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
         for (size_t i = 0; i < anim->mNumChannels; ++i) {
@@ -336,5 +389,5 @@ void Animation::update(aiNode* root) {
     glm::mat4 globalInverseMatrix = AiToGlm(rootTransform);
     globalInverseMatrix = glm::inverse(globalInverseMatrix);
 
-    computeGlobalTransforms(root, glm::mat4{1.0}, mAnimationSecond, channelMap, globalMap);
+    computeGlobalTransforms(root, globalInverseMatrix, mAnimationSecond, channelMap, globalMap);
 }

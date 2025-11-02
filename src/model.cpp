@@ -144,6 +144,10 @@ void Model::updateAnimation() {
                 // std::cerr << "  temp1 (global*offset):\n" << temp1 << "\n";
                 // std::cerr << "  final (temp1*rot):\n" << final << "\n";
             } else {
+                // if (boneName == "Upper_Arm.L" || boneName == "Armature_Upper_Arm_L") {
+                //     std::cerr << boneName << "\n";
+                //     std::cerr << "  final (temp1*rot):\n" << glm::to_string(final) << "\n";
+                // }
                 anim.mFinalTransformations[anim.boneToIdx[boneName]] = final;
             }
         }
@@ -229,8 +233,8 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
         // Adjust coordinate system (as in your original code)
         vertex.position.x = vector.x;
-        vertex.position.z = vector.y;
-        vertex.position.y = -vector.z;
+        vertex.position.z = vector.z;
+        vertex.position.y = vector.y;
 
         size_t bid_cnt = 0;
         if (mesh->HasBones()) {
@@ -360,6 +364,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         std::cout << std::format("Assimp - Succesfully loaded model {}\n", (const char*)path.c_str());
     }
     mScene = scene;
+    std::cout << "----------------------------------------\n " << getName() << std::endl;
     mTransform.mObjectInfo.isAnimated = anim.initAnimation(mScene);
     updateAnimation();
 
