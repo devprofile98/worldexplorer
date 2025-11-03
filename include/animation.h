@@ -55,6 +55,7 @@ struct Animation {
         bool initAnimation(const aiScene* scene);
         void update(aiNode* root);
         Action* getActiveAction();
+        Action* nextAction();
 };
 
 #endif  //! WORLD_EXPLORER_ANIMATION_H

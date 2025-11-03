@@ -246,57 +246,43 @@ bool Animation::initAnimation(const aiScene* scene) {
     mFinalTransformations.resize(100);
 
     if (scene->HasAnimations()) {
-        Action* action = new Action{};
-        aiAnimation* anim = scene->mAnimations[0];
-        std::cout << "-----+++++++ Model: " << scene->mNumAnimations << " Animations " << std::endl;
-        action->mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
-        for (size_t i = 0; i < anim->mNumChannels; ++i) {
-            aiNodeAnim* channel = anim->mChannels[i];
+        for (size_t a = 0; a < scene->mNumAnimations; ++a) {
+            Action* action = new Action{};
+            aiAnimation* anim = scene->mAnimations[a];
+            std::cout << "-----+++++++ Model: " << scene->mNumAnimations << " Animations " << std::endl;
+            action->mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
+            for (size_t i = 0; i < anim->mNumChannels; ++i) {
+                aiNodeAnim* channel = anim->mChannels[i];
 
-            // storing bone datas
-            Bone* b = new Bone{};
-            for (size_t i = 0; i < channel->mNumPositionKeys; ++i) {
-                auto [time, value, interpolation] = channel->mPositionKeys[i];
-                b->channel.translations.push_back({(float)time, assimpToGlmVec3(value)});
+                // storing bone datas
+                Bone* b = new Bone{};
+                for (size_t i = 0; i < channel->mNumPositionKeys; ++i) {
+                    auto [time, value, interpolation] = channel->mPositionKeys[i];
+                    b->channel.translations.push_back({(float)time, assimpToGlmVec3(value)});
+                }
+                for (size_t i = 0; i < channel->mNumRotationKeys; ++i) {
+                    auto [time, value, interpolation] = channel->mRotationKeys[i];
+                    b->channel.quats.push_back({(float)time, assimpToGlmQuat(value)});
+                }
+                for (size_t i = 0; i < channel->mNumScalingKeys; ++i) {
+                    auto [time, value, interpolation] = channel->mScalingKeys[i];
+                    b->channel.scales.push_back({(float)time, assimpToGlmVec3(value)});
+                }
+                b->id = action->Bonemap.size();
+                action->Bonemap[channel->mNodeName.C_Str()] = b;
             }
-            for (size_t i = 0; i < channel->mNumRotationKeys; ++i) {
-                auto [time, value, interpolation] = channel->mRotationKeys[i];
-                b->channel.quats.push_back({(float)time, assimpToGlmQuat(value)});
-            }
-            for (size_t i = 0; i < channel->mNumScalingKeys; ++i) {
-                auto [time, value, interpolation] = channel->mScalingKeys[i];
-                b->channel.scales.push_back({(float)time, assimpToGlmVec3(value)});
-            }
-            b->id = action->Bonemap.size();
-            action->Bonemap[channel->mNodeName.C_Str()] = b;
-        }
-
-        for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
-            aiMesh* mesh = scene->mMeshes[m];
-            for (unsigned int b = 0; b < mesh->mNumBones; ++b) {
-                aiBone* bone = mesh->mBones[b];
-                std::string boneName = bone->mName.C_Str();
-
-                if (action->Bonemap.contains(boneName)) {
-                    action->Bonemap[boneName]->offsetMatrix = AiToGlm(bone->mOffsetMatrix);
+            for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
+                aiMesh* mesh = scene->mMeshes[m];
+                for (unsigned int b = 0; b < mesh->mNumBones; ++b) {
+                    aiBone* bone = mesh->mBones[b];
+                    std::string boneName = bone->mName.C_Str();
+                    if (action->Bonemap.contains(boneName)) {
+                        action->Bonemap[boneName]->offsetMatrix = AiToGlm(bone->mOffsetMatrix);
+                    }
                 }
             }
+            actions.push_back(action);
         }
-        actions.push_back(action);
-
-        // loading bone data
-
-        // std::function<void(const aiNode*)> visit = [&](const aiNode* n) {
-        //     std::string name = n->mName.C_Str();
-        //     if (uniqueBones.count(name) == 0) {
-        //         uniqueBones.insert(name);
-        //         // offset matrix is identity for non-skinned nodes – you can keep it empty
-        //     }
-        //     for (unsigned i = 0; i < n->mNumChildren; ++i) visit(n->mChildren[i]);
-        // };
-        // visit(scene->mRootNode);
-
-        /* Create a mapping from [name] -> [channel data]*/
 
         return true;
     }
@@ -316,3 +302,12 @@ void Animation::update(aiNode* root) {
 }
 
 Action* Animation::getActiveAction() { return actions[activeActionIdx]; }
+
+Action* Animation::nextAction() {
+    if (activeActionIdx < actions.size() - 1) {
+        activeActionIdx++;
+    } else {
+        activeActionIdx = 0;
+    }
+    return actions[activeActionIdx];
+}

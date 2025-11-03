@@ -641,17 +641,16 @@ void Model::userInterface() {
         mTransform.mObjectInfo.isAnimated = is_animated;
         mTransform.mDirty = true;
     }
+    if (ImGui::Button("Next animation")) {
+        anim->nextAction();
+    }
     bool dirty = false;
     for (auto& [id, mesh] : mMeshes) {
         ImGui::PushID((void*)&mesh);
         if (ImGui::CollapsingHeader("Materials",
                                     ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
                                                                         //
-            // bool is_animated = mesh.mMaterial.hasFlag(MaterialProps::IsAnimated);
-            // if (ImGui::Checkbox("Is Animated", &is_animated)) {
-            //     mesh.mMaterial.setFlag(MaterialProps::IsAnimated, is_animated);
-            //     // mTransform.mDirty = true;
-            // }
+
             bool has_normal = mesh.mMaterial.hasFlag(MaterialProps::HasNormalMap);
             if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
                 mesh.mMaterial.setFlag(MaterialProps::HasNormalMap, has_normal);
