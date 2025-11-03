@@ -202,8 +202,9 @@ aiMatrix4x4 GetGlobalTransform(aiNode* node) {
 
 glm::mat4 Animation::getLocalTransformAtTime(const aiNode* node, double time) {
     const Bone* bone = nullptr;
-    if (Bonemap.find(node->mName.C_Str()) != Bonemap.end()) {
-        bone = Bonemap[node->mName.C_Str()];
+    auto* action = getActiveAction();
+    if (action->Bonemap.find(node->mName.C_Str()) != action->Bonemap.end()) {
+        bone = action->Bonemap[node->mName.C_Str()];
     }
 
     glm::vec3 pos = calculateInterpolatedPosition(time, bone, node);
@@ -240,13 +241,15 @@ void Animation::computeGlobalTransforms(const aiNode* node, const glm::mat4& par
 }
 
 bool Animation::initAnimation(const aiScene* scene) {
+    activeActionIdx = 0;
     mFinalTransformations.reserve(100);
     mFinalTransformations.resize(100);
 
     if (scene->HasAnimations()) {
+        Action* action = new Action{};
         aiAnimation* anim = scene->mAnimations[0];
         std::cout << "-----+++++++ Model: " << scene->mNumAnimations << " Animations " << std::endl;
-        mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
+        action->mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
         for (size_t i = 0; i < anim->mNumChannels; ++i) {
             aiNodeAnim* channel = anim->mChannels[i];
 
@@ -264,7 +267,8 @@ bool Animation::initAnimation(const aiScene* scene) {
                 auto [time, value, interpolation] = channel->mScalingKeys[i];
                 b->channel.scales.push_back({(float)time, assimpToGlmVec3(value)});
             }
-            Bonemap[channel->mNodeName.C_Str()] = b;
+            b->id = action->Bonemap.size();
+            action->Bonemap[channel->mNodeName.C_Str()] = b;
         }
 
         for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
@@ -273,16 +277,12 @@ bool Animation::initAnimation(const aiScene* scene) {
                 aiBone* bone = mesh->mBones[b];
                 std::string boneName = bone->mName.C_Str();
 
-                // if (uniqueBones.find(boneName) != uniqueBones.end()) continue;
-                // uniqueBones.insert(boneName);
-
-                if (Bonemap.contains(boneName)) {
-                    Bonemap[boneName]->offsetMatrix = AiToGlm(bone->mOffsetMatrix);
-                } else {
-                    std::cout << "################################3  " << boneName << std::endl;
+                if (action->Bonemap.contains(boneName)) {
+                    action->Bonemap[boneName]->offsetMatrix = AiToGlm(bone->mOffsetMatrix);
                 }
             }
         }
+        actions.push_back(action);
 
         // loading bone data
 
@@ -310,6 +310,9 @@ void Animation::update(aiNode* root) {
     // Use a helper function for conversion from Assimp's aiMatrix4x4 to glm::mat4
     glm::mat4 globalInverseMatrix = AiToGlm(rootTransform);
     globalInverseMatrix = glm::inverse(globalInverseMatrix);
+    auto* action = getActiveAction();
 
-    computeGlobalTransforms(root, globalInverseMatrix, mAnimationSecond, calculatedTransform);
+    computeGlobalTransforms(root, globalInverseMatrix, action->mAnimationSecond, action->calculatedTransform);
 }
+
+Action* Animation::getActiveAction() { return actions[activeActionIdx]; }

@@ -27,6 +27,7 @@ struct AnimationChannel {
 };
 
 struct Bone {
+        int id;
         std::string name;
         glm::mat4 offsetMatrix;
         int parentIndex = -1;
@@ -34,15 +35,17 @@ struct Bone {
         AnimationChannel channel;
 };
 
-struct Action {};
-
-struct Animation {
-        std::vector<glm::mat4> mFinalTransformations;
-        std::map<std::string, size_t> boneToIdx;
+struct Action {
         std::map<std::string, glm::mat4> calculatedTransform;
         std::map<std::string, Bone*> Bonemap;
         double mAnimationSecond = 0.0;
         double mAnimationDuration = 0.0;
+};
+
+struct Animation {
+        std::vector<glm::mat4> mFinalTransformations;
+        std::vector<Action*> actions;
+        size_t activeActionIdx;
 
         glm::mat4 getLocalTransformAtTime(const aiNode* node, double time);
 
@@ -51,6 +54,7 @@ struct Animation {
 
         bool initAnimation(const aiScene* scene);
         void update(aiNode* root);
+        Action* getActiveAction();
 };
 
 #endif  //! WORLD_EXPLORER_ANIMATION_H

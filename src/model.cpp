@@ -128,16 +128,17 @@ void Model::updateAnimation() {
     auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(0.0f), glm::vec3{0.0, 0.0, 1.0});
 
     // for (const std::string& boneName : anim->uniqueBones) {
-    for (const auto& [boneName, _] : anim->Bonemap) {
-        if (anim->boneToIdx.find(boneName) != anim->boneToIdx.end()) {
-            const auto& global = anim->calculatedTransform[boneName];
-            const auto& offset = anim->Bonemap[boneName]->offsetMatrix;
+    Action* action = anim->getActiveAction();
+    for (const auto& [boneName, _] : action->Bonemap) {
+        if (action->Bonemap.find(boneName) != action->Bonemap.end()) {
+            const auto& global = action->calculatedTransform[boneName];
+            const auto& offset = action->Bonemap[boneName]->offsetMatrix;
 
             auto temp1 = global * offset;
             auto final = temp1 * rot;
 
             if (std::isfinite(final[0][0])) {
-                anim->mFinalTransformations[anim->boneToIdx[boneName]] = final;
+                anim->mFinalTransformations[action->Bonemap[boneName]->id] = final;
             }
         }
     }
@@ -193,18 +194,18 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
     std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << meshId << " " << mesh->mMaterialIndex << '\n';
 
     if (mesh->HasBones()) {
+        Action* action = anim->getActiveAction();
         std::cout << " ))))))))))))))))) has bone " << mesh->HasBones() << " and " << mesh->mNumBones << std::endl;
         for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
             auto bone = mesh->mBones[i];
             for (size_t j = 0; j < bone->mNumWeights; ++j) {
-                if (anim->boneToIdx.count(bone->mName.C_Str()) == 0) {
-                    anim->boneToIdx[bone->mName.C_Str()] = anim->boneToIdx.size();
+                const char* name = bone->mName.C_Str();
+
+                auto& vid = bone->mWeights[j].mVertexId;
+                if (bonemap.count(vid) == 0) {
+                    bonemap[vid] = {};
                 }
-                if (bonemap.count(bone->mWeights[j].mVertexId) == 0) {
-                    bonemap[bone->mWeights[j].mVertexId] = {};
-                }
-                bonemap[bone->mWeights[j].mVertexId].push_back(
-                    {anim->boneToIdx[bone->mName.C_Str()], bone->mWeights[j].mWeight});
+                bonemap[vid].push_back({action->Bonemap[name]->id, bone->mWeights[j].mWeight});
             }
         }
     }
