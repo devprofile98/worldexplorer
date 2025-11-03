@@ -555,12 +555,12 @@ struct CubeModel : public IModel {
 
 struct HumanModel : public IModel {
         HumanModel(Application* app) {
-            mModel = new Model{};
+            mModel = new Model{Z_UP};
 
             mModel->load("human", app, RESOURCE_DIR "/model2.gltf", app->getObjectBindGroupLayout())
                 .mTransform.moveTo(glm::vec3{1.0, 9.0, -3.7})
                 .scale(glm::vec3{0.3})
-                .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.);
+                .rotate(glm::vec3{90.0, 0.0, 0.0}, 0.);
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
 
@@ -623,12 +623,12 @@ struct HumanModel2 : public IModel {
 
 struct RobotModel : public IModel {
         RobotModel(Application* app) {
-            mModel = new Model{};
+            mModel = new Model{Z_UP};
 
-            mModel->load("robot", app, RESOURCE_DIR "/dance2.dae", app->getObjectBindGroupLayout())
+            mModel->load("robot", app, RESOURCE_DIR "/dance2.gltf", app->getObjectBindGroupLayout())
                 .mTransform  //.moveTo(glm::vec3{0.0, 9.0, -3.7})
                 .scale(glm::vec3{1.0})
-                .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.);
+                .rotate(glm::vec3{90.0, 0.0, 0.0}, 0.);
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
 
@@ -699,7 +699,7 @@ struct PlatformModel : public IModel {
 // USER_REGISTER_MODEL("car", CarModel);
 // USER_REGISTER_MODEL("tower", TowerModel);
 
-// USER_REGISTER_MODEL("desk", DeskModel);
+USER_REGISTER_MODEL("desk", DeskModel);
 // USER_REGISTER_MODEL("coniferous", ConiferousModel);
 //
 // USER_REGISTER_MODEL("grass", GrassModel);
@@ -707,14 +707,14 @@ struct PlatformModel : public IModel {
 // USER_REGISTER_MODEL("sheep", SheepModel);
 
 // USER_REGISTER_MODEL("sphere", SphereModel);
-// USER_REGISTER_MODEL("platform", PlatformModel);
+USER_REGISTER_MODEL("platform", PlatformModel);
 //
 USER_REGISTER_MODEL("human", HumanModel);  // Upper_Arm.L
 // USER_REGISTER_MODEL("human2", HumanModel2);
-// USER_REGISTER_MODEL("robot", RobotModel);
+USER_REGISTER_MODEL("robot", RobotModel);
 // USER_REGISTER_MODEL("stones", StonesModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
-//
-// USER_REGISTER_MODEL("house", HouseModel);
+
+USER_REGISTER_MODEL("house", HouseModel);
 // USER_REGISTER_MODEL("motor", Motor);
 /*USER_REGISTER_MODEL("jet", JetModel);*/

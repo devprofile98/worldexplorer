@@ -62,14 +62,10 @@ void Drawable::draw(Application* app, WGPURenderPassEncoder encoder) {
 
 Buffer& Drawable::getUniformBuffer() { return mUniformBuffer; }
 
-Model::Model() : BaseModel() {
+Model::Model(CoordinateSystem cs) : BaseModel(), mCoordinateSystem(cs) {
     mTransform.mScaleMatrix = glm::scale(mTransform.mScaleMatrix, mTransform.mScale);
     mTransform.mTransformMatrix = mTransform.mRotationMatrix * mTransform.mTranslationMatrix * mTransform.mScaleMatrix;
     mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
-    // mTransform.mObjectInfo.isFlat = 0;
-    // mTransform.mObjectInfo.useTexture = 1;
-    // mTransform.mObjectInfo.isFoliage = 0;
-    // mTransform.mObjectInfo.uvMultiplier = {1.0, 1.0, 1.0};
     mTransform.mObjectInfo.isAnimated = 0;
     mTransform.mDirty = true;
     anim = new Animation{};
@@ -117,8 +113,10 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
     return glm::mat3x3(tangent, bitangent, cnormal);
 }
 
-void Model::updateAnimation() {
-    if (mScene->mAnimations) {
+void Model::updateAnimation(float dt) {
+    if (mTransform.mObjectInfo.isAnimated) {
+        anim->getActiveAction()->mAnimationSecond =
+            std::fmod(dt, anim->getActiveAction()->mAnimationDuration) * 1000.0f;
         anim->update(mScene->mRootNode);
     } else {
         return;
@@ -130,17 +128,17 @@ void Model::updateAnimation() {
     // for (const std::string& boneName : anim->uniqueBones) {
     Action* action = anim->getActiveAction();
     for (const auto& [boneName, _] : action->Bonemap) {
-        if (action->Bonemap.find(boneName) != action->Bonemap.end()) {
-            const auto& global = action->calculatedTransform[boneName];
-            const auto& offset = action->Bonemap[boneName]->offsetMatrix;
+        // if (action->Bonemap.find(boneName) != action->Bonemap.end()) {
+        const auto& global = action->calculatedTransform[boneName];
+        const auto& offset = action->Bonemap[boneName]->offsetMatrix;
 
-            auto temp1 = global * offset;
-            auto final = temp1 * rot;
+        auto temp1 = global * offset;
+        auto final = temp1 * rot;
 
-            if (std::isfinite(final[0][0])) {
-                anim->mFinalTransformations[action->Bonemap[boneName]->id] = final;
-            }
+        if (std::isfinite(final[0][0])) {
+            anim->mFinalTransformations[action->Bonemap[boneName]->id] = final;
         }
+        // }
     }
 }
 
@@ -205,7 +203,9 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 if (bonemap.count(vid) == 0) {
                     bonemap[vid] = {};
                 }
-                bonemap[vid].push_back({action->Bonemap[name]->id, bone->mWeights[j].mWeight});
+                if (action->Bonemap.contains(name)) {
+                    bonemap[vid].push_back({action->Bonemap[name]->id, bone->mWeights[j].mWeight});
+                }
             }
         }
     }
@@ -223,8 +223,15 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
         // Adjust coordinate system (as in your original code)
         vertex.position.x = vector.x;
-        vertex.position.z = vector.z;
-        vertex.position.y = vector.y;
+        vertex.position.z = vector.y;
+        vertex.position.y = -vector.z;
+
+        glm::mat4 swap{1.0};  // identity matrix for default case
+        if (mCoordinateSystem == CoordinateSystem::Z_UP) {
+            swap = {{1, 0, 0, 0}, {0, 0, -1, 0}, {0, 1, 0, 0}, {0, 0, 0, 1}};
+        }
+        auto temp = swap * glm::vec4{vertex.position, 1.0};
+        vertex.position = glm::vec3{temp};
 
         size_t bid_cnt = 0;
         if (mesh->HasBones()) {
@@ -356,7 +363,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     mScene = scene;
     std::cout << "----------------------------------------\n " << getName() << std::endl;
     mTransform.mObjectInfo.isAnimated = anim->initAnimation(mScene);
-    updateAnimation();
+    updateAnimation(0);
 
     processNode(app, scene->mRootNode, scene, glm::mat4{1.0});
 
@@ -641,9 +648,15 @@ void Model::userInterface() {
         mTransform.mObjectInfo.isAnimated = is_animated;
         mTransform.mDirty = true;
     }
-    if (ImGui::Button("Next animation")) {
-        anim->nextAction();
+
+    for (auto& [name, action] : anim->actions) {
+        ImGui::PushID((void*)&action);
+        if (ImGui::Button(name.c_str())) {
+            anim->getAction(name);
+        }
+        ImGui::PopID();  // Pop the unique ID for this item
     }
+
     bool dirty = false;
     for (auto& [id, mesh] : mMeshes) {
         ImGui::PushID((void*)&mesh);
@@ -703,7 +716,11 @@ glm::vec3& Transform::getPosition() { return mPosition; }
 glm::vec3& Transform::getScale() { return mScale; }
 
 glm::mat4& Transform::getLocalTransform() {
-    mTransformMatrix = mTranslationMatrix * mRotationMatrix * mScaleMatrix;
+    // glm::mat4 swap = {{1, 0, 0, 0}, {0, 0, 1, 0}, {0, 1, 0, 0}, {0, 0, 0, 1}};
+    glm::mat4 swap{1.0};
+    // auto temp = swap * glm::vec4{vertex.position, 1.0};
+    // vertex.position = glm::vec3{temp};
+    mTransformMatrix = mTranslationMatrix * mRotationMatrix * mScaleMatrix * swap;
     mObjectInfo.transformation = mTransformMatrix;
     return mTransformMatrix;
 }

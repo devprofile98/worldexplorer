@@ -147,9 +147,14 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         bool mIsTransparent = false;
 };
 
+enum CoordinateSystem {
+    Y_UP = 0,
+    Z_UP = 1,
+};
+
 class Model : public BaseModel {
     public:
-        Model();
+        Model(CoordinateSystem cs = Y_UP);
 
         void processMesh(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId,
                          const glm::mat4& globalTransform);
@@ -166,7 +171,7 @@ class Model : public BaseModel {
         void createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData);
         // size_t getInstaceCount();
         WGPUBindGroup getObjectInfoBindGroup();
-        void updateAnimation();
+        void updateAnimation(float dt);
 
         Buffer mIndirectDrawArgsBuffer;
         Buffer mSkiningTransformationBuffer;
@@ -188,6 +193,7 @@ class Model : public BaseModel {
 #endif  // DEVELOPMENT_BUILD
 
     private:
+        CoordinateSystem mCoordinateSystem = Y_UP;
         Buffer offset_buffer = {};
         WGPUBindGroup mBindGroup = nullptr;
         WGPUBindGroup ggg = {};

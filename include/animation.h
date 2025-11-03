@@ -44,8 +44,9 @@ struct Action {
 
 struct Animation {
         std::vector<glm::mat4> mFinalTransformations;
-        std::vector<Action*> actions;
+        std::unordered_map<std::string, Action*> actions;
         size_t activeActionIdx;
+        Action* activeAction = nullptr;
 
         glm::mat4 getLocalTransformAtTime(const aiNode* node, double time);
 
@@ -55,7 +56,7 @@ struct Animation {
         bool initAnimation(const aiScene* scene);
         void update(aiNode* root);
         Action* getActiveAction();
-        Action* nextAction();
+        Action* getAction(const std::string& actionName);
 };
 
 #endif  //! WORLD_EXPLORER_ANIMATION_H

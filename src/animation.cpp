@@ -94,13 +94,10 @@ glm::vec3 calculateInterpolatedPosition(double time, const Bone* bone, const aiN
     decompose(node->mTransformation, t, r, s);
 
     if (!bone) {
-        // Static bone: extract translation from rest pose
-        // return glm::vec3(node->mTransformation.d1, node->mTransformation.d2, node->mTransformation.d3);
         return t;
     }
 
     if (bone->channel.translations.size() == 0) {
-        // return glm::vec3(node->mTransformation.d1, node->mTransformation.d2, node->mTransformation.d3);
         return t;
     }
 
@@ -203,7 +200,7 @@ aiMatrix4x4 GetGlobalTransform(aiNode* node) {
 glm::mat4 Animation::getLocalTransformAtTime(const aiNode* node, double time) {
     const Bone* bone = nullptr;
     auto* action = getActiveAction();
-    if (action->Bonemap.find(node->mName.C_Str()) != action->Bonemap.end()) {
+    if (action->Bonemap.contains(node->mName.C_Str())) {
         bone = action->Bonemap[node->mName.C_Str()];
     }
 
@@ -270,6 +267,7 @@ bool Animation::initAnimation(const aiScene* scene) {
                 }
                 b->id = action->Bonemap.size();
                 action->Bonemap[channel->mNodeName.C_Str()] = b;
+                std::cout << "\tChannel with name " << channel->mNodeName.C_Str() << " have data\n";
             }
             for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
                 aiMesh* mesh = scene->mMeshes[m];
@@ -278,10 +276,24 @@ bool Animation::initAnimation(const aiScene* scene) {
                     std::string boneName = bone->mName.C_Str();
                     if (action->Bonemap.contains(boneName)) {
                         action->Bonemap[boneName]->offsetMatrix = AiToGlm(bone->mOffsetMatrix);
+                    } else {
+                        // action->Bonemap[boneName];
+                        std::cout << "Bone with name " << boneName << " doesnt have any data\n";
                     }
                 }
             }
-            actions.push_back(action);
+            // std::function<void(const aiNode*)> visit = [&](const aiNode* n) {
+            //     std::string name = n->mName.C_Str();
+            //     if (action->Bonemap.count(name) == 0) {
+            //         action->Bonemap[];
+            //         // offset matrix is identity for non-skinned nodes – you can keep it empty
+            //     }
+            //     for (unsigned i = 0; i < n->mNumChildren; ++i) visit(n->mChildren[i]);
+            // };
+            // visit(scene->mRootNode);
+
+            actions[anim->mName.C_Str()] = action;
+            activeAction = action;
         }
 
         return true;
@@ -301,13 +313,16 @@ void Animation::update(aiNode* root) {
     computeGlobalTransforms(root, globalInverseMatrix, action->mAnimationSecond, action->calculatedTransform);
 }
 
-Action* Animation::getActiveAction() { return actions[activeActionIdx]; }
+Action* Animation::getActiveAction() { return activeAction; }
 
-Action* Animation::nextAction() {
-    if (activeActionIdx < actions.size() - 1) {
-        activeActionIdx++;
-    } else {
-        activeActionIdx = 0;
+Action* Animation::getAction(const std::string& actionName) {
+    // if (activeActionIdx < actions.size() - 1) {
+    //     activeActionIdx++;
+    // } else {
+    //     activeActionIdx = 0;
+    // }
+    if (actions.count(actionName) != 0) {
+        activeAction = actions[actionName];
     }
-    return actions[activeActionIdx];
+    return activeAction;
 }
