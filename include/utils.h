@@ -29,6 +29,14 @@ void setDefaultActiveStencil2(WGPUDepthStencilState& depthStencilState);
 void setDefault(WGPUBindGroupLayoutEntry& bindingLayout);
 void setDefault(WGPULimits& limits);
 
+struct TransformProperties {
+        glm::vec3 translation;
+        glm::vec3 scale;
+        glm::quat rotation;
+};
+// TransformProperties calculateChildTransform(Model* parent, Model* child);
+TransformProperties decomposeTransformation(const glm::mat4& transformation);
+
 struct Terrain {
         std::vector<VertexAttributes> vertices;
         std::vector<uint16_t> indices;

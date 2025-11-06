@@ -78,6 +78,36 @@ bool loadGeometry(const fs::path& path, std::vector<float>& pointData, std::vect
     return true;
 }
 
+TransformProperties decomposeTransformation(const glm::mat4& transformation) {
+    // auto new_local_transform = glm::inverse(parent->getGlobalTransform()) * child->mTransform.mTransformMatrix;
+
+    glm::vec3 position = glm::vec3(transformation[3]);
+
+    glm::vec3 scale;
+    scale.x = glm::length(glm::vec3(transformation[0]));
+    scale.y = glm::length(glm::vec3(transformation[1]));
+    scale.z = glm::length(glm::vec3(transformation[2]));
+    // child->mTransform.getLocalTransform();
+    // auto translate = glm::translate(glm::mat4{1.0}, position);
+
+    // Avoid division by zero for very small scales
+    const float epsilon = 1e-6f;
+    if (scale.x < epsilon) scale.x = 1.0f;
+    if (scale.y < epsilon) scale.y = 1.0f;
+    if (scale.z < epsilon) scale.z = 1.0f;
+
+    // Extract rotation by removing scale from the 3x3 part of the matrix
+    glm::mat3 rotation_matrix;
+    rotation_matrix[0] = glm::vec3(transformation[0]) / scale.x;
+    rotation_matrix[1] = glm::vec3(transformation[1]) / scale.y;
+    rotation_matrix[2] = glm::vec3(transformation[2]) / scale.z;
+
+    // Convert the rotation matrix to a quaternion
+    glm::quat rotation = glm::quat_cast(rotation_matrix);
+
+    return {position, scale, rotation};
+}
+
 void setDefault(WGPUStencilFaceState& stencilFaceState) {
     stencilFaceState.compare = WGPUCompareFunction_Always;
     stencilFaceState.failOp = WGPUStencilOperation_Keep;

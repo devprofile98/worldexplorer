@@ -4,6 +4,7 @@
 #include <future>
 
 #include "application.h"
+#include "world.h"
 
 ModelRegistry& ModelRegistry::instance() {
     static ModelRegistry inst;
@@ -37,6 +38,9 @@ void ModelRegistry::tick(Application* app) {
                 mEditorLoadedModel.push_back(model.model);
             } else if (model.visibility == Visibility_Other) {
                 // Do not add this model to any container
+            }
+            if (model.visibility != Visibility_Editor) {
+                app->mWorld->rootContainer.push_back(model.model);
             }
             it = futures.erase(it);
         } else {

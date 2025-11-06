@@ -12,7 +12,7 @@ struct TreeModel : public IModel {
         TreeModel(Application* app) {
             mModel = new Model{};
             mModel->load("tree", app, RESOURCE_DIR "/tree3.gltf", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{0.725, -7.640, 1.125})
+                .moveTo(glm::vec3{0.725, -7.640, 1.125})
                 .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.9});
             mModel->uploadToGPU(app);
@@ -106,7 +106,7 @@ struct BoatModel : public IModel {
         BoatModel(Application* app) {
             mModel = new Model{};
             mModel->load("boat", app, RESOURCE_DIR "/fourareen.obj", app->getObjectBindGroupLayout())
-                .mTransform.scale(glm::vec3{0.8})
+                .scale(glm::vec3{0.8})
                 .rotate(glm::vec3{0.0f, 0.0f, 45.0f}, 0.0)
                 .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0);
             mModel->uploadToGPU(app);
@@ -119,7 +119,7 @@ struct BoatModel : public IModel {
         void onLoad(Application* app, void* params) override {
             (void)params;
             (void)app;
-            mModel->mTransform.moveTo(glm::vec3{-3.950, 13.316, -3.375});
+            mModel->moveTo(glm::vec3{-3.950, 13.316, -3.375});
         };
 };
 
@@ -127,7 +127,7 @@ struct JetModel : public IModel {
         JetModel(Application* app) {
             mModel = new Model{};
             mModel->load("jet", app, RESOURCE_DIR "/old_jet3.obj", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{5.0, -1., 2.})
+                .moveTo(glm::vec3{5.0, -1., 2.})
                 .scale(glm::vec3{0.8});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
@@ -146,7 +146,6 @@ struct CarModel : public IModel {
             mModel = new Model{};
 
             mModel->load("car", app, RESOURCE_DIR "/jeep.obj", app->getObjectBindGroupLayout())
-                .mTransform
                 .moveTo(glm::vec3{-2.883, -6.280, -1.709})
                 // .scale(glm::vec3{1.0})
                 .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0);
@@ -169,7 +168,7 @@ struct TowerModel : public IModel {
             mModel = new Model{};
 
             mModel->load("tower", app, RESOURCE_DIR "/tower.obj", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{-2.0, -1.0, -2.58})
+                .moveTo(glm::vec3{-2.0, -1.0, -2.58})
                 .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.5});
             mModel->uploadToGPU(app);
@@ -188,7 +187,7 @@ struct ConiferousModel : public IModel {
             mModel = new Model{};
 
             mModel->load("coniferous", app, RESOURCE_DIR "/coniferous/scene.gltf", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{1.0f, 1.0f, 4.0f})
+                .moveTo(glm::vec3{1.0f, 1.0f, 4.0f})
                 .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.2});
             mModel->uploadToGPU(app);
@@ -208,7 +207,7 @@ struct DeskModel : public IModel {
             mModel = new Model{};
 
             mModel->load("desk", app, RESOURCE_DIR "/desk.obj", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{0.725, 0.333, 0.72})
+                .moveTo(glm::vec3{0.725, 0.333, 0.72})
                 .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.3});
             mModel->uploadToGPU(app);
@@ -227,7 +226,7 @@ struct GrassModel : public IModel {
             mModel = new Model{};
 
             mModel->load("grass", app, RESOURCE_DIR "/grass.obj", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{6.125, 2.239, -2.859})
+                .moveTo(glm::vec3{6.125, 2.239, -2.859})
                 .scale(glm::vec3{0.2});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
@@ -317,7 +316,7 @@ struct CylinderModel : public IModel {
             mModel = new Model{};
 
             mModel->load("cylinder", app, RESOURCE_DIR "/cyliner.obj", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{0.725, -1.0, 0.72})
+                .moveTo(glm::vec3{0.725, -1.0, 0.72})
                 .scale(glm::vec3{0.2})
                 .rotate(glm::vec3{0.0, 0.0, 1.0}, 90.0f);
             mModel->uploadToGPU(app);
@@ -337,7 +336,7 @@ struct SphereModel : public IModel {
             mModel = new Model{};
 
             mModel->load("sphere", app, RESOURCE_DIR "/sphere.glb", app->getObjectBindGroupLayout())
-                .mTransform  //.moveTo(glm::vec3{2.187, 9.227, 0.0})
+                .moveTo(glm::vec3{1, 1, 1})
                 .scale(glm::vec3{0.1f});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
@@ -426,7 +425,7 @@ struct Steampunk : public IModel {
             mModel = new Model{};
 
             mModel->load("steampunk", app, RESOURCE_DIR "/steampunk.obj", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{-1.45, -3.239, -0.810})
+                .moveTo(glm::vec3{-1.45, -3.239, -0.810})
                 .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.002f});
             mModel->uploadToGPU(app);
@@ -446,7 +445,7 @@ struct Motor : public IModel {
             mModel = new Model{};
 
             mModel->load("motor", app, RESOURCE_DIR "/motor.obj", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{-2.45, -3.239, -0.810})
+                .moveTo(glm::vec3{-2.45, -3.239, -0.810})
                 .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{1.0f});
             mModel->uploadToGPU(app);
@@ -466,7 +465,6 @@ struct SheepModel : public IModel {
             mModel = new Model{};
 
             mModel->load("sheep", app, RESOURCE_DIR "/fox.dae", app->getObjectBindGroupLayout())
-                .mTransform
                 .moveTo(glm::vec3{5.125, 2.239, -2.859})
                 // .rotate(glm::vec3{180.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.3f});
@@ -519,7 +517,7 @@ struct HouseModel : public IModel {
             // mModel->load("house", app, RESOURCE_DIR "/house/scene.gltf", app->getObjectBindGroupLayout())
             // mModel->load("house2", app, RESOURCE_DIR "/house2/house3.gltf", app->getObjectBindGroupLayout())
             mModel->load("house2", app, RESOURCE_DIR "/ourhome.gltf", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{-0.483, 2.048, -3.309})
+                .moveTo(glm::vec3{-0.483, 2.048, -3.309})
                 .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.0)
                 .scale(glm::vec3{.601f});
             mModel->uploadToGPU(app);
@@ -539,8 +537,29 @@ struct CubeModel : public IModel {
             mModel = new Model{};
 
             mModel->load("cube", app, RESOURCE_DIR "/new_cube.obj", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{-6.883, 3.048, -1.709})
+                .moveTo(glm::vec3{1, 1, 1})
                 .scale(glm::vec3{0.2f});
+            mModel->uploadToGPU(app);
+            mModel->setTransparent(false);
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+        }
+
+        Model* getModel() override { return mModel; }
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
+};
+
+struct PistolModel : public IModel {
+        PistolModel(Application* app) {
+            mModel = new Model{};
+
+            mModel->load("pistol", app, RESOURCE_DIR "/pistol/scene.gltf", app->getObjectBindGroupLayout())
+                .moveTo(glm::vec3{-0.4, -2.1, 4.6})
+                .scale(glm::vec3{0.2f})
+                .rotate({0, 335, 270}, 0.0);
+
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
@@ -558,8 +577,8 @@ struct HumanModel : public IModel {
             mModel = new Model{Z_UP};
 
             mModel->load("human", app, RESOURCE_DIR "/model2.gltf", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{1.0, 9.0, -3.7})
-                .scale(glm::vec3{0.3})
+                .moveTo(glm::vec3{0, 0, 0})
+                .scale(glm::vec3{3.})
                 .rotate(glm::vec3{90.0, 0.0, 0.0}, 0.);
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
@@ -592,7 +611,7 @@ struct HumanModel2 : public IModel {
             mModel = new Model{};
 
             mModel->load("human2", app, RESOURCE_DIR "/model2.dae", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{1.0, 9.0, -3.7})
+                .moveTo(glm::vec3{1.0, 9.0, -3.7})
                 .scale(glm::vec3{0.3})
                 .rotate(glm::vec3{0.0, 0.0, 0.0}, 0.);
             mModel->uploadToGPU(app);
@@ -626,7 +645,6 @@ struct RobotModel : public IModel {
             mModel = new Model{Z_UP};
 
             mModel->load("robot", app, RESOURCE_DIR "/dance2.gltf", app->getObjectBindGroupLayout())
-                .mTransform  //.moveTo(glm::vec3{0.0, 9.0, -3.7})
                 .scale(glm::vec3{1.0})
                 .rotate(glm::vec3{90.0, 0.0, 0.0}, 0.);
             mModel->uploadToGPU(app);
@@ -660,7 +678,7 @@ struct StonesModel : public IModel {
             mModel = new Model{};
 
             mModel->load("stones", app, RESOURCE_DIR "/stones/stones.gltf", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{-2.0, -1.0, -2.58})
+                .moveTo(glm::vec3{-2.0, -1.0, -2.58})
                 .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{0.5});
             mModel->uploadToGPU(app);
@@ -679,7 +697,7 @@ struct PlatformModel : public IModel {
             mModel = new Model{};
 
             mModel->load("platform", app, RESOURCE_DIR "/platform.gltf", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{-2.0, -1.0, -3.68})
+                .moveTo(glm::vec3{-2.0, -1.0, -3.68})
                 .rotate(glm::vec3{0.0f, 0.0f, 0.0f}, 0.0)
                 .scale(glm::vec3{3.370, 3.370, 0.860});
             mModel->uploadToGPU(app);
@@ -699,7 +717,7 @@ struct PlatformModel : public IModel {
 // USER_REGISTER_MODEL("car", CarModel);
 // USER_REGISTER_MODEL("tower", TowerModel);
 
-USER_REGISTER_MODEL("desk", DeskModel);
+// USER_REGISTER_MODEL("desk", DeskModel);
 // USER_REGISTER_MODEL("coniferous", ConiferousModel);
 //
 // USER_REGISTER_MODEL("grass", GrassModel);
@@ -707,14 +725,15 @@ USER_REGISTER_MODEL("desk", DeskModel);
 // USER_REGISTER_MODEL("sheep", SheepModel);
 
 // USER_REGISTER_MODEL("sphere", SphereModel);
-USER_REGISTER_MODEL("platform", PlatformModel);
+// USER_REGISTER_MODEL("platform", PlatformModel);
 //
 USER_REGISTER_MODEL("human", HumanModel);  // Upper_Arm.L
 // USER_REGISTER_MODEL("human2", HumanModel2);
-USER_REGISTER_MODEL("robot", RobotModel);
+// USER_REGISTER_MODEL("robot", RobotModel);
 // USER_REGISTER_MODEL("stones", StonesModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
+USER_REGISTER_MODEL("pistol", PistolModel);
 
-USER_REGISTER_MODEL("house", HouseModel);
+// USER_REGISTER_MODEL("house", HouseModel);
 // USER_REGISTER_MODEL("motor", Motor);
 /*USER_REGISTER_MODEL("jet", JetModel);*/

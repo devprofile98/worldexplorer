@@ -18,6 +18,7 @@
 #include "renderpass.h"
 #include "shapes.h"
 #include "skybox.h"
+#include "world.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <imgui.h>
@@ -66,6 +67,7 @@ bool should_update_csm = true;
 WGPUTextureView getNextSurfaceTextureView(RendererResource& resources);
 WGPULimits GetRequiredLimits(WGPUAdapter adapter);
 bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height);
+uint32_t boxId = std::numeric_limits<uint32_t>().max();
 
 WGPUTextureFormat Application::getTextureFormat() { return mSurfaceFormat; }
 
@@ -581,6 +583,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     initializeBuffers();
     initializePipeline();
 
+    mWorld = new World{};
+
     // WGPUBufferDescriptor resolveBufferDesc{};
     // resolveBufferDesc.label = {"timing buffer", WGPU_STRLEN};
     // resolveBufferDesc.size = 4 * sizeof(uint64_t);  // Matches querySet.count
@@ -627,11 +631,11 @@ void Application::mainLoop() {
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
             if (cull_frustum) {
                 model->updateAnimation(time);
-            } else {
-                model->mTransform.mObjectInfo.isAnimated = false;
-                model->mTransform.mDirty = true;
             }
-            model->update(this, 0.0);
+            model->update2(this, 0.0);
+        }
+        for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_Editor)) {
+            model->update2(this, 0.0);
         }
     }
 
@@ -686,32 +690,27 @@ void Application::mainLoop() {
                          sizeof(CameraInfo));
 
     // Test for scene hirarchy
-    // static bool reparenting = true;
-    // {
-    // auto& iter = ModelRegistry::instance().getLoadedModel(Visibility_User);
-    // auto boat = iter.find("tower");
-    // auto arrow = iter.find("arrow");
-    // auto desk = iter.find("boat");
-    // if (boat != iter.end() && arrow != iter.end() && desk != iter.end()) {
-    //     if (reparenting) {
-    //         reparenting = false;
-    //         // boat->second->mTransform.mTransformMatrix = new_transform;
-    //
-    //         arrow->second->addChildren(static_cast<BaseModel*>(boat->second));
-    //         boat->second->addChildren(static_cast<BaseModel*>(desk->second));
-    //     }
-    //
-    //     arrow->second->update();
-    // }
-    // auto human = iter.find("human");
-    // auto sphere = iter.find("sphere");
-    // if (human != iter.end() && sphere != iter.end()) {
-    //     if (reparenting) {
-    //         reparenting = false;
-    //         // loadSphereAtHumanBones(this, human->second, sphere->second);
-    //     }
-    // }
-    // }
+    static bool reparenting = true;
+    {
+        auto& iter = mWorld->rootContainer;  //  ModelRegistry::instance().getLoadedModel(Visibility_User);
+
+        static Model* human = nullptr;
+        if (iter.size() == 2) {
+            if (reparenting) {
+                reparenting = false;
+                auto pistol = iter[0]->getName() == "pistol" ? iter[0] : iter[1];
+                human = iter[0]->getName() == "human" ? iter[0] : iter[1];
+
+                // human->addChildren(static_cast<BaseModel*>(pistol));
+                mWorld->makeChild(human, pistol);
+            }
+        }
+
+        if (human) {
+            // std::cout << "every frame\n";
+            reinterpret_cast<BaseModel*>(human)->update();
+        }
+    }
     // mWaterRenderPass->drawWater();
 
     // Depth pre-pass to reduce number of overdraws
@@ -820,6 +819,25 @@ void Application::mainLoop() {
     // mTerrainPass->executePass();
     // ---------------------------------------------------------------------
 
+    if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
+        auto* aaa = reinterpret_cast<Model*>(mSelectedModel);
+        if (aaa->anim->activeAction->calculatedTransform.contains("DEF-handR")) {
+            std::cout << "show draw bone at here\n";
+            glm::vec3 socketPos(0.15f, 0.0f, -0.05f);  // e.g., forward 15cm, down 5cm
+            glm::quat socketRot = glm::angleAxis(glm::radians(5.0f), glm::vec3(0, 1, 0));  // Slight tweak
+            glm::vec3 socketScale(1.0f);
+
+            glm::mat4 socketMat = glm::scale(glm::mat4(1.0f), socketScale) * glm::mat4_cast(socketRot) *
+                                  glm::translate(glm::mat4(1.0f), socketPos);
+
+            auto trans =
+                aaa->anim->mFinalTransformations[aaa->anim->activeAction->Bonemap["DEF-handR"]->id] * socketMat;
+            mEditor.showBoneAt(trans);
+            // mEditor.BoneIndicator->mTransform.mObjectInfo.transformation = trans;
+            // mEditor.BoneIndicator->mTransform.mTransformMatrix = trans;
+        }
+    }
+
     {
         WGPURenderPassDescriptor render_pass_descriptor = {};
         render_pass_descriptor.nextInChain = nullptr;
@@ -862,6 +880,7 @@ void Application::mainLoop() {
 
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 6, mTerrainPass->mTexturesBindgroup.getBindGroup(), 0,
                                           nullptr);
+
         updateGui(terrain_pass_encoder, time);
 
         wgpuRenderPassEncoderEnd(terrain_pass_encoder);
@@ -1194,7 +1213,8 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::BeginChild("ScrollableList", ImVec2(0, 200),
                               ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY);
 
-            for (const auto& item : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+            for (const auto& item :
+                 ModelRegistry::instance().getLoadedModel(Visibility_User) /*mWorld->rootContainer*/) {
                 // Create a unique ID for each selectable item based on its unique item.id
                 ImGui::PushID((void*)item);
 
@@ -1207,8 +1227,14 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                     }
                     mSelectedModel = item;
                     mSelectedModel->selected(true);
+
                     auto [min, max] = item->getWorldSpaceAABB();
-                    mLineEngine->addLines(generateAABBLines(min, max));
+                    if (boxId < 1024) {
+                        mLineEngine->updateLines(boxId, generateAABBLines(min, max));
+                    } else {
+                        boxId = mLineEngine->addLines(generateAABBLines(min, max));
+                    }
+                    // mLineEngine->addLines(generateAABBLines(min, max));
                 }
 
                 ImGui::PopID();  // Pop the unique ID for this item

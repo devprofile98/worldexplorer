@@ -56,11 +56,6 @@ class Transform {
         friend class BaseModel;
 
     public:
-        Transform& moveBy(const glm::vec3& m);
-        Transform& moveTo(const glm::vec3& m);
-        Transform& scale(const glm::vec3& s);
-        Transform& rotate(const glm::vec3& around, float degree);
-
         glm::vec3& getPosition();
         glm::vec3& getScale();
         glm::mat4& getLocalTransform();
@@ -130,18 +125,26 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         bool isSelected() const;
         std::pair<glm::vec3, glm::vec3> getWorldMin();
         std::pair<glm::vec3, glm::vec3> getWorldSpaceAABB();
+
+        void addChildren(BaseModel* child);
+        glm::mat4 getGlobalTransform();
+        void update();
+
+        BaseModel& moveBy(const glm::vec3& m);
+        BaseModel& moveTo(const glm::vec3& m);
+        BaseModel& scale(const glm::vec3& s);
+        BaseModel& rotate(const glm::vec3& around, float degree);
+        BaseModel& rotate(const glm::quat& rot);
+
+        /* Scene graph related property */
+        BaseModel* mParent = nullptr;
+        Transform mTransform;
+
         Buffer mIndexBuffer = {};
         std::map<int, Mesh> mMeshes;
         size_t instances = 1;
         Instance* instance = nullptr;
         std::vector<BaseModel*> mChildrens{};
-
-        /* Scene graph related property */
-        void addChildren(BaseModel* child);
-        glm::mat4 getGlobalTransform();
-        void update();
-        BaseModel* mParent = nullptr;
-        Transform mTransform;
 
     private:
         bool mIsTransparent = false;
@@ -165,7 +168,7 @@ class Model : public BaseModel {
 
         Model& setFoliage();
         Model& useTexture(bool use = true);
-        void update(Application* app, float dt);
+        void update2(Application* app, float dt);
 
         // Getters
         void createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData);

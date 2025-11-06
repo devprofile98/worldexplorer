@@ -89,6 +89,7 @@ add_executable(
     src/editor.cpp
     src/input_manager.cpp
     src/animation.cpp
+    src/world.cpp
 
     src/tree.cpp
 

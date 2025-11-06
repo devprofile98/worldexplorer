@@ -203,7 +203,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 if (bonemap.count(vid) == 0) {
                     bonemap[vid] = {};
                 }
-                if (action->Bonemap.contains(name)) {
+                if (action && action->Bonemap.contains(name)) {
                     bonemap[vid].push_back({action->Bonemap[name]->id, bone->mWeights[j].mWeight});
                 }
             }
@@ -377,7 +377,7 @@ void BaseModel::addChildren(BaseModel* child) {
 
     glm::vec3 position = glm::vec3(new_local_transform[3]);
     // child->mTransform.mPosition = position;
-    child->mTransform.moveTo(position);
+    child->moveTo(position);
 
     glm::vec3 scale;
     scale.x = glm::length(glm::vec3(new_local_transform[0]));
@@ -385,7 +385,7 @@ void BaseModel::addChildren(BaseModel* child) {
     scale.z = glm::length(glm::vec3(new_local_transform[2]));
     // child->mTransform.mScale = scale;
     child->mParent = this;
-    child->mTransform.scale(scale);
+    child->scale(scale);
     child->mTransform.getLocalTransform();
 
     mChildrens.push_back(child);
@@ -403,20 +403,22 @@ Model& Model::useTexture(bool use) {
     return *this;
 }
 
-Transform& Transform::moveBy(const glm::vec3& translationVec) {
+BaseModel& BaseModel::moveBy(const glm::vec3& translationVec) {
     // justify position by the factor `m`
-    mDirty = true;
-    mPosition += translationVec;
-    mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
-    getLocalTransform();
+    mTransform.mDirty = true;
+    mTransform.mPosition += translationVec;
+    mTransform.mTranslationMatrix = glm::translate(glm::mat4{1.0}, mTransform.mPosition);
+    // getLocalTransform();
+    getGlobalTransform();
     return *this;
 }
 
-Transform& Transform::moveTo(const glm::vec3& moveVec) {
-    mDirty = true;
-    mPosition = moveVec;
-    mTranslationMatrix = glm::translate(glm::mat4{1.0}, mPosition);
-    getLocalTransform();
+BaseModel& BaseModel::moveTo(const glm::vec3& moveVec) {
+    mTransform.mDirty = true;
+    mTransform.mPosition = moveVec;
+    mTransform.mTranslationMatrix = glm::translate(glm::mat4{1.0}, mTransform.mPosition);
+    // getLocalTransform();
+    getGlobalTransform();
     return *this;
 }
 
@@ -459,7 +461,7 @@ void BaseModel::setTransparent(bool value) {
 bool BaseModel::isTransparent() { return mIsTransparent; }
 
 void BaseModel::selected(bool selected) {
-    mTransform.mDirty = true;
+    // mTransform.mDirty = true;
     mTransform.mObjectInfo.isSelected = selected;
 }
 bool BaseModel::isSelected() const { return mTransform.mObjectInfo.isSelected; }
@@ -545,18 +547,19 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     }
 }
 
-void Model::update(Application* app, float dt) {
+void Model::update2(Application* app, float dt) {
+    auto& queue = app->getRendererResource().queue;
     if (mScene->HasAnimations()) {
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, mSkiningTransformationBuffer.getBuffer(),
-                             0 * sizeof(glm::mat4), anim->mFinalTransformations.data(),
+        wgpuQueueWriteBuffer(queue, mSkiningTransformationBuffer.getBuffer(), 0 * sizeof(glm::mat4),
+                             anim->mFinalTransformations.data(),
                              anim->mFinalTransformations.size() * sizeof(glm::mat4));
     }
     if (mTransform.mDirty) {
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, Drawable::getUniformBuffer().getBuffer(), 0,
-                             &mTransform.mObjectInfo, sizeof(ObjectInfo));
+        // getGlobalTransform();
+        wgpuQueueWriteBuffer(queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
+                             sizeof(ObjectInfo));
         for (auto& [id, mesh] : mMeshes) {
-            wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial,
-                                 sizeof(Material));
+            wgpuQueueWriteBuffer(queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial, sizeof(Material));
         }
         mTransform.mDirty = false;
     }
@@ -607,23 +610,29 @@ void Model::userInterface() {
 
     if (ImGui::CollapsingHeader("Transformations",
                                 ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+        bool happend = false;
         ImGui::Text("Position:");
-        ImGui::DragFloat3("Position", glm::value_ptr(mTransform.mPosition), drag_speed);
+        if (ImGui::DragFloat3("Position", glm::value_ptr(mTransform.mPosition), drag_speed)) {
+            happend = true;
+        }
 
         if (ImGui::DragFloat("Scale x", &mTransform.mScale.x, 0.01)) {
             if (lock_scale) {
                 mTransform.mScale = glm::vec3{mTransform.mScale.x};
             }
+            happend = true;
         }
         if (ImGui::DragFloat("Scale y", &mTransform.mScale.y, 0.01)) {
             if (lock_scale) {
                 mTransform.mScale = glm::vec3{mTransform.mScale.y};
             }
+            happend = true;
         }
         if (ImGui::DragFloat("Scale z", &mTransform.mScale.z, 0.01)) {
             if (lock_scale) {
                 mTransform.mScale = glm::vec3{mTransform.mScale.z};
             }
+            happend = true;
         }
 
         if (ImGui::DragFloat3("Rotation", glm::value_ptr(mTransform.mEulerRotation), drag_speed, 360.0f)) {
@@ -636,11 +645,14 @@ void Model::userInterface() {
             if (mTransform.mEulerRotation.x > 360.0) mTransform.mEulerRotation.x -= 360.0f;
             if (mTransform.mEulerRotation.y > 360.0) mTransform.mEulerRotation.y -= 360.0f;
             if (mTransform.mEulerRotation.z > 360.0) mTransform.mEulerRotation.z -= 360.0f;
+            happend = true;
         }
 
-        mTransform.moveTo(mTransform.mPosition);
-        mTransform.scale(mTransform.mScale);
-        mTransform.getLocalTransform();
+        if (happend) {
+            moveTo(mTransform.mPosition);
+            scale(mTransform.mScale);
+            getGlobalTransform();
+        }
     }
 
     bool is_animated = mTransform.mObjectInfo.isAnimated;
@@ -653,6 +665,16 @@ void Model::userInterface() {
         ImGui::PushID((void*)&action);
         if (ImGui::Button(name.c_str())) {
             anim->getAction(name);
+        }
+        ImGui::PopID();  // Pop the unique ID for this item
+    }
+
+    for (auto& [name, bone] : anim->activeAction->Bonemap) {
+        ImGui::PushID((void*)bone);
+        if (ImGui::Button(name.c_str())) {
+            if (anim->activeAction->calculatedTransform.contains(name)) {
+                std::cout << "Bone " << name << " Exists!\n";
+            }
         }
         ImGui::PopID();  // Pop the unique ID for this item
     }
@@ -694,20 +716,26 @@ void Model::userInterface() {
 }
 #endif  // DEVELOPMENT_BUILD
 
-Transform& Transform::scale(const glm::vec3& s) {
-    mScale = s;
-    mDirty = true;
-    mScaleMatrix = glm::scale(glm::mat4{1.0}, s);
-    getLocalTransform();
+BaseModel& BaseModel::scale(const glm::vec3& s) {
+    mTransform.mScale = s;
+    mTransform.mDirty = true;
+    mTransform.mScaleMatrix = glm::scale(glm::mat4{1.0}, s);
+    // getLocalTransform();
+    getGlobalTransform();
     return *this;
 }
 
-Transform& Transform::rotate(const glm::vec3& around, float degree) {
+BaseModel& BaseModel::rotate(const glm::vec3& around, float degree) {
     (void)degree;
-    mDirty = true;
-    mEulerRotation += around;
-    glm::vec3 euler_radians = glm::radians(mEulerRotation);
-    this->mRotationMatrix = glm::toMat4(glm::quat(euler_radians));
+    mTransform.mDirty = true;
+    mTransform.mEulerRotation += around;
+    glm::vec3 euler_radians = glm::radians(mTransform.mEulerRotation);
+    mTransform.mRotationMatrix = glm::toMat4(glm::quat(euler_radians));
+    getGlobalTransform();
+    return *this;
+}
+BaseModel& BaseModel::rotate(const glm::quat& rot) {
+    mTransform.mRotationMatrix = glm::toMat4(glm::quat(rot));
     return *this;
 }
 
@@ -716,11 +744,7 @@ glm::vec3& Transform::getPosition() { return mPosition; }
 glm::vec3& Transform::getScale() { return mScale; }
 
 glm::mat4& Transform::getLocalTransform() {
-    // glm::mat4 swap = {{1, 0, 0, 0}, {0, 0, 1, 0}, {0, 1, 0, 0}, {0, 0, 0, 1}};
-    glm::mat4 swap{1.0};
-    // auto temp = swap * glm::vec4{vertex.position, 1.0};
-    // vertex.position = glm::vec3{temp};
-    mTransformMatrix = mTranslationMatrix * mRotationMatrix * mScaleMatrix * swap;
+    mTransformMatrix = mTranslationMatrix * mRotationMatrix * mScaleMatrix;
     mObjectInfo.transformation = mTransformMatrix;
     return mTransformMatrix;
 }
@@ -766,7 +790,7 @@ std::pair<glm::vec3, glm::vec3> BaseModel::getWorldSpaceAABB() {
 
     // 3. Transform each corner and update worldMin/worldMax
     for (int i = 0; i < 8; ++i) {
-        glm::vec4 transformedCorner = mTransform.getLocalTransform() * glm::vec4(corners[i], 1.0f);
+        glm::vec4 transformedCorner = getGlobalTransform() * glm::vec4(corners[i], 1.0f);
 
         worldMin.x = glm::min(worldMin.x, transformedCorner.x);
         worldMin.y = glm::min(worldMin.y, transformedCorner.y);
@@ -781,8 +805,8 @@ std::pair<glm::vec3, glm::vec3> BaseModel::getWorldSpaceAABB() {
 }
 
 std::pair<glm::vec3, glm::vec3> BaseModel::getWorldMin() {
-    auto min = mTransform.getLocalTransform() * glm::vec4(this->min, 1.0);
-    auto max = mTransform.getLocalTransform() * glm::vec4(this->max, 1.0);
+    auto min = getGlobalTransform() * glm::vec4(this->min, 1.0);
+    auto max = getGlobalTransform() * glm::vec4(this->max, 1.0);
     return {min, max};
 }
 

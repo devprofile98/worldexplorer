@@ -17,7 +17,7 @@ struct WaterModel : public IModel {
             mModel = new Model{};
 
             mModel->load("water", app, RESOURCE_DIR "/waterplane.glb", app->getObjectBindGroupLayout())
-                .mTransform.moveTo(glm::vec3{52.275, 56.360, -3.5})
+                .moveTo(glm::vec3{52.275, 56.360, -3.5})
                 .scale(glm::vec3{100.0, 100.0, 1.0});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
@@ -469,7 +469,7 @@ void WaterPass::waterBlend() {
         wgpuCommandEncoderBeginRenderPass(mApp->getRendererResource().commandEncoder, getRenderPassDescriptor());
 
     if (mWaterModel != nullptr) {
-        mWaterModel->update(mApp, 0.0);
+        // mWaterModel->update(mApp, 0.0);
         wgpuRenderPassEncoderSetPipeline(water_render_pass_encoder, getPipeline()->getPipeline());
         wgpuRenderPassEncoderSetBindGroup(water_render_pass_encoder, 3,
                                           mApp->mDefaultCameraIndexBindgroup.getBindGroup(), 0, nullptr);

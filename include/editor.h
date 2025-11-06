@@ -27,6 +27,8 @@ struct GizmoElement : public MouseMoveListener, public MouseButtonListener {
 
 struct Editor {
         BaseModel* mSelectedElement = nullptr;
+        void showBoneAt(const glm::mat4& transformation);
+        static inline BaseModel* BoneIndicator = nullptr;
         GizmoElement gizmo;
 };
 

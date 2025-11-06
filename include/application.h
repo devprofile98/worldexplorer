@@ -11,6 +11,7 @@
 #include "camera.h"
 #include "editor.h"
 #include "gpu_buffer.h"
+#include "model.h"
 #include "terrain_pass.h"
 #include "utils.h"
 // #include "water_pass.h"
@@ -29,6 +30,7 @@ class SkyBox;
 class Pipeline;
 class CompositionPass;
 class WaterPass;
+class World;
 //
 template <typename W>
 class Window;
@@ -149,6 +151,7 @@ class Application {
         Texture* mDepthTexture;
 
         WGPURenderPipelineDescriptor mPipelineDescriptor;
+        World* mWorld;
 
     private:
         bool initDepthBuffer();
