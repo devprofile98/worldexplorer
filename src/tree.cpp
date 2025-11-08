@@ -727,12 +727,12 @@ struct PlatformModel : public IModel {
 // USER_REGISTER_MODEL("sphere", SphereModel);
 // USER_REGISTER_MODEL("platform", PlatformModel);
 //
-USER_REGISTER_MODEL("human", HumanModel);  // Upper_Arm.L
+// USER_REGISTER_MODEL("human", HumanModel);  // Upper_Arm.L
 // USER_REGISTER_MODEL("human2", HumanModel2);
 // USER_REGISTER_MODEL("robot", RobotModel);
 // USER_REGISTER_MODEL("stones", StonesModel);
 // USER_REGISTER_MODEL("cube", CubeModel);
-USER_REGISTER_MODEL("pistol", PistolModel);
+// USER_REGISTER_MODEL("pistol", PistolModel);
 
 // USER_REGISTER_MODEL("house", HouseModel);
 // USER_REGISTER_MODEL("motor", Motor);

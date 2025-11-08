@@ -5,6 +5,7 @@
 #include <variant>
 
 #include "application.h"
+#include "glm/gtx/string_cast.hpp"
 #include "input_manager.h"
 #include "model_registery.h"
 #include "utils.h"

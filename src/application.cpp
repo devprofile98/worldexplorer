@@ -68,6 +68,7 @@ WGPUTextureView getNextSurfaceTextureView(RendererResource& resources);
 WGPULimits GetRequiredLimits(WGPUAdapter adapter);
 bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height);
 uint32_t boxId = std::numeric_limits<uint32_t>().max();
+static Model* human = nullptr;
 
 WGPUTextureFormat Application::getTextureFormat() { return mSurfaceFormat; }
 
@@ -604,6 +605,7 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     mCamera = Camera{{-0.0f, -0.0f, 0.0f}, glm::vec3{0.8f}, {1.0, 0.0, 0.0}, 0.0};
     mUniforms.setCamera(mCamera);
 
+    mWorld->loadWorld();
     return true;
 }
 
@@ -632,11 +634,17 @@ void Application::mainLoop() {
             if (cull_frustum) {
                 model->updateAnimation(time);
             }
+
+            reinterpret_cast<BaseModel*>(model)->update();
             model->update2(this, 0.0);
         }
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_Editor)) {
             model->update2(this, 0.0);
         }
+
+        // if (ModelRegistry::instance().getLoadedModel(Visibility_User).size() == 3) {
+        // std::cout << "Breakpoint";
+        // }
     }
 
     // create a commnad encoder
@@ -692,24 +700,22 @@ void Application::mainLoop() {
     // Test for scene hirarchy
     static bool reparenting = true;
     {
-        auto& iter = mWorld->rootContainer;  //  ModelRegistry::instance().getLoadedModel(Visibility_User);
+        // auto& iter = mWorld->rootContainer;  //  ModelRegistry::instance().getLoadedModel(Visibility_User);
+        //
+        // if (iter.size() == 2) {
+        //     if (reparenting) {
+        //         reparenting = false;
+        //         auto pistol = iter[0]->getName() == "pistol" ? iter[0] : iter[1];
+        //         human = iter[0]->getName() == "human" ? iter[0] : iter[1];
+        //
+        //         // human->addChildren(static_cast<BaseModel*>(pistol));
+        //         mWorld->makeChild(human, pistol);
+        //     }
+        // }
 
-        static Model* human = nullptr;
-        if (iter.size() == 2) {
-            if (reparenting) {
-                reparenting = false;
-                auto pistol = iter[0]->getName() == "pistol" ? iter[0] : iter[1];
-                human = iter[0]->getName() == "human" ? iter[0] : iter[1];
-
-                // human->addChildren(static_cast<BaseModel*>(pistol));
-                mWorld->makeChild(human, pistol);
-            }
-        }
-
-        if (human) {
-            // std::cout << "every frame\n";
-            reinterpret_cast<BaseModel*>(human)->update();
-        }
+        // if (human) {
+        //     reinterpret_cast<BaseModel*>(human)->update();
+        // }
     }
     // mWaterRenderPass->drawWater();
 
@@ -822,7 +828,7 @@ void Application::mainLoop() {
     if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
         auto* aaa = reinterpret_cast<Model*>(mSelectedModel);
         if (aaa->anim->activeAction->calculatedTransform.contains("DEF-handR")) {
-            std::cout << "show draw bone at here\n";
+            // std::cout << "show draw bone at here\n";
             glm::vec3 socketPos(0.15f, 0.0f, -0.05f);  // e.g., forward 15cm, down 5cm
             glm::quat socketRot = glm::angleAxis(glm::radians(5.0f), glm::vec3(0, 1, 0));  // Slight tweak
             glm::vec3 socketScale(1.0f);
@@ -830,9 +836,9 @@ void Application::mainLoop() {
             glm::mat4 socketMat = glm::scale(glm::mat4(1.0f), socketScale) * glm::mat4_cast(socketRot) *
                                   glm::translate(glm::mat4(1.0f), socketPos);
 
-            auto trans =
-                aaa->anim->mFinalTransformations[aaa->anim->activeAction->Bonemap["DEF-handR"]->id] * socketMat;
-            mEditor.showBoneAt(trans);
+            auto trans = mSelectedModel->mTransform.mObjectInfo.transformation *
+                         aaa->anim->mFinalTransformations[aaa->anim->activeAction->Bonemap["DEF-handR"]->id];
+            // mEditor.showBoneAt(trans);
             // mEditor.BoneIndicator->mTransform.mObjectInfo.transformation = trans;
             // mEditor.BoneIndicator->mTransform.mTransformMatrix = trans;
         }
@@ -1222,6 +1228,15 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                                       mSelectedModel && item->getName() == mSelectedModel->getName())) {
                     ImGui::Text("%s", item->getName().c_str());
 
+                    if (item->mName == "pistol") {
+                        auto [pos, scale, rot] = decomposeTransformation(mSelectedModel->getGlobalTransform());
+                        std::cout << "\n-------------------" << mSelectedModel->getName()
+                                  << "----------------------------\n";
+                        std::cout << "pos:" << glm::to_string(pos) << '\n';
+                        std::cout << "scale:" << glm::to_string(scale) << '\n';
+                        std::cout << "rot:" << glm::to_string(rot);
+                        std::cout << "\n------------------------------------------------\n";
+                    }
                     if (mSelectedModel) {
                         mSelectedModel->selected(false);
                     }

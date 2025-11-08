@@ -40,7 +40,7 @@ void ModelRegistry::tick(Application* app) {
                 // Do not add this model to any container
             }
             if (model.visibility != Visibility_Editor) {
-                app->mWorld->rootContainer.push_back(model.model);
+                app->mWorld->onNewModel(model.model);
             }
             it = futures.erase(it);
         } else {

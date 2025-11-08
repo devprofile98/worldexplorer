@@ -22,17 +22,27 @@ void InputManager::handleButton(GLFWwindow* window, int click, int action, int m
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
 
-    MouseEvent event = Click{window, xpos, ypos, click, action, mods};
+    ImGuiIO& io = ImGui::GetIO();
+    io.AddMouseButtonEvent(click, action == GLFW_PRESS);
 
-    for (auto* listener : instance().mMouseButtonListeners) {
-        listener->onMouseClick(event);
+    if (!io.WantCaptureMouse) {
+        MouseEvent event = Click{window, xpos, ypos, click, action, mods};
+
+        for (auto* listener : instance().mMouseButtonListeners) {
+            listener->onMouseClick(event);
+        }
     }
 }
 
 void InputManager::handleScroll(GLFWwindow* window, double xOffset, double yOffset) {
-    MouseEvent event = Scroll{window, xOffset, yOffset};
-    for (auto* listener : instance().mMouseScrollListeners) {
-        listener->onMouseScroll(event);
+    ImGuiIO& io = ImGui::GetIO();
+    io.AddMouseWheelEvent(static_cast<float>(xOffset), static_cast<float>(yOffset));
+    if (!io.WantCaptureMouse) {
+        MouseEvent event = Scroll{window, xOffset, yOffset};
+
+        for (auto* listener : instance().mMouseScrollListeners) {
+            listener->onMouseScroll(event);
+        }
     }
 }
 

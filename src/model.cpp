@@ -300,6 +300,24 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
     auto& render_resource = app->getRendererResource();
     auto& mmesh = mMeshes[mesh->mMaterialIndex];
 
+    aiString extensionData;
+    if (material->Get(AI_MATKEY_GLTF_KHR_texture_transform, extensionData) == AI_SUCCESS) {
+        // Parse the extension data (e.g., JSON string or structured data)
+        // This is implementation-specific and may require manual parsing
+        std::cout << "KHR_texture_transform found: " << extensionData.C_Str() << "\n";
+
+        // Example: Parse scale from JSON (simplified, depends on Assimp's format)
+        // You may need to use a JSON library like nlohmann/json to parse this
+        // For simplicity, assume scale is stored directly as a property
+        aiVector3D tempScale;
+        if (material->Get(AI_MATKEY_GLTF_KHR_texture_transform_SCALE, tempScale) == AI_SUCCESS) {
+            scale = tempScale;
+            std::cout << "UV Scale: (" << scale.x << ", " << scale.y << ")\n";
+        }
+    } else {
+        std::cout << "No KHR_texture_transform extension found for this texture\n";
+    }
+
     auto load_texture = [&](aiTextureType type, MaterialProps flag, Texture** target) {
         for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
             mmesh.mMaterial.setFlag(flag, true);
@@ -669,14 +687,16 @@ void Model::userInterface() {
         ImGui::PopID();  // Pop the unique ID for this item
     }
 
-    for (auto& [name, bone] : anim->activeAction->Bonemap) {
-        ImGui::PushID((void*)bone);
-        if (ImGui::Button(name.c_str())) {
-            if (anim->activeAction->calculatedTransform.contains(name)) {
-                std::cout << "Bone " << name << " Exists!\n";
+    if (mTransform.mObjectInfo.isAnimated) {
+        for (auto& [name, bone] : anim->activeAction->Bonemap) {
+            ImGui::PushID((void*)bone);
+            if (ImGui::Button(name.c_str())) {
+                if (anim->activeAction->calculatedTransform.contains(name)) {
+                    std::cout << "Bone " << name << " Exists!\n";
+                }
             }
+            ImGui::PopID();  // Pop the unique ID for this item
         }
-        ImGui::PopID();  // Pop the unique ID for this item
     }
 
     bool dirty = false;
@@ -814,7 +834,14 @@ const std::string& BaseModel::getName() { return mName; }
 
 Texture* BaseModel::getDiffuseTexture() { return mMeshes[0].mTexture; }
 
-glm::mat4 BaseModel::getGlobalTransform() { return mTransform.getGlobalTransform(mParent); }
+glm::mat4 BaseModel::getGlobalTransform() {
+    auto* root = mParent;
+    while (root != nullptr) {
+        root = mParent->mParent;
+    }
+
+    return mTransform.getGlobalTransform(root);
+}
 
 void BaseModel::update() {
     mTransform.mDirty = true;
