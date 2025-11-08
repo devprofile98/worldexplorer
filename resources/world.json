@@ -1,0 +1,39 @@
+{
+  "objects": [
+    {
+      "id": "house",
+      "name": "house",
+      "path": "ourhome.gltf",
+      "animated": false,
+      "cs": "y",
+      "translate": [-0.483, 2.048, -3.309],
+      "scale": [0.101, 0.101, 0.101],
+      "rotate": [0.0, 0, 0],
+      "childrens": []
+    },
+    {
+      "id": "pistol",
+      "name": "pistol",
+      "path": "pistol/scene.gltf",
+      "animated": false,
+      "cs": "y",
+      "translate": [-0.1, 1.6, 0.6],
+      "scale": [0.1, 0.1, 0.1],
+      "rotate": [0.0, 335, 270],
+      "childrens": ["house"]
+    },
+    {
+      "id": "human",
+      "name": "human",
+      "path": "model2.gltf",
+      "animated": true,
+      "cs": "z",
+      "translate": [-1.2, 2.4, -3.262],
+      "scale": [0.1, 0.1, 0.1],
+      "rotate": [90.0, 0.0, 0.0],
+      "childrens": ["pistol"]
+    }
+  ],
+  "lights": [],
+  "cameras": []
+}
