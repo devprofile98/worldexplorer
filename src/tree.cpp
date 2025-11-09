@@ -606,6 +606,16 @@ struct HumanModel : public IModel {
         };
 };
 
+struct HumanBehaviour : public Behaviour {
+        HumanBehaviour(std::string name) {
+            this->name = name;
+            ModelRegistry::instance().registerBehaviour(name, this);
+        }
+        void sayHello() override { std::cout << "Hello from " << name << '\n'; }
+};
+
+HumanBehaviour humanbehaviour{"human"};
+
 struct HumanModel2 : public IModel {
         HumanModel2(Application* app) {
             mModel = new Model{};

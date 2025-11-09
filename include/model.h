@@ -32,6 +32,7 @@ class Application;
 class Texture;
 class BaseModel;
 class Animation;
+class Behaviour;
 
 struct alignas(4) DrawIndexedIndirectArgs {
         uint32_t indexCount;
@@ -182,6 +183,7 @@ class Model : public BaseModel {
         // std::unordered_map<std::string, aiNode*> mNodeCache;
         // void buildNodeCache(aiNode* node);
 
+        Behaviour* mBehaviour = nullptr;
         const aiScene* mScene;
         Assimp::Importer mImport;
 

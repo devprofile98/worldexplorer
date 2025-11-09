@@ -504,6 +504,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     auto& input_manager = InputManager::instance();
     input_manager.mMouseMoveListeners.push_back(&mEditor.gizmo);
     input_manager.mMouseButtonListeners.push_back(&mEditor.gizmo);
+    BehaviourListener::initialize(this);
+    // input_manager.mKeyListener.push_back(&BehaviourListener::instance());
 
     Screen::instance().initialize(this);
 
@@ -718,6 +720,10 @@ void Application::mainLoop() {
         // }
     }
     // mWaterRenderPass->drawWater();
+    for (const auto& model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+        if (model->mName == "human") {
+        }
+    }
 
     // Depth pre-pass to reduce number of overdraws
     {
