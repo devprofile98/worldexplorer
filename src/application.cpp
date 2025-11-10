@@ -13,6 +13,7 @@
 
 #include "animation.h"
 #include "binding_group.h"
+#include "glm/detail/qualifier.hpp"
 #include "glm/matrix.hpp"
 #include "mesh.h"
 #include "renderpass.h"
@@ -631,6 +632,21 @@ void Application::mainLoop() {
     }
 
     {
+        if (mWorld->actor != nullptr) {
+            // auto cam_pos =
+            //     mWorld->actor->mTransform.getPosition() -
+            //     (glm::vec3{0.0, -0.5, -.3} * mWorld->actor->mBehaviour->getForward() + glm::vec3{0.0, 0.0, -.3});
+
+            auto cam_pos = mWorld->actor->mBehaviour->getForward();
+            cam_pos = {cam_pos.y, -cam_pos.x, cam_pos.z};
+            cam_pos = mWorld->actor->mTransform.getPosition() - (cam_pos + glm::vec3{0.0, 0.0, -.3});
+            // cam_pos = glm::normalize(cam_pos);
+            // cam_pos *= 0.2;
+            if (mWorld->actor->mBehaviour) {
+                mCamera.setPosition(cam_pos);
+                mCamera.setTarget(mWorld->actor->mTransform.getPosition() - cam_pos);
+            }
+        }
         // PerfTimer timer{"tick"};
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
             if (cull_frustum) {

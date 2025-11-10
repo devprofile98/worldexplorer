@@ -2,6 +2,7 @@
 #ifndef WORLD_EXPLORER_WORLD_H
 #define WORLD_EXPLORER_WORLD_H
 
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -17,15 +18,19 @@ struct ObjectLoaderParam {
         glm::vec3 scale;
         glm::vec3 rotate;
         std::vector<std::string> childrens;
+        std::string defaultClip;
+        bool isDefaultActor = false;
 
         ObjectLoaderParam(std::string name, std::string path, bool animated, CoordinateSystem cs, Vec translate,
-                          Vec scale, Vec rotate, std::vector<std::string> childrens);
+                          Vec scale, Vec rotate, std::vector<std::string> childrens, std::string defaultClip);
 };
 
 struct World {
         Model* makeChild(Model* parent, Model* child);
         void removeParent(Model* child);
         void onNewModel(Model* model);
+        Model* actor = nullptr;
+        std::string actorName = "";
 
         void loadWorld();
 

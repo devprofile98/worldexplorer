@@ -7,6 +7,9 @@
 #include "world.h"
 
 void Behaviour::sayHello() { std::cout << "hello from " << name << '\n'; }
+void Behaviour::handleKey(Model* model, KeyEvent event) {}
+void Behaviour::handleMouseMove(Model* model, MouseEvent event) {}
+glm::vec3 Behaviour::getForward() { return glm::vec3{0.0}; }
 
 ModelRegistry& ModelRegistry::instance() {
     static ModelRegistry inst;
@@ -20,6 +23,7 @@ void BehaviourListener::initialize(Application* app) {
     // input_manager.mMouseButtonListeners.push_back(&Screen::instance());
     // input_manager.mMouseScrollListeners.push_back(&Screen::instance());
     input_manager.mKeyListener.push_back(&BehaviourListener::instance());
+    input_manager.mMouseMoveListeners.push_back(&BehaviourListener::instance());
 }
 
 BehaviourListener& BehaviourListener::instance() {
@@ -31,11 +35,19 @@ void BehaviourListener::onKey(KeyEvent event) {
     auto& models = ModelRegistry::instance().getLoadedModel(Visibility_User);
     for (const auto& model : models) {
         if (model->mBehaviour != nullptr) {
-            model->mBehaviour->sayHello();
+            model->mBehaviour->handleKey(model, event);
         }
     }
 }
 
+void BehaviourListener::onMouseMove(MouseEvent event) {
+    auto& models = ModelRegistry::instance().getLoadedModel(Visibility_User);
+    for (const auto& model : models) {
+        if (model->mBehaviour != nullptr) {
+            model->mBehaviour->handleMouseMove(model, event);
+        }
+    }
+}
 void ModelRegistry::registerModel(const std::string& name, FactoryFunc func) { factories[name] = func; }
 
 void ModelRegistry::registerBehaviour(const std::string& name, Behaviour* behaviour) {

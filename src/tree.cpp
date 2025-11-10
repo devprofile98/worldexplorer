@@ -1,6 +1,8 @@
 #include <cstdint>
 #include <random>
 
+#include "GLFW/glfw3.h"
+#include "animation.h"
 #include "application.h"
 #include "glm/fwd.hpp"
 #include "instance.h"
@@ -606,14 +608,135 @@ struct HumanModel : public IModel {
         };
 };
 
+// struct HumanBehaviour : public Behaviour {
+//         HumanBehaviour(std::string name) {
+//             this->name = name;
+//             ModelRegistry::instance().registerBehaviour(name, this);
+//         }
+//         void sayHello() override { std::cout << "Hello from " << name << '\n'; }
+//         void handleKey(Model* model, KeyEvent event) override {
+//             auto e = std::get<Keyboard>(event);
+//
+//             switch (e.key) {
+//                 case GLFW_KEY_W: {
+//                     model->anim->getAction("Jog_Fwd_Loop");
+//                     model->moveBy({0.0, -0.05, 0.0});
+//                     break;
+//                 }
+//                 case GLFW_KEY_S: {
+//                     model->anim->getAction("Jog_Fwd_Loop");
+//                     model->moveBy({0.0, 0.05, 0.0});
+//                     break;
+//                 }
+//                 case GLFW_KEY_A: {
+//                     model->anim->getAction("Jog_Fwd_Loop");
+//                     model->moveBy({0.05, 0.0, 0.0});
+//                     break;
+//                 }
+//                 case GLFW_KEY_D: {
+//                     model->anim->getAction("Jog_Fwd_Loop");
+//                     model->moveBy({-0.05, 0.0, 0.0});
+//                     break;
+//                 }
+//                 default:
+//                     model->anim->getAction("Idle_Loop");
+//                     break;
+//             }
+//             if (e.action == GLFW_RELEASE) {
+//                 model->anim->getAction("Idle_Loop");
+//             }
+//         }
+// };
 struct HumanBehaviour : public Behaviour {
-        HumanBehaviour(std::string name) {
-            this->name = name;
+        std::string name;
+        glm::vec3 front;  // Character's forward direction
+        glm::vec3 up;     // Up vector (typically {0, 1, 0} for world up)
+        float yaw;        // Horizontal rotation angle (degrees)
+        float speed;      // Movement speed (units per second)
+        bool isMoving;    // Track movement state for animation
+        float lastX;
+        float lastY;
+
+        HumanBehaviour(std::string name)
+            : name(name),
+              front(0.0f, -1.0f, 0.0f),  // Forward after 90-degree X rotation
+              up(0.0f, 0.0f, -1.0f),     // Up after 90-degree X rotation
+
+              yaw(90.0f),
+              speed(2.0f),
+              isMoving(false),
+              lastX(0),
+              lastY(0) {
             ModelRegistry::instance().registerBehaviour(name, this);
         }
-        void sayHello() override { std::cout << "Hello from " << name << '\n'; }
-};
 
+        void sayHello() override { std::cout << "Hello from " << name << '\n'; }
+
+        // Handle keyboard input for movement
+        void handleKey(Model* model, KeyEvent event) override {
+            auto e = std::get<Keyboard>(event);
+            glm::vec3 moveDir(0.0f);  // Movement direction relative to front vector
+            isMoving = false;
+
+            if (e.action == GLFW_PRESS || e.action == GLFW_REPEAT) {
+                switch (e.key) {
+                    case GLFW_KEY_W:  // Move forward
+                        moveDir += front;
+                        isMoving = true;
+                        break;
+                    case GLFW_KEY_S:  // Move backward
+                        moveDir -= front;
+                        isMoving = true;
+                        break;
+                    case GLFW_KEY_A:                                       // Strafe left
+                        moveDir -= glm::normalize(glm::cross(front, up));  // Right vector
+                        isMoving = true;
+                        break;
+                    case GLFW_KEY_D:                                       // Strafe right
+                        moveDir += glm::normalize(glm::cross(front, up));  // Right vector
+                        isMoving = true;
+                        break;
+                }
+            }
+
+            // Apply movement scaled by speed and delta time
+            if (isMoving) {
+                float deltaTime = 0.016f;  // Assume 60 FPS for simplicity; replace with actual delta time
+                model->moveBy(moveDir * speed * deltaTime);
+                model->anim->getAction("Jog_Fwd_Loop");
+            } else {
+                model->anim->getAction("Idle_Loop");
+            }
+        }
+
+        // Handle mouse movement for rotation
+        void handleMouseMove(Model* model, MouseEvent event) override {
+            // Sensitivity for mouse movement
+            auto mouse = std::get<Move>(event);
+            float diffX = mouse.xPos - lastX;
+            float diffY = mouse.yPos - lastY;
+            lastX = mouse.xPos;
+            lastY = mouse.yPos;
+
+            float sensitivity = 0.3f;
+
+            // Update yaw based on mouse X movement
+            yaw -= diffX * sensitivity;
+
+            glm::vec3 baseFront(0.0f, -1.0f, 0.0f);  // Model's forward after initial X rotation
+
+            // Apply yaw rotation around the world Y-axis (since yaw is horizontal)
+            glm::mat4 yawRotation = glm::rotate(glm::mat4(1.0f), glm::radians(yaw), glm::vec3(0.0f, 0.0f, 1.0f));
+            front = glm::normalize(glm::vec3(yawRotation * glm::vec4(baseFront, 0.0f)));
+
+            // Update model orientation
+            glm::mat4 initialRotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            glm::mat4 totalRotation = yawRotation * initialRotation;  // Combine yaw and initial X rotation
+            model->rotate(totalRotation);                             // Assume Model has a setRotation method
+        }
+
+        glm::vec3 getForward() override { return glm::normalize(glm::cross(front, up)); }
+};
 HumanBehaviour humanbehaviour{"human"};
 
 struct HumanModel2 : public IModel {

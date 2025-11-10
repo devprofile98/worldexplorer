@@ -6,6 +6,7 @@
 #include <iostream>
 #include <utility>
 
+#include "animation.h"
 #include "application.h"
 #include "extern/json.hpp"
 #include "glm/ext/matrix_float4x4.hpp"
@@ -69,6 +70,9 @@ void World::removeParent(Model* child) {
 
 void World::onNewModel(Model* loadedModel) {
     rootContainer.push_back(loadedModel);
+    if (actorName == loadedModel->mName) {
+        actor = loadedModel;
+    }
     std::cout << "Model " << loadedModel->mName << " Loaded at " << map.at(loadedModel->getName()).path << std::endl;
     // traverse the world to check if the parent and which are its childs
     // There are 2 questions for the newly loaded model:
@@ -99,8 +103,9 @@ end:
 }
 
 ObjectLoaderParam::ObjectLoaderParam(std::string name, std::string path, bool animated, CoordinateSystem cs,
-                                     Vec translate, Vec scale, Vec rotate, std::vector<std::string> childrens)
-    : name(name), path(path), animated(animated), cs(cs), childrens(childrens) {
+                                     Vec translate, Vec scale, Vec rotate, std::vector<std::string> childrens,
+                                     std::string defaultClip)
+    : name(name), path(path), animated(animated), cs(cs), childrens(childrens), defaultClip(defaultClip) {
     this->translate = glm::vec3{translate[0], translate[1], translate[2]};
     this->scale = glm::vec3{scale[0], scale[1], scale[2]};
     this->rotate = glm::vec3{rotate[0], rotate[1], rotate[2]};
@@ -134,12 +139,17 @@ struct BaseModelLoader : public IModel {
                                      0, bones.data(), sizeof(glm::mat4) * bones.size());
             }
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+
+            if (getModel()->mTransform.mObjectInfo.isAnimated) {
+                getModel()->anim->getAction(param.defaultClip);
+            }
         }
 
         Model* getModel() override { return mModel; }
         void onLoad(Application* app, void* params) override {
             (void)params;
             (void)app;
+
             // mModel->moveTo(glm::vec3{-3.950, 13.316, -3.375});
         };
 };
@@ -149,6 +159,9 @@ void World::loadWorld() {
 
     json j;
     json res = j.parse(world_file);
+
+    actorName = res["actor"].get<std::string>();
+
     std::cout << res << std::endl;
     for (const auto& object : res["objects"]) {
         std::cout << "Object " << object["name"] << " at " << object["path"] << "\n";
@@ -162,12 +175,17 @@ void World::loadWorld() {
         std::array<float, 3> scale = object["scale"].get<std::array<float, 3>>();
         std::array<float, 3> rotate = object["rotate"].get<std::array<float, 3>>();
         std::vector<std::string> childs = object["childrens"].get<std::vector<std::string>>();
+        std::string default_clip = object["default_clip"].get<std::string>();
 
-        ObjectLoaderParam param{name, path, is_animated, cs, translate, scale, rotate, childs};
+        ObjectLoaderParam param{name, path, is_animated, cs, translate, scale, rotate, childs, default_clip};
+        param.isDefaultActor = actorName == name;
 
         ModelRegistry::instance().registerModel(name, [param](Application* app) -> LoadModelResult {
             BaseModelLoader model = BaseModelLoader{app, param};
             model.onLoad(app, nullptr);
+            if (param.isDefaultActor) {
+            }
+
             return {model.getModel(), Visibility_User};
         });
         map.emplace(name, param);

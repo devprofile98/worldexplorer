@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <future>
+#include <glm/fwd.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -17,26 +18,20 @@ class Application;
 class Behaviour {
     public:
         virtual void sayHello();
-        virtual void handleKey();
+        virtual void handleKey(Model* model, KeyEvent event);
+        virtual void handleMouseMove(Model* model, MouseEvent event);
+        virtual glm::vec3 getForward();
         std::string name;
 };
 
-class BehaviourListener : public KeyboardListener
-// public MouseMoveListener,
-//            public MouseButtonListener,
-//            public MouseScrollListener,
-{
+class BehaviourListener : public KeyboardListener, MouseMoveListener {
     public:
         static void initialize(Application* app);
-        // void onMouseMove(MouseEvent event) override;
-        // void onMouseClick(MouseEvent event) override;
-        // void onMouseScroll(MouseEvent event) override;
         void onKey(KeyEvent event) override;
         static BehaviourListener& instance();
+        void onMouseMove(MouseEvent event) override;
 
     private:
-        // static inline Application* mApp;
-        // static Screen mInstance;
         BehaviourListener();
 };
 

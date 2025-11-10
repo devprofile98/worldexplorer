@@ -316,11 +316,6 @@ void Animation::update(aiNode* root) {
 Action* Animation::getActiveAction() { return activeAction; }
 
 Action* Animation::getAction(const std::string& actionName) {
-    // if (activeActionIdx < actions.size() - 1) {
-    //     activeActionIdx++;
-    // } else {
-    //     activeActionIdx = 0;
-    // }
     if (actions.count(actionName) != 0) {
         activeAction = actions[actionName];
     }
