@@ -661,7 +661,6 @@ struct HumanBehaviour : public Behaviour {
             : name(name),
               front(0.0f, -1.0f, 0.0f),  // Forward after 90-degree X rotation
               up(0.0f, 0.0f, -1.0f),     // Up after 90-degree X rotation
-
               yaw(90.0f),
               speed(2.0f),
               isMoving(false),
@@ -737,6 +736,7 @@ struct HumanBehaviour : public Behaviour {
 
         glm::vec3 getForward() override { return glm::normalize(glm::cross(front, up)); }
 };
+
 HumanBehaviour humanbehaviour{"human"};
 
 struct HumanModel2 : public IModel {

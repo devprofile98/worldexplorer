@@ -24,16 +24,16 @@ class Behaviour {
         std::string name;
 };
 
-class BehaviourListener : public KeyboardListener, MouseMoveListener {
-    public:
-        static void initialize(Application* app);
-        void onKey(KeyEvent event) override;
-        static BehaviourListener& instance();
-        void onMouseMove(MouseEvent event) override;
-
-    private:
-        BehaviourListener();
-};
+// class BehaviourListener : public KeyboardListener, MouseMoveListener {
+//     public:
+//         static void initialize(Application* app);
+//         void onKey(KeyEvent event) override;
+//         static BehaviourListener& instance();
+//         void onMouseMove(MouseEvent event) override;
+//
+//     private:
+//         BehaviourListener();
+// };
 
 enum ModelVisibility { Visibility_Editor = 0, Visibility_User = 1, Visibility_Other = 100 };
 

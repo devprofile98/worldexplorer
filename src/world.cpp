@@ -1,6 +1,7 @@
 
 #include "world.h"
 
+#include <array>
 #include <fstream>
 #include <glm/fwd.hpp>
 #include <iostream>
@@ -15,6 +16,7 @@
 #include "glm/gtx/string_cast.hpp"
 #include "model.h"
 #include "model_registery.h"
+#include "point_light.h"
 #include "utils.h"
 
 using json = nlohmann::json;
@@ -41,6 +43,12 @@ Model* World::makeChild(Model* parent, Model* child) {
     return nullptr;
 }
 
+World::World(Application* app) : app(app) {
+    auto& input_manager = InputManager::instance();
+    input_manager.mKeyListener.push_back(this);
+    input_manager.mMouseMoveListeners.push_back(this);
+}
+
 void World::removeParent(Model* child) {
     /* In this case, the model should be in the rootContainer of the world, we should remove it from here*/
     if (child->mParent == nullptr) {
@@ -65,6 +73,19 @@ void World::removeParent(Model* child) {
             std::swap(model, vec.back());
             vec.pop_back();
         }
+    }
+}
+
+void World::togglePlayer() {
+    if (actor == nullptr) {
+        for (const auto& model : rootContainer) {
+            if (model->mName == actorName) {
+                actor = model;
+                return;
+            }
+        }
+    } else {
+        actor = nullptr;
     }
 }
 
@@ -102,13 +123,41 @@ stage2:
 end:
 }
 
+void World::onKey(KeyEvent event) {
+    auto& models = rootContainer;
+    if (actor == nullptr) {
+        return;
+    }
+
+    for (const auto& model : models) {
+        if (model->mBehaviour != nullptr) {
+            model->mBehaviour->handleKey(model, event);
+        }
+    }
+}
+
+void World::onMouseMove(MouseEvent event) {
+    auto& models = rootContainer;
+    if (actor == nullptr) {
+        return;
+    }
+
+    for (const auto& model : models) {
+        if (model->mBehaviour != nullptr) {
+            model->mBehaviour->handleMouseMove(model, event);
+        }
+    }
+}
+
+glm::vec3 toGlm(std::array<float, 3> arr) { return glm::vec3{arr[0], arr[1], arr[2]}; }
+
 ObjectLoaderParam::ObjectLoaderParam(std::string name, std::string path, bool animated, CoordinateSystem cs,
                                      Vec translate, Vec scale, Vec rotate, std::vector<std::string> childrens,
                                      std::string defaultClip)
     : name(name), path(path), animated(animated), cs(cs), childrens(childrens), defaultClip(defaultClip) {
-    this->translate = glm::vec3{translate[0], translate[1], translate[2]};
-    this->scale = glm::vec3{scale[0], scale[1], scale[2]};
-    this->rotate = glm::vec3{rotate[0], rotate[1], rotate[2]};
+    this->translate = toGlm(translate);
+    this->scale = toGlm(scale);
+    this->rotate = toGlm(rotate);
 }
 
 struct BaseModelLoader : public IModel {
@@ -154,6 +203,28 @@ struct BaseModelLoader : public IModel {
         };
 };
 
+void parseLights(LightManager* manager, const json& lights) {
+    // light_manager->createPointLight({2.0, 2.0, 1.0, 1.0}, red, red, red, 1.0, 0.7, 1.8, "blue light 3");
+    std::cout << lights << '\n';
+    for (auto& light_obj : lights) {
+        std::string type = light_obj["type"].get<std::string>();
+        std::string name = light_obj["name"].get<std::string>();
+        std::array<float, 3> color = light_obj["color"].get<std::array<float, 3>>();
+        std::array<float, 3> position = light_obj["position"].get<std::array<float, 3>>();
+        if (type == "spot") {
+            std::cout << "One spot light" << color[0] << " " << color[1] << " " << color[2] << std::endl;
+            std::array<float, 3> direction = light_obj["direction"].get<std::array<float, 3>>();
+            float inner_cutoff = light_obj["inner_cutoff"].get<float>();
+            float outer_cutoff = light_obj["outer_cutoff"].get<float>();
+            float linear = light_obj["linear"].get<float>();
+            float quadratic = light_obj["quadratic"].get<float>();
+            manager->createSpotLight(glm::vec4{toGlm(position), 1.0}, glm::vec4{toGlm(direction), 1.0},
+                                     glm::vec4{toGlm(color), 1.0}, inner_cutoff, outer_cutoff, linear, quadratic,
+                                     name.c_str());
+        }
+    }
+}
+
 void World::loadWorld() {
     std::ifstream world_file(RESOURCE_DIR "/world.json");
 
@@ -190,4 +261,8 @@ void World::loadWorld() {
         });
         map.emplace(name, param);
     }
+
+    auto* light_manager = app->mLightManager;
+    parseLights(light_manager, res["lights"]);
+    app->mLightManager->uploadToGpu(app, app->mLightBuffer.getBuffer());
 }

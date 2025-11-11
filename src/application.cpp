@@ -414,10 +414,10 @@ void Application::initializeBuffers() {
 
     mLightManager->createPointLight({-2.5, -5.833, 0.184, 1.0}, red, red, red, 1.0, -3.0, 1.8, "red light 1");
     mLightManager->createPointLight({-1.0, -0.833, 1.0, 1.0}, blue, blue, blue, 1.0, -0.922, 1.8, "blue light 1");
-    mLightManager->createPointLight({-5.0, -3.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8, "blue light 2");
-    mLightManager->createPointLight({2.0, 2.0, 1.0, 1.0}, red, red, red, 1.0, 0.7, 1.8, "blue light 3");
-    mLightManager->createSpotLight({1.0, 2.0, 1.0, 1.0}, {0.0, 0.0, -1.0f, 1.0f}, glm::cos(glm::radians(12.5f)),
-                                   glm::cos(glm::radians(17.5f)), "spotlight");
+    // mLightManager->createPointLight({-5.0, -3.0, 1.0, 1.0}, blue, blue, blue, 1.0, 0.7, 1.8, "blue light 2");
+    // mLightManager->createPointLight({2.0, 2.0, 1.0, 1.0}, red, red, red, 1.0, 0.7, 1.8, "blue light 3");
+    // mLightManager->createSpotLight({1.0, 2.0, 1.0, 1.0}, {0.0, 0.0, -1.0f, 1.0f}, glm::cos(glm::radians(12.5f)),
+    //                                glm::cos(glm::radians(17.5f)), "spotlight");
 
     mLightManager->uploadToGpu(this, mLightBuffer.getBuffer());
 
@@ -505,8 +505,6 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     auto& input_manager = InputManager::instance();
     input_manager.mMouseMoveListeners.push_back(&mEditor.gizmo);
     input_manager.mMouseButtonListeners.push_back(&mEditor.gizmo);
-    BehaviourListener::initialize(this);
-    // input_manager.mKeyListener.push_back(&BehaviourListener::instance());
 
     Screen::instance().initialize(this);
 
@@ -587,7 +585,7 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     initializeBuffers();
     initializePipeline();
 
-    mWorld = new World{};
+    mWorld = new World{this};
 
     // WGPUBufferDescriptor resolveBufferDesc{};
     // resolveBufferDesc.label = {"timing buffer", WGPU_STRLEN};

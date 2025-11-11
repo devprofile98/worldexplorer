@@ -4,11 +4,13 @@
 #include <random>
 #include <variant>
 
+#include "GLFW/glfw3.h"
 #include "application.h"
 #include "glm/gtx/string_cast.hpp"
 #include "input_manager.h"
 #include "model_registery.h"
 #include "utils.h"
+#include "world.h"
 
 BaseModel* GizmoElement::testSelection(Camera& camera, size_t width, size_t height,
                                        std::pair<size_t, size_t> mouseCoord) {
@@ -363,5 +365,8 @@ void Screen::onKey(KeyEvent event) {
 
     } else if (GLFW_KEY_KP_2 == key.key && key.action == GLFW_PRESS) {
     } else if (GLFW_KEY_KP_3 == key.key && key.action == GLFW_PRESS) {
+    } else if (GLFW_KEY_ESCAPE == key.key && key.action == GLFW_PRESS) {
+        std::cout << "escaped pressed!\n";
+        mApp->mWorld->togglePlayer();
     }
 }

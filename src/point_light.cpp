@@ -46,20 +46,21 @@ void LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff
     mLightsNames.push_back(name);
 }
 
-void LightManager::createSpotLight(glm::vec4 pos, glm::vec4 direction, float cutoff, float outerCutoff,
-                                   const char* name) {
+void LightManager::createSpotLight(glm::vec4 pos, glm::vec4 direction, glm::vec4 diff, float cutoff, float outerCutoff,
+                                   float linear, float quadratic, const char* name) {
     (void)cutoff;
     (void)outerCutoff;
     Light light;
     light.mPosition = pos;
     light.mDirection = direction;
-    light.mDiffuse = glm::vec4(1.0, 0.0, 0.0, 1.0);
-    light.mInnerCutoff = 0.97;
-    light.mOuterCutoff = 0.99;
+    light.mDiffuse = diff;
+    light.mAmbient = diff;
+    light.mInnerCutoff = cutoff;
+    light.mOuterCutoff = outerCutoff;
     light.type = SPOT;
     light.mConstant = 1.0;
-    light.mLinear = 0.7;
-    light.mQuadratic = 1.8;
+    light.mLinear = linear;
+    light.mQuadratic = quadratic;
 
     mLights.push_back(light);
     mLightsNames.push_back(name);
