@@ -9,7 +9,8 @@
       "translate": [-0.483, 2.048, -3.309],
       "scale": [0.101, 0.101, 0.101],
       "rotate": [0.0, 0, 0],
-      "childrens": []
+      "childrens": [],
+      "default_clip": ""
     },
     {
       "id": "pistol",
@@ -20,7 +21,8 @@
       "translate": [-0.1, 1.6, 0.6],
       "scale": [0.1, 0.1, 0.1],
       "rotate": [0.0, 335, 270],
-      "childrens": ["house"]
+      "childrens": ["house"],
+      "default_clip": ""
     },
     {
       "id": "human",
@@ -31,9 +33,34 @@
       "translate": [-1.2, 2.4, -3.262],
       "scale": [0.1, 0.1, 0.1],
       "rotate": [90.0, 0.0, 0.0],
-      "childrens": ["pistol"]
+      "childrens": ["pistol"],
+      "default_clip": "Idle_Loop"
     }
   ],
-  "lights": [],
-  "cameras": []
+  "lights": [
+    {
+      "type": "spot",
+      "name": "red light",
+      "color": [1.0, 0.0, 0.0],
+      "position": [-1.2, 2.4, -1.416],
+      "direction": [0.0, 0.0, -1.0],
+      "inner_cutoff": 0.939,
+      "outer_cutoff": 0.935,
+      "linear": 0.08,
+      "quadratic": 0.04
+    },
+    {
+      "type": "spot",
+      "name": "green light",
+      "color": [0.0, 1.0, 0.0],
+      "position": [-1.2, 3.4, -1.416],
+      "direction": [0.0, 0.0, -1.0],
+      "inner_cutoff": 0.939,
+      "outer_cutoff": 0.935,
+      "linear": 0.08,
+      "quadratic": 0.04
+    }
+  ],
+  "cameras": [],
+  "actor": "human"
 }
