@@ -4,6 +4,7 @@
 #include "GLFW/glfw3.h"
 #include "animation.h"
 #include "application.h"
+#include "glm/ext/matrix_common.hpp"
 #include "glm/fwd.hpp"
 #include "instance.h"
 #include "model.h"
@@ -647,32 +648,48 @@ struct HumanModel : public IModel {
 //             }
 //         }
 // };
+
+struct CameraTransition {
+        bool active;
+        glm::vec3 from;
+        glm::vec3 to;
+        float timeLeft;
+};
+
 struct HumanBehaviour : public Behaviour {
         std::string name;
         glm::vec3 front;  // Character's forward direction
         glm::vec3 up;     // Up vector (typically {0, 1, 0} for world up)
-        float yaw;        // Horizontal rotation angle (degrees)
-        float speed;      // Movement speed (units per second)
-        bool isMoving;    // Track movement state for animation
+        glm::vec3 targetDistance;
+        glm::vec3 targetOffset;
+        float yaw;      // Horizontal rotation angle (degrees)
+        float speed;    // Movement speed (units per second)
+        bool isMoving;  // Track movement state for animation
+        bool isAiming;
         float lastX;
         float lastY;
+        CameraTransition transitoin;
 
         HumanBehaviour(std::string name)
             : name(name),
               front(0.0f, -1.0f, 0.0f),  // Forward after 90-degree X rotation
               up(0.0f, 0.0f, -1.0f),     // Up after 90-degree X rotation
+              targetDistance(0.3),
+              targetOffset(0.0, 0.0, 0.2),
               yaw(90.0f),
-              speed(2.0f),
+              speed(1.0f),
               isMoving(false),
+              isAiming(false),
               lastX(0),
-              lastY(0) {
+              lastY(0),
+              transitoin({false, glm::vec3{0.0}, glm::vec3{0.0}, 0.0}) {
             ModelRegistry::instance().registerBehaviour(name, this);
         }
 
         void sayHello() override { std::cout << "Hello from " << name << '\n'; }
 
         // Handle keyboard input for movement
-        void handleKey(Model* model, KeyEvent event) override {
+        void handleKey(Model* model, KeyEvent event, float dt) override {
             auto e = std::get<Keyboard>(event);
             glm::vec3 moveDir(0.0f);  // Movement direction relative to front vector
             isMoving = false;
@@ -700,7 +717,7 @@ struct HumanBehaviour : public Behaviour {
 
             // Apply movement scaled by speed and delta time
             if (isMoving) {
-                float deltaTime = 0.016f;  // Assume 60 FPS for simplicity; replace with actual delta time
+                float deltaTime = dt;  // Assume 60 FPS for simplicity; replace with actual delta time
                 model->moveBy(moveDir * speed * deltaTime);
                 model->anim->getAction("Jog_Fwd_Loop");
             } else {
@@ -732,6 +749,73 @@ struct HumanBehaviour : public Behaviour {
             glm::mat4 initialRotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
             glm::mat4 totalRotation = yawRotation * initialRotation;  // Combine yaw and initial X rotation
             model->rotate(totalRotation);                             // Assume Model has a setRotation method
+        }
+
+        void handleMouseClick(Model* model, MouseEvent event) override {
+            auto mouse = std::get<Click>(event);
+            if (mouse.action == GLFW_PRESS) {
+                // Set the flag when the button is pressed
+                // rightMouseButtonDown = true;
+                model->anim->getAction("Pistol_Idle_Loop");
+                if (!transitoin.active) {
+                    transitoin.from = glm::vec3{0.3};
+                    transitoin.to = glm::vec3{0.2};
+                    transitoin.active = true;
+                    transitoin.timeLeft = 0.5;
+                }
+            } else if (mouse.action == GLFW_RELEASE) {
+                // Reset the flag when the button is released
+                // rightMouseButtonDown = false;
+                model->anim->getAction("Idle_Loop");
+                if (!transitoin.active) {
+                    transitoin.from = glm::vec3{0.2};
+                    transitoin.to = glm::vec3{0.3};
+                    transitoin.timeLeft = 0.5;
+                    transitoin.active = true;
+                }
+            }
+        }
+        void handleMouseScroll(Model* model, MouseEvent event) override {
+            auto scroll = std::get<Scroll>(event);
+            targetDistance += scroll.yOffset < 0 ? -0.1 : 0.1;
+        }
+
+        void handleAttachedCamera(Model* model, Camera* camera) override {
+            auto forward = getForward();
+
+            // Compute the offset direction (modify as needed based on your coordinate system)
+            glm::vec3 offset_dir = {forward.y, -forward.x, forward.z};  // Your existing transformation
+            offset_dir = glm::normalize(offset_dir);                    // Normalize to get a unit vector
+
+            // Apply the user-defined distance and any additional offset (e.g., vertical adjustment)
+            glm::vec3 camera_offset = offset_dir * targetDistance + (-targetOffset);
+
+            // Compute the camera position by subtracting the offset from the actor's position
+            glm::vec3 cam_pos = model->mTransform.getPosition() - camera_offset;
+
+            if (model->mBehaviour) {
+                // Set the camera position
+                camera->setPosition(cam_pos);
+                // Set the camera to look at the actor's position
+                camera->setTarget(model->mTransform.getPosition() + targetOffset - cam_pos);
+            }
+        }
+
+        void update(float dt) override {
+            if (transitoin.active) {
+                // std::cout << "dt: " << dt << std::endl;
+                //
+                transitoin.timeLeft -= dt;
+                auto t = glm::clamp(transitoin.timeLeft, 0.0f, 1.0f);  // Safety
+
+                // Pick your ease (smoothstep example)
+                float eased_t = t * t * (3.0f - 2.0f * t);
+                targetDistance = glm::mix(transitoin.from, transitoin.to, 1 - eased_t);
+
+                if (transitoin.timeLeft <= 0) {
+                    transitoin.active = false;
+                }
+            }
         }
 
         glm::vec3 getForward() override { return glm::normalize(glm::cross(front, up)); }

@@ -47,6 +47,8 @@ World::World(Application* app) : app(app) {
     auto& input_manager = InputManager::instance();
     input_manager.mKeyListener.push_back(this);
     input_manager.mMouseMoveListeners.push_back(this);
+    input_manager.mMouseButtonListeners.push_back(this);
+    input_manager.mMouseScrollListeners.push_back(this);
 }
 
 void World::removeParent(Model* child) {
@@ -131,7 +133,7 @@ void World::onKey(KeyEvent event) {
 
     for (const auto& model : models) {
         if (model->mBehaviour != nullptr) {
-            model->mBehaviour->handleKey(model, event);
+            model->mBehaviour->handleKey(model, event, delta);
         }
     }
 }
@@ -145,6 +147,32 @@ void World::onMouseMove(MouseEvent event) {
     for (const auto& model : models) {
         if (model->mBehaviour != nullptr) {
             model->mBehaviour->handleMouseMove(model, event);
+        }
+    }
+}
+
+void World::onMouseClick(MouseEvent event) {
+    auto& models = rootContainer;
+    if (actor == nullptr) {
+        return;
+    }
+
+    for (const auto& model : models) {
+        if (model->mBehaviour != nullptr) {
+            model->mBehaviour->handleMouseClick(model, event);
+        }
+    }
+}
+
+void World::onMouseScroll(MouseEvent event) {
+    auto& models = rootContainer;
+    if (actor == nullptr) {
+        return;
+    }
+
+    for (const auto& model : models) {
+        if (model->mBehaviour != nullptr) {
+            model->mBehaviour->handleMouseScroll(model, event);
         }
     }
 }

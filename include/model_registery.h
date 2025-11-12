@@ -14,26 +14,21 @@
 
 class Model;  // Forward declaration
 class Application;
+class Camera;
 
 class Behaviour {
     public:
         virtual void sayHello();
-        virtual void handleKey(Model* model, KeyEvent event);
+        virtual void handleKey(Model* model, KeyEvent event, float dt);
         virtual void handleMouseMove(Model* model, MouseEvent event);
+        virtual void handleMouseClick(Model* model, MouseEvent event);
+        virtual void handleMouseScroll(Model* model, MouseEvent event);
+        virtual void handleAttachedCamera(Model* model, Camera* camera);
+        virtual void update(float dt);
         virtual glm::vec3 getForward();
+
         std::string name;
 };
-
-// class BehaviourListener : public KeyboardListener, MouseMoveListener {
-//     public:
-//         static void initialize(Application* app);
-//         void onKey(KeyEvent event) override;
-//         static BehaviourListener& instance();
-//         void onMouseMove(MouseEvent event) override;
-//
-//     private:
-//         BehaviourListener();
-// };
 
 enum ModelVisibility { Visibility_Editor = 0, Visibility_User = 1, Visibility_Other = 100 };
 

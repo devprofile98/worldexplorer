@@ -27,19 +27,22 @@ struct ObjectLoaderParam {
                           Vec scale, Vec rotate, std::vector<std::string> childrens, std::string defaultClip);
 };
 
-struct World : public KeyboardListener, MouseMoveListener {
+struct World : public KeyboardListener, MouseMoveListener, MouseButtonListener, MouseScrollListener {
         World(Application* core);
         Model* makeChild(Model* parent, Model* child);
         void removeParent(Model* child);
         void onNewModel(Model* model);
         Model* actor = nullptr;
         std::string actorName = "";
+        float delta = 0.16;
 
         void togglePlayer();
         void loadWorld();
 
         void onKey(KeyEvent event) override;
         void onMouseMove(MouseEvent event) override;
+        void onMouseClick(MouseEvent event) override;
+        void onMouseScroll(MouseEvent event) override;
 
         std::vector<Model*> rootContainer;
         std::unordered_map<std::string, ObjectLoaderParam> map;

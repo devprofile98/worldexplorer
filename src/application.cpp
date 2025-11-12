@@ -610,6 +610,7 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     return true;
 }
 
+static float last_frame_time = 0.0;
 void Application::mainLoop() {
     glfwPollEvents();
 
@@ -620,6 +621,9 @@ void Application::mainLoop() {
         glfwPollEvents();
     }
     double time = glfwGetTime();
+    double delta_time = time - last_frame_time;
+    last_frame_time = time;
+    mWorld->delta = delta_time;
 
     {
         ZoneScopedNC("next surface", 0xFFFA00);
@@ -631,19 +635,8 @@ void Application::mainLoop() {
 
     {
         if (mWorld->actor != nullptr) {
-            // auto cam_pos =
-            //     mWorld->actor->mTransform.getPosition() -
-            //     (glm::vec3{0.0, -0.5, -.3} * mWorld->actor->mBehaviour->getForward() + glm::vec3{0.0, 0.0, -.3});
-
-            auto cam_pos = mWorld->actor->mBehaviour->getForward();
-            cam_pos = {cam_pos.y, -cam_pos.x, cam_pos.z};
-            cam_pos = mWorld->actor->mTransform.getPosition() - (cam_pos + glm::vec3{0.0, 0.0, -.3});
-            // cam_pos = glm::normalize(cam_pos);
-            // cam_pos *= 0.2;
-            if (mWorld->actor->mBehaviour) {
-                mCamera.setPosition(cam_pos);
-                mCamera.setTarget(mWorld->actor->mTransform.getPosition() - cam_pos);
-            }
+            mWorld->actor->mBehaviour->handleAttachedCamera(mWorld->actor, &mCamera);
+            mWorld->actor->mBehaviour->update(delta_time);
         }
         // PerfTimer timer{"tick"};
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {

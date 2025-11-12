@@ -18,10 +18,10 @@
       "path": "pistol/scene.gltf",
       "animated": false,
       "cs": "y",
-      "translate": [-0.1, 1.6, 0.6],
-      "scale": [0.1, 0.1, 0.1],
+      "translate": [-1.215, 2.325, -3.107],
+      "scale": [0.009, 0.009, 0.009],
       "rotate": [0.0, 335, 270],
-      "childrens": ["house"],
+      "childrens": [],
       "default_clip": ""
     },
     {
@@ -35,30 +35,42 @@
       "rotate": [90.0, 0.0, 0.0],
       "childrens": ["pistol"],
       "default_clip": "Idle_Loop"
+    },
+    {
+      "id": "robot",
+      "name": "robot",
+      "path": "dance2.gltf",
+      "animated": true,
+      "cs": "z",
+      "translate": [-1.2, 3.2, -3.262],
+      "scale": [0.1, 0.1, 0.1],
+      "rotate": [90.0, 0.0, 0.0],
+      "childrens": [],
+      "default_clip": ""
     }
   ],
   "lights": [
     {
       "type": "spot",
       "name": "red light",
-      "color": [1.0, 0.0, 0.0],
-      "position": [-1.2, 2.4, -1.416],
+      "color": [1.0, 0.9, 0.55],
+      "position": [-1.2, 2.4, -0.222],
       "direction": [0.0, 0.0, -1.0],
-      "inner_cutoff": 0.939,
-      "outer_cutoff": 0.935,
+      "inner_cutoff": 0.399,
+      "outer_cutoff": 0.353,
       "linear": 0.08,
       "quadratic": 0.04
     },
     {
       "type": "spot",
-      "name": "green light",
-      "color": [0.0, 1.0, 0.0],
+      "name": "purple light",
+      "color": [0.25, 0.0, 0.3],
       "position": [-1.2, 3.4, -1.416],
-      "direction": [0.0, 0.0, -1.0],
+      "direction": [0.0, -0.2, -1.0],
       "inner_cutoff": 0.939,
       "outer_cutoff": 0.935,
-      "linear": 0.08,
-      "quadratic": 0.04
+      "linear": -0.171,
+      "quadratic": -0.127
     }
   ],
   "cameras": [],
