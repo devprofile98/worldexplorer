@@ -704,12 +704,12 @@ struct HumanBehaviour : public Behaviour {
                         moveDir -= front;
                         isMoving = true;
                         break;
-                    case GLFW_KEY_A:                                       // Strafe left
-                        moveDir -= glm::normalize(glm::cross(front, up));  // Right vector
+                    case GLFW_KEY_A:
+                        moveDir -= glm::normalize(glm::cross(front, up));
                         isMoving = true;
                         break;
-                    case GLFW_KEY_D:                                       // Strafe right
-                        moveDir += glm::normalize(glm::cross(front, up));  // Right vector
+                    case GLFW_KEY_D:
+                        moveDir += glm::normalize(glm::cross(front, up));
                         isMoving = true;
                         break;
                 }

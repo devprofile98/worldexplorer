@@ -16,6 +16,8 @@ class Model;  // Forward declaration
 class Application;
 class Camera;
 
+/* Base class for element behaviours, for example: models can inherit from it or have a component of this type to be
+ * able to handle Input events */
 class Behaviour {
     public:
         virtual void sayHello();
