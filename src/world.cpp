@@ -129,6 +129,7 @@ void World::onKey(KeyEvent event) {
         return;
     }
 
+    /* Send the event to every registered model with a behaviour*/
     for (const auto& model : models) {
         if (model->mBehaviour != nullptr) {
             model->mBehaviour->handleKey(model, event);
@@ -142,6 +143,7 @@ void World::onMouseMove(MouseEvent event) {
         return;
     }
 
+    /* Send the event to every registered model with a behaviour*/
     for (const auto& model : models) {
         if (model->mBehaviour != nullptr) {
             model->mBehaviour->handleMouseMove(model, event);

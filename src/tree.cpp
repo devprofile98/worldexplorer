@@ -608,49 +608,10 @@ struct HumanModel : public IModel {
         };
 };
 
-// struct HumanBehaviour : public Behaviour {
-//         HumanBehaviour(std::string name) {
-//             this->name = name;
-//             ModelRegistry::instance().registerBehaviour(name, this);
-//         }
-//         void sayHello() override { std::cout << "Hello from " << name << '\n'; }
-//         void handleKey(Model* model, KeyEvent event) override {
-//             auto e = std::get<Keyboard>(event);
-//
-//             switch (e.key) {
-//                 case GLFW_KEY_W: {
-//                     model->anim->getAction("Jog_Fwd_Loop");
-//                     model->moveBy({0.0, -0.05, 0.0});
-//                     break;
-//                 }
-//                 case GLFW_KEY_S: {
-//                     model->anim->getAction("Jog_Fwd_Loop");
-//                     model->moveBy({0.0, 0.05, 0.0});
-//                     break;
-//                 }
-//                 case GLFW_KEY_A: {
-//                     model->anim->getAction("Jog_Fwd_Loop");
-//                     model->moveBy({0.05, 0.0, 0.0});
-//                     break;
-//                 }
-//                 case GLFW_KEY_D: {
-//                     model->anim->getAction("Jog_Fwd_Loop");
-//                     model->moveBy({-0.05, 0.0, 0.0});
-//                     break;
-//                 }
-//                 default:
-//                     model->anim->getAction("Idle_Loop");
-//                     break;
-//             }
-//             if (e.action == GLFW_RELEASE) {
-//                 model->anim->getAction("Idle_Loop");
-//             }
-//         }
-// };
 struct HumanBehaviour : public Behaviour {
         std::string name;
         glm::vec3 front;  // Character's forward direction
-        glm::vec3 up;     // Up vector (typically {0, 1, 0} for world up)
+        glm::vec3 up;     // Up vector for world up
         float yaw;        // Horizontal rotation angle (degrees)
         float speed;      // Movement speed (units per second)
         bool isMoving;    // Track movement state for animation
@@ -687,12 +648,12 @@ struct HumanBehaviour : public Behaviour {
                         moveDir -= front;
                         isMoving = true;
                         break;
-                    case GLFW_KEY_A:                                       // Strafe left
-                        moveDir -= glm::normalize(glm::cross(front, up));  // Right vector
+                    case GLFW_KEY_A:
+                        moveDir -= glm::normalize(glm::cross(front, up));
                         isMoving = true;
                         break;
-                    case GLFW_KEY_D:                                       // Strafe right
-                        moveDir += glm::normalize(glm::cross(front, up));  // Right vector
+                    case GLFW_KEY_D:
+                        moveDir += glm::normalize(glm::cross(front, up));
                         isMoving = true;
                         break;
                 }

@@ -15,25 +15,16 @@
 class Model;  // Forward declaration
 class Application;
 
+/* Base class for element behaviours, for example: models can inherit from it or have a component of this type to be
+ * able to handle Input events */
 class Behaviour {
     public:
         virtual void sayHello();
         virtual void handleKey(Model* model, KeyEvent event);
         virtual void handleMouseMove(Model* model, MouseEvent event);
-        virtual glm::vec3 getForward();
+        virtual glm::vec3 getForward(); /* Get the front axis (rotation) of the element */
         std::string name;
 };
-
-// class BehaviourListener : public KeyboardListener, MouseMoveListener {
-//     public:
-//         static void initialize(Application* app);
-//         void onKey(KeyEvent event) override;
-//         static BehaviourListener& instance();
-//         void onMouseMove(MouseEvent event) override;
-//
-//     private:
-//         BehaviourListener();
-// };
 
 enum ModelVisibility { Visibility_Editor = 0, Visibility_User = 1, Visibility_Other = 100 };
 
