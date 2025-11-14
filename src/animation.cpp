@@ -226,7 +226,6 @@ glm::mat4 Animation::getLocalTransformAtTime(const aiNode* node, double time) {
 
 void Animation::computeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, double time,
                                         std::map<std::string, glm::mat4>& outGlobalMap) {
-    glm::mat4 yzSwap(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f);
     glm::mat4 local = getLocalTransformAtTime(node, time);
     glm::mat4 global = parentGlobal * local;
 
@@ -251,6 +250,7 @@ bool Animation::initAnimation(const aiScene* scene) {
             for (size_t i = 0; i < anim->mNumChannels; ++i) {
                 aiNodeAnim* channel = anim->mChannels[i];
 
+                // std::cout << " ------------------------------------------------------------\n";
                 // storing bone datas
                 Bone* b = new Bone{};
                 for (size_t i = 0; i < channel->mNumPositionKeys; ++i) {
@@ -267,10 +267,16 @@ bool Animation::initAnimation(const aiScene* scene) {
                 }
                 b->id = action->Bonemap.size();
                 action->Bonemap[channel->mNodeName.C_Str()] = b;
-                std::cout << "\tChannel with name " << channel->mNodeName.C_Str() << " have data\n";
+                // std::cout << "\tChannel with name " << channel->mNodeName.C_Str()
+                //           << " has data : trans: " << b->channel.translations.size()
+                //           << " scales:  " << b->channel.scales.size() << " rotations:  " << b->channel.quats.size()
+                //           << std::endl;
+                // std::cout << " ------------------------------------------------------------\n";
             }
+            std::cout << " Model have: " << scene->mNumMeshes << " Meshes \n";
             for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
                 aiMesh* mesh = scene->mMeshes[m];
+                std::cout << " \tMesh have: " << mesh->mBones << " Bones \n";
                 for (unsigned int b = 0; b < mesh->mNumBones; ++b) {
                     aiBone* bone = mesh->mBones[b];
                     std::string boneName = bone->mName.C_Str();

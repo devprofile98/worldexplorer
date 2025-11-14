@@ -172,7 +172,7 @@ struct BoneModel : public IModel {
 
             mModel->load("bone", app, RESOURCE_DIR "/sphere.glb", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{1, 1, 1})
-                .scale(glm::vec3{.1f});
+                .scale(glm::vec3{.01f});
             // mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
             mModel->uploadToGPU(app);
             mModel->mTransform.getLocalTransform();
@@ -184,10 +184,67 @@ struct BoneModel : public IModel {
         void onLoad(Application* app, void* params) override {
             (void)params;
             (void)app;
-            auto** gizmo_part = static_cast<BaseModel**>(params);
-            *gizmo_part = this->mModel;
+            auto** indicator_bone = static_cast<BaseModel**>(params);
+            *indicator_bone = this->mModel;
+
+            std::vector<glm::vec3> positions;
+            std::vector<float> degrees;
+            std::vector<glm::vec3> scales;
+            positions.reserve(5);
+            degrees.reserve(5);
+            scales.reserve(5);
+
+            for (size_t i = 0; i < 5; i++) {
+                positions.emplace_back(glm::vec3{i, i, i});
+                degrees.emplace_back(glm::radians(0.0));
+                scales.emplace_back(glm::vec3{0.9f});
+            }
+
+            // std::cout << mModel->getName() << positions[0];
+            // positions[1] = mModel->mTransform.getPosition();
+            auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0},     degrees,
+                                     scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
+
+            wgpuQueueWriteBuffer(app->getRendererResource().queue,
+                                 app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
+                                 ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size() - 1));
+
+            std::cout << "(((((((((((((((( in mesh " << mModel->mMeshes.size() << std::endl;
+
+            mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for bone indicator "))
+                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+                          WGPUBufferUsage_CopyDst)
+                .setSize(sizeof(DrawIndexedIndirectArgs))
+                .setMappedAtCraetion()
+                .create(app);
+
+            auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
+                                 &indirect, sizeof(DrawIndexedIndirectArgs));
+
+            for (auto& [mat_id, mesh] : mModel->mMeshes) {
+                mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())
+                    .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
+                    .setSize(sizeof(DrawIndexedIndirectArgs))
+                    .setMappedAtCraetion()
+                    .create(app);
+
+                std::cout << ")))))))))))) For " << mModel->getName() << &mesh << " Index count is "
+                          << static_cast<uint32_t>(mesh.mIndexData.size()) << std::endl;
+                auto indirect = DrawIndexedIndirectArgs{static_cast<uint32_t>(mesh.mIndexData.size()), 0, 0, 0, 0};
+                wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0,
+                                     &indirect, sizeof(DrawIndexedIndirectArgs));
+            }
+
+            mModel->mTransform.mObjectInfo.instanceOffsetId = 0;
+            mModel->setInstanced(ins);
+
+            std::cout << "--------------------Barrier reached ----------------- for tree"
+                      << mModel->instance->getInstanceCount() << '\n';
         };
 };
+
+;
 
 struct GizmoModelX : public IModel {
         GizmoModelX(Application* app) {

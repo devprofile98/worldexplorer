@@ -24,8 +24,10 @@
 #include "assimp/quaternion.h"
 #include "assimp/vector3.h"
 #include "glm/ext/matrix_common.hpp"
+#include "glm/gtc/quaternion.hpp"
 #include "mesh.h"
 #include "texture.h"
+#include "utils.h"
 #include "wgpu_utils.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -114,16 +116,19 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
 }
 
 void Model::updateAnimation(float dt) {
-    if (mTransform.mObjectInfo.isAnimated) {
+    if (mTransform.mObjectInfo.isAnimated || mName == "tire") {
         anim->getActiveAction()->mAnimationSecond =
             std::fmod(dt, anim->getActiveAction()->mAnimationDuration) * 1000.0f;
         anim->update(mScene->mRootNode);
+        if (mName == "tire") {
+            // std::cout << " ..... " << glm::to_string(mScene->mRootNode->mTransformation) << std::endl;
+        }
     } else {
         return;
     }
 
     // TODO: fix this rotation, we need a 90 degree rotation to be aligned with z-up coordinate system of the mesh data
-    auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(0.0f), glm::vec3{0.0, 0.0, 1.0});
+    // auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(0.0f), glm::vec3{0.0, 0.0, 1.0});
 
     // for (const std::string& boneName : anim->uniqueBones) {
     Action* action = anim->getActiveAction();
@@ -132,9 +137,25 @@ void Model::updateAnimation(float dt) {
         const auto& global = action->calculatedTransform[boneName];
         const auto& offset = action->Bonemap[boneName]->offsetMatrix;
 
-        auto temp1 = global * offset;
-        auto final = temp1 * rot;
+        auto final = global * offset;
+        // auto final = temp1 * rot;
 
+        if (mName == "tire") {
+            // mTransform.mObjectInfo.isAnimated = false;
+            auto [t, s, r] = decomposeTransformation(global);
+            // moveTo(t);
+            // s.y = 1;
+            // s.x = 1;
+            // s.z = 1;
+            // scale(s);
+            // rotate(r);
+            auto simple_scale = glm::scale(glm::mat4{1.0}, s);
+            auto simple_rot = glm::mat4_cast(r);
+
+            // std::cout << glm::to_string(AiToGlm(mScene->mRootNode->mTransformation)) << std::endl;
+            anim->mFinalTransformations[action->Bonemap[boneName]->id] = global;
+            return;
+        }
         if (std::isfinite(final[0][0])) {
             anim->mFinalTransformations[action->Bonemap[boneName]->id] = final;
         }

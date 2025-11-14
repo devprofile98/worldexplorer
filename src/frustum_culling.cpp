@@ -90,17 +90,12 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
 	    firstInstance: u32,
 	};
 
-	struct ObjectInfo {
-	    transformations: mat4x4f,
-	    isFlat: i32,
-	    useTexture: i32,
-	    isFoliage: i32,
-	    offsetId: u32,
-	    isHovered: u32,
-	    materialProps: u32,
-	    metallicness: f32,
-	    offset3: u32
-	}
+    struct ObjectInfo {
+        transformations: mat4x4f,
+        offsetId: u32,
+        isHovered: u32,
+        isAnimated: u32,
+    }
 
     struct Camera {
         projectionMatrix: mat4x4f,
@@ -297,16 +292,16 @@ void runFrustumCullingTask(Application* app, WGPUCommandEncoder encoder) {
                                                                          model->mIndirectDrawArgsBuffer.getBuffer());
             wgpuComputePassEncoderSetBindGroup(compute_pass_encoder, 1, objectinfo_bg, 0, nullptr);
 
-            uint32_t workgroup_size_x = 32;  // Must match shader's @workgroup_size(32)
-            uint32_t num_workgroups_x =
-                (model->instance->getInstanceCount() + workgroup_size_x - 1) / workgroup_size_x;  // Ceil division
+            // uint32_t workgroup_size_x = 32;  // Must match shader's @workgroup_size(32)
+            // uint32_t num_workgroups_x =
+            //     (model->instance->getInstanceCount() + workgroup_size_x - 1) / workgroup_size_x;  // Ceil division
             // std::cout << num_workgroups_x << '\n';
 
-            wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, num_workgroups_x, 1, 1);
+            // wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, num_workgroups_x, 1, 1);
             //
-            // uint32_t workgroup_size_x = 32;  // Must match shader's @workgroup_size(32)
-            // uint32_t num_workgroups_x = ((31 * 3) + workgroup_size_x - 1) / workgroup_size_x;  // Ceil division
-            // wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, 2, 1, 1);
+            uint32_t workgroup_size_x = 32;  // Must match shader's @workgroup_size(32)
+            uint32_t num_workgroups_x = ((31 * 3) + workgroup_size_x - 1) / workgroup_size_x;  // Ceil division
+            wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, num_workgroups_x, 1, 1);
 
             // End the compute pass
             wgpuComputePassEncoderEnd(compute_pass_encoder);

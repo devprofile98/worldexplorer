@@ -96,29 +96,35 @@ void World::onNewModel(Model* loadedModel) {
     if (actorName == loadedModel->mName) {
         actor = loadedModel;
     }
-    std::cout << "Model " << loadedModel->mName << " Loaded at " << map.at(loadedModel->getName()).path << std::endl;
+    // std::cout << "Model " << loadedModel->mName << " Loaded at " << map.at(loadedModel->getName()).path << std::endl;
     // traverse the world to check if the parent and which are its childs
     // There are 2 questions for the newly loaded model:
     // 1 - Is any of the loaded models your child?
     for (auto* model : rootContainer) {
-        for (const auto& name : map.at(loadedModel->mName).childrens) {
-            if (model->mName == name) {
-                removeParent(model);
-                makeChild(loadedModel, model);
-                std::cout << "@@@@@@@@@@@@@@@@ " << loadedModel->mName << " is the parent for " << model->mName << '\n';
-                goto stage2;
+        if (map.contains(loadedModel->mName)) {
+            for (const auto& name : map.at(loadedModel->mName).childrens) {
+                if (model->mName == name) {
+                    removeParent(model);
+                    makeChild(loadedModel, model);
+                    std::cout << "@@@@@@@@@@@@@@@@ " << loadedModel->mName << " is the parent for " << model->mName
+                              << '\n';
+                    goto stage2;
+                }
             }
         }
     }
 stage2:
     // 2 - are you a child for any of these loaded models?
     for (auto* model : rootContainer) {
-        for (const auto& name : map.at(model->mName).childrens) {
-            if (name == loadedModel->mName) {
-                removeParent(loadedModel);
-                makeChild(model, loadedModel);
-                std::cout << "@@@@@@@@@@@@@@@@ " << loadedModel->mName << " is a child for " << model->mName << '\n';
-                goto end;
+        if (map.contains(model->mName)) {
+            for (const auto& name : map.at(model->mName).childrens) {
+                if (name == loadedModel->mName) {
+                    removeParent(loadedModel);
+                    makeChild(model, loadedModel);
+                    std::cout << "@@@@@@@@@@@@@@@@ " << loadedModel->mName << " is a child for " << model->mName
+                              << '\n';
+                    goto end;
+                }
             }
         }
     }

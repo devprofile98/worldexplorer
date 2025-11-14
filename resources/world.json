@@ -47,6 +47,18 @@
       "rotate": [90.0, 0.0, 0.0],
       "childrens": [],
       "default_clip": ""
+    },
+    {
+      "id": "tire",
+      "name": "tire",
+      "path": "tire.gltf",
+      "animated": true,
+      "cs": "y",
+      "translate": [-2.5, 1.144, -3.247],
+      "scale": [0.1, 0.1, 0.1],
+      "rotate": [0.0, 0.0, 0.0],
+      "childrens": [],
+      "default_clip": ""
     }
   ],
   "lights": [

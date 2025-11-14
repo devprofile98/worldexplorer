@@ -656,6 +656,42 @@ void Application::mainLoop() {
         // }
     }
 
+    if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
+        auto* aaa = reinterpret_cast<Model*>(mSelectedModel);
+
+        for (const auto& m : mWorld->rootContainer) {
+            if (m->mName == "sphere") {
+                m->instance->mInstanceBuffer.clear();
+                // [boneName];
+                // action->
+                // for (auto [name, bone] : aaa->anim->activeAction->Bonemap) {
+                for (auto [name, trans] : aaa->anim->activeAction->calculatedTransform) {
+                    // auto trans = aaa->mTransform.mTransformMatrix * aaa->anim->mFinalTransformations[bone->id];
+                    auto [t, s, r] = decomposeTransformation(aaa->mTransform.mTransformMatrix * trans);
+                    auto final_trans = glm::translate(glm::mat4{1.0}, t);
+                    auto final_scale = glm::scale(glm::mat4{1.0}, glm::vec3{0.005});
+                    auto final_rot = glm::mat4_cast(r);
+
+                    m->instance->mInstanceBuffer.push_back(InstanceData{
+                        final_trans * final_rot * final_scale,
+                        glm::vec4{t, 1.0} - glm::vec4{0.1, 0.1, 0.1, 1.0},
+                        glm::vec4{t, 1.0} + glm::vec4{0.1, 0.1, 0.1, 1.0},
+                    });
+
+                    // m->moveTo(t);
+                    // m->scale(glm::vec3{1.0});
+                    // m->rotate(glm::vec3{0.0}, 0.0);
+                }
+                wgpuQueueWriteBuffer(getRendererResource().queue, mInstanceManager->getInstancingBuffer().getBuffer(),
+                                     0, m->instance->mInstanceBuffer.data(),
+                                     sizeof(InstanceData) * (m->instance->mInstanceBuffer.size() - 1));
+            }
+            // if (m->mName == "tire") {
+            // m->mTransform.mObjectInfo.isAnimated = false;
+            // }
+        }
+    }
+
     // create a commnad encoder
     WGPUCommandEncoderDescriptor encoder_descriptor = {};
     encoder_descriptor.nextInChain = nullptr;
@@ -837,25 +873,6 @@ void Application::mainLoop() {
     // ---------------------------------------------------------------------
     // mTerrainPass->executePass();
     // ---------------------------------------------------------------------
-
-    if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
-        auto* aaa = reinterpret_cast<Model*>(mSelectedModel);
-        if (aaa->anim->activeAction->calculatedTransform.contains("DEF-handR")) {
-            // std::cout << "show draw bone at here\n";
-            glm::vec3 socketPos(0.15f, 0.0f, -0.05f);  // e.g., forward 15cm, down 5cm
-            glm::quat socketRot = glm::angleAxis(glm::radians(5.0f), glm::vec3(0, 1, 0));  // Slight tweak
-            glm::vec3 socketScale(1.0f);
-
-            glm::mat4 socketMat = glm::scale(glm::mat4(1.0f), socketScale) * glm::mat4_cast(socketRot) *
-                                  glm::translate(glm::mat4(1.0f), socketPos);
-
-            auto trans = mSelectedModel->mTransform.mObjectInfo.transformation *
-                         aaa->anim->mFinalTransformations[aaa->anim->activeAction->Bonemap["DEF-handR"]->id];
-            // mEditor.showBoneAt(trans);
-            // mEditor.BoneIndicator->mTransform.mObjectInfo.transformation = trans;
-            // mEditor.BoneIndicator->mTransform.mTransformMatrix = trans;
-        }
-    }
 
     {
         WGPURenderPassDescriptor render_pass_descriptor = {};

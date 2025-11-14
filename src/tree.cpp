@@ -340,7 +340,7 @@ struct SphereModel : public IModel {
 
             mModel->load("sphere", app, RESOURCE_DIR "/sphere.glb", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{1, 1, 1})
-                .scale(glm::vec3{0.1f});
+                .scale(glm::vec3{0.005f});
             mModel->uploadToGPU(app);
             mModel->setTransparent(false);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
@@ -352,74 +352,73 @@ struct SphereModel : public IModel {
             (void)params;
             (void)app;
 
-            // std::vector<glm::mat4> dddata = {};
+            std::vector<glm::mat4> dddata = {};
 
-            // std::vector<glm::vec3> positions;
-            // std::vector<float> degrees;
-            // std::vector<glm::vec3> scales;
-            // positions.reserve(10);
-            // degrees.reserve(10);
-            // scales.reserve(10);
-            //
+            std::vector<glm::vec3> positions;
+            std::vector<float> degrees;
+            std::vector<glm::vec3> scales;
+            positions.reserve(20);
+            degrees.reserve(20);
+            scales.reserve(20);
+
             // for (const auto& m : mModel->mBonePosition) {
             //     positions.emplace_back(m);
             //     degrees.emplace_back(0.0);
             //     scales.emplace_back(glm::vec3{0.1f});
             // }
-            // // positions.emplace_back(glm::vec3{4.187, 9.227, 0.0});
-            // // degrees.emplace_back(0.0);
-            // // scales.emplace_back(glm::vec3{0.1f});
-            // //
-            // // positions.emplace_back(glm::vec3{5.187, 9.227, 0.0});
-            // // degrees.emplace_back(0.0);
-            // // scales.emplace_back(glm::vec3{0.1f});
-            // //
-            // // positions.emplace_back(glm::vec3{6.187, 9.227, 0.0});
-            // // degrees.emplace_back(0.0);
-            // // scales.emplace_back(glm::vec3{0.1f});
-            // //
-            // // positions.emplace_back(glm::vec3{7.187, 9.227, 0.0});
-            // // degrees.emplace_back(0.0);
-            // // scales.emplace_back(glm::vec3{0.1f});
-            // //
-            // // positions.emplace_back(glm::vec3{8.187, 9.227, 0.0});
-            // // degrees.emplace_back(0.0);
-            // // scales.emplace_back(glm::vec3{0.1f});
-            //
-            // auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0},     degrees,
-            //                          scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
-            //
-            // wgpuQueueWriteBuffer(app->getRendererResource().queue,
-            //                      app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
-            //                      ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size() -
-            //                      1));
-            //
-            // mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + mModel->getName()).c_str())
-            //     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
-            //               WGPUBufferUsage_CopyDst)
-            //     .setSize(sizeof(DrawIndexedIndirectArgs))
-            //     .setMappedAtCraetion()
-            //     .create(app);
-            //
-            // auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
-            // wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
-            //                      &indirect, sizeof(DrawIndexedIndirectArgs));
-            //
-            // for (auto& [mat_id, mesh] : mModel->mMeshes) {
-            //     mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())
-            //         .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
-            //         .setSize(sizeof(DrawIndexedIndirectArgs))
-            //         .setMappedAtCraetion()
-            //         .create(app);
-            //
-            //     auto indirect = DrawIndexedIndirectArgs{static_cast<uint32_t>(mesh.mIndexData.size()), 0, 0, 0, 0};
-            //     wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0,
-            //                          &indirect, sizeof(DrawIndexedIndirectArgs));
-            // }
-            //
-            // mModel->mTransform.mObjectInfo.instanceOffsetId = 0;
-            // mModel->setInstanced(ins);
-            // std::cout << positions.size() << " --------------------Barrier reached -----------------\n";
+            positions.emplace_back(glm::vec3{4.187, 9.227, 0.0});
+            degrees.emplace_back(0.0);
+            scales.emplace_back(glm::vec3{0.1f});
+
+            positions.emplace_back(glm::vec3{5.187, 9.227, 0.0});
+            degrees.emplace_back(0.0);
+            scales.emplace_back(glm::vec3{0.1f});
+
+            positions.emplace_back(glm::vec3{6.187, 9.227, 0.0});
+            degrees.emplace_back(0.0);
+            scales.emplace_back(glm::vec3{0.1f});
+
+            positions.emplace_back(glm::vec3{7.187, 9.227, 0.0});
+            degrees.emplace_back(0.0);
+            scales.emplace_back(glm::vec3{0.1f});
+
+            positions.emplace_back(glm::vec3{8.187, 9.227, 0.0});
+            degrees.emplace_back(0.0);
+            scales.emplace_back(glm::vec3{0.1f});
+
+            auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0},     degrees,
+                                     scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
+
+            wgpuQueueWriteBuffer(app->getRendererResource().queue,
+                                 app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
+                                 ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size() - 1));
+
+            mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + mModel->getName()).c_str())
+                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+                          WGPUBufferUsage_CopyDst)
+                .setSize(sizeof(DrawIndexedIndirectArgs))
+                .setMappedAtCraetion()
+                .create(app);
+
+            auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
+                                 &indirect, sizeof(DrawIndexedIndirectArgs));
+
+            for (auto& [mat_id, mesh] : mModel->mMeshes) {
+                mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())
+                    .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
+                    .setSize(sizeof(DrawIndexedIndirectArgs))
+                    .setMappedAtCraetion()
+                    .create(app);
+
+                auto indirect = DrawIndexedIndirectArgs{static_cast<uint32_t>(mesh.mIndexData.size()), 0, 0, 0, 0};
+                wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0,
+                                     &indirect, sizeof(DrawIndexedIndirectArgs));
+            }
+
+            mModel->mTransform.mObjectInfo.instanceOffsetId = 0;
+            mModel->setInstanced(ins);
+            std::cout << positions.size() << " --------------------Barrier reached -----------------\n";
         };
 };
 
@@ -941,7 +940,7 @@ struct PlatformModel : public IModel {
 // USER_REGISTER_MODEL("steampunk", Steampunk);
 // USER_REGISTER_MODEL("sheep", SheepModel);
 
-// USER_REGISTER_MODEL("sphere", SphereModel);
+USER_REGISTER_MODEL("sphere", SphereModel);
 // USER_REGISTER_MODEL("platform", PlatformModel);
 //
 // USER_REGISTER_MODEL("human", HumanModel);  // Upper_Arm.L
@@ -954,3 +953,15 @@ struct PlatformModel : public IModel {
 // USER_REGISTER_MODEL("house", HouseModel);
 // USER_REGISTER_MODEL("motor", Motor);
 /*USER_REGISTER_MODEL("jet", JetModel);*/
+// {
+//   "id": "ghamgham",
+//   "name": "ghamgham",
+//   "path": "ghamgham.gltf",
+//   "animated": false,
+//   "cs": "z",
+//   "translate": [-2.5, 1.144, -3.247],
+//   "scale": [0.1, 0.1, 0.1],
+//   "rotate": [90.0, 0.0, 144.0],
+//   "childrens": [],
+//   "default_clip": ""
+// }

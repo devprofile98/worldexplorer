@@ -219,6 +219,7 @@ void ViewPort3DPass::execute(WGPUCommandEncoder encoder) {
 
     for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_Editor)) {
         wgpuRenderPassEncoderSetPipeline(pass_encoder, getPipeline()->getPipeline());
+
         model->draw(mApp, pass_encoder);
     }
 
