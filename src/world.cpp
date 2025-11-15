@@ -5,6 +5,7 @@
 #include <fstream>
 #include <glm/fwd.hpp>
 #include <iostream>
+#include <optional>
 #include <utility>
 
 #include "animation.h"
@@ -93,13 +94,13 @@ void World::togglePlayer() {
 
 void World::onNewModel(Model* loadedModel) {
     rootContainer.push_back(loadedModel);
+    // Set the active actor
     if (actorName == loadedModel->mName) {
         actor = loadedModel;
     }
-    // std::cout << "Model " << loadedModel->mName << " Loaded at " << map.at(loadedModel->getName()).path << std::endl;
     // traverse the world to check if the parent and which are its childs
     // There are 2 questions for the newly loaded model:
-    // 1 - Is any of the loaded models your child?
+    // 1 - Is any of the loaded models your child in term of parent/child relations?
     for (auto* model : rootContainer) {
         if (map.contains(loadedModel->mName)) {
             for (const auto& name : map.at(loadedModel->mName).childrens) {
@@ -123,11 +124,46 @@ stage2:
                     makeChild(model, loadedModel);
                     std::cout << "@@@@@@@@@@@@@@@@ " << loadedModel->mName << " is a child for " << model->mName
                               << '\n';
-                    goto end;
+                    goto load_socket;
                 }
             }
         }
     }
+load_socket:
+
+    // for (auto* model : rootContainer) {
+    //     if (map.contains(model->mName)) {
+    {
+        auto param = map.at(loadedModel->mName).socketParam;
+        Model* target = nullptr;
+        if (param.isValid) {
+            for (auto* suspect : rootContainer) {
+                if (suspect->mName == param.name) {
+                    target = suspect;
+                    break;
+                }
+            }
+            if (target != nullptr) {
+                std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@ " << param.bone << " Is the attaching bone for "
+                          << loadedModel->mName << "\n";
+                loadedModel->mSocket = new BoneSocket{target, param.bone, param.translate, param.scale, param.rotate};
+                goto end;
+            }
+        }
+    }
+
+    for (auto* model : rootContainer) {
+        auto param = map.at(model->mName).socketParam;
+        // auto loaded_model_param = map.at(loadedModel->mName).socketParam;
+        if (param.name == loadedModel->mName) {
+            std::cout << "@@@@@@@@@@1@@@@@@@@@@@@@@@@ " << param.bone << " from " << loadedModel->mName
+                      << " Is the attaching bone for " << model->mName << "\n";
+            model->mSocket = new BoneSocket{loadedModel, param.bone, param.translate, param.scale, param.rotate};
+        }
+        // if (map.contains(model->mName)) {
+        // }
+    }
+
 end:
 }
 
@@ -189,8 +225,14 @@ glm::vec3 toGlm(std::array<float, 3> arr) { return glm::vec3{arr[0], arr[1], arr
 
 ObjectLoaderParam::ObjectLoaderParam(std::string name, std::string path, bool animated, CoordinateSystem cs,
                                      Vec translate, Vec scale, Vec rotate, std::vector<std::string> childrens,
-                                     std::string defaultClip)
-    : name(name), path(path), animated(animated), cs(cs), childrens(childrens), defaultClip(defaultClip) {
+                                     std::string defaultClip, SocketParams socketParam)
+    : socketParam(socketParam),
+      name(name),
+      path(path),
+      animated(animated),
+      cs(cs),
+      childrens(childrens),
+      defaultClip(defaultClip) {
     this->translate = toGlm(translate);
     this->scale = toGlm(scale);
     this->rotate = toGlm(rotate);
@@ -234,8 +276,6 @@ struct BaseModelLoader : public IModel {
         void onLoad(Application* app, void* params) override {
             (void)params;
             (void)app;
-
-            // mModel->moveTo(glm::vec3{-3.950, 13.316, -3.375});
         };
 };
 
@@ -261,6 +301,19 @@ void parseLights(LightManager* manager, const json& lights) {
     }
 }
 
+std::optional<SocketParams> parseSocketParam(const json& params) {
+    if (params.is_null()) {
+        return std::nullopt;
+    }
+    std::string name = params["model_name"].get<std::string>();
+    std::string bone_name = params["bone_name"].get<std::string>();
+
+    glm::vec3 translate = toGlm(params["offset"]["translate"].get<std::array<float, 3>>());
+    glm::vec3 scale = toGlm(params["offset"]["scale"].get<std::array<float, 3>>());
+    glm::vec3 rotate = toGlm(params["offset"]["rotate"].get<std::array<float, 3>>());
+    return SocketParams{name, bone_name, translate, scale, glm::quat{1.0, rotate}, true};
+}
+
 void World::loadWorld() {
     std::ifstream world_file(RESOURCE_DIR "/world.json");
 
@@ -283,8 +336,17 @@ void World::loadWorld() {
         std::array<float, 3> rotate = object["rotate"].get<std::array<float, 3>>();
         std::vector<std::string> childs = object["childrens"].get<std::vector<std::string>>();
         std::string default_clip = object["default_clip"].get<std::string>();
+        SocketParams socket_param;
+        socket_param.isValid = false;
 
-        ObjectLoaderParam param{name, path, is_animated, cs, translate, scale, rotate, childs, default_clip};
+        auto socket_opt = parseSocketParam(object["socket"]);
+        if (socket_opt.has_value()) {
+            socket_param = socket_opt.value();
+            socket_param.isValid = true;
+        }
+
+        ObjectLoaderParam param{name,  path,   is_animated, cs,           translate,
+                                scale, rotate, childs,      default_clip, socket_param};
         param.isDefaultActor = actorName == name;
 
         ModelRegistry::instance().registerModel(name, [param](Application* app) -> LoadModelResult {

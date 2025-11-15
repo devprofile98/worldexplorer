@@ -120,9 +120,7 @@ void Model::updateAnimation(float dt) {
         anim->getActiveAction()->mAnimationSecond =
             std::fmod(dt, anim->getActiveAction()->mAnimationDuration) * 1000.0f;
         anim->update(mScene->mRootNode);
-        if (mName == "tire") {
-            // std::cout << " ..... " << glm::to_string(mScene->mRootNode->mTransformation) << std::endl;
-        }
+
     } else {
         return;
     }
@@ -138,21 +136,8 @@ void Model::updateAnimation(float dt) {
         const auto& offset = action->Bonemap[boneName]->offsetMatrix;
 
         auto final = global * offset;
-        // auto final = temp1 * rot;
 
         if (mName == "tire") {
-            // mTransform.mObjectInfo.isAnimated = false;
-            auto [t, s, r] = decomposeTransformation(global);
-            // moveTo(t);
-            // s.y = 1;
-            // s.x = 1;
-            // s.z = 1;
-            // scale(s);
-            // rotate(r);
-            auto simple_scale = glm::scale(glm::mat4{1.0}, s);
-            auto simple_rot = glm::mat4_cast(r);
-
-            // std::cout << glm::to_string(AiToGlm(mScene->mRootNode->mTransformation)) << std::endl;
             anim->mFinalTransformations[action->Bonemap[boneName]->id] = global;
             return;
         }

@@ -65,6 +65,10 @@ static float middle_plane_length = 15.0f;
 static float far_plane_length = 50.0f;
 bool should_update_csm = true;
 
+static auto position_offset = glm::vec3{5, 0.5, 0.7};
+static auto scale_offset = glm::vec3{0.9};
+static auto rotation_offset = glm::quat{1.0, {0.0, -.1, 0.7}};
+
 WGPUTextureView getNextSurfaceTextureView(RendererResource& resources);
 WGPULimits GetRequiredLimits(WGPUAdapter adapter);
 bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height);
@@ -633,6 +637,52 @@ void Application::mainLoop() {
         }
     }
 
+    if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
+        // auto* aaa = reinterpret_cast<Model*>(mSelectedModel);
+
+        for (const auto& m : mWorld->rootContainer) {
+            // if (m->mName == "pistol") {
+            //     pistol = m;
+            // }
+            // else if (m->mName == "human") {
+            //     human = m;
+            // }
+            if (m->mName == "pistol" && m->mSocket != nullptr) {
+                Model* pistol = m;
+                Model* human = m->mSocket->model;
+
+                glm::mat4 offsetMat = glm::mat4(1.0f);
+                // offsetMat = glm::scale(offsetMat, scale_offset);
+                // offsetMat *= glm::mat4_cast(rotation_offset);
+                // offsetMat = glm::translate(offsetMat, position_offset);
+                //
+                offsetMat = glm::scale(offsetMat, m->mSocket->scaleOffset);
+                offsetMat *= glm::mat4_cast(m->mSocket->rotationOffset);
+                offsetMat = glm::translate(offsetMat, m->mSocket->positionOffset);
+
+                auto bone_global = glm::mat4{};
+                if (human->anim->activeAction->calculatedTransform.contains(m->mSocket->boneName)) {
+                    auto trans = human->anim->activeAction->calculatedTransform[m->mSocket->boneName];
+                    //
+                    auto [t, s, r] = decomposeTransformation(human->mTransform.mTransformMatrix * trans);
+                    auto final_trans = glm::translate(glm::mat4{1.0}, t);
+                    auto final_scale = glm::scale(glm::mat4{1.0}, glm::vec3{0.005});
+                    auto final_rot = glm::mat4_cast(r);
+
+                    bone_global = final_trans * final_rot * final_scale;
+                }
+
+                auto new_trans = bone_global * offsetMat;
+
+                auto [t, s, r] = decomposeTransformation(new_trans);
+
+                pistol->moveTo(t);
+                pistol->scale(s);
+                pistol->rotate(r);
+            }
+        }
+    }
+
     {
         if (mWorld->actor != nullptr) {
             mWorld->actor->mBehaviour->handleAttachedCamera(mWorld->actor, &mCamera);
@@ -649,46 +699,6 @@ void Application::mainLoop() {
         }
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_Editor)) {
             model->update2(this, 0.0);
-        }
-
-        // if (ModelRegistry::instance().getLoadedModel(Visibility_User).size() == 3) {
-        // std::cout << "Breakpoint";
-        // }
-    }
-
-    if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
-        auto* aaa = reinterpret_cast<Model*>(mSelectedModel);
-
-        for (const auto& m : mWorld->rootContainer) {
-            if (m->mName == "sphere") {
-                m->instance->mInstanceBuffer.clear();
-                // [boneName];
-                // action->
-                // for (auto [name, bone] : aaa->anim->activeAction->Bonemap) {
-                for (auto [name, trans] : aaa->anim->activeAction->calculatedTransform) {
-                    // auto trans = aaa->mTransform.mTransformMatrix * aaa->anim->mFinalTransformations[bone->id];
-                    auto [t, s, r] = decomposeTransformation(aaa->mTransform.mTransformMatrix * trans);
-                    auto final_trans = glm::translate(glm::mat4{1.0}, t);
-                    auto final_scale = glm::scale(glm::mat4{1.0}, glm::vec3{0.005});
-                    auto final_rot = glm::mat4_cast(r);
-
-                    m->instance->mInstanceBuffer.push_back(InstanceData{
-                        final_trans * final_rot * final_scale,
-                        glm::vec4{t, 1.0} - glm::vec4{0.1, 0.1, 0.1, 1.0},
-                        glm::vec4{t, 1.0} + glm::vec4{0.1, 0.1, 0.1, 1.0},
-                    });
-
-                    // m->moveTo(t);
-                    // m->scale(glm::vec3{1.0});
-                    // m->rotate(glm::vec3{0.0}, 0.0);
-                }
-                wgpuQueueWriteBuffer(getRendererResource().queue, mInstanceManager->getInstancingBuffer().getBuffer(),
-                                     0, m->instance->mInstanceBuffer.data(),
-                                     sizeof(InstanceData) * (m->instance->mInstanceBuffer.size() - 1));
-            }
-            // if (m->mName == "tire") {
-            // m->mTransform.mObjectInfo.isAnimated = false;
-            // }
         }
     }
 
@@ -742,26 +752,6 @@ void Application::mainLoop() {
     wgpuQueueWriteBuffer(this->getRendererResource().queue, mUniformBuffer.getBuffer(), 0, &mUniforms,
                          sizeof(CameraInfo));
 
-    // Test for scene hirarchy
-    static bool reparenting = true;
-    {
-        // auto& iter = mWorld->rootContainer;  //  ModelRegistry::instance().getLoadedModel(Visibility_User);
-        //
-        // if (iter.size() == 2) {
-        //     if (reparenting) {
-        //         reparenting = false;
-        //         auto pistol = iter[0]->getName() == "pistol" ? iter[0] : iter[1];
-        //         human = iter[0]->getName() == "human" ? iter[0] : iter[1];
-        //
-        //         // human->addChildren(static_cast<BaseModel*>(pistol));
-        //         mWorld->makeChild(human, pistol);
-        //     }
-        // }
-
-        // if (human) {
-        //     reinterpret_cast<BaseModel*>(human)->update();
-        // }
-    }
     // mWaterRenderPass->drawWater();
     for (const auto& model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
         if (model->mName == "human") {
@@ -1293,6 +1283,17 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 #ifdef DEVELOPMENT_BUILD
                 mSelectedModel->userInterface();
 #endif  // DEVELOPMENT_BUILD
+            }
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("socket")) {
+            if (ImGui::DragFloat3("position", glm::value_ptr(position_offset))) {
+            }
+
+            if (ImGui::DragFloat3("scale", glm::value_ptr(scale_offset))) {
+            }
+            if (ImGui::DragFloat4("quat", glm::value_ptr(rotation_offset))) {
             }
             ImGui::EndTabItem();
         }

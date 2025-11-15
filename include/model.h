@@ -33,6 +33,7 @@ class Texture;
 class BaseModel;
 class Animation;
 class Behaviour;
+class BoneSocket;
 
 struct alignas(4) DrawIndexedIndirectArgs {
         uint32_t indexCount;
@@ -140,6 +141,8 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         /* Scene graph related property */
         BaseModel* mParent = nullptr;
         Transform mTransform;
+
+        BoneSocket* mSocket;
 
         Buffer mIndexBuffer = {};
         std::map<int, Mesh> mMeshes;

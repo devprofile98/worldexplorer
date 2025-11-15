@@ -11,6 +11,7 @@
 #include "assimp/Importer.hpp"
 #include "assimp/scene.h"
 #include "glm/gtc/type_ptr.hpp"
+#include "model.h"
 
 glm::mat4 AiToGlm(const aiMatrix4x4& aiMat);
 
@@ -57,6 +58,14 @@ struct Animation {
         void update(aiNode* root);
         Action* getActiveAction();
         Action* getAction(const std::string& actionName);
+};
+
+struct BoneSocket {
+        Model* model;
+        std::string boneName;
+        glm::vec3 positionOffset;
+        glm::vec3 scaleOffset;
+        glm::quat rotationOffset;
 };
 
 #endif  //! WORLD_EXPLORER_ANIMATION_H

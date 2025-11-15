@@ -11,7 +11,18 @@
 #include "model.h"
 
 using Vec = std::array<float, 3>;
+
+struct SocketParams {
+        std::string name;
+        std::string bone;
+        glm::vec3 translate;
+        glm::vec3 scale;
+        glm::quat rotate;
+        bool isValid;
+};
+
 struct ObjectLoaderParam {
+        SocketParams socketParam;
         std::string name;
         std::string path;
         bool animated;
@@ -24,7 +35,8 @@ struct ObjectLoaderParam {
         bool isDefaultActor = false;
 
         ObjectLoaderParam(std::string name, std::string path, bool animated, CoordinateSystem cs, Vec translate,
-                          Vec scale, Vec rotate, std::vector<std::string> childrens, std::string defaultClip);
+                          Vec scale, Vec rotate, std::vector<std::string> childrens, std::string defaultClip,
+                          SocketParams socketParam);
 };
 
 struct World : public KeyboardListener, MouseMoveListener, MouseButtonListener, MouseScrollListener {

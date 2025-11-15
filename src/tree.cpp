@@ -940,7 +940,7 @@ struct PlatformModel : public IModel {
 // USER_REGISTER_MODEL("steampunk", Steampunk);
 // USER_REGISTER_MODEL("sheep", SheepModel);
 
-USER_REGISTER_MODEL("sphere", SphereModel);
+// USER_REGISTER_MODEL("sphere", SphereModel);
 // USER_REGISTER_MODEL("platform", PlatformModel);
 //
 // USER_REGISTER_MODEL("human", HumanModel);  // Upper_Arm.L
@@ -953,15 +953,3 @@ USER_REGISTER_MODEL("sphere", SphereModel);
 // USER_REGISTER_MODEL("house", HouseModel);
 // USER_REGISTER_MODEL("motor", Motor);
 /*USER_REGISTER_MODEL("jet", JetModel);*/
-// {
-//   "id": "ghamgham",
-//   "name": "ghamgham",
-//   "path": "ghamgham.gltf",
-//   "animated": false,
-//   "cs": "z",
-//   "translate": [-2.5, 1.144, -3.247],
-//   "scale": [0.1, 0.1, 0.1],
-//   "rotate": [90.0, 0.0, 144.0],
-//   "childrens": [],
-//   "default_clip": ""
-// }
