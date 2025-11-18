@@ -6,6 +6,8 @@
 #include "application.h"
 #include "glm/ext/matrix_common.hpp"
 #include "glm/fwd.hpp"
+#include "glm/gtx/string_cast.hpp"
+#include "input_manager.h"
 #include "instance.h"
 #include "model.h"
 #include "model_registery.h"
@@ -655,18 +657,30 @@ struct CameraTransition {
         float timeLeft;
 };
 
+enum CharacterState {
+    Idle = 0,
+    Running,
+    Walking,
+    StartJumping,
+    EndJumping,
+    Aiming,
+};
+
 struct HumanBehaviour : public Behaviour {
         std::string name;
         glm::vec3 front;  // Character's forward direction
         glm::vec3 up;     // Up vector (typically {0, 1, 0} for world up)
         glm::vec3 targetDistance;
         glm::vec3 targetOffset;
-        float yaw;      // Horizontal rotation angle (degrees)
-        float speed;    // Movement speed (units per second)
-        bool isMoving;  // Track movement state for animation
+        float yaw;        // Horizontal rotation angle (degrees)
+        float speed;      // Movement speed (units per second)
+        bool isMoving;    // Track movement state for animation
+        bool isOnGround;  // Track movement state for animation
         bool isAiming;
         float lastX;
         float lastY;
+        uint16_t state;
+        float jumpTimer;
         CameraTransition transitoin;
 
         HumanBehaviour(std::string name)
@@ -678,9 +692,12 @@ struct HumanBehaviour : public Behaviour {
               yaw(90.0f),
               speed(1.0f),
               isMoving(false),
+              isOnGround(true),
               isAiming(false),
               lastX(0),
               lastY(0),
+              state(0),
+              jumpTimer(0),
               transitoin({false, glm::vec3{0.0}, glm::vec3{0.0}, 0.0}) {
             ModelRegistry::instance().registerBehaviour(name, this);
         }
@@ -688,39 +705,47 @@ struct HumanBehaviour : public Behaviour {
         void sayHello() override { std::cout << "Hello from " << name << '\n'; }
 
         // Handle keyboard input for movement
-        void handleKey(Model* model, KeyEvent event, float dt) override {
-            auto e = std::get<Keyboard>(event);
+        void handleKey(Model* model, KeyEvent event, float dt) override {}
+        void handleKey2(Model* model, KeyEvent event, float dt) {
+            // auto e = std::get<Keyboard>(event);
             glm::vec3 moveDir(0.0f);  // Movement direction relative to front vector
             isMoving = false;
 
-            if (e.action == GLFW_PRESS || e.action == GLFW_REPEAT) {
-                switch (e.key) {
-                    case GLFW_KEY_W:  // Move forward
-                        moveDir += front;
-                        isMoving = true;
-                        break;
-                    case GLFW_KEY_S:  // Move backward
-                        moveDir -= front;
-                        isMoving = true;
-                        break;
-                    case GLFW_KEY_A:
-                        moveDir -= glm::normalize(glm::cross(front, up));
-                        isMoving = true;
-                        break;
-                    case GLFW_KEY_D:
-                        moveDir += glm::normalize(glm::cross(front, up));
-                        isMoving = true;
-                        break;
-                }
+            if (InputManager::isKeyDown(GLFW_KEY_SPACE)) {
+                // std::cout << " space ";
+                state |= 1 << CharacterState::StartJumping;
+                isMoving = true;
+                moveDir.z += 1;
             }
+            if (InputManager::isKeyDown(GLFW_KEY_W)) {
+                // std::cout << " W ";
+                moveDir += front;
+                isMoving = true;
+            }
+            if (InputManager::isKeyDown(GLFW_KEY_S)) {
+                // std::cout << " S ";
+                moveDir -= front;
+                isMoving = true;
+            }
+            if (InputManager::isKeyDown(GLFW_KEY_A)) {
+                // std::cout << " A ";
+                moveDir += glm::normalize(glm::cross(front, up));
+                isMoving = true;
+            }
+
+            if (InputManager::isKeyDown(GLFW_KEY_D)) {
+                // std::cout << " D ";
+                moveDir -= glm::normalize(glm::cross(front, up));
+                isMoving = true;
+            }
+            // std::cout << " are down \n";
 
             // Apply movement scaled by speed and delta time
             if (isMoving) {
-                float deltaTime = dt;  // Assume 60 FPS for simplicity; replace with actual delta time
-                model->moveBy(moveDir * speed * deltaTime);
-                model->anim->getAction("Jog_Fwd_Loop");
+                model->moveBy(moveDir * speed * dt);
+                state |= 1 << CharacterState::Running;
             } else {
-                model->anim->getAction("Idle_Loop");
+                state &= ~(1 << CharacterState::Running);
             }
         }
 
@@ -752,10 +777,9 @@ struct HumanBehaviour : public Behaviour {
 
         void handleMouseClick(Model* model, MouseEvent event) override {
             auto mouse = std::get<Click>(event);
+            std::cout << "Pressed !\n";
             if (mouse.action == GLFW_PRESS) {
-                // Set the flag when the button is pressed
-                // rightMouseButtonDown = true;
-                model->anim->getAction("Pistol_Idle_Loop");
+                state |= 1 << Aiming;
                 if (!transitoin.active) {
                     transitoin.from = glm::vec3{0.3};
                     transitoin.to = glm::vec3{0.2};
@@ -763,9 +787,7 @@ struct HumanBehaviour : public Behaviour {
                     transitoin.timeLeft = 0.5;
                 }
             } else if (mouse.action == GLFW_RELEASE) {
-                // Reset the flag when the button is released
-                // rightMouseButtonDown = false;
-                model->anim->getAction("Idle_Loop");
+                state &= ~(1 << Aiming);
                 if (!transitoin.active) {
                     transitoin.from = glm::vec3{0.2};
                     transitoin.to = glm::vec3{0.3};
@@ -800,10 +822,37 @@ struct HumanBehaviour : public Behaviour {
             }
         }
 
-        void update(float dt) override {
+        void update(Model* model, float dt) override {
+            if (state & (1u << CharacterState::Idle)) {
+                model->anim->getAction("Idle_Loop");
+            } else if (state & (1u << CharacterState::Running)) {
+                model->anim->getAction("Jog_Fwd_Loop");
+            } else if (state & (1u << CharacterState::Aiming)) {
+                model->anim->getAction("Pistol_Idle_Loop");
+            } else {
+                model->anim->getAction("Idle_Loop");
+            }
+            handleKey2(model, KeyEvent{}, dt);
+
+            if (state & (1u << CharacterState::StartJumping)) {
+                if (jumpTimer < 1.0) {
+                    jumpTimer += 0.1;
+                } else {
+                    state &= ~(1 << StartJumping);
+                    state |= 1 << EndJumping;
+                    jumpTimer = 1.0;
+                }
+                model->moveBy({0.0, 0.0, 0.1});
+            } else if (state & (1u << CharacterState::EndJumping)) {
+                if (jumpTimer > 0.0) {
+                    jumpTimer -= 0.1;
+                } else {
+                    state &= ~(1 << EndJumping);
+                    jumpTimer = 0.0;
+                }
+                model->moveBy({0.0, 0.0, -0.1});
+            }
             if (transitoin.active) {
-                // std::cout << "dt: " << dt << std::endl;
-                //
                 transitoin.timeLeft -= dt;
                 auto t = glm::clamp(transitoin.timeLeft, 0.0f, 1.0f);  // Safety
 

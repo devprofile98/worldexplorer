@@ -26,7 +26,7 @@ class Behaviour {
         virtual void handleMouseClick(Model* model, MouseEvent event);
         virtual void handleMouseScroll(Model* model, MouseEvent event);
         virtual void handleAttachedCamera(Model* model, Camera* camera);
-        virtual void update(float dt);
+        virtual void update(Model* model, float dt);
         virtual glm::vec3 getForward();
 
         std::string name;

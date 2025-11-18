@@ -684,10 +684,6 @@ void Application::mainLoop() {
     }
 
     {
-        if (mWorld->actor != nullptr) {
-            mWorld->actor->mBehaviour->handleAttachedCamera(mWorld->actor, &mCamera);
-            mWorld->actor->mBehaviour->update(delta_time);
-        }
         // PerfTimer timer{"tick"};
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
             if (cull_frustum) {
@@ -699,6 +695,10 @@ void Application::mainLoop() {
         }
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_Editor)) {
             model->update2(this, 0.0);
+        }
+        if (mWorld->actor != nullptr) {
+            mWorld->actor->mBehaviour->handleAttachedCamera(mWorld->actor, &mCamera);
+            mWorld->actor->mBehaviour->update(mWorld->actor, delta_time);
         }
     }
 

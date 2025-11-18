@@ -65,11 +65,16 @@ class InputManager {
         static void handleScroll(GLFWwindow* window, double xOffset, double yOffset);
         static void handleKeyboard(GLFWwindow* window, int key, int scancode, int action, int mods);
 
+        static bool isKeyDown(int key);
+
         void setCursorPosition(GLFWwindow* window, double xPos, double yPos);
+
+        static inline GLFWwindow* mWindow = nullptr;
         std::vector<MouseMoveListener*> mMouseMoveListeners = {};
         std::vector<MouseButtonListener*> mMouseButtonListeners = {};
         std::vector<MouseScrollListener*> mMouseScrollListeners = {};
         std::vector<KeyboardListener*> mKeyListener = {};
+        static inline bool keys[GLFW_KEY_LAST + 1] = {false};
 
     private:
         explicit InputManager();
