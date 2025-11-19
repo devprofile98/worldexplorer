@@ -663,6 +663,7 @@ enum CharacterState {
     Walking,
     StartJumping,
     EndJumping,
+    JumpingFinished,
     Aiming,
 };
 
@@ -672,16 +673,16 @@ struct HumanBehaviour : public Behaviour {
         glm::vec3 up;     // Up vector (typically {0, 1, 0} for world up)
         glm::vec3 targetDistance;
         glm::vec3 targetOffset;
-        float yaw;        // Horizontal rotation angle (degrees)
-        float speed;      // Movement speed (units per second)
-        bool isMoving;    // Track movement state for animation
-        bool isOnGround;  // Track movement state for animation
+        float yaw;      // Horizontal rotation angle (degrees)
+        float speed;    // Movement speed (units per second)
+        bool isMoving;  // Track movement state for animation
         bool isAiming;
         float lastX;
         float lastY;
         uint16_t state;
-        float jumpTimer;
         CameraTransition transitoin;
+        float groundLevel = -3.262;
+        glm::vec3 velocity{0.0};
 
         HumanBehaviour(std::string name)
             : name(name),
@@ -692,12 +693,10 @@ struct HumanBehaviour : public Behaviour {
               yaw(90.0f),
               speed(1.0f),
               isMoving(false),
-              isOnGround(true),
               isAiming(false),
               lastX(0),
               lastY(0),
               state(0),
-              jumpTimer(0),
               transitoin({false, glm::vec3{0.0}, glm::vec3{0.0}, 0.0}) {
             ModelRegistry::instance().registerBehaviour(name, this);
         }
@@ -705,40 +704,44 @@ struct HumanBehaviour : public Behaviour {
         void sayHello() override { std::cout << "Hello from " << name << '\n'; }
 
         // Handle keyboard input for movement
-        void handleKey(Model* model, KeyEvent event, float dt) override {}
+        void handleKey(Model* model, KeyEvent event, float dt) override {
+            auto space_value = InputManager::keys[GLFW_KEY_SPACE];
+            if (space_value) {
+                state |= 1 << CharacterState::StartJumping;
+                state &= ~(1 << CharacterState::EndJumping);
+            } else if (((state >> CharacterState::StartJumping) & 1) == 1) {
+                state &= ~(1 << CharacterState::StartJumping);
+                state |= 1 << CharacterState::EndJumping;
+            }
+        }
+
         void handleKey2(Model* model, KeyEvent event, float dt) {
             // auto e = std::get<Keyboard>(event);
             glm::vec3 moveDir(0.0f);  // Movement direction relative to front vector
             isMoving = false;
 
             if (InputManager::isKeyDown(GLFW_KEY_SPACE)) {
-                // std::cout << " space ";
                 state |= 1 << CharacterState::StartJumping;
                 isMoving = true;
                 moveDir.z += 1;
             }
             if (InputManager::isKeyDown(GLFW_KEY_W)) {
-                // std::cout << " W ";
                 moveDir += front;
                 isMoving = true;
             }
             if (InputManager::isKeyDown(GLFW_KEY_S)) {
-                // std::cout << " S ";
                 moveDir -= front;
                 isMoving = true;
             }
             if (InputManager::isKeyDown(GLFW_KEY_A)) {
-                // std::cout << " A ";
                 moveDir += glm::normalize(glm::cross(front, up));
                 isMoving = true;
             }
 
             if (InputManager::isKeyDown(GLFW_KEY_D)) {
-                // std::cout << " D ";
                 moveDir -= glm::normalize(glm::cross(front, up));
                 isMoving = true;
             }
-            // std::cout << " are down \n";
 
             // Apply movement scaled by speed and delta time
             if (isMoving) {
@@ -825,6 +828,12 @@ struct HumanBehaviour : public Behaviour {
         void update(Model* model, float dt) override {
             if (state & (1u << CharacterState::Idle)) {
                 model->anim->getAction("Idle_Loop");
+            } else if (state & (1u << CharacterState::StartJumping)) {
+                model->anim->getAction("Jump_Start");
+            } else if (state & (1u << CharacterState::JumpingFinished)) {
+                model->anim->getAction("Jump_Land");
+            } else if (state & (1u << CharacterState::EndJumping)) {
+                model->anim->getAction("Jump_Loop");
             } else if (state & (1u << CharacterState::Running)) {
                 model->anim->getAction("Jog_Fwd_Loop");
             } else if (state & (1u << CharacterState::Aiming)) {
@@ -832,26 +841,69 @@ struct HumanBehaviour : public Behaviour {
             } else {
                 model->anim->getAction("Idle_Loop");
             }
-            handleKey2(model, KeyEvent{}, dt);
+            // handleKey2(model, KeyEvent{}, dt);
+            //
+            //
 
-            if (state & (1u << CharacterState::StartJumping)) {
-                if (jumpTimer < 1.0) {
-                    jumpTimer += 0.1;
-                } else {
-                    state &= ~(1 << StartJumping);
-                    state |= 1 << EndJumping;
-                    jumpTimer = 1.0;
-                }
-                model->moveBy({0.0, 0.0, 0.1});
-            } else if (state & (1u << CharacterState::EndJumping)) {
-                if (jumpTimer > 0.0) {
-                    jumpTimer -= 0.1;
-                } else {
-                    state &= ~(1 << EndJumping);
-                    jumpTimer = 0.0;
-                }
-                model->moveBy({0.0, 0.0, -0.1});
+            glm::vec3 moveDir(0.0f);  // Movement direction relative to front vector
+            isMoving = false;
+
+            if (InputManager::isKeyDown(GLFW_KEY_SPACE)) {
+                // p&& ((state >> CharacterState::StartJumping) & 1) == 0
+                state |= 1 << CharacterState::StartJumping;
+                isMoving = true;
+                moveDir.z += 1;
             }
+            if (InputManager::isKeyDown(GLFW_KEY_W)) {
+                moveDir += front;
+                isMoving = true;
+            }
+            if (InputManager::isKeyDown(GLFW_KEY_S)) {
+                moveDir -= front;
+                isMoving = true;
+            }
+            if (InputManager::isKeyDown(GLFW_KEY_A)) {
+                moveDir += glm::normalize(glm::cross(front, up));
+                isMoving = true;
+            }
+
+            if (InputManager::isKeyDown(GLFW_KEY_D)) {
+                moveDir -= glm::normalize(glm::cross(front, up));
+                isMoving = true;
+            }
+
+            // Apply movement scaled by speed and delta time
+            if (isMoving) {
+                model->moveBy(moveDir * speed * dt);
+                state |= 1 << CharacterState::Running;
+            } else {
+                state &= ~(1 << CharacterState::Running);
+            }
+            //
+            //
+            //
+
+            float jump_speed = 20.0;
+            // handle jump
+            if (InputManager::isKeyDown(GLFW_KEY_SPACE) && model->mTransform.mPosition.z <= groundLevel) {
+                velocity.z += jump_speed;  // Impulse up (Z-up world)
+            }
+            if (!(model->mTransform.mPosition.z <= groundLevel) ||
+                InputManager::isKeyDown(GLFW_KEY_SPACE)) {  // Optional: allow "variable height" by holding space
+                velocity.z += -.05 * dt;
+            }
+
+            // model->mTransform.mPosition += velocity;
+
+            if (model->mTransform.mPosition.z < groundLevel && (state >> CharacterState::EndJumping & 1) == 1) {
+                model->mTransform.mPosition.z = groundLevel;
+                std::cout << state << std::endl;
+                velocity.z = 0;  // Stop downward motion
+                state &= ~(1 << CharacterState::EndJumping);
+            }
+
+            model->moveBy(velocity);
+            //
             if (transitoin.active) {
                 transitoin.timeLeft -= dt;
                 auto t = glm::clamp(transitoin.timeLeft, 0.0f, 1.0f);  // Safety

@@ -328,6 +328,10 @@ void World::loadWorld() {
 
         std::string name = object["name"].get<std::string>();
         std::string path = object["path"].get<std::string>();
+        bool is_enabled = object["enabled"].get<bool>();
+        if (!is_enabled) {
+            continue;
+        }
         bool is_animated = object["animated"].get<bool>();
         std::string _cs = object["cs"].get<std::string>();
         CoordinateSystem cs = _cs == "z" ? Z_UP : Y_UP;

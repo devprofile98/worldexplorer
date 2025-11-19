@@ -3,6 +3,7 @@
     {
       "id": "house",
       "name": "house",
+      "enabled": true,
       "path": "ourhome.gltf",
       "animated": false,
       "cs": "y",
@@ -16,6 +17,7 @@
     {
       "id": "pistol",
       "name": "pistol",
+      "enabled": true,
       "path": "pistol/scene.gltf",
       "animated": false,
       "cs": "y",
@@ -37,6 +39,7 @@
     {
       "id": "human",
       "name": "human",
+      "enabled": true,
       "path": "model2.gltf",
       "animated": true,
       "cs": "z",
@@ -50,6 +53,7 @@
     {
       "id": "robot",
       "name": "robot",
+      "enabled": true,
       "path": "dance2.gltf",
       "animated": true,
       "cs": "z",
@@ -63,6 +67,7 @@
     {
       "id": "tire",
       "name": "tire",
+      "enabled": true,
       "path": "tire.gltf",
       "animated": true,
       "cs": "y",
@@ -76,6 +81,7 @@
     {
       "id": "ghamgham",
       "name": "ghamgham",
+      "enabled": false,
       "path": "ghamgham.gltf",
       "animated": false,
       "cs": "z",

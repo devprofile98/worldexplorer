@@ -637,51 +637,43 @@ void Application::mainLoop() {
         }
     }
 
-    if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
-        // auto* aaa = reinterpret_cast<Model*>(mSelectedModel);
+    // if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
+    for (const auto& m : mWorld->rootContainer) {
+        if (m->mName == "pistol" && m->mSocket != nullptr) {
+            Model* pistol = m;
+            Model* human = m->mSocket->model;
 
-        for (const auto& m : mWorld->rootContainer) {
-            // if (m->mName == "pistol") {
-            //     pistol = m;
-            // }
-            // else if (m->mName == "human") {
-            //     human = m;
-            // }
-            if (m->mName == "pistol" && m->mSocket != nullptr) {
-                Model* pistol = m;
-                Model* human = m->mSocket->model;
+            glm::mat4 offsetMat = glm::mat4(1.0f);
+            // offsetMat = glm::scale(offsetMat, scale_offset);
+            // offsetMat *= glm::mat4_cast(rotation_offset);
+            // offsetMat = glm::translate(offsetMat, position_offset);
+            //
+            offsetMat = glm::scale(offsetMat, m->mSocket->scaleOffset);
+            offsetMat *= glm::mat4_cast(m->mSocket->rotationOffset);
+            offsetMat = glm::translate(offsetMat, m->mSocket->positionOffset);
 
-                glm::mat4 offsetMat = glm::mat4(1.0f);
-                // offsetMat = glm::scale(offsetMat, scale_offset);
-                // offsetMat *= glm::mat4_cast(rotation_offset);
-                // offsetMat = glm::translate(offsetMat, position_offset);
+            auto bone_global = glm::mat4{};
+            if (human->anim->activeAction->calculatedTransform.contains(m->mSocket->boneName)) {
+                auto trans = human->anim->activeAction->calculatedTransform[m->mSocket->boneName];
                 //
-                offsetMat = glm::scale(offsetMat, m->mSocket->scaleOffset);
-                offsetMat *= glm::mat4_cast(m->mSocket->rotationOffset);
-                offsetMat = glm::translate(offsetMat, m->mSocket->positionOffset);
+                auto [t, s, r] = decomposeTransformation(human->mTransform.mTransformMatrix * trans);
+                auto final_trans = glm::translate(glm::mat4{1.0}, t);
+                auto final_scale = glm::scale(glm::mat4{1.0}, glm::vec3{0.005});
+                auto final_rot = glm::mat4_cast(r);
 
-                auto bone_global = glm::mat4{};
-                if (human->anim->activeAction->calculatedTransform.contains(m->mSocket->boneName)) {
-                    auto trans = human->anim->activeAction->calculatedTransform[m->mSocket->boneName];
-                    //
-                    auto [t, s, r] = decomposeTransformation(human->mTransform.mTransformMatrix * trans);
-                    auto final_trans = glm::translate(glm::mat4{1.0}, t);
-                    auto final_scale = glm::scale(glm::mat4{1.0}, glm::vec3{0.005});
-                    auto final_rot = glm::mat4_cast(r);
-
-                    bone_global = final_trans * final_rot * final_scale;
-                }
-
-                auto new_trans = bone_global * offsetMat;
-
-                auto [t, s, r] = decomposeTransformation(new_trans);
-
-                pistol->moveTo(t);
-                pistol->scale(s);
-                pistol->rotate(r);
+                bone_global = final_trans * final_rot * final_scale;
             }
+
+            auto new_trans = bone_global * offsetMat;
+
+            auto [t, s, r] = decomposeTransformation(new_trans);
+
+            pistol->moveTo(t);
+            pistol->scale(s);
+            pistol->rotate(r);
         }
     }
+    // }
 
     {
         // PerfTimer timer{"tick"};
