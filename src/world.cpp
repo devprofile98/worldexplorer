@@ -268,7 +268,10 @@ struct BaseModelLoader : public IModel {
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
 
             if (getModel()->mTransform.mObjectInfo.isAnimated) {
-                getModel()->anim->getAction(param.defaultClip);
+                for (auto [name, action] : getModel()->anim->actions) {
+                    action->loop = true;
+                }
+                getModel()->anim->playAction(param.defaultClip, true);
             }
         }
 
@@ -276,6 +279,7 @@ struct BaseModelLoader : public IModel {
         void onLoad(Application* app, void* params) override {
             (void)params;
             (void)app;
+            // getModel()->mBehaviour->app = app;
         };
 };
 

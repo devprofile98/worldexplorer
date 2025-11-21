@@ -14,7 +14,9 @@ void Behaviour::handleMouseClick(Model* model, MouseEvent event) {}
 void Behaviour::handleMouseScroll(Model* model, MouseEvent event) {}
 void Behaviour::handleAttachedCamera(Model* model, Camera* camera) {}
 void Behaviour::update(Model* model, float dt) {}
+
 glm::vec3 Behaviour::getForward() { return glm::vec3{0.0}; }
+Model* Behaviour::getWeapon() { return nullptr; }
 
 ModelRegistry& ModelRegistry::instance() {
     static ModelRegistry inst;
@@ -62,6 +64,7 @@ void ModelRegistry::tick(Application* app) {
             if (behaviourMap.contains(model.model->mName)) {
                 std::cout << "Behaviour for this  exists " << model.model->mName << '\n';
                 model.model->mBehaviour = behaviourMap[model.model->mName];
+                model.model->mBehaviour->app = app;
             }
             it = futures.erase(it);
         } else {

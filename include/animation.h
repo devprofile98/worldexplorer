@@ -41,6 +41,7 @@ struct Action {
         std::map<std::string, Bone*> Bonemap;
         double mAnimationSecond = 0.0;
         double mAnimationDuration = 0.0;
+        bool loop = false;
 };
 
 struct Animation {
@@ -58,6 +59,8 @@ struct Animation {
         void update(aiNode* root);
         Action* getActiveAction();
         Action* getAction(const std::string& actionName);
+        void playAction(const std::string& name, bool loop = false);
+        bool isEnded() const;
 };
 
 struct BoneSocket {

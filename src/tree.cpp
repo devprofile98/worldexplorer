@@ -12,6 +12,7 @@
 #include "model.h"
 #include "model_registery.h"
 #include "rendererResource.h"
+#include "world.h"
 
 struct TreeModel : public IModel {
         TreeModel(Application* app) {
@@ -677,12 +678,17 @@ struct HumanBehaviour : public Behaviour {
         bool isMoving;  // Track movement state for animation
         bool isAiming;
         bool isShooting;
+        bool isInJump;
+        float cameraOffset;
         float lastX;
         float lastY;
         CharacterState state;
         CameraTransition transitoin;
         float groundLevel = -3.262;
         glm::vec3 velocity{0.0};
+        Model* weapon;
+        std::string attackAction;
+        std::string idleAction;
 
         HumanBehaviour(std::string name)
             : name(name),
@@ -695,10 +701,15 @@ struct HumanBehaviour : public Behaviour {
               isMoving(false),
               isAiming(false),
               isShooting(false),
+              isInJump(false),
+              cameraOffset(0.0),
               lastX(0),
               lastY(0),
               state(Idle),
-              transitoin({false, glm::vec3{0.0}, glm::vec3{0.0}, 0.0}) {
+              transitoin({false, glm::vec3{0.0}, glm::vec3{0.0}, 0.0}),
+              weapon(nullptr),
+              attackAction("Punch_Jab"),
+              idleAction("Idle_Loop") {
             ModelRegistry::instance().registerBehaviour(name, this);
         }
 
@@ -730,16 +741,17 @@ struct HumanBehaviour : public Behaviour {
             model->rotate(totalRotation);                             // Assume Model has a setRotation method
         }
 
+        Model* getWeapon() override { return weapon; }
+
         void handleMouseClick(Model* model, MouseEvent event) override {
             auto mouse = std::get<Click>(event);
-            std::cout << "Pressed !\n";
             if (mouse.click == GLFW_MOUSE_BUTTON_RIGHT) {
                 if (mouse.action == GLFW_PRESS) {
                     state = Aiming;
                     isAiming = true;
                     if (!transitoin.active) {
-                        transitoin.from = glm::vec3{0.3};
-                        transitoin.to = glm::vec3{0.2};
+                        transitoin.from = cameraOffset + glm::vec3{0.4};
+                        transitoin.to = glm::vec3{0.3};
                         transitoin.active = true;
                         transitoin.timeLeft = 0.5;
                     }
@@ -747,8 +759,8 @@ struct HumanBehaviour : public Behaviour {
                     state = Idle;
                     isAiming = false;
                     if (!transitoin.active) {
-                        transitoin.from = glm::vec3{0.2};
-                        transitoin.to = glm::vec3{0.3};
+                        transitoin.from = glm::vec3{0.3};
+                        transitoin.to = cameraOffset + glm::vec3{0.4};
                         transitoin.timeLeft = 0.5;
                         transitoin.active = true;
                     }
@@ -759,6 +771,7 @@ struct HumanBehaviour : public Behaviour {
         }
         void handleMouseScroll(Model* model, MouseEvent event) override {
             auto scroll = std::get<Scroll>(event);
+            cameraOffset += scroll.yOffset < 0 ? 0.1 : -0.1;
             targetDistance += scroll.yOffset < 0 ? 0.1 : -0.1;
         }
 
@@ -788,8 +801,32 @@ struct HumanBehaviour : public Behaviour {
             auto space_value = InputManager::keys[GLFW_KEY_SPACE];
             if (space_value) {
                 state = Jumping;
+                isInJump = true;
             } else if (state == Jumping) {
                 state = Falling;
+            }
+
+            if (InputManager::keys[GLFW_KEY_1]) {
+                for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+                    if (m->mName == "pistol") {
+                        std::cout << "find pistol\n";
+                        weapon = m;
+                        idleAction = "Pistol_Idle_Loop";
+                        attackAction = "Pistol_Shoot";
+                        return;
+                    }
+                }
+            }
+            if (InputManager::keys[GLFW_KEY_2]) {
+                for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+                    if (m->mName == "sword") {
+                        std::cout << "find sword\n";
+                        weapon = m;
+                        idleAction = "Sword_Idle";
+                        attackAction = "Sword_Attack";
+                        return;
+                    }
+                }
             }
         }
 
@@ -833,47 +870,101 @@ struct HumanBehaviour : public Behaviour {
             return moveDir;
         }
 
-        void update(Model* model, float dt) override {
-            auto movement = processInput();
-
+        void decideCurrentAnimation(Model* model, float dt) {
+            static std::string last_clip;
+            std::string clip_name;
+            bool loop;
+            model->anim->isEnded();
             if (isAiming) {
-                if (isShooting) {
-                    model->anim->getAction("Jump_Land");
+                if (isShooting && weapon != nullptr) {
+                    if (!model->anim->isEnded()) {
+                        clip_name = attackAction;
+                        loop = false;
+                    } else {
+                        clip_name = idleAction;
+                        loop = true;
+                        isShooting = false;
+                    }
                 } else {
-                    model->anim->getAction("Pistol_Idle_Loop");
+                    isShooting = false;
+                    clip_name = idleAction;
+                    loop = true;
                 }
             } else {
                 switch (state) {
                     case Idle: {
-                        model->anim->getAction("Idle_Loop");
-                        break;
-                    }
-                    case Jumping: {
-                        model->anim->getAction("Jump_Start");
-                        break;
-                    }
-                    case Falling: {
-                        model->anim->getAction("Jump_Land");
+                        clip_name = "Idle_Loop";
+                        loop = true;
                         break;
                     }
                     case Running: {
-                        model->anim->getAction("Jog_Fwd_Loop");
+                        if (!isInJump) {
+                            clip_name = "Jog_Fwd_Loop";
+                            loop = true;
+                        }
                         break;
                     }
-                    case Aiming: {
-                        model->anim->getAction("Pistol_Idle_Loop");
+                    case Falling:
+                    case Jumping: {
+                        clip_name = "Jump_Start";
+                        loop = false;
                         break;
                     }
-                    case Walking: {
-                        model->anim->getAction("Idle_Loop");
+                    default:
+                        clip_name = "Idle_Loop";
+                        loop = true;
                         break;
-                    }
-                    default: {
-                        model->anim->getAction("Idle_Loop");
-                        break;
-                    }
                 }
             }
+            if (last_clip != clip_name) {
+                model->anim->playAction(clip_name, loop);
+                last_clip = clip_name;
+            }
+        }
+
+        void update(Model* model, float dt) override {
+            auto movement = processInput();
+
+            decideCurrentAnimation(model, dt);
+
+            // if (isAiming) {
+            //     if (isShooting) {
+            //         model->anim->getAction("Jump_Land");
+            //     } else {
+            //         model->anim->getAction("Pistol_Idle_Loop");
+            //     }
+            // } else {
+            //     switch (state) {
+            //         case Idle: {
+            //             model->anim->getAction("Idle_Loop");
+            //             break;
+            //         }
+            //         case Jumping: {
+            //             model->anim->getAction("Jump_Start");
+            //             break;
+            //         }
+            //         case Falling: {
+            //             model->anim->getAction("Jump_Land");
+            //             break;
+            //         }
+            //         case Running: {
+            //             model->anim->getAction("Jog_Fwd_Loop");
+            //             break;
+            //         }
+            //         case Aiming: {
+            //             model->anim->getAction("Pistol_Idle_Loop");
+            //             break;
+            //         }
+            //         case Walking: {
+            //             model->anim->getAction("Idle_Loop");
+            //             break;
+            //         }
+            //         default: {
+            //             model->anim->getAction("Idle_Loop");
+            //             break;
+            //         }
+            //     }
+            // }
             model->moveBy(movement * speed * dt);
 
             //
@@ -892,6 +983,7 @@ struct HumanBehaviour : public Behaviour {
                 model->mTransform.mPosition.z = groundLevel;
                 velocity.z = 0;
                 state = Idle;
+                isInJump = false;
             }
             //
             model->moveBy(velocity);

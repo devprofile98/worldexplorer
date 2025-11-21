@@ -117,8 +117,19 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
 
 void Model::updateAnimation(float dt) {
     if (mTransform.mObjectInfo.isAnimated || mName == "tire") {
-        anim->getActiveAction()->mAnimationSecond =
-            std::fmod(dt, anim->getActiveAction()->mAnimationDuration) * 1000.0f;
+        auto* action = anim->getActiveAction();
+        action->mAnimationSecond += dt * 1000.0;
+        auto duration_ms = action->mAnimationDuration * 1000.0;
+
+        if (action->loop) {
+            // wrap aroun when looping
+            action->mAnimationSecond = std::fmod(action->mAnimationSecond, duration_ms);
+        } else {
+            // Clamp to end
+            if (action->mAnimationSecond >= duration_ms) {
+                action->mAnimationSecond = duration_ms;
+            }
+        }
         anim->update(mScene->mRootNode);
 
     } else {
@@ -649,22 +660,10 @@ void Model::userInterface() {
 
         if (mSocket != nullptr) {
             if (ImGui::DragFloat3("socket position", glm::value_ptr(mSocket->positionOffset), 0.01)) {
-                // if (lock_scale) {
-                //     mTransform.mScale = glm::vec3{mTransform.mScale.x};
-                // }
-                // happend = true;
             }
             if (ImGui::DragFloat3("socket scale", glm::value_ptr(mSocket->scaleOffset), 0.01)) {
-                // if (lock_scale) {
-                //     mTransform.mScale = glm::vec3{mTransform.mScale.y};
-                // }
-                // happend = true;
             }
             if (ImGui::DragFloat3("socket rot", glm::value_ptr(mSocket->rotationOffset), 0.01)) {
-                // if (lock_scale) {
-                //     mTransform.mScale = glm::vec3{mTransform.mScale.z};
-                // }
-                // happend = true;
             }
         }
 
@@ -697,7 +696,7 @@ void Model::userInterface() {
     for (auto& [name, action] : anim->actions) {
         ImGui::PushID((void*)&action);
         if (ImGui::Button(name.c_str())) {
-            anim->getAction(name);
+            anim->playAction(name, true);
         }
         ImGui::PopID();  // Pop the unique ID for this item
     }

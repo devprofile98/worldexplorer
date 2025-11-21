@@ -31,9 +31,9 @@
 class Application;
 class Texture;
 class BaseModel;
-class Animation;
+struct Animation;
 class Behaviour;
-class BoneSocket;
+struct BoneSocket;
 
 struct alignas(4) DrawIndexedIndirectArgs {
         uint32_t indexCount;

@@ -327,3 +327,20 @@ Action* Animation::getAction(const std::string& actionName) {
     }
     return activeAction;
 }
+void Animation::playAction(const std::string& name, bool loop) {
+    auto it = actions.find(name);  // or your lookup
+    if (it != actions.end()) {
+        activeAction = it->second;
+        activeAction->loop = loop;
+        activeAction->mAnimationSecond = 0.0f;  // reset to start
+        // Optional: clear events if any
+    }
+}
+
+bool Animation::isEnded() const {
+    if (!activeAction) {
+        return true;
+    }
+    float duration_ms = activeAction->mAnimationDuration * 1000.0f;
+    return !activeAction->loop && activeAction->mAnimationSecond >= duration_ms;
+}

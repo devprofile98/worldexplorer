@@ -28,8 +28,10 @@ class Behaviour {
         virtual void handleAttachedCamera(Model* model, Camera* camera);
         virtual void update(Model* model, float dt);
         virtual glm::vec3 getForward();
+        virtual Model* getWeapon();
 
         std::string name;
+        Application* app;
 };
 
 enum ModelVisibility { Visibility_Editor = 0, Visibility_User = 1, Visibility_Other = 100 };

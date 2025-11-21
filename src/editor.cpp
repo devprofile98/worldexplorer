@@ -30,6 +30,9 @@ void GizmoElement::onMouseClick(MouseEvent event) {
     auto click = std::get<Click>(event);
     auto app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(click.window));
 
+    if (app == nullptr || app->mWorld->actor != nullptr) {
+        return;
+    }
     if (click.click == GLFW_MOUSE_BUTTON_LEFT) {
         if (click.action == GLFW_PRESS) {
             if (mSelectedPart == center || mSelectedPart == x || mSelectedPart == y || mSelectedPart == z) {
@@ -329,6 +332,9 @@ void Screen::onMouseMove(MouseEvent event) {
     auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(move.window));
 
     mApp = that;
+    if (that->mWorld->actor != nullptr) {
+        return;
+    }
     if (mApp != nullptr) {
         DragState& drag_state = mApp->getCamera().getDrag();
         if (drag_state.active) mApp->getCamera().processMouse(move.xPos, move.yPos);
@@ -355,9 +361,10 @@ void Screen::onMouseClick(MouseEvent event) {
     auto click = std::get<Click>(event);
     mApp = reinterpret_cast<Application*>(glfwGetWindowUserPointer(click.window));
 
-    if (mApp == nullptr) {
+    if (mApp == nullptr || mApp->mWorld->actor != nullptr) {
         return;
     }
+
     DragState& drag_state = mApp->getCamera().getDrag();
     // if (drag_state.active) mApp->getCamera().processMouse(click.xPos, click.yPos);
 

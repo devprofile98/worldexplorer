@@ -638,8 +638,11 @@ void Application::mainLoop() {
     }
 
     // if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
-    for (const auto& m : mWorld->rootContainer) {
-        if (m->mName == "sword" && m->mSocket != nullptr) {
+    // for (const auto& m : mWorld->rootContainer) {
+    if (mWorld->actor != nullptr) {
+        // if (m->mName == "sword" && m->mSocket != nullptr) {
+        auto* m = mWorld->actor->mBehaviour->getWeapon();
+        if (m != nullptr && m->mSocket != nullptr) {
             Model* pistol = m;
             Model* human = m->mSocket->model;
 
@@ -671,12 +674,13 @@ void Application::mainLoop() {
         }
     }
     // }
+    // }
 
     {
         // PerfTimer timer{"tick"};
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
             if (cull_frustum) {
-                model->updateAnimation(time);
+                model->updateAnimation(delta_time);
             }
 
             reinterpret_cast<BaseModel*>(model)->update();
@@ -913,13 +917,14 @@ void Application::mainLoop() {
     //     wgpuCommandEncoderBeginRenderPass(encoder, mOutlinePass->getRenderPassDescriptor());
     // wgpuRenderPassEncoderSetStencilReference(outline_pass_encoder, stencilReferenceValue);
     //
-    // wgpuRenderPassEncoderSetBindGroup(outline_pass_encoder, 3, mOutlinePass->mDepthTextureBindgroup.getBindGroup(),
-    // 0,
+    // wgpuRenderPassEncoderSetBindGroup(outline_pass_encoder, 3,
+    // mOutlinePass->mDepthTextureBindgroup.getBindGroup(), 0,
     //                                   nullptr);
     // wgpuRenderPassEncoderSetBindGroup(outline_pass_encoder, 4, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
     // nullptr);
     //
-    // for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+    // for (const auto& [name, model] : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User))
+    // {
     //     if (model->isSelected()) {
     //         wgpuRenderPassEncoderSetPipeline(outline_pass_encoder, mOutlinePass->getPipeline()->getPipeline());
     //         model->draw(this, outline_pass_encoder, mBindingData);
@@ -945,7 +950,8 @@ void Application::mainLoop() {
     /*mTransparencyPass->mRenderPassDepthStencilAttachment.view = mDepthTextureView;*/
     /*WGPURenderPassEncoder transparency_pass_encoder =*/
     /*    wgpuCommandEncoderBeginRenderPass(encoder, transparency_pass_desc);*/
-    /*wgpuRenderPassEncoderSetPipeline(transparency_pass_encoder, mTransparencyPass->getPipeline()->getPipeline());*/
+    /*wgpuRenderPassEncoderSetPipeline(transparency_pass_encoder,
+     * mTransparencyPass->getPipeline()->getPipeline());*/
 
     /*mShadowPass->setupScene({1.0f, 1.0f, 4.0f});*/
     /*mTransparencyPass->render(mLoadedModel, transparency_pass_encoder, mDepthTextureView);*/
