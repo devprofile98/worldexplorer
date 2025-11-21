@@ -676,6 +676,7 @@ struct HumanBehaviour : public Behaviour {
         float speed;    // Movement speed (units per second)
         bool isMoving;  // Track movement state for animation
         bool isAiming;
+        bool isShooting;
         float lastX;
         float lastY;
         CharacterState state;
@@ -693,6 +694,7 @@ struct HumanBehaviour : public Behaviour {
               speed(1.0f),
               isMoving(false),
               isAiming(false),
+              isShooting(false),
               lastX(0),
               lastY(0),
               state(Idle),
@@ -731,27 +733,33 @@ struct HumanBehaviour : public Behaviour {
         void handleMouseClick(Model* model, MouseEvent event) override {
             auto mouse = std::get<Click>(event);
             std::cout << "Pressed !\n";
-            if (mouse.action == GLFW_PRESS) {
-                state = Aiming;
-                if (!transitoin.active) {
-                    transitoin.from = glm::vec3{0.3};
-                    transitoin.to = glm::vec3{0.2};
-                    transitoin.active = true;
-                    transitoin.timeLeft = 0.5;
+            if (mouse.click == GLFW_MOUSE_BUTTON_RIGHT) {
+                if (mouse.action == GLFW_PRESS) {
+                    state = Aiming;
+                    isAiming = true;
+                    if (!transitoin.active) {
+                        transitoin.from = glm::vec3{0.3};
+                        transitoin.to = glm::vec3{0.2};
+                        transitoin.active = true;
+                        transitoin.timeLeft = 0.5;
+                    }
+                } else if (mouse.action == GLFW_RELEASE) {
+                    state = Idle;
+                    isAiming = false;
+                    if (!transitoin.active) {
+                        transitoin.from = glm::vec3{0.2};
+                        transitoin.to = glm::vec3{0.3};
+                        transitoin.timeLeft = 0.5;
+                        transitoin.active = true;
+                    }
                 }
-            } else if (mouse.action == GLFW_RELEASE) {
-                state = Idle;
-                if (!transitoin.active) {
-                    transitoin.from = glm::vec3{0.2};
-                    transitoin.to = glm::vec3{0.3};
-                    transitoin.timeLeft = 0.5;
-                    transitoin.active = true;
-                }
+            } else if (mouse.click == GLFW_MOUSE_BUTTON_LEFT) {
+                isShooting = true;
             }
         }
         void handleMouseScroll(Model* model, MouseEvent event) override {
             auto scroll = std::get<Scroll>(event);
-            targetDistance += scroll.yOffset < 0 ? -0.1 : 0.1;
+            targetDistance += scroll.yOffset < 0 ? 0.1 : -0.1;
         }
 
         void handleAttachedCamera(Model* model, Camera* camera) override {
@@ -828,34 +836,42 @@ struct HumanBehaviour : public Behaviour {
         void update(Model* model, float dt) override {
             auto movement = processInput();
 
-            switch (state) {
-                case Idle: {
-                    model->anim->getAction("Idle_Loop");
-                    break;
-                }
-                case Jumping: {
-                    model->anim->getAction("Jump_Start");
-                    break;
-                }
-                case Falling: {
-                    model->anim->getAction("Jump_Loop");
-                    break;
-                }
-                case Running: {
-                    model->anim->getAction("Jog_Fwd_Loop");
-                    break;
-                }
-                case Aiming: {
+            if (isAiming) {
+                if (isShooting) {
+                    model->anim->getAction("Jump_Land");
+                } else {
                     model->anim->getAction("Pistol_Idle_Loop");
-                    break;
                 }
-                case Walking: {
-                    model->anim->getAction("Idle_Loop");
-                    break;
-                }
-                default: {
-                    model->anim->getAction("Idle_Loop");
-                    break;
+            } else {
+                switch (state) {
+                    case Idle: {
+                        model->anim->getAction("Idle_Loop");
+                        break;
+                    }
+                    case Jumping: {
+                        model->anim->getAction("Jump_Start");
+                        break;
+                    }
+                    case Falling: {
+                        model->anim->getAction("Jump_Land");
+                        break;
+                    }
+                    case Running: {
+                        model->anim->getAction("Jog_Fwd_Loop");
+                        break;
+                    }
+                    case Aiming: {
+                        model->anim->getAction("Pistol_Idle_Loop");
+                        break;
+                    }
+                    case Walking: {
+                        model->anim->getAction("Idle_Loop");
+                        break;
+                    }
+                    default: {
+                        model->anim->getAction("Idle_Loop");
+                        break;
+                    }
                 }
             }
             model->moveBy(movement * speed * dt);
@@ -864,7 +880,7 @@ struct HumanBehaviour : public Behaviour {
             float jump_speed = .04;
             //     // handle jump
             if (state == Jumping && model->mTransform.mPosition.z <= groundLevel) {
-                velocity.z += jump_speed;  // Impulse up (Z-up world)
+                velocity.z += jump_speed;
             }
             if (!(model->mTransform.mPosition.z <= groundLevel) || state == Jumping) {
                 velocity.z += -0.1 * dt;
@@ -874,7 +890,7 @@ struct HumanBehaviour : public Behaviour {
             //
             if (model->mTransform.mPosition.z < groundLevel) {
                 model->mTransform.mPosition.z = groundLevel;
-                velocity.z = 0;  // Stop downward motion
+                velocity.z = 0;
                 state = Idle;
             }
             //
@@ -882,9 +898,8 @@ struct HumanBehaviour : public Behaviour {
             //     //
             if (transitoin.active) {
                 transitoin.timeLeft -= dt;
-                auto t = glm::clamp(transitoin.timeLeft, 0.0f, 1.0f);  // Safety
+                auto t = glm::clamp(transitoin.timeLeft, 0.0f, 1.0f);
 
-                // Pick your ease (smoothstep example)
                 float eased_t = t * t * (3.0f - 2.0f * t);
                 targetDistance = glm::mix(transitoin.from, transitoin.to, 1 - eased_t);
 

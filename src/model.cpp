@@ -263,6 +263,12 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             vertex.normal.x = normal.x;
             vertex.normal.y = normal.z;
             vertex.normal.z = normal.y;
+
+            if (mCoordinateSystem == CoordinateSystem::Z_UP) {
+                swap = {{1, 0, 0, 0}, {0, 0, -1, 0}, {0, 1, 0, 0}, {0, 0, 0, 1}};
+            }
+            auto temp = swap * glm::vec4{vertex.normal, 1.0};
+            vertex.normal = glm::vec3{temp};
         }
 
         aiColor4D baseColor(1.0f, 0.0f, 1.0f, 1.0f);
@@ -639,6 +645,27 @@ void Model::userInterface() {
                 mTransform.mScale = glm::vec3{mTransform.mScale.z};
             }
             happend = true;
+        }
+
+        if (mSocket != nullptr) {
+            if (ImGui::DragFloat3("socket position", glm::value_ptr(mSocket->positionOffset), 0.01)) {
+                // if (lock_scale) {
+                //     mTransform.mScale = glm::vec3{mTransform.mScale.x};
+                // }
+                // happend = true;
+            }
+            if (ImGui::DragFloat3("socket scale", glm::value_ptr(mSocket->scaleOffset), 0.01)) {
+                // if (lock_scale) {
+                //     mTransform.mScale = glm::vec3{mTransform.mScale.y};
+                // }
+                // happend = true;
+            }
+            if (ImGui::DragFloat3("socket rot", glm::value_ptr(mSocket->rotationOffset), 0.01)) {
+                // if (lock_scale) {
+                //     mTransform.mScale = glm::vec3{mTransform.mScale.z};
+                // }
+                // happend = true;
+            }
         }
 
         if (ImGui::DragFloat3("Rotation", glm::value_ptr(mTransform.mEulerRotation), drag_speed, 360.0f)) {

@@ -91,6 +91,28 @@
       "childrens": [],
       "default_clip": "",
       "socket": null
+    },
+    {
+      "id": "sword",
+      "name": "sword",
+      "enabled": true,
+      "path": "sword.gltf",
+      "animated": false,
+      "cs": "z",
+      "translate": [-2.5, 1.144, -3.147],
+      "scale": [0.002, 0.002, 0.002],
+      "rotate": [90.0, 0.0, 144.0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": {
+        "model_name": "human",
+        "bone_name": "DEF-handR",
+        "offset": {
+          "translate": [0.25, 2.77, -3.34],
+          "scale": [0.3, 0.3, 0.3],
+          "rotate": [0.52, 0.3, 0.23]
+        }
+      }
     }
   ],
   "lights": [

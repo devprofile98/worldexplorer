@@ -142,7 +142,7 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         BaseModel* mParent = nullptr;
         Transform mTransform;
 
-        BoneSocket* mSocket;
+        BoneSocket* mSocket = nullptr;
 
         Buffer mIndexBuffer = {};
         std::map<int, Mesh> mMeshes;
