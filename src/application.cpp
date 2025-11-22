@@ -61,8 +61,8 @@
 
 static bool cull_frustum = true;
 
-static float middle_plane_length = 15.0f;
-static float far_plane_length = 50.0f;
+static float middle_plane_length = 1.0f;
+static float far_plane_length = 2.5f;
 bool should_update_csm = true;
 
 static auto position_offset = glm::vec3{5, 0.5, 0.7};
@@ -252,7 +252,7 @@ void Application::initializePipeline() {
 
     /* Initializing Render Passes */
     mShadowPass = new ShadowPass{this, "Shadow pass"};
-    mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm, 2);
+    mShadowPass->createRenderPass(WGPUTextureFormat_RGBA8Unorm, 3);
 
     mDepthPrePass = new DepthPrePass{this, "Depth PrePass", mDepthTextureView};
     mDepthPrePass->createRenderPass(WGPUTextureFormat_RGBA8Unorm);
@@ -721,10 +721,10 @@ void Application::mainLoop() {
     // The first pass is the shadow pass, only based on the opaque objects
     if (should_update_csm) {
         auto all_scenes = mShadowPass->createFrustumSplits(
-            corners, {
-                         {0.0, middle_plane_length}  //, {middle_plane_length, middle_plane_length + far_plane_length}
-                         // {middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 100}});
-                     });
+            corners, {{0.0, middle_plane_length},
+                      {middle_plane_length, middle_plane_length + far_plane_length},
+                      {middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 10}});
+        // });
 
         uint32_t cascades_count = all_scenes.size();
         wgpuQueueWriteBuffer(this->getRendererResource().queue, mTimeBuffer.getBuffer(), 0, &cascades_count,

@@ -432,5 +432,12 @@ void Screen::onKey(KeyEvent event) {
     } else if (GLFW_KEY_ESCAPE == key.key && key.action == GLFW_PRESS) {
         std::cout << "escaped pressed!\n";
         mApp->mWorld->togglePlayer();
+        if (mApp->mWorld->actor != nullptr) {
+            glfwSetInputMode(key.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            if (glfwRawMouseMotionSupported()) glfwSetInputMode(key.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        } else {
+            glfwSetInputMode(key.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            if (glfwRawMouseMotionSupported()) glfwSetInputMode(key.window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+        }
     }
 }
