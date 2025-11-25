@@ -14,6 +14,19 @@ set(CMAKE_CXX_EXTENSIONS OFF) #
 
 add_subdirectory(webgpu)
 add_subdirectory(extern/assmip)
+add_subdirectory(extern/JoltPhysics/Build EXCLUDE_FROM_ALL)
+
+
+
+# Also expose the defines to your code (optional but good)
+add_compile_definitions(
+    JPH_PROFILE_ENABLED=0
+    JPH_DISABLE_TEMP_ALLOCATOR=1
+    JPH_DOUBLE_PRECISION=0
+    JPH_OBJECT_STREAM=0
+)
+
+
 
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -85,6 +98,7 @@ add_executable(
     src/water_pass.cpp
     src/shader.cpp
     src/window.cpp
+    src/physics.cpp
 
     src/editor.cpp
     src/input_manager.cpp
@@ -151,13 +165,12 @@ target_include_directories(App PRIVATE
     "${IMGUI_DIR}/backends" # Include backends if headers are there
 )
 
-# set(WEBGPU_DIR "${CMAKE_CURRENT_SOURCE_DIR}/webgpu")
-
 target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")
 
 target_include_directories(App PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}"
                                        "extern/imgui"
                                        "extern/glfw3webgpu"
+                                       "extern/JoltPhysics"
                                        "include"
                                        "tracy_external"
                                    )
@@ -178,41 +191,10 @@ if (MSVC)
         IMPORTED_IMPLIB "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/wgpu_native.lib"
     )
 
-    # target_link_libraries(App PRIVATE
-    #     wgpu_native
-    #     glfw
-    #     assimp
-    #     glm::glm
-    #
-    #     # --- Add all the required Windows system libraries here ---
-    #     # Networking
-    #     ws2_32.lib
-    #
-    #     # Graphics (OpenGL/WGL, D3D)
-    #     opengl32.lib
-    #     d3dcompiler.lib
-    #
-    #     # Core Windows APIs and filesystem access
-    #     user32.lib           # For User Profile Dir
-    #     advapi32.lib         # For advanced APIs like registry
-    #     kernel32.lib         # For core kernel functions
-    #     shell32.lib          # For shell functions
-    #     userenv.lib
-    #     ntdll.lib
-    #     ole32.lib
-    #
-    #     # COM and WinRT APIs
-    #     ole32.lib
-    #     oleaut32.lib
-    #     runtimeobject.lib
-    #
-    #     # These are often implicit but can be useful to include
-    #     gdi32.lib            # For GDI functions
-    #     Wininet.lib          # For internet functions
-    # ) 
+
     add_definitions(-DGLFW_EXPOSE_NATIVE_WIN32)
     set(OS_LIBRARIES d3dcompiler ws2_32 userenv bcrypt ntdll opengl32 Propsys RuntimeObject)
-    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm ${OS_LIBRARIES})
+    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm ${OS_LIBRARIES} Jolt)
 
 else()
     target_compile_options(App PRIVATE -Wall -Wextra -pedantic)
@@ -220,7 +202,14 @@ else()
     set_target_properties(wgpu_native PROPERTIES
         IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/libwgpu_native.so"
     )
-    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm )
+    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm)
+
+
+
+    target_link_libraries(App PRIVATE Jolt )     # ← THIS LINE WAS MISSING
+
+
+
 endif()
 
 # target_copy_webgpu_binaries(App)

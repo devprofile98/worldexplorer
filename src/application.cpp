@@ -16,12 +16,15 @@
 #include "glm/detail/qualifier.hpp"
 #include "glm/matrix.hpp"
 #include "mesh.h"
+#include "physics.h"
 #include "renderpass.h"
 #include "shapes.h"
 #include "skybox.h"
 #include "world.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
+// #include <Jolt/Core/Factory.h>
+#include <Jolt/Jolt.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_wgpu.h>
@@ -61,8 +64,8 @@
 
 static bool cull_frustum = true;
 
-static float middle_plane_length = 1.0f;
-static float far_plane_length = 2.5f;
+static float middle_plane_length = 15.0f;
+static float far_plane_length = 20.5f;
 bool should_update_csm = true;
 
 static auto position_offset = glm::vec3{5, 0.5, 0.7};
@@ -588,6 +591,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
 
     initializeBuffers();
     initializePipeline();
+
+    physics::prepareJolt();
 
     mWorld = new World{this};
 
