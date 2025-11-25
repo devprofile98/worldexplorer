@@ -541,7 +541,7 @@ struct CubeModel : public IModel {
         CubeModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("cube", app, RESOURCE_DIR "/new_cube.obj", app->getObjectBindGroupLayout())
+            mModel->load("cube", app, RESOURCE_DIR "/cube.gltf", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{1, 1, 1})
                 .scale(glm::vec3{0.2f});
             mModel->uploadToGPU(app);

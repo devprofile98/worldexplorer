@@ -33,6 +33,7 @@ struct ObjectLoaderParam {
         std::vector<std::string> childrens;
         std::string defaultClip;
         bool isDefaultActor = false;
+        bool isPhysicEnabled = false;
 
         ObjectLoaderParam(std::string name, std::string path, bool animated, CoordinateSystem cs, Vec translate,
                           Vec scale, Vec rotate, std::vector<std::string> childrens, std::string defaultClip,

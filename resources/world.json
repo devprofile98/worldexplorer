@@ -15,6 +15,34 @@
       "socket": null
     },
     {
+      "id": "cube",
+      "name": "cube",
+      "enabled": true,
+      "path": "cube.gltf",
+      "animated": false,
+      "cs": "y",
+      "translate": [0.0, 0.0, 10.0],
+      "scale": [0.2, 0.2, 0.2],
+      "rotate": [0.0, 0, 0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": null
+    },
+    {
+      "id": "smallcube",
+      "name": "smallcube",
+      "enabled": true,
+      "path": "cube.gltf",
+      "animated": false,
+      "cs": "y",
+      "translate": [0.0, 0.0, 0.2],
+      "scale": [0.05, 0.05, 0.05],
+      "rotate": [0.0, 0, 0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": null
+    },
+    {
       "id": "pistol",
       "name": "pistol",
       "enabled": true,

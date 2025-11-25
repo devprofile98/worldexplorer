@@ -63,6 +63,7 @@
 #include "window.h"
 
 static bool cull_frustum = true;
+static bool runPhysics = false;
 
 static float middle_plane_length = 15.0f;
 static float far_plane_length = 20.5f;
@@ -481,6 +482,7 @@ void onWindowResize(GLFWwindow* window, int width, int height) {
 // Create staging buffer for CPU read (WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst)
 // WGPUBuffer stagingBuffer;
 
+static float last_frame_time = 0.0;
 bool Application::initialize(const char* windowName, uint16_t width, uint16_t height) {
     // Creating the window
     mWindow = new Window<GLFWwindow>();
@@ -616,10 +618,12 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     mUniforms.setCamera(mCamera);
 
     mWorld->loadWorld();
+    last_frame_time = glfwGetTime();
     return true;
 }
 
-static float last_frame_time = 0.0;
+static bool first_time = true;
+
 void Application::mainLoop() {
     glfwPollEvents();
 
@@ -629,6 +633,7 @@ void Application::mainLoop() {
         ZoneScopedNC("polling events", 0xF0F0F0);
         glfwPollEvents();
     }
+
     double time = glfwGetTime();
     double delta_time = time - last_frame_time;
     last_frame_time = time;
@@ -642,6 +647,20 @@ void Application::mainLoop() {
         }
     }
 
+    if (runPhysics) {
+        auto new_pos = physics::JoltLoop(delta_time);
+        for (const auto& cube : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+            if (cube->mName == "cube") {
+                auto aabb = cube->getWorldSpaceAABB();
+                std::cout << aabb.first.z << " " << aabb.second.z << " " << aabb.second.z - aabb.first.z << std::endl;
+                auto [new_pos, jolt_quat] = physics::getPositionById(cube->mPhysicComponent->bodyId);
+
+                glm::quat ttt = {jolt_quat.GetW(), {jolt_quat.GetX(), jolt_quat.GetY(), jolt_quat.GetZ()}};
+                cube->moveTo(new_pos);
+                cube->rotate(ttt);
+            }
+        }
+    }
     // if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
     // for (const auto& m : mWorld->rootContainer) {
     if (mWorld->actor != nullptr) {
@@ -905,7 +924,9 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 6, mTerrainPass->mTexturesBindgroup.getBindGroup(), 0,
                                           nullptr);
 
-        updateGui(terrain_pass_encoder, time);
+        if (mWorld->actor == nullptr) {
+            updateGui(terrain_pass_encoder, time);
+        }
 
         wgpuRenderPassEncoderEnd(terrain_pass_encoder);
         wgpuRenderPassEncoderRelease(terrain_pass_encoder);
@@ -1233,6 +1254,19 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                                      glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
             }
 
+            // auto [min, max] = item->getWorldSpaceAABB();
+            static float hey[3] = {0.0};
+            static float heyloc[3] = {0.0};
+            if (ImGui::DragFloat3("hey", hey, 0.1) || ImGui::DragFloat3("heyloc", heyloc, 0.01)) {
+                glm::vec3 min = {heyloc[0] - hey[0], heyloc[1] - hey[1], heyloc[2] - hey[2]};
+                glm::vec3 max = {heyloc[0] + hey[0], heyloc[1] + hey[1], heyloc[2] + hey[2]};
+                if (boxId < 1024) {
+                    mLineEngine->updateLines(boxId, generateAABBLines(min, max));
+                } else {
+                    boxId = mLineEngine->addLines(generateAABBLines(min, max));
+                }
+            }
+
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Objects")) {
@@ -1248,6 +1282,12 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                                       mSelectedModel && item->getName() == mSelectedModel->getName())) {
                     ImGui::Text("%s", item->getName().c_str());
 
+                    if (mSelectedModel) {
+                        mSelectedModel->selected(false);
+                    }
+                    mSelectedModel = item;
+                    mSelectedModel->selected(true);
+
                     if (item->mName == "pistol") {
                         auto [pos, scale, rot] = decomposeTransformation(mSelectedModel->getGlobalTransform());
                         std::cout << "\n-------------------" << mSelectedModel->getName()
@@ -1257,18 +1297,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                         std::cout << "rot:" << glm::to_string(rot);
                         std::cout << "\n------------------------------------------------\n";
                     }
-                    if (mSelectedModel) {
-                        mSelectedModel->selected(false);
-                    }
-                    mSelectedModel = item;
-                    mSelectedModel->selected(true);
 
-                    auto [min, max] = item->getWorldSpaceAABB();
-                    if (boxId < 1024) {
-                        mLineEngine->updateLines(boxId, generateAABBLines(min, max));
-                    } else {
-                        boxId = mLineEngine->addLines(generateAABBLines(min, max));
-                    }
                     // mLineEngine->addLines(generateAABBLines(min, max));
                 }
 
@@ -1295,6 +1324,11 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             }
             if (ImGui::DragFloat4("quat", glm::value_ptr(rotation_offset))) {
             }
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Physics")) {
+            ImGui::Checkbox("Run Physics", &runPhysics);
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();

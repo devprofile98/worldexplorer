@@ -17,6 +17,7 @@
 #include "glm/gtx/string_cast.hpp"
 #include "model.h"
 #include "model_registery.h"
+#include "physics.h"
 #include "point_light.h"
 #include "utils.h"
 
@@ -134,25 +135,31 @@ load_socket:
     // for (auto* model : rootContainer) {
     //     if (map.contains(model->mName)) {
     {
-        auto param = map.at(loadedModel->mName).socketParam;
-        Model* target = nullptr;
-        if (param.isValid) {
-            for (auto* suspect : rootContainer) {
-                if (suspect->mName == param.name) {
-                    target = suspect;
-                    break;
+        if (map.contains(loadedModel->mName)) {
+            auto param = map.at(loadedModel->mName).socketParam;
+            Model* target = nullptr;
+            if (param.isValid) {
+                for (auto* suspect : rootContainer) {
+                    if (suspect->mName == param.name) {
+                        target = suspect;
+                        break;
+                    }
                 }
-            }
-            if (target != nullptr) {
-                std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@ " << param.bone << " Is the attaching bone for "
-                          << loadedModel->mName << "\n";
-                loadedModel->mSocket = new BoneSocket{target, param.bone, param.translate, param.scale, param.rotate};
-                goto end;
+                if (target != nullptr) {
+                    std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@ " << param.bone << " Is the attaching bone for "
+                              << loadedModel->mName << "\n";
+                    loadedModel->mSocket =
+                        new BoneSocket{target, param.bone, param.translate, param.scale, param.rotate};
+                    goto end;
+                }
             }
         }
     }
 
     for (auto* model : rootContainer) {
+        if (!map.contains(model->mName)) {
+            continue;
+        }
         auto param = map.at(model->mName).socketParam;
         // auto loaded_model_param = map.at(loadedModel->mName).socketParam;
         if (param.name == loadedModel->mName) {
@@ -356,11 +363,31 @@ void World::loadWorld() {
         ObjectLoaderParam param{name,  path,   is_animated, cs,           translate,
                                 scale, rotate, childs,      default_clip, socket_param};
         param.isDefaultActor = actorName == name;
+        if (name == "cube" || name == "smallcube") {
+            param.isPhysicEnabled = true;
+        }
 
         ModelRegistry::instance().registerModel(name, [param](Application* app) -> LoadModelResult {
             BaseModelLoader model = BaseModelLoader{app, param};
             model.onLoad(app, nullptr);
             if (param.isDefaultActor) {
+            }
+            if (param.isPhysicEnabled) {
+                auto z = 10.0f;
+                auto l = 0.0f;
+                auto moving = true;
+                if (param.name == "cube") {
+                    z = 10.0;
+                    l = 0.2;
+                    moving = true;
+                } else if (param.name == "smallcube") {
+                    z = 0.2;
+                    l = 0.05;
+                    moving = false;
+                }
+                std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@22 creating physic for " << param.name << std::endl;
+                model.getModel()->mPhysicComponent =
+                    physics::createAndAddBody({l, l, l}, {0, 0.0, z}, moving, 0.5, 0.0f, 0.0f, 0.1f);
             }
 
             return {model.getModel(), Visibility_User};
