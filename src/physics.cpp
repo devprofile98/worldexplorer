@@ -48,7 +48,7 @@ class BroadPhaseLayerInterfaceImpl final : public BroadPhaseLayerInterface {
             return mObjectToBroadPhase[inLayer];
         }
 
-        // #if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
+#if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
         const char* GetBroadPhaseLayerName(BroadPhaseLayer inLayer) const override {
             switch ((BroadPhaseLayer::Type)inLayer) {
                 case (BroadPhaseLayer::Type)0:
@@ -60,7 +60,7 @@ class BroadPhaseLayerInterfaceImpl final : public BroadPhaseLayerInterface {
                     return "INVALID";
             }
         }
-        // #endif
+#endif
 
     private:
         BroadPhaseLayer mObjectToBroadPhase[Layers::NUM_LAYERS];
@@ -90,6 +90,11 @@ class ObjectLayerPairFilterImpl final : public ObjectLayerPairFilter {
         }
 };
 
+
+static BroadPhaseLayerInterfaceImpl sBroadPhaseLayerInterface;
+static ObjectVsBroadPhaseLayerFilterImpl sObjectVsBroadPhaseLayerFilter;
+static ObjectLayerPairFilterImpl sObjectLayerPairFilter;
+
 static PhysicsSystem physicsSystem;
 static BodyID boxBodyID;
 
@@ -102,8 +107,9 @@ void prepareJolt() {
     const uint32_t maxBodyPairs = 1024;
     const uint32_t maxContactConstraints = 1024;
 
-    physicsSystem.Init(maxBodies, 0, maxBodyPairs, maxContactConstraints, BroadPhaseLayerInterfaceImpl(),
-                       ObjectVsBroadPhaseLayerFilterImpl(), ObjectLayerPairFilterImpl());
+    physicsSystem.Init(maxBodies, 0, maxBodyPairs, maxContactConstraints,sBroadPhaseLayerInterface,     // Persistent ref
+        sObjectVsBroadPhaseLayerFilter,
+        sObjectLayerPairFilter);
 
     BodyInterface& bodyInterface = physicsSystem.GetBodyInterface();
 

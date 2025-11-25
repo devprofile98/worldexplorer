@@ -14,18 +14,6 @@ set(CMAKE_CXX_EXTENSIONS OFF) #
 
 add_subdirectory(webgpu)
 add_subdirectory(extern/assmip)
-add_subdirectory(extern/JoltPhysics/Build EXCLUDE_FROM_ALL)
-
-
-
-# Also expose the defines to your code (optional but good)
-add_compile_definitions(
-    JPH_PROFILE_ENABLED=0
-    JPH_DISABLE_TEMP_ALLOCATOR=1
-    JPH_DOUBLE_PRECISION=0
-    JPH_OBJECT_STREAM=0
-)
-
 
 
 # set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
@@ -51,7 +39,6 @@ file(GLOB IMGUI_BACKEND_SOURCES
     "${IMGUI_BACKENDS_DIR}/imgui_impl_wgpu.cpp" # Or imgui_impl_vulkan.cpp, imgui_impl_dx11.cpp, etc.
 )
 
-
 # Fetch Glm
 include(FetchContent)
 
@@ -60,8 +47,36 @@ FetchContent_Declare(
 	GIT_REPOSITORY	https://github.com/g-truc/glm.git
 	GIT_TAG 	bf71a834948186f4097caa076cd2663c69a10e1e #refs/tags/1.0.1
 )
-
 FetchContent_MakeAvailable(glm)
+
+# The configurations we support
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release;Distribution")
+set(DOUBLE_PRECISION OFF)
+set(GENERATE_DEBUG_SYMBOLS ON)
+set(OVERRIDE_CXX_FLAGS ON)
+set(CROSS_PLATFORM_DETERMINISTIC OFF)
+set(INTERPROCEDURAL_OPTIMIZATION ON)
+set(FLOATING_POINT_EXCEPTIONS_ENABLED OFF)
+set(CPP_EXCEPTIONS_ENABLED OFF)
+set(CPP_RTTI_ENABLED OFF)
+set(OBJECT_LAYER_BITS 16)
+set(USE_SSE4_1 ON)
+set(USE_SSE4_2 ON)
+set(USE_AVX ON)
+set(USE_AVX2 ON)
+set(USE_AVX512 OFF)
+set(USE_LZCNT ON)
+set(USE_TZCNT ON)
+set(USE_F16C ON)
+set(USE_FMADD ON)
+# Include Jolt
+FetchContent_Declare(
+        JoltPhysics
+        GIT_REPOSITORY "https://github.com/jrouwe/JoltPhysics"
+        GIT_TAG "v5.4.0"
+		SOURCE_SUBDIR "Build"
+)
+FetchContent_MakeAvailable(JoltPhysics)
 
 
 if (TRACY_ENABLE)
@@ -170,7 +185,6 @@ target_compile_definitions(App PRIVATE RESOURCE_DIR="./resources")
 target_include_directories(App PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}"
                                        "extern/imgui"
                                        "extern/glfw3webgpu"
-                                       "extern/JoltPhysics"
                                        "include"
                                        "tracy_external"
                                    )
@@ -191,10 +205,9 @@ if (MSVC)
         IMPORTED_IMPLIB "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/wgpu_native.lib"
     )
 
-
     add_definitions(-DGLFW_EXPOSE_NATIVE_WIN32)
     set(OS_LIBRARIES d3dcompiler ws2_32 userenv bcrypt ntdll opengl32 Propsys RuntimeObject)
-    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm ${OS_LIBRARIES} Jolt)
+    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm ${OS_LIBRARIES})
 
 else()
     target_compile_options(App PRIVATE -Wall -Wextra -pedantic)
@@ -202,13 +215,9 @@ else()
     set_target_properties(wgpu_native PROPERTIES
         IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/libwgpu_native.so"
     )
-    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm)
 
-
-
-    target_link_libraries(App PRIVATE Jolt )     # ← THIS LINE WAS MISSING
-
-
+    target_include_directories(App PUBLIC ${JoltPhysics_SOURCE_DIR}/..)
+    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm Jolt)
 
 endif()
 
@@ -228,7 +237,6 @@ else()
     target_link_options(glfw INTERFACE -sUSE_GLFW=3)
 endif()
 # add_subdirectory(extern/glfw3webgpu)
-
 
 
 # Enable profiling

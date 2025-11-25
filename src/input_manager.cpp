@@ -56,6 +56,9 @@ void InputManager::setCursorPosition(GLFWwindow* window, double xPos, double yPo
 
 bool InputManager::isKeyDown(int key) {
     // 1. Trust our array FIRST (callback-updated)
+    if (mWindow == nullptr) {
+        return false;
+    }
     if (key >= 0 && key <= GLFW_KEY_LAST && keys[key]) {
         return true;
     }
