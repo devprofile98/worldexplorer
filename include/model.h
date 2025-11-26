@@ -150,7 +150,7 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         size_t instances = 1;
         Instance* instance = nullptr;
         std::vector<BaseModel*> mChildrens{};
-        PhysicsComponent* mPhysicComponent;
+        PhysicsComponent* mPhysicComponent = nullptr;
 
     private:
         bool mIsTransparent = false;

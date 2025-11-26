@@ -77,7 +77,7 @@ WGPUTextureView getNextSurfaceTextureView(RendererResource& resources);
 WGPULimits GetRequiredLimits(WGPUAdapter adapter);
 bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height);
 uint32_t boxId = std::numeric_limits<uint32_t>().max();
-static Model* human = nullptr;
+uint32_t boxIdForAABB = std::numeric_limits<uint32_t>().max();
 
 WGPUTextureFormat Application::getTextureFormat() { return mSurfaceFormat; }
 
@@ -649,17 +649,27 @@ void Application::mainLoop() {
 
     if (runPhysics) {
         physics::JoltLoop(delta_time);
-        for (const auto& cube : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            if (cube->mName == "cube") {
-                auto aabb = cube->getWorldSpaceAABB();
-                // std::cout << aabb.first.z << " " << aabb.second.z << " " << aabb.second.z - aabb.first.z <<
-                // std::endl;
-                auto [new_pos, jolt_quat] = physics::getPositionById(cube->mPhysicComponent->bodyId);
+        // for (const auto& cube : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+        //     if (cube->mName == "cube") {
+        //         auto aabb = cube->getWorldSpaceAABB();
+        //         // std::cout << aabb.first.z << " " << aabb.second.z << " " << aabb.second.z - aabb.first.z <<
+        //         // std::endl;
+        //         auto [new_pos, jolt_quat] = physics::getPositionById(cube->mPhysicComponent->bodyId);
+        //
+        //         glm::quat ttt = {jolt_quat.GetW(), {jolt_quat.GetX(), jolt_quat.GetY(), jolt_quat.GetZ()}};
+        //         cube->moveTo(new_pos);
+        //         cube->rotate(ttt);
+        //     }
+        // }
+    }
 
-                glm::quat ttt = {jolt_quat.GetW(), {jolt_quat.GetX(), jolt_quat.GetY(), jolt_quat.GetZ()}};
-                cube->moveTo(new_pos);
-                cube->rotate(ttt);
-            }
+    if (mSelectedModel != nullptr) {
+        std::cout << "-------------------- " << mSelectedModel << std::endl;
+        auto [min, max] = mSelectedModel->getWorldSpaceAABB();
+        if (boxIdForAABB < 1024) {
+            mLineEngine->updateLines(boxIdForAABB, generateAABBLines(min, max));
+        } else {
+            boxIdForAABB = mLineEngine->addLines(generateAABBLines(min, max));
         }
     }
     // if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
@@ -800,7 +810,6 @@ void Application::mainLoop() {
     }
     // ----------------------------------------------
 
-    static int frameCounter = 0;
     // ---- Skybox and PBR render pass
     // WGPUQuerySetDescriptor querySetDesc{};
     // querySetDesc.type = WGPUQueryType_Timestamp;
@@ -1255,10 +1264,9 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                                      glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
             }
 
-            // auto [min, max] = item->getWorldSpaceAABB();
             static float hey[3] = {0.0};
             static float heyloc[3] = {0.0};
-            if (ImGui::DragFloat3("hey", hey, 0.1) || ImGui::DragFloat3("heyloc", heyloc, 0.01)) {
+            if (ImGui::DragFloat3("hey", hey, 0.01) || ImGui::DragFloat3("heyloc", heyloc, 0.01)) {
                 glm::vec3 min = {heyloc[0] - hey[0], heyloc[1] - hey[1], heyloc[2] - hey[2]};
                 glm::vec3 max = {heyloc[0] + hey[0], heyloc[1] + hey[1], heyloc[2] + hey[2]};
                 if (boxId < 1024) {

@@ -21,8 +21,13 @@ struct SocketParams {
         bool isValid;
 };
 
+struct PhysicsParams {
+        std::string type;
+};
+
 struct ObjectLoaderParam {
         SocketParams socketParam;
+        PhysicsParams physicsParams;
         std::string name;
         std::string path;
         bool animated;

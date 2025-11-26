@@ -6,11 +6,13 @@
 #include "application.h"
 #include "glm/ext/matrix_common.hpp"
 #include "glm/fwd.hpp"
+#include "glm/gtc/quaternion.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "input_manager.h"
 #include "instance.h"
 #include "model.h"
 #include "model_registery.h"
+#include "physics.h"
 #include "rendererResource.h"
 #include "world.h"
 
@@ -697,7 +699,7 @@ struct HumanBehaviour : public Behaviour {
               targetDistance(0.3),
               targetOffset(0.0, 0.0, 0.2),
               yaw(90.0f),
-              speed(1.0f),
+              speed(10.0f),
               isMoving(false),
               isAiming(false),
               isShooting(false),
@@ -738,7 +740,9 @@ struct HumanBehaviour : public Behaviour {
             // Update model orientation
             glm::mat4 initialRotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
             glm::mat4 totalRotation = yawRotation * initialRotation;  // Combine yaw and initial X rotation
-            model->rotate(totalRotation);                             // Assume Model has a setRotation method
+            // model->rotate(totalRotation);                             // Assume Model has a setRotation method
+            auto rot = glm::normalize(glm::quat_cast(totalRotation));
+            physics::setRotation(model->mPhysicComponent->bodyId, rot);
         }
 
         Model* getWeapon() override { return weapon; }
@@ -833,7 +837,6 @@ struct HumanBehaviour : public Behaviour {
         glm::vec3 processInput() {
             glm::vec3 moveDir(0.0f);  // Movement direction relative to front vector
             bool noKey = true;
-
             if (InputManager::isKeyDown(GLFW_KEY_SPACE) && state != Jumping) {
                 state = Jumping;
                 moveDir.z += 1;
@@ -965,7 +968,12 @@ struct HumanBehaviour : public Behaviour {
             //         }
             //     }
             // }
-            model->moveBy(movement * speed * dt);
+
+            auto& bodyInterface = physics::getBodyInterface();
+            auto move_amount = movement * speed * dt;
+            bodyInterface.SetLinearVelocity(model->mPhysicComponent->bodyId,
+                                            {move_amount.x, move_amount.z, move_amount.y});
+            // model->moveBy(movement * speed * dt);
 
             //
             float jump_speed = .04;

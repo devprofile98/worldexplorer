@@ -325,6 +325,15 @@ std::optional<SocketParams> parseSocketParam(const json& params) {
     return SocketParams{name, bone_name, translate, scale, glm::quat{1.0, rotate}, true};
 }
 
+std::optional<PhysicsParams> parsePhysics(const json& params) {
+    if (params.is_null()) {
+        return std::nullopt;
+    }
+    std::string type = params["type"].get<std::string>();
+
+    return PhysicsParams{type};
+}
+
 void World::loadWorld() {
     std::ifstream world_file(RESOURCE_DIR "/world.json");
 
@@ -351,6 +360,7 @@ void World::loadWorld() {
         std::array<float, 3> rotate = object["rotate"].get<std::array<float, 3>>();
         std::vector<std::string> childs = object["childrens"].get<std::vector<std::string>>();
         std::string default_clip = object["default_clip"].get<std::string>();
+        auto physics_props = parsePhysics(object["physics"]);
         SocketParams socket_param;
         socket_param.isValid = false;
 
@@ -363,31 +373,25 @@ void World::loadWorld() {
         ObjectLoaderParam param{name,  path,   is_animated, cs,           translate,
                                 scale, rotate, childs,      default_clip, socket_param};
         param.isDefaultActor = actorName == name;
-        if (name == "cube" || name == "smallcube") {
+        if (physics_props.has_value()) {
             param.isPhysicEnabled = true;
+            param.physicsParams = *physics_props;
         }
 
         ModelRegistry::instance().registerModel(name, [param](Application* app) -> LoadModelResult {
             BaseModelLoader model = BaseModelLoader{app, param};
             model.onLoad(app, nullptr);
+
             if (param.isDefaultActor) {
             }
             if (param.isPhysicEnabled) {
-                auto z = 10.0f;
-                auto l = 0.0f;
-                auto moving = true;
-                if (param.name == "cube") {
-                    z = 10.0;
-                    l = 0.2;
-                    moving = true;
-                } else if (param.name == "smallcube") {
-                    z = 0.2;
-                    l = 0.05;
-                    moving = false;
-                }
-                std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@22 creating physic for " << param.name << std::endl;
-                model.getModel()->mPhysicComponent =
-                    physics::createAndAddBody({l, l, l}, {0, 0.0, z}, moving, 0.5, 0.0f, 0.0f, 0.1f);
+                glm::vec3 euler_radians = glm::radians(param.rotate);
+                auto qu = glm::normalize(glm::quat(euler_radians));
+                auto [min, max] = model.getModel()->getWorldSpaceAABB();
+                auto center = (min + max) / 2.0f;
+                auto diff = (max - min) / 2.0f;
+                model.getModel()->mPhysicComponent = physics::createAndAddBody(
+                    diff, center, qu, param.physicsParams.type == "dynamic" ? true : false, 0.5, 0.0f, 0.0f, 0.1f);
             }
 
             return {model.getModel(), Visibility_User};

@@ -26,6 +26,7 @@
 #include "glm/ext/matrix_common.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "mesh.h"
+#include "physics.h"
 #include "texture.h"
 #include "utils.h"
 #include "wgpu_utils.h"
@@ -577,8 +578,17 @@ void Model::update2(Application* app, float dt) {
                              anim->mFinalTransformations.data(),
                              anim->mFinalTransformations.size() * sizeof(glm::mat4));
     }
+    if (mPhysicComponent != nullptr) {
+        auto [new_pos, jolt_quat] = physics::getPositionById(mPhysicComponent->bodyId);
+
+        if (getName() == "human") {
+            std::cout << glm::to_string(new_pos) << std::endl;
+        }
+        glm::quat ttt = {jolt_quat.GetW(), {jolt_quat.GetX(), jolt_quat.GetY(), jolt_quat.GetZ()}};
+        moveTo(new_pos);
+        rotate(glm::normalize(ttt));
+    }
     if (mTransform.mDirty) {
-        // getGlobalTransform();
         wgpuQueueWriteBuffer(queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
                              sizeof(ObjectInfo));
         for (auto& [id, mesh] : mMeshes) {

@@ -23,8 +23,11 @@ namespace physics {
 void prepareJolt();
 glm::vec3 JoltLoop(float dt);
 std::pair<glm::vec3, JPH::Quat> getPositionById(JPH::BodyID id);
-PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, bool active, float friction,
-                                   float restitution, float linearDamping, float gravityFactor);
+PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const glm::quat& rotation,
+                                   bool active, float friction, float restitution, float linearDamping,
+                                   float gravityFactor);
+JPH::BodyInterface& getBodyInterface();
+void setRotation(JPH::BodyID id, const glm::quat& rot);
 
 }  // namespace physics
 

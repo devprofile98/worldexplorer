@@ -112,25 +112,16 @@ static JobSystemThreadPool* job_system;
 static PhysicsSystem physicsSystem;
 static BodyID boxBodyID;
 
-PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, bool active, float friction,
-                                   float restitution, float linearDamping, float gravityFactor) {
+PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const glm::quat& rotation,
+                                   bool active, float friction, float restitution, float linearDamping,
+                                   float gravityFactor) {
     BodyInterface& bodyInterface = physicsSystem.GetBodyInterface();
-    // glm::quat desiredRot(0.7f, 0.1f, 0.1f, 0.1f);                                    // w,x,y,z order for glm
-    // desiredRot = glm::normalize(desiredRot);                                         // ← THIS IS MANDATORY
-    BodyCreationSettings boxSettings(new BoxShape(Vec3(shape.x, shape.z, shape.y)),  // 2x2x2 meter box
-                                     RVec3(centerPos.x, centerPos.z, centerPos.y),   // start 10 meters up
-                                     // Quat{desiredRot.x, desiredRot.y, desiredRot.z, desiredRot.w},
-                                     Quat::sIdentity(), active ? EMotionType::Dynamic : EMotionType::Static,
-                                     Layers::MOVING);
 
-    // BodyCreationSettings boxSettings(new BoxShape(Vec3(0.2f, 0.2f, 0.2f)),  // 2x2x2 meter box
-    //                                  RVec3(0, 10.0f, 0),                    // start 10 meters up
-    //                                  Quat::sIdentity(), EMotionType::Dynamic, Layers::MOVING);
-
-    // boxSettings.mFriction = 0.5f;
-    // boxSettings.mRestitution = 0.0f;
-    // boxSettings.mLinearDamping = 0.0f;
-    // boxSettings.mGravityFactor = 0.1f;  // full gravity
+    BodyCreationSettings boxSettings(new BoxShape(Vec3(shape.x, shape.z, shape.y), 0.01),  // 2x2x2 meter box
+                                     RVec3(centerPos.x, centerPos.z, centerPos.y),         // start 10 meters up
+                                     // Quat::sIdentity(),
+                                     {rotation.x, rotation.y, rotation.z, rotation.w},
+                                     active ? EMotionType::Dynamic : EMotionType::Static, Layers::MOVING);
 
     boxSettings.mFriction = friction;
     boxSettings.mRestitution = restitution;
@@ -139,6 +130,8 @@ PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 cente
                                                  //
     return new PhysicsComponent{bodyInterface.CreateAndAddBody(boxSettings, EActivation::Activate)};
 }
+
+BodyInterface& getBodyInterface() { return physicsSystem.GetBodyInterface(); }
 
 void prepareJolt() {
     JPH::RegisterDefaultAllocator();
@@ -194,6 +187,12 @@ std::pair<glm::vec3, Quat> getPositionById(BodyID id) {
     // printf("Box x: %.4f Box y: %.4f Box z: %.4f\n", (float)position.GetX(), (float)position.GetZ(),
     //        (float)position.GetY());
     return {glm::vec3{position.GetX(), position.GetZ(), position.GetY()}, rotation};
+}
+
+void setRotation(BodyID id, const glm::quat& rot) {
+    auto& interface = physics::getBodyInterface();
+    auto qu = glm::normalize(rot);
+    interface.SetRotation(id, {qu.x, qu.y, qu.z, qu.w}, EActivation::Activate);
 }
 
 glm::vec3 JoltLoop(float dt) {
