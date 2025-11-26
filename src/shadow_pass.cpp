@@ -458,7 +458,7 @@ void DepthPrePass::createRenderPass(WGPUTextureFormat textureFormat) {
         ->setShader(RESOURCE_DIR "/shaders/depth_prepass.wgsl")
         .setVertexBufferLayout(d)
         .setVertexState()
-        .setPrimitiveState()
+        .setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_Front)
         .setDepthStencilState(true, 0xFF, 0xFF, WGPUTextureFormat_Depth24PlusStencil8)
         .setBlendState();
 

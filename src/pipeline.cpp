@@ -53,8 +53,8 @@ Pipeline& Pipeline::createPipeline(Application* app) {
 
     mDescriptor.layout = mPipelineLayout;
     mDescriptor.label = createStringView(mPipelineName);
-    std::cout << "****************************" << mPipelineName << mBindGroupLayouts.size() << " "
-              << mDescriptor.depthStencil->depthCompare << std::endl;
+    // std::cout << "****************************" << mPipelineName << mBindGroupLayouts.size() << " "
+    //           << mDescriptor.depthStencil->depthCompare << std::endl;
     mPipeline = wgpuDeviceCreateRenderPipeline(app->getRendererResource().device, &mDescriptor);
     return *this;
 }
@@ -204,7 +204,8 @@ Pipeline& Pipeline::setDepthStencilState(bool depthWriteEnabled, uint32_t stenci
     // mDepthStencilState.stencilBack = {};
     mDepthStencilState.stencilReadMask = stencilReadMask;
     mDepthStencilState.stencilWriteMask = stencilWriteMask;
-    // mDepthStencilState.depthBias = 2.0;
+    // mDepthStencilState.depthBias = 1.0;
+    mDepthStencilState.depthBiasSlopeScale = 1.0f;
     mDepthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
     mDepthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
     mDepthStencilState.stencilBack.passOp = WGPUStencilOperation_Keep;
