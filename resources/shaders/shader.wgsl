@@ -30,8 +30,7 @@ fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
     return default_color;
 }
 
-    //@location(6) boneIds: vec4i,
-    //@location(7) boneWeights: vec4f,
+
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
@@ -83,7 +82,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     out.biTangent = B;
     out.aNormal = normalize(out.normal);
 
-    var index: u32 = 0u;
+    var index: u32 = numOfCascades - 1u;
     for (var i: u32 = 0u; i < numOfCascades; i = i + 1u) {
         if abs(out.viewSpacePos.z) < lightSpaceTrans[i].farZ {
             index = i;
@@ -346,6 +345,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     return vec4f(color * (1 - shadow * (0.75)), 1.0);
     //let animated = f32(in.materialProps >> 6);
-    //return vec4f(f32(in.shadowIdx) * 255.0, f32(in.shadowIdx) * 255.0, f32(in.shadowIdx) * 255.0, 1.0);
-    // return vec4f(in.position.xyz, 1.0);
+    //if in.shadowIdx == 0u {
+
+    //    return vec4f(1.0, 0.0, 0.0, 1.0);
+    //} else if in.shadowIdx == 1u {
+
+    //    return vec4f(0.0, 1.0, 0.0, 1.0);
+    //} else {
+
+    //    return vec4f(0.0, 0.0, 1.0, 1.0);
+    //}
+    //return vec4f(in.shadowIdx * 50.0, in.shadowIdx * 50.0, f32(in.shadowIdx) * 50.0, 1.0);
 }
