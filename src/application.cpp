@@ -407,7 +407,7 @@ void Application::initializeBuffers() {
         .setMappedAtCraetion()
         .create(this);
 
-    mLightingUniforms.directions = {glm::vec4{0.7, 0.4, 1.0, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
+    mLightingUniforms.directions = {glm::vec4{-0.7, 1.0, 1.0, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
     mLightingUniforms.colors = {glm::vec4{0.99, 1.0, 0.88, 1.0}, glm::vec4{0.6, 0.9, 1.0, 1.0}};
     wgpuQueueWriteBuffer(this->getRendererResource().queue, mDirectionalLightBuffer.getBuffer(), 0, &mLightingUniforms,
                          sizeof(LightingUniforms));
@@ -648,11 +648,12 @@ void Application::mainLoop() {
     }
 
     if (runPhysics) {
-        auto new_pos = physics::JoltLoop(delta_time);
+        physics::JoltLoop(delta_time);
         for (const auto& cube : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
             if (cube->mName == "cube") {
                 auto aabb = cube->getWorldSpaceAABB();
-                std::cout << aabb.first.z << " " << aabb.second.z << " " << aabb.second.z - aabb.first.z << std::endl;
+                // std::cout << aabb.first.z << " " << aabb.second.z << " " << aabb.second.z - aabb.first.z <<
+                // std::endl;
                 auto [new_pos, jolt_quat] = physics::getPositionById(cube->mPhysicComponent->bodyId);
 
                 glm::quat ttt = {jolt_quat.GetW(), {jolt_quat.GetX(), jolt_quat.GetY(), jolt_quat.GetZ()}};

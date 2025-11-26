@@ -116,7 +116,7 @@ fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, cascadeIdx: u32) -> 
     var shadow = 0.0;
     for (var i: i32 = -1; i <= 1; i++) {
         for (var j: i32 = -1; j <= 1; j++) {
-            shadow += textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), cascadeIdx, projCoords.z - 0.005);
+            shadow += textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), cascadeIdx, projCoords.z - 0.0005);
         }
     }
     shadow /= 9.0;
