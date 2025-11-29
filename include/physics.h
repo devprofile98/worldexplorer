@@ -28,6 +28,7 @@ PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 cente
                                    float gravityFactor);
 JPH::BodyInterface& getBodyInterface();
 void setRotation(JPH::BodyID id, const glm::quat& rot);
+void setPosition(JPH::BodyID id, const glm::vec3& pos);
 
 }  // namespace physics
 

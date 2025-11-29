@@ -128,9 +128,6 @@ fn calculateSpotLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo:
     }
     let diff = light.position.xyz - pos;
     let distance = length(diff);
-    //if distance > 5.0 {
-    //    return vec3f(0.0);
-    //}
     let L = normalize(diff);
     let H = normalize(V + L);
     let attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
@@ -147,10 +144,13 @@ fn calculateSpotLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo:
     let kS = F;
     var kD = vec3f(1.0) - kS;
     kD = kD * (1.0 - metallic);
-    let NdotL = max(dot(N, L), 0.0);
+    let NdotL = max(abs(dot(normalize(N), L)), 0.0);
     return (kD * albedo / 3.1415926535 + specular) * radiance * NdotL;
+    //if NdotL > 0.001f {
+    //   return vec3f(NdotL, NdotL, NdotL);
+    //}
+    //return L;
 }
-
 
 fn calculatePointLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo: vec3f, roughness: f32, metallic: f32, F0: vec3f) -> vec3f {
     // Only process point lights (type == 3)
@@ -268,33 +268,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     ////////////// Calculations for point lights
     for (var i = 0u; i < 5; i += 1u) {
-        //let diff = curr_light.position.xyz - in.worldPos;
-        //let distance = length(diff);
-        //if distance > 5.0f {
-        //    continue;
-        //}
-        //let L = normalize(diff);
-        //let H = normalize(V + L);
-        //let attenuation = 1.0f / (distance * distance);
-
-        //let radiance = curr_light.ambient.rgb * attenuation;
-
-        //let NDF = distributionGGX(N, H, roughness);
-        //let G = geometrySmith(N, V, L, roughness);
-        //let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
-
-        //let numerator = NDF * G * F;
-        //let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        //let specular = numerator / denominator;
-
-
-        //let kS = F;
-
-        //var kD = vec3f(1.0) - kS;
-        //kD = kD * (1.0 - metallic);
-
-        //let NdotL = max(dot(N, L), 0.0);
-
         let light = pointLight[i];
         if light.ftype == 3i {
             //lo += calculatePointLight(light, in.normal, V, in.worldPos, in.albedo, in.roughness, in.metallic, F0);
@@ -304,9 +277,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         }
     }
 
-    ////////////// Calculations for sun light
+    let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
+
+    ////////////// Calculations for sun light 
         {
-        let curr_light = lightingInfos.colors[0].rgb;
         let L = normalize(lightingInfos.directions[0].xyz); // normalize(curr_light.position.xyz - in.worldPos);
         let H = normalize(V + L);
 
@@ -329,21 +303,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
         let NdotL = max(dot(N, L), 0.0);
 
-        lo += (kD * albedo / PI + specular) * radiance * NdotL;
+        lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - shadow) ;
     }
 
     let ambient = vec3(0.03) * albedo * ao;
 
     var color = ambient + lo;
 
-	    // HDR tonemapping
+	// HDR tonemapping
     color = color / (color + vec3f(1.0));
-	    // gamma correct
-    color = pow(color, vec3(1.1));
+	// gamma correct
+    color = pow(color, vec3(1.1 / 1.0));
 
-    let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
 
-    return vec4f(color * (1 - shadow * (0.75)), 1.0);
+    return vec4f(color, 1.0);
     //let animated = f32(in.materialProps >> 6);
     //if in.shadowIdx == 0u {
 
@@ -355,5 +328,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     //    return vec4f(0.0, 0.0, 1.0, 1.0);
     //}
+
+    //return vec4f(N.rgb * (1 - shadow * (0.75)), 1.0);
     //return vec4f(in.shadowIdx * 50.0, in.shadowIdx * 50.0, f32(in.shadowIdx) * 50.0, 1.0);
 }

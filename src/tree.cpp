@@ -699,7 +699,7 @@ struct HumanBehaviour : public Behaviour {
               targetDistance(0.3),
               targetOffset(0.0, 0.0, 0.2),
               yaw(90.0f),
-              speed(10.0f),
+              speed(30.0f),
               isMoving(false),
               isAiming(false),
               isShooting(false),
@@ -971,8 +971,7 @@ struct HumanBehaviour : public Behaviour {
 
             auto& bodyInterface = physics::getBodyInterface();
             auto move_amount = movement * speed * dt;
-            bodyInterface.SetLinearVelocity(model->mPhysicComponent->bodyId,
-                                            {move_amount.x, move_amount.z, move_amount.y});
+            bodyInterface.SetLinearVelocity(model->mPhysicComponent->bodyId, {move_amount.x, 0, 0});
             // model->moveBy(movement * speed * dt);
 
             //
@@ -994,7 +993,7 @@ struct HumanBehaviour : public Behaviour {
                 isInJump = false;
             }
             //
-            model->moveBy(velocity);
+            // model->moveBy(velocity);
             //     //
             if (transitoin.active) {
                 transitoin.timeLeft -= dt;

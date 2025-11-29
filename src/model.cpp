@@ -571,23 +571,27 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     }
 }
 
-void Model::update2(Application* app, float dt) {
+void Model::update(Application* app, float dt, float physicSimulating) {
     auto& queue = app->getRendererResource().queue;
+
+    updateAnimation(dt);
+
     if (mScene->HasAnimations()) {
         wgpuQueueWriteBuffer(queue, mSkiningTransformationBuffer.getBuffer(), 0 * sizeof(glm::mat4),
                              anim->mFinalTransformations.data(),
                              anim->mFinalTransformations.size() * sizeof(glm::mat4));
     }
-    if (mPhysicComponent != nullptr) {
+
+    // Apply position/Rotation changes to the meshes
+    if (mPhysicComponent != nullptr && physicSimulating) {
         auto [new_pos, jolt_quat] = physics::getPositionById(mPhysicComponent->bodyId);
 
-        if (getName() == "human") {
-            std::cout << glm::to_string(new_pos) << std::endl;
-        }
-        glm::quat ttt = {jolt_quat.GetW(), {jolt_quat.GetX(), jolt_quat.GetY(), jolt_quat.GetZ()}};
+        glm::quat rotaton = {jolt_quat.GetW(), {jolt_quat.GetX(), jolt_quat.GetY(), jolt_quat.GetZ()}};
         moveTo(new_pos);
-        rotate(glm::normalize(ttt));
+        rotate(glm::normalize(rotaton));
     }
+
+    // If object is diry, then update its buffer
     if (mTransform.mDirty) {
         wgpuQueueWriteBuffer(queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
                              sizeof(ObjectInfo));
@@ -677,9 +681,8 @@ void Model::userInterface() {
             }
         }
 
-        if (ImGui::DragFloat3("Rotation", glm::value_ptr(mTransform.mEulerRotation), drag_speed, 360.0f)) {
+        if (ImGui::DragFloat4("Rotation", glm::value_ptr(mTransform.mEulerRotation), 0.1, 0.0f, 360.0f)) {
             glm::vec3 euler_radians = glm::radians(mTransform.mEulerRotation);
-            mTransform.mRotationMatrix = glm::toMat4(glm::quat(euler_radians));
 
             if (mTransform.mEulerRotation.x < 0) mTransform.mEulerRotation.x += 360.0f;
             if (mTransform.mEulerRotation.y < 0) mTransform.mEulerRotation.y += 360.0f;
@@ -687,6 +690,11 @@ void Model::userInterface() {
             if (mTransform.mEulerRotation.x > 360.0) mTransform.mEulerRotation.x -= 360.0f;
             if (mTransform.mEulerRotation.y > 360.0) mTransform.mEulerRotation.y -= 360.0f;
             if (mTransform.mEulerRotation.z > 360.0) mTransform.mEulerRotation.z -= 360.0f;
+
+            mTransform.mOrientation = glm::quat(euler_radians);
+
+            // mTransform.mOrientation = glm::normalize(mTransform.mOrientation);
+            mTransform.mRotationMatrix = glm::toMat4(mTransform.mOrientation);
             happend = true;
         }
 
@@ -764,7 +772,6 @@ BaseModel& BaseModel::scale(const glm::vec3& s) {
     mTransform.mScale = s;
     mTransform.mDirty = true;
     mTransform.mScaleMatrix = glm::scale(glm::mat4{1.0}, s);
-    // getLocalTransform();
     getGlobalTransform();
     return *this;
 }
@@ -775,11 +782,13 @@ BaseModel& BaseModel::rotate(const glm::vec3& around, float degree) {
     mTransform.mEulerRotation += around;
     glm::vec3 euler_radians = glm::radians(mTransform.mEulerRotation);
     mTransform.mRotationMatrix = glm::toMat4(glm::quat(euler_radians));
+    mTransform.mOrientation = glm::quat(euler_radians);
     getGlobalTransform();
     return *this;
 }
 BaseModel& BaseModel::rotate(const glm::quat& rot) {
-    mTransform.mRotationMatrix = glm::toMat4(glm::quat(rot));
+    mTransform.mOrientation = rot;
+    mTransform.mRotationMatrix = glm::toMat4(rot);
     return *this;
 }
 
@@ -848,6 +857,40 @@ std::pair<glm::vec3, glm::vec3> BaseModel::getWorldSpaceAABB() {
     return {worldMin, worldMax};
 }
 
+std::pair<glm::vec3, glm::vec3> BaseModel::getPhysicsAABB() {
+    // 1. Get full world transform
+    glm::mat4 world = getGlobalTransform();  // includes pos + rot + scale
+
+    // 2. Extract translation and scale, zero out rotation
+    glm::vec3 scale =
+        glm::vec3(glm::length(glm::vec3(world[0])), glm::length(glm::vec3(world[1])), glm::length(glm::vec3(world[2])));
+
+    glm::vec3 translation = glm::vec3(world[3]);
+
+    glm::mat4 scaleTranslateOnly = glm::mat4(1.0f);
+    scaleTranslateOnly = glm::translate(scaleTranslateOnly, translation);
+    scaleTranslateOnly = glm::scale(scaleTranslateOnly, scale);
+
+    // 3. Transform the 8 local corners with only scale+translation
+    glm::vec3 localCorners[8] = {
+        glm::vec3(min.x, min.y, min.z), glm::vec3(max.x, min.y, min.z), glm::vec3(min.x, max.y, min.z),
+        glm::vec3(min.x, min.y, max.z), glm::vec3(max.x, max.y, min.z), glm::vec3(max.x, min.y, max.z),
+        glm::vec3(min.x, max.y, max.z), glm::vec3(max.x, max.y, max.z),
+    };
+
+    glm::vec3 physMin(+FLT_MAX);
+    glm::vec3 physMax(-FLT_MAX);
+
+    for (int i = 0; i < 8; ++i) {
+        glm::vec4 t = scaleTranslateOnly * glm::vec4(localCorners[i], 1.0f);
+        glm::vec3 p(t.x, t.y, t.z);
+        physMin = glm::min(physMin, p);
+        physMax = glm::max(physMax, p);
+    }
+
+    return {physMin, physMax};
+}
+
 std::pair<glm::vec3, glm::vec3> BaseModel::getWorldMin() {
     auto min = getGlobalTransform() * glm::vec4(this->min, 1.0);
     auto max = getGlobalTransform() * glm::vec4(this->max, 1.0);
@@ -867,10 +910,10 @@ glm::mat4 BaseModel::getGlobalTransform() {
     return mTransform.getGlobalTransform(root);
 }
 
-void BaseModel::update() {
+void BaseModel::updateHirarchy() {
     mTransform.mDirty = true;
     for (auto* child : mChildrens) {
-        child->update();
+        child->updateHirarchy();
         child->mTransform.mObjectInfo.transformation = getGlobalTransform() * child->mTransform.mTransformMatrix;
     }
 }

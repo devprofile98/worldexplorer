@@ -661,6 +661,13 @@ void Application::mainLoop() {
         //         cube->rotate(ttt);
         //     }
         // }
+    } else {
+        for (const auto& cube : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+            if (cube->mName == "cube" || cube->mName == "smallcube") {
+                physics::setRotation(cube->mPhysicComponent->bodyId, glm::normalize(cube->mTransform.mOrientation));
+                physics::setPosition(cube->mPhysicComponent->bodyId, cube->mTransform.getPosition());
+            }
+        }
     }
 
     if (mSelectedModel != nullptr) {
@@ -714,15 +721,11 @@ void Application::mainLoop() {
     {
         // PerfTimer timer{"tick"};
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            if (cull_frustum) {
-                model->updateAnimation(delta_time);
-            }
-
-            reinterpret_cast<BaseModel*>(model)->update();
-            model->update2(this, 0.0);
+            reinterpret_cast<BaseModel*>(model)->updateHirarchy();
+            model->update(this, delta_time, runPhysics);
         }
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_Editor)) {
-            model->update2(this, 0.0);
+            model->update(this, delta_time, runPhysics);
         }
         if (mWorld->actor != nullptr) {
             mWorld->actor->mBehaviour->handleAttachedCamera(mWorld->actor, &mCamera);

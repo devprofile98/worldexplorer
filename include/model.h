@@ -74,7 +74,7 @@ class Transform {
         glm::mat4 mRotationMatrix;
 
         glm::mat4 mTransformMatrix;
-        glm::quat mOrientation;
+        glm::quat mOrientation{};
         bool mDirty = true;
 
     private:
@@ -128,10 +128,11 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         bool isSelected() const;
         std::pair<glm::vec3, glm::vec3> getWorldMin();
         std::pair<glm::vec3, glm::vec3> getWorldSpaceAABB();
+        std::pair<glm::vec3, glm::vec3> getPhysicsAABB();
 
         void addChildren(BaseModel* child);
         glm::mat4 getGlobalTransform();
-        void update();
+        void updateHirarchy();
 
         BaseModel& moveBy(const glm::vec3& m);
         BaseModel& moveTo(const glm::vec3& m);
@@ -174,7 +175,7 @@ class Model : public BaseModel {
 
         Model& setFoliage();
         Model& useTexture(bool use = true);
-        void update2(Application* app, float dt);
+        void update(Application* app, float dt, float physicSimulating = true);
 
         // Getters
         void createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData);

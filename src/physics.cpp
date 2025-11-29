@@ -120,8 +120,9 @@ PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 cente
     BodyCreationSettings boxSettings(new BoxShape(Vec3(shape.x, shape.z, shape.y), 0.01),  // 2x2x2 meter box
                                      RVec3(centerPos.x, centerPos.z, centerPos.y),         // start 10 meters up
                                      // Quat::sIdentity(),
-                                     {rotation.x, rotation.y, rotation.z, rotation.w},
+                                     {rotation.x, rotation.z, rotation.y, rotation.w},
                                      active ? EMotionType::Dynamic : EMotionType::Static, Layers::MOVING);
+    boxSettings.mAllowSleeping = false;
 
     boxSettings.mFriction = friction;
     boxSettings.mRestitution = restitution;
@@ -157,8 +158,8 @@ void prepareJolt() {
                                            Quat::sIdentity(),                     // rotation
                                            EMotionType::Static, Layers::NON_MOVING);
 
-        floorSettings.mFriction = 0.5f;
-        floorSettings.mRestitution = 0.3f;  // no bounce
+        floorSettings.mFriction = 1.0f;
+        floorSettings.mRestitution = 0.1f;  // no bounce
 
         bodyInterface.CreateAndAddBody(floorSettings, EActivation::DontActivate);
     }
@@ -182,6 +183,9 @@ std::pair<glm::vec3, Quat> getPositionById(BodyID id) {
     RMat44 boxTransform = bodyInterface.GetCenterOfMassTransform(id);
     RVec3 position = boxTransform.GetTranslation();
     Quat rotation = boxTransform.GetQuaternion();
+    auto y = rotation.GetY();
+    rotation.SetY(rotation.GetZ());
+    rotation.SetZ(y);
 
     // Convert Jolt::Quat → glm::quat directly (they have the same memory layout!)
     // printf("Box x: %.4f Box y: %.4f Box z: %.4f\n", (float)position.GetX(), (float)position.GetZ(),
@@ -192,7 +196,12 @@ std::pair<glm::vec3, Quat> getPositionById(BodyID id) {
 void setRotation(BodyID id, const glm::quat& rot) {
     auto& interface = physics::getBodyInterface();
     auto qu = glm::normalize(rot);
-    interface.SetRotation(id, {qu.x, qu.y, qu.z, qu.w}, EActivation::Activate);
+    interface.SetRotation(id, {qu.x, qu.z, qu.y, qu.w}, EActivation::Activate);
+}
+
+void setPosition(BodyID id, const glm::vec3& pos) {
+    auto& interface = physics::getBodyInterface();
+    interface.SetPosition(id, {pos.x, pos.z, pos.y}, EActivation::Activate);
 }
 
 glm::vec3 JoltLoop(float dt) {

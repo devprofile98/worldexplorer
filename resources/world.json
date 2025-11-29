@@ -23,8 +23,8 @@
       "animated": false,
       "cs": "y",
       "translate": [0.0, 0.0, -1.0],
-      "scale": [0.2, 0.2, 0.2],
-      "rotate": [0.0, 0, 0],
+      "scale": [0.2, 0.2, 1.0],
+      "rotate": [90.0, 45.0, 90.0],
       "childrens": [],
       "default_clip": "",
       "socket": null,
@@ -48,7 +48,7 @@
       "socket": null,
       "physics": {
         "enabled": true,
-        "type": "static"
+        "type": "dynamic"
       }
     },
     {

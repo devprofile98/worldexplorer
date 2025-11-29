@@ -387,11 +387,13 @@ void World::loadWorld() {
             if (param.isPhysicEnabled) {
                 glm::vec3 euler_radians = glm::radians(param.rotate);
                 auto qu = glm::normalize(glm::quat(euler_radians));
-                auto [min, max] = model.getModel()->getWorldSpaceAABB();
-                auto center = (min + max) / 2.0f;
-                auto diff = (max - min) / 2.0f;
+                // auto [min, max] = model.getModel()->getWorldSpaceAABB();
+                auto [min, max] = model.getModel()->getPhysicsAABB();
+                auto center = (min + max) * 0.5f;
+                auto half_extent = (max - min) * 0.5f;
                 model.getModel()->mPhysicComponent = physics::createAndAddBody(
-                    diff, center, qu, param.physicsParams.type == "dynamic" ? true : false, 0.5, 0.0f, 0.0f, 0.1f);
+                    half_extent, center, qu, param.physicsParams.type == "dynamic" ? true : false, 0.5, 0.0f, 0.0f,
+                    1.f);
             }
 
             return {model.getModel(), Visibility_User};
