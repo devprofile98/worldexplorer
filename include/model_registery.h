@@ -29,6 +29,7 @@ class Behaviour {
         virtual void update(Model* model, float dt);
         virtual glm::vec3 getForward();
         virtual Model* getWeapon();
+        virtual void onModelLoad(Model* model);
 
         std::string name;
         Application* app;

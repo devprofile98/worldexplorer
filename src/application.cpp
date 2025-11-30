@@ -65,6 +65,10 @@
 static bool cull_frustum = true;
 static bool runPhysics = false;
 
+bool flip_x = false;
+bool flip_y = false;
+bool flip_z = false;
+
 static float middle_plane_length = 15.0f;
 static float far_plane_length = 20.5f;
 bool should_update_csm = true;
@@ -663,15 +667,27 @@ void Application::mainLoop() {
         // }
     } else {
         for (const auto& cube : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            if (cube->mName == "cube" || cube->mName == "smallcube") {
-                physics::setRotation(cube->mPhysicComponent->bodyId, glm::normalize(cube->mTransform.mOrientation));
-                physics::setPosition(cube->mPhysicComponent->bodyId, cube->mTransform.getPosition());
-            }
+            // if (cube->mName == "cube" || cube->mName == "smallcube" || cube->mName == "cube2") {
+            //     auto rot = glm::normalize(cube->mTransform.mOrientation);
+            //     rot.z *= -1;
+            //     // if (flip_x) {
+            //     //     rot.x *= -1;
+            //     // }
+            //     // if (flip_y) {
+            //     //     rot.y *= -1;
+            //     // }
+            //     // if (flip_z) {
+            //     //     rot.z *= -1;
+            //     // }
+            //     // rot = glm::normalize(rot);
+            //     // physics::setRotation(cube->mPhysicComponent->bodyId, rot);
+            //     physics::setRotation(cube->mPhysicComponent->bodyId, glm::normalize(cube->mTransform.mOrientation));
+            //     physics::setPosition(cube->mPhysicComponent->bodyId, cube->mTransform.getPosition());
+            // }
         }
     }
 
     if (mSelectedModel != nullptr) {
-        std::cout << "-------------------- " << mSelectedModel << std::endl;
         auto [min, max] = mSelectedModel->getWorldSpaceAABB();
         if (boxIdForAABB < 1024) {
             mLineEngine->updateLines(boxIdForAABB, generateAABBLines(min, max));
@@ -1216,6 +1232,10 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
         if (ImGui::BeginTabItem("Scene")) {
             ImGuiIO& io = ImGui::GetIO();
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+
+            ImGui::Checkbox("flip x", &flip_x);
+            ImGui::Checkbox("flip y", &flip_y);
+            ImGui::Checkbox("flip z", &flip_z);
 
             if (ImGui::CollapsingHeader("Camera",
                                         ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially

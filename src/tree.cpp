@@ -691,6 +691,7 @@ struct HumanBehaviour : public Behaviour {
         Model* weapon;
         std::string attackAction;
         std::string idleAction;
+        JPH::CharacterVirtual* physicalCharacter;
 
         HumanBehaviour(std::string name)
             : name(name),
@@ -711,8 +712,14 @@ struct HumanBehaviour : public Behaviour {
               transitoin({false, glm::vec3{0.0}, glm::vec3{0.0}, 0.0}),
               weapon(nullptr),
               attackAction("Punch_Jab"),
-              idleAction("Idle_Loop") {
+              idleAction("Idle_Loop"),
+              physicalCharacter(nullptr) {
             ModelRegistry::instance().registerBehaviour(name, this);
+        }
+
+        void onModelLoad(Model* model) override {
+            std::cout << "Character Human just created\n";
+            physicalCharacter = physics::createCharacter();
         }
 
         void sayHello() override { std::cout << "Hello from " << name << '\n'; }
@@ -720,6 +727,7 @@ struct HumanBehaviour : public Behaviour {
         // Handle mouse movement for rotation
         void handleMouseMove(Model* model, MouseEvent event) override {
             // Sensitivity for mouse movement
+            if (physicalCharacter == nullptr) return;
             auto mouse = std::get<Move>(event);
             float diffX = mouse.xPos - lastX;
             float diffY = mouse.yPos - lastY;
@@ -742,7 +750,19 @@ struct HumanBehaviour : public Behaviour {
             glm::mat4 totalRotation = yawRotation * initialRotation;  // Combine yaw and initial X rotation
             // model->rotate(totalRotation);                             // Assume Model has a setRotation method
             auto rot = glm::normalize(glm::quat_cast(totalRotation));
-            physics::setRotation(model->mPhysicComponent->bodyId, rot);
+
+            // 1. +90° rotation around X (converts Y-up → Z-up orientation)
+            JPH::Quat rot90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
+
+            // 2. Yaw rotation around world Y (Jolt's up axis)
+            JPH::Quat yawQuat = JPH::Quat::sRotation(JPH::Vec3::sAxisY(), JPH::DegreesToRadians(-yaw));
+            JPH::Quat finalRot = yawQuat * rot90X;
+
+            auto y = finalRot.GetY();
+            finalRot.SetY(finalRot.GetZ());
+            finalRot.SetZ(-y);
+
+            physicalCharacter->SetRotation(finalRot);
         }
 
         Model* getWeapon() override { return weapon; }
@@ -926,75 +946,66 @@ struct HumanBehaviour : public Behaviour {
         }
 
         void update(Model* model, float dt) override {
+            if (physicalCharacter == nullptr) return;
             auto movement = processInput();
 
             decideCurrentAnimation(model, dt);
 
-            // if (isAiming) {
-            //     if (isShooting) {
-            //         model->anim->getAction("Jump_Land");
-            //     } else {
-            //         model->anim->getAction("Pistol_Idle_Loop");
-            //     }
-            // } else {
-            //     switch (state) {
-            //         case Idle: {
-            //             model->anim->getAction("Idle_Loop");
-            //             break;
-            //         }
-            //         case Jumping: {
-            //             model->anim->getAction("Jump_Start");
-            //             break;
-            //         }
-            //         case Falling: {
-            //             model->anim->getAction("Jump_Land");
-            //             break;
-            //         }
-            //         case Running: {
-            //             model->anim->getAction("Jog_Fwd_Loop");
-            //             break;
-            //         }
-            //         case Aiming: {
-            //             model->anim->getAction("Pistol_Idle_Loop");
-            //             break;
-            //         }
-            //         case Walking: {
-            //             model->anim->getAction("Idle_Loop");
-            //             break;
-            //         }
-            //         default: {
-            //             model->anim->getAction("Idle_Loop");
-            //             break;
-            //         }
-            //     }
-            // }
-
             auto& bodyInterface = physics::getBodyInterface();
             auto move_amount = movement * speed * dt;
-            bodyInterface.SetLinearVelocity(model->mPhysicComponent->bodyId, {move_amount.x, 0, 0});
+            // bodyInterface.SetLinearVelocity(model->mPhysicComponent->bodyId, {move_amount.x, 0, 0});
+            if (move_amount.length() < 0.0001) {
+                return;
+            }
+
             // model->moveBy(movement * speed * dt);
 
+            if (state == Jumping && physicalCharacter->IsSupported()) {
+                move_amount.z += 1.0;
+                isInJump = true;
+            }
+
+            if (!physicalCharacter->IsSupported()) {
+                // state = Idle;
+                // isInJump = false;
+            }
+
+            JPH::Vec3 jolt_movement = {move_amount.x, move_amount.z, move_amount.y};
+            physics::updateCharacter(physicalCharacter, dt, jolt_movement);
+
+            physicalCharacter->SetLinearVelocity(jolt_movement);
+
+            JPH::RVec3 new_position = physicalCharacter->GetPosition();
+            JPH::Quat new_rotation = physicalCharacter->GetRotation();
+            model->moveTo({new_position.GetX(), new_position.GetZ(), new_position.GetY()});
+
+            glm::quat desired_rotation;
+
+            desired_rotation.x = new_rotation.GetX();
+            desired_rotation.y = new_rotation.GetY();
+            desired_rotation.z = new_rotation.GetZ();
+            desired_rotation.w = new_rotation.GetW();
+            model->rotate(desired_rotation);
             //
             float jump_speed = .04;
             //     // handle jump
-            if (state == Jumping && model->mTransform.mPosition.z <= groundLevel) {
-                velocity.z += jump_speed;
-            }
-            if (!(model->mTransform.mPosition.z <= groundLevel) || state == Jumping) {
-                velocity.z += -0.1 * dt;
-            }
+            // if (state == Jumping && model->mTransform.mPosition.z <= groundLevel) {
+            //     velocity.z += jump_speed;
+            // }
+            // if (!(model->mTransform.mPosition.z <= groundLevel) || state == Jumping) {
+            //     velocity.z += -0.1 * dt;
+            // }
             //
             //     // model->mTransform.mPosition += velocity;
             //
+
             if (model->mTransform.mPosition.z < groundLevel) {
                 model->mTransform.mPosition.z = groundLevel;
                 velocity.z = 0;
                 state = Idle;
                 isInJump = false;
             }
-            //
-            // model->moveBy(velocity);
-            //     //
+
             if (transitoin.active) {
                 transitoin.timeLeft -= dt;
                 auto t = glm::clamp(transitoin.timeLeft, 0.0f, 1.0f);

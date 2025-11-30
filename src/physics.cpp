@@ -17,10 +17,14 @@
 //
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Character/CharacterVirtual.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 
 #include <glm/fwd.hpp>
 
+#include "Jolt/Math/Quat.h"
+#include "Jolt/Math/Vec3.h"
 #include "Jolt/Physics/Body/BodyID.h"
 #include "Jolt/Physics/Body/MotionType.h"
 #include "glm/ext/matrix_transform.hpp"
@@ -112,6 +116,49 @@ static JobSystemThreadPool* job_system;
 static PhysicsSystem physicsSystem;
 static BodyID boxBodyID;
 
+PhysicsSystem* getPhysicsSystem() { return &physicsSystem; }
+
+CharacterVirtual* createCharacter() {
+    Ref<CharacterVirtualSettings> settings = new CharacterVirtualSettings();
+
+    // Shape: usually a capsule or cylinder
+    Ref<Shape> capsule = new CapsuleShape(0.01f, 0.01f);  // half_height = 0.8m (full cyl height 1.6m), radius = 0.4m
+    // settings->mShape = capsule->Create().Get();
+    settings->mShape = capsule;
+
+    // Important parameters
+    settings->mMaxSlopeAngle = DegreesToRadians(50.0f);  // max walkable slope
+    settings->mMaxStrength = 1000.0f;                    // how hard it can push objects
+    settings->mCharacterPadding = 0.02f;                 // avoids tunneling
+    settings->mPenetrationRecoverySpeed = 1.0f;
+    settings->mPredictiveContactDistance = 0.1f;
+    settings->mSupportingVolume = Plane(Vec3::sAxisY(), -0.3f);  // plane below feet
+
+    JPH::Quat rotate90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
+    // Create the character
+    return new CharacterVirtual(settings, RVec3(0, -3.26, 0),  // initial position
+                                rotate90X,                     // initial rotation
+                                0,                             // user data (optional)
+                                &physicsSystem);
+}
+
+void updateCharacter(CharacterVirtual* physicalCharacter, float dt, Vec3 movement) {
+    // Settings for our update function
+    CharacterVirtual::ExtendedUpdateSettings update_settings;
+
+    // This is the key line — tell it what horizontal velocity you want on the ground
+    update_settings.mStickToFloorStepDown = JPH::Vec3(0, -0.5f, 0);  // optional: step down small ledges
+    update_settings.mWalkStairsStepUp = JPH::Vec3(0, 0.4f, 0);       // optional: climb stairs
+                                                                     //
+    physicalCharacter->ExtendedUpdate(
+        dt, JPH::Vec3(0.0, -9.81, 0.0),  // gravity
+        update_settings, physics::getPhysicsSystem()->GetDefaultBroadPhaseLayerFilter(Layers::MOVING),
+        physics::getPhysicsSystem()->GetDefaultLayerFilter(Layers::MOVING), {},  // or your custom one
+        {},
+        *temp_allocator  // your TempAllocator
+    );
+}
+
 PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const glm::quat& rotation,
                                    bool active, float friction, float restitution, float linearDamping,
                                    float gravityFactor) {
@@ -119,7 +166,6 @@ PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 cente
 
     BodyCreationSettings boxSettings(new BoxShape(Vec3(shape.x, shape.z, shape.y), 0.01),  // 2x2x2 meter box
                                      RVec3(centerPos.x, centerPos.z, centerPos.y),         // start 10 meters up
-                                     // Quat::sIdentity(),
                                      {rotation.x, rotation.z, rotation.y, rotation.w},
                                      active ? EMotionType::Dynamic : EMotionType::Static, Layers::MOVING);
     boxSettings.mAllowSleeping = false;
@@ -145,6 +191,10 @@ void prepareJolt() {
 
     physicsSystem.Init(maxBodies, 0, maxBodyPairs, maxContactConstraints, sBroadPhaseLayerInterface,  // Persistent ref
                        sObjectVsBroadPhaseLayerFilter, sObjectLayerPairFilter);
+
+    physicsSystem.SetGravity(Vec3(0, -9.81, 0.0));
+    physicsSystem.SetContactListener(nullptr);
+    physicsSystem.SetBodyActivationListener(nullptr);
 
     temp_allocator = new TempAllocatorImpl(10 * 1024 * 1024);
     job_system = new JobSystemThreadPool{cMaxPhysicsJobs, cMaxPhysicsBarriers, (int)thread::hardware_concurrency() - 1};
@@ -185,11 +235,8 @@ std::pair<glm::vec3, Quat> getPositionById(BodyID id) {
     Quat rotation = boxTransform.GetQuaternion();
     auto y = rotation.GetY();
     rotation.SetY(rotation.GetZ());
-    rotation.SetZ(y);
-
-    // Convert Jolt::Quat → glm::quat directly (they have the same memory layout!)
-    // printf("Box x: %.4f Box y: %.4f Box z: %.4f\n", (float)position.GetX(), (float)position.GetZ(),
-    //        (float)position.GetY());
+    // negative sing is CRITICAL to sync the physical world with the renderer world
+    rotation.SetZ(-y);
     return {glm::vec3{position.GetX(), position.GetZ(), position.GetY()}, rotation};
 }
 

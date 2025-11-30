@@ -48,6 +48,10 @@
 #include "rendererResource.h"
 #include "webgpu/webgpu.h"
 
+extern bool flip_x;
+extern bool flip_y;
+extern bool flip_z;
+
 Drawable::Drawable() {}
 
 void Drawable::configure(Application* app) {
@@ -585,10 +589,23 @@ void Model::update(Application* app, float dt, float physicSimulating) {
     // Apply position/Rotation changes to the meshes
     if (mPhysicComponent != nullptr && physicSimulating) {
         auto [new_pos, jolt_quat] = physics::getPositionById(mPhysicComponent->bodyId);
+        glm::quat rotation;
+        rotation.x = jolt_quat.GetX();
+        rotation.y = jolt_quat.GetY();
+        rotation.z = jolt_quat.GetZ();
+        rotation.w = jolt_quat.GetW();
 
-        glm::quat rotaton = {jolt_quat.GetW(), {jolt_quat.GetX(), jolt_quat.GetY(), jolt_quat.GetZ()}};
+        // if (flip_x) {
+        //     rotation.x *= -1;
+        // }
+        // if (flip_y) {
+        //     rotation.y *= -1;
+        // }
+        // if (flip_z) {
+        //     rotation.z *= -1;
+        // }
         moveTo(new_pos);
-        rotate(glm::normalize(rotaton));
+        rotate(glm::normalize(rotation));
     }
 
     // If object is diry, then update its buffer
@@ -681,22 +698,23 @@ void Model::userInterface() {
             }
         }
 
-        if (ImGui::DragFloat4("Rotation", glm::value_ptr(mTransform.mEulerRotation), 0.1, 0.0f, 360.0f)) {
-            glm::vec3 euler_radians = glm::radians(mTransform.mEulerRotation);
-
-            if (mTransform.mEulerRotation.x < 0) mTransform.mEulerRotation.x += 360.0f;
-            if (mTransform.mEulerRotation.y < 0) mTransform.mEulerRotation.y += 360.0f;
-            if (mTransform.mEulerRotation.z < 0) mTransform.mEulerRotation.z += 360.0f;
-            if (mTransform.mEulerRotation.x > 360.0) mTransform.mEulerRotation.x -= 360.0f;
-            if (mTransform.mEulerRotation.y > 360.0) mTransform.mEulerRotation.y -= 360.0f;
-            if (mTransform.mEulerRotation.z > 360.0) mTransform.mEulerRotation.z -= 360.0f;
-
-            mTransform.mOrientation = glm::quat(euler_radians);
-
-            // mTransform.mOrientation = glm::normalize(mTransform.mOrientation);
-            mTransform.mRotationMatrix = glm::toMat4(mTransform.mOrientation);
-            happend = true;
-        }
+        // if (ImGui::DragFloat4("Rotation", glm::value_ptr(mTransform.mOrientation), 0.1, 0.0f, 360.0f)) {
+        //     glm::vec3 euler_radians =
+        //         glm::eulerAngles(mTransform.mOrientation);  // glm::radians(mTransform.mEulerRotation);
+        //
+        //     if (mTransform.mEulerRotation.x < 0) mTransform.mEulerRotation.x += 360.0f;
+        //     if (mTransform.mEulerRotation.y < 0) mTransform.mEulerRotation.y += 360.0f;
+        //     if (mTransform.mEulerRotation.z < 0) mTransform.mEulerRotation.z += 360.0f;
+        //     if (mTransform.mEulerRotation.x > 360.0) mTransform.mEulerRotation.x -= 360.0f;
+        //     if (mTransform.mEulerRotation.y > 360.0) mTransform.mEulerRotation.y -= 360.0f;
+        //     if (mTransform.mEulerRotation.z > 360.0) mTransform.mEulerRotation.z -= 360.0f;
+        //
+        //     // mTransform.mOrientation = glm::quat(euler_radians);
+        //
+        //     // mTransform.mOrientation = glm::normalize(mTransform.mOrientation);
+        //     // mTransform.mRotationMatrix = glm::toMat4(mTransform.mOrientation);
+        //     // happend = true;
+        // }
 
         if (happend) {
             moveTo(mTransform.mPosition);
@@ -788,7 +806,7 @@ BaseModel& BaseModel::rotate(const glm::vec3& around, float degree) {
 }
 BaseModel& BaseModel::rotate(const glm::quat& rot) {
     mTransform.mOrientation = rot;
-    mTransform.mRotationMatrix = glm::toMat4(rot);
+    mTransform.mRotationMatrix = glm::toMat4(mTransform.mOrientation);
     return *this;
 }
 

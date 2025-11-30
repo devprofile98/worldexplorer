@@ -21,10 +21,46 @@
       "enabled": true,
       "path": "cube.gltf",
       "animated": false,
-      "cs": "y",
+      "cs": "z",
       "translate": [0.0, 0.0, -1.0],
       "scale": [0.2, 0.2, 1.0],
-      "rotate": [90.0, 45.0, 90.0],
+      "rotate": [45.0, 45.0, 0.0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": null,
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      }
+    },
+    {
+      "id": "cube1",
+      "name": "cube1",
+      "enabled": true,
+      "path": "cube.gltf",
+      "animated": false,
+      "cs": "z",
+      "translate": [2.0, 0.0, -1.0],
+      "scale": [0.2, 0.2, 0.4],
+      "rotate": [45.0, 5.0, 0.0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": null,
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      }
+    },
+    {
+      "id": "cube2",
+      "name": "cube2",
+      "enabled": true,
+      "path": "cube.gltf",
+      "animated": false,
+      "cs": "z",
+      "translate": [-2.0, -1.0, -1.0],
+      "scale": [0.2, 0.2, 0.4],
+      "rotate": [0.0, 0.0, 0.0],
       "childrens": [],
       "default_clip": "",
       "socket": null,
@@ -39,7 +75,7 @@
       "enabled": true,
       "path": "cube.gltf",
       "animated": false,
-      "cs": "y",
+      "cs": "z",
       "translate": [0.1, 0.0, 0.2],
       "scale": [0.05, 0.05, 0.05],
       "rotate": [0.0, 0, 0],
@@ -87,10 +123,7 @@
       "childrens": [""],
       "default_clip": "Idle_Loop",
       "socket": null,
-      "physics": {
-        "enabled": true,
-        "type": "dynamic"
-      }
+      "physics": null
     },
     {
       "id": "robot",
@@ -166,7 +199,7 @@
     {
       "type": "spot",
       "name": "red light",
-      "color": [1.0, 0.9, 0.55],
+      "color": [1.0, 0.55, 0.3],
       "position": [-1.2, 2.4, -0.222],
       "direction": [0.0, 0.0, -1.0],
       "inner_cutoff": 0.399,

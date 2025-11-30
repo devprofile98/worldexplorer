@@ -386,8 +386,12 @@ void World::loadWorld() {
             }
             if (param.isPhysicEnabled) {
                 glm::vec3 euler_radians = glm::radians(param.rotate);
-                auto qu = glm::normalize(glm::quat(euler_radians));
-                // auto [min, max] = model.getModel()->getWorldSpaceAABB();
+                glm::quat qu = glm::normalize(glm::quat(euler_radians));
+                qu.z *= -1;
+                qu = glm::normalize(qu);
+                model.getModel()->rotate(qu);
+                // CRITICAL to sync the physical world with the renderer world
+
                 auto [min, max] = model.getModel()->getPhysicsAABB();
                 auto center = (min + max) * 0.5f;
                 auto half_extent = (max - min) * 0.5f;
