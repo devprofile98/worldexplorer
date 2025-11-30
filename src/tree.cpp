@@ -613,46 +613,6 @@ struct HumanModel : public IModel {
         };
 };
 
-// struct HumanBehaviour : public Behaviour {
-//         HumanBehaviour(std::string name) {
-//             this->name = name;
-//             ModelRegistry::instance().registerBehaviour(name, this);
-//         }
-//         void sayHello() override { std::cout << "Hello from " << name << '\n'; }
-//         void handleKey(Model* model, KeyEvent event) override {
-//             auto e = std::get<Keyboard>(event);
-//
-//             switch (e.key) {
-//                 case GLFW_KEY_W: {
-//                     model->anim->getAction("Jog_Fwd_Loop");
-//                     model->moveBy({0.0, -0.05, 0.0});
-//                     break;
-//                 }
-//                 case GLFW_KEY_S: {
-//                     model->anim->getAction("Jog_Fwd_Loop");
-//                     model->moveBy({0.0, 0.05, 0.0});
-//                     break;
-//                 }
-//                 case GLFW_KEY_A: {
-//                     model->anim->getAction("Jog_Fwd_Loop");
-//                     model->moveBy({0.05, 0.0, 0.0});
-//                     break;
-//                 }
-//                 case GLFW_KEY_D: {
-//                     model->anim->getAction("Jog_Fwd_Loop");
-//                     model->moveBy({-0.05, 0.0, 0.0});
-//                     break;
-//                 }
-//                 default:
-//                     model->anim->getAction("Idle_Loop");
-//                     break;
-//             }
-//             if (e.action == GLFW_RELEASE) {
-//                 model->anim->getAction("Idle_Loop");
-//             }
-//         }
-// };
-
 struct CameraTransition {
         bool active;
         glm::vec3 from;
@@ -748,8 +708,6 @@ struct HumanBehaviour : public Behaviour {
             // Update model orientation
             glm::mat4 initialRotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
             glm::mat4 totalRotation = yawRotation * initialRotation;  // Combine yaw and initial X rotation
-            // model->rotate(totalRotation);                             // Assume Model has a setRotation method
-            auto rot = glm::normalize(glm::quat_cast(totalRotation));
 
             // 1. +90° rotation around X (converts Y-up → Z-up orientation)
             JPH::Quat rot90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
@@ -951,17 +909,17 @@ struct HumanBehaviour : public Behaviour {
 
             decideCurrentAnimation(model, dt);
 
-            auto& bodyInterface = physics::getBodyInterface();
+            // auto& bodyInterface = physics::getBodyInterface();
             auto move_amount = movement * speed * dt;
             // bodyInterface.SetLinearVelocity(model->mPhysicComponent->bodyId, {move_amount.x, 0, 0});
-            if (move_amount.length() < 0.0001) {
-                return;
-            }
+            // if (move_amount.length() < 0.0001) {
+            //     return;
+            // }
 
             // model->moveBy(movement * speed * dt);
 
             if (state == Jumping && physicalCharacter->IsSupported()) {
-                move_amount.z += 1.0;
+                move_amount.z += 3.0;
                 isInJump = true;
             }
 
@@ -970,10 +928,9 @@ struct HumanBehaviour : public Behaviour {
                 // isInJump = false;
             }
 
-            JPH::Vec3 jolt_movement = {move_amount.x, move_amount.z, move_amount.y};
-            physics::updateCharacter(physicalCharacter, dt, jolt_movement);
-
+            JPH::Vec3 jolt_movement = {move_amount.x, physicalCharacter->GetLinearVelocity().GetY(), move_amount.y};
             physicalCharacter->SetLinearVelocity(jolt_movement);
+            physics::updateCharacter(physicalCharacter, dt, jolt_movement);
 
             JPH::RVec3 new_position = physicalCharacter->GetPosition();
             JPH::Quat new_rotation = physicalCharacter->GetRotation();
@@ -986,25 +943,13 @@ struct HumanBehaviour : public Behaviour {
             desired_rotation.z = new_rotation.GetZ();
             desired_rotation.w = new_rotation.GetW();
             model->rotate(desired_rotation);
-            //
-            float jump_speed = .04;
-            //     // handle jump
-            // if (state == Jumping && model->mTransform.mPosition.z <= groundLevel) {
-            //     velocity.z += jump_speed;
-            // }
-            // if (!(model->mTransform.mPosition.z <= groundLevel) || state == Jumping) {
-            //     velocity.z += -0.1 * dt;
-            // }
-            //
-            //     // model->mTransform.mPosition += velocity;
-            //
 
-            if (model->mTransform.mPosition.z < groundLevel) {
-                model->mTransform.mPosition.z = groundLevel;
-                velocity.z = 0;
-                state = Idle;
-                isInJump = false;
-            }
+            // if (model->mTransform.mPosition.z < groundLevel) {
+            //     model->mTransform.mPosition.z = groundLevel;
+            //     velocity.z = 0;
+            //     state = Idle;
+            //     isInJump = false;
+            // }
 
             if (transitoin.active) {
                 transitoin.timeLeft -= dt;

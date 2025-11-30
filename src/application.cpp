@@ -653,37 +653,24 @@ void Application::mainLoop() {
 
     if (runPhysics) {
         physics::JoltLoop(delta_time);
-        // for (const auto& cube : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-        //     if (cube->mName == "cube") {
-        //         auto aabb = cube->getWorldSpaceAABB();
-        //         // std::cout << aabb.first.z << " " << aabb.second.z << " " << aabb.second.z - aabb.first.z <<
-        //         // std::endl;
-        //         auto [new_pos, jolt_quat] = physics::getPositionById(cube->mPhysicComponent->bodyId);
-        //
-        //         glm::quat ttt = {jolt_quat.GetW(), {jolt_quat.GetX(), jolt_quat.GetY(), jolt_quat.GetZ()}};
-        //         cube->moveTo(new_pos);
-        //         cube->rotate(ttt);
-        //     }
-        // }
     } else {
         for (const auto& cube : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            // if (cube->mName == "cube" || cube->mName == "smallcube" || cube->mName == "cube2") {
-            //     auto rot = glm::normalize(cube->mTransform.mOrientation);
-            //     rot.z *= -1;
-            //     // if (flip_x) {
-            //     //     rot.x *= -1;
-            //     // }
-            //     // if (flip_y) {
-            //     //     rot.y *= -1;
-            //     // }
-            //     // if (flip_z) {
-            //     //     rot.z *= -1;
-            //     // }
-            //     // rot = glm::normalize(rot);
-            //     // physics::setRotation(cube->mPhysicComponent->bodyId, rot);
-            //     physics::setRotation(cube->mPhysicComponent->bodyId, glm::normalize(cube->mTransform.mOrientation));
-            //     physics::setPosition(cube->mPhysicComponent->bodyId, cube->mTransform.getPosition());
-            // }
+            if (cube->mName == "cube" || cube->mName == "smallcube" || cube->mName == "cube2") {
+                // auto rot = glm::normalize(cube->mTransform.mOrientation);
+                // if (flip_x) {
+                //     rot.x *= -1;
+                // }
+                // if (flip_y) {
+                //     rot.y *= -1;
+                // }
+                // if (flip_z) {
+                //     rot.z *= -1;
+                // }
+                // rot = glm::normalize(rot);
+                // physics::setRotation(cube->mPhysicComponent->bodyId, rot);
+                physics::setRotation(cube->mPhysicComponent->bodyId, glm::normalize(cube->mTransform.mOrientation));
+                physics::setPosition(cube->mPhysicComponent->bodyId, cube->mTransform.getPosition());
+            }
         }
     }
 

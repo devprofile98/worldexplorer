@@ -132,7 +132,7 @@ CharacterVirtual* createCharacter() {
     settings->mCharacterPadding = 0.02f;                 // avoids tunneling
     settings->mPenetrationRecoverySpeed = 1.0f;
     settings->mPredictiveContactDistance = 0.1f;
-    settings->mSupportingVolume = Plane(Vec3::sAxisY(), -0.3f);  // plane below feet
+    // settings->mSupportingVolume = Plane(Vec3::sAxisY(), -0.3f);  // plane below feet
 
     JPH::Quat rotate90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
     // Create the character
@@ -243,6 +243,8 @@ std::pair<glm::vec3, Quat> getPositionById(BodyID id) {
 void setRotation(BodyID id, const glm::quat& rot) {
     auto& interface = physics::getBodyInterface();
     auto qu = glm::normalize(rot);
+    qu.z *= -1;
+    qu = glm::normalize(qu);
     interface.SetRotation(id, {qu.x, qu.z, qu.y, qu.w}, EActivation::Activate);
 }
 
@@ -251,18 +253,8 @@ void setPosition(BodyID id, const glm::vec3& pos) {
     interface.SetPosition(id, {pos.x, pos.z, pos.y}, EActivation::Activate);
 }
 
-glm::vec3 JoltLoop(float dt) {
-    BodyInterface& bodyInterface = physicsSystem.GetBodyInterface();
-
+void JoltLoop(float dt) {
+    // BodyInterface& bodyInterface = physicsSystem.GetBodyInterface();
     physicsSystem.Update(dt, 1, temp_allocator, job_system);
-
-    // --- Read back the box transform (this is what you do in your engine!) ---
-    RMat44 boxTransform = bodyInterface.GetCenterOfMassTransform(boxBodyID);
-    RVec3 position = boxTransform.GetTranslation();
-    Quat rotation = boxTransform.GetQuaternion();
-
-    // printf("Box x: %.4f Box y: %.4f Box z: %.4f\n", (float)position.GetX(), (float)position.GetZ(),
-    //        (float)position.GetY());
-    return glm::vec3{position.GetX(), position.GetZ(), position.GetY()};
 }
 }  // namespace physics
