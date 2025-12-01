@@ -909,35 +909,42 @@ struct HumanBehaviour : public Behaviour {
 
             decideCurrentAnimation(model, dt);
 
-            // auto& bodyInterface = physics::getBodyInterface();
             auto move_amount = movement * speed * dt;
-            // bodyInterface.SetLinearVelocity(model->mPhysicComponent->bodyId, {move_amount.x, 0, 0});
-            // if (move_amount.length() < 0.0001) {
-            //     return;
+
+            // if (physicalCharacter->IsSupported()) {
+            //     // state = Idle;
+            //     // isInJump = false;
             // }
+            JPH::Vec3 current_vel = physicalCharacter->GetLinearVelocity();
+            JPH::Vec3 jolt_movement = {move_amount.x, current_vel.GetY(), move_amount.y};
+            auto ground = physicalCharacter->GetGroundVelocity();
+            auto glm_ground = glm::vec3{ground.GetX(), ground.GetY(), ground.GetZ()};
 
-            // model->moveBy(movement * speed * dt);
-
-            if (state == Jumping && physicalCharacter->IsSupported()) {
-                move_amount.z += 3.0;
-                isInJump = true;
+            if (physicalCharacter->GetGroundState() == JPH::CharacterVirtual::EGroundState::OnGround) {
+                isInJump = false;
+                if (state == Jumping) {
+                    // physicalCharacter->SetLinearVelocity({0.0, .5, 0.0});
+                    jolt_movement.SetY(jolt_movement.GetY() + 3.0);
+                    isInJump = true;
+                }
+                if (jolt_movement.GetY() < 0.0) {
+                    std::cout << "character is supported " << jolt_movement << "\n";
+                }
+            } else {
+                auto jolt_gravity = physics::getPhysicsSystem()->GetGravity();
+                // auto gravity = glm::vec3{jolt_gravity.GetX(), jolt_gravity.GetZ(), jolt_gravity.GetY()};
+                // apply gravity
+                jolt_movement += jolt_gravity * (float)dt;
             }
 
-            if (!physicalCharacter->IsSupported()) {
-                // state = Idle;
-                // isInJump = false;
-            }
-
-            JPH::Vec3 jolt_movement = {move_amount.x, physicalCharacter->GetLinearVelocity().GetY(), move_amount.y};
             physicalCharacter->SetLinearVelocity(jolt_movement);
-            physics::updateCharacter(physicalCharacter, dt, jolt_movement);
+            physics::updateCharacter(physicalCharacter, dt, {});
 
             JPH::RVec3 new_position = physicalCharacter->GetPosition();
             JPH::Quat new_rotation = physicalCharacter->GetRotation();
             model->moveTo({new_position.GetX(), new_position.GetZ(), new_position.GetY()});
 
             glm::quat desired_rotation;
-
             desired_rotation.x = new_rotation.GetX();
             desired_rotation.y = new_rotation.GetY();
             desired_rotation.z = new_rotation.GetZ();

@@ -136,7 +136,7 @@ CharacterVirtual* createCharacter() {
 
     JPH::Quat rotate90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
     // Create the character
-    return new CharacterVirtual(settings, RVec3(0, -3.26, 0),  // initial position
+    return new CharacterVirtual(settings, RVec3(0, 10.26, 0),  // initial position
                                 rotate90X,                     // initial rotation
                                 0,                             // user data (optional)
                                 &physicsSystem);
@@ -206,7 +206,7 @@ void prepareJolt() {
         BodyCreationSettings floorSettings(new BoxShape(Vec3(5.0f, 0.2f, 5.0f)),  // huge flat box
                                            RVec3(0, -3.46, 1.910),                // position
                                            Quat::sIdentity(),                     // rotation
-                                           EMotionType::Static, Layers::NON_MOVING);
+                                           EMotionType::Static, Layers::MOVING);
 
         floorSettings.mFriction = 1.0f;
         floorSettings.mRestitution = 0.1f;  // no bounce

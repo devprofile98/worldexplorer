@@ -63,7 +63,7 @@
 #include "window.h"
 
 static bool cull_frustum = true;
-static bool runPhysics = false;
+static bool runPhysics = true;
 
 bool flip_x = false;
 bool flip_y = false;
