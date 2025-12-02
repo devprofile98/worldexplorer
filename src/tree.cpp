@@ -924,12 +924,15 @@ struct HumanBehaviour : public Behaviour {
                 isInJump = false;
                 if (state == Jumping) {
                     // physicalCharacter->SetLinearVelocity({0.0, .5, 0.0});
-                    jolt_movement.SetY(jolt_movement.GetY() + 3.0);
+                    jolt_movement.SetY(3.0);
                     isInJump = true;
+                } else {
+                    jolt_movement.SetY(std::max(0.0f, jolt_movement.GetY()));
+                    if (jolt_movement.GetY() < 0.0) {
+                        std::cout << "character is supported " << jolt_movement << "\n";
+                    }
                 }
-                if (jolt_movement.GetY() < 0.0) {
-                    std::cout << "character is supported " << jolt_movement << "\n";
-                }
+
             } else {
                 auto jolt_gravity = physics::getPhysicsSystem()->GetGravity();
                 // auto gravity = glm::vec3{jolt_gravity.GetX(), jolt_gravity.GetZ(), jolt_gravity.GetY()};
