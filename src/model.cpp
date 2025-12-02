@@ -280,9 +280,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             vertex.normal.y = normal.z;
             vertex.normal.z = normal.y;
 
-            if (mCoordinateSystem == CoordinateSystem::Z_UP) {
-                swap = {{1, 0, 0, 0}, {0, 0, -1, 0}, {0, 1, 0, 0}, {0, 0, 0, 1}};
-            }
             auto temp = swap * glm::vec4{vertex.normal, 1.0};
             vertex.normal = glm::vec3{temp};
         }
@@ -303,6 +300,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 vertex.tangent.x = tangent.x;
                 vertex.tangent.y = tangent.z;
                 vertex.tangent.z = tangent.y;
+                vertex.tangent = glm::vec3{swap * glm::vec4{vertex.tangent, 1.0}};
 
                 // Transform bitangent
                 glm::vec3 bitangent(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z);
@@ -310,6 +308,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 vertex.biTangent.x = bitangent.x;
                 vertex.biTangent.y = bitangent.z;
                 vertex.biTangent.z = bitangent.y;
+                vertex.biTangent = glm::vec3{swap * glm::vec4{vertex.biTangent, 1.0}};
             }
         } else {
             vertex.uv = glm::vec2{0.0f, 0.0f};
@@ -594,7 +593,6 @@ void Model::update(Application* app, float dt, float physicSimulating) {
         rotation.y = jolt_quat.GetY();
         rotation.z = jolt_quat.GetZ();
         rotation.w = jolt_quat.GetW();
-
         // if (flip_x) {
         //     rotation.x *= -1;
         // }

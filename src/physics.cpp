@@ -128,7 +128,7 @@ CharacterVirtual* createCharacter() {
 
     // Important parameters
     settings->mMaxSlopeAngle = DegreesToRadians(50.0f);  // max walkable slope
-    settings->mMaxStrength = 1000.0f;                    // how hard it can push objects
+    settings->mMaxStrength = 100.0f;                     // how hard it can push objects
     settings->mCharacterPadding = 0.02f;                 // avoids tunneling
     settings->mPenetrationRecoverySpeed = 1.0f;
     settings->mPredictiveContactDistance = 0.1f;
