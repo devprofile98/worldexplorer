@@ -205,12 +205,176 @@ void Model::processNode(Application* app, aiNode* node, const aiScene* scene, co
 }
 
 // Modified processMesh to accept global transformation
+// void Model::processMesh2(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId,
+//                          const glm::mat4& globalTransform) {
+//     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+//     std::map<size_t, std::vector<std::pair<size_t, float>>> bonemap;
+//
+//     size_t index_offset = mMeshes[mesh->mMaterialIndex].mVertexData.size();
+//     std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << meshId << " " << mesh->mMaterialIndex << '\n';
+//
+//     if (mesh->HasBones()) {
+//         Action* action = anim->getActiveAction();
+//         std::cout << " ))))))))))))))))) has bone " << mesh->HasBones() << " and " << mesh->mNumBones << std::endl;
+//         for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
+//             auto bone = mesh->mBones[i];
+//             for (size_t j = 0; j < bone->mNumWeights; ++j) {
+//                 const char* name = bone->mName.C_Str();
+//
+//                 auto& vid = bone->mWeights[j].mVertexId;
+//                 if (bonemap.count(vid) == 0) {
+//                     bonemap[vid] = {};
+//                 }
+//                 if (action && action->Bonemap.contains(name)) {
+//                     bonemap[vid].push_back({action->Bonemap[name]->id, bone->mWeights[j].mWeight});
+//                 }
+//             }
+//         }
+//     }
+//
+//     // Compute normal transformation (inverse transpose for normals)
+//     glm::mat4 normalTransform = glm::transpose(glm::inverse(globalTransform));
+//
+//     for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
+//         VertexAttributes vertex;
+//
+//         // Transform vertex position
+//         glm::vec4 pos(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z, 1.0f);
+//         pos = globalTransform * pos;
+//         glm::vec3 vector(pos.x, pos.y, pos.z);
+//
+//         // Adjust coordinate system (as in your original code)
+//         vertex.position.x = vector.x;
+//         vertex.position.z = vector.y;
+//         vertex.position.y = -vector.z;
+//
+//         glm::mat4 swap{1.0};  // identity matrix for default case
+//         if (mCoordinateSystem == CoordinateSystem::Z_UP) {
+//             swap = {{1, 0, 0, 0}, {0, 0, -1, 0}, {0, 1, 0, 0}, {0, 0, 0, 1}};
+//         }
+//         auto temp = swap * glm::vec4{vertex.position, 1.0};
+//         vertex.position = glm::vec3{temp};
+//
+//         size_t bid_cnt = 0;
+//         if (mesh->HasBones()) {
+//             for (const auto& [bid, bwg] : bonemap[i]) {
+//                 vertex.boneIds[bid_cnt % 4] = bid;
+//                 vertex.weights[bid_cnt % 4] = bwg;
+//                 ++bid_cnt;
+//             }
+//         }
+//
+//         // Update bounding box
+//         min.x = std::min(min.x, vertex.position.x);
+//         min.y = std::min(min.y, vertex.position.y);
+//         min.z = std::min(min.z, vertex.position.z);
+//         max.x = std::max(max.x, vertex.position.x);
+//         max.y = std::max(max.y, vertex.position.y);
+//         max.z = std::max(max.z, vertex.position.z);
+//
+//         if (mesh->HasNormals()) {
+//             // Transform normal
+//             glm::vec3 normal(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
+//             normal = glm::mat3(normalTransform) * normal;
+//             vertex.normal.x = normal.x;
+//             vertex.normal.y = normal.z;
+//             vertex.normal.z = normal.y;
+//
+//             auto temp = swap * glm::vec4{vertex.normal, 1.0};
+//             vertex.normal = glm::vec3{temp};
+//         }
+//
+//         aiColor4D baseColor(1.0f, 0.0f, 1.0f, 1.0f);
+//         material->Get(AI_MATKEY_COLOR_DIFFUSE, baseColor);
+//         vertex.color = glm::vec3(baseColor.r, baseColor.g, baseColor.b);
+//
+//         if (mesh->mTextureCoords[0]) {
+//             glm::vec2 vec;
+//             vec.x = mesh->mTextureCoords[0][i].x;
+//             vec.y = mesh->mTextureCoords[0][i].y;
+//             vertex.uv = vec;
+//             if (mesh->mTangents && mesh->mBitangents) {
+//                 // Transform tangent
+//                 glm::vec3 tangent(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);
+//                 tangent = glm::mat3(globalTransform) * tangent;
+//                 vertex.tangent.x = tangent.x;
+//                 vertex.tangent.y = tangent.z;
+//                 vertex.tangent.z = tangent.y;
+//                 vertex.tangent = glm::vec3{swap * glm::vec4{vertex.tangent, 1.0}};
+//
+//                 // Transform bitangent
+//                 glm::vec3 bitangent(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z);
+//                 bitangent = glm::mat3(globalTransform) * bitangent;
+//                 vertex.biTangent.x = bitangent.x;
+//                 vertex.biTangent.y = bitangent.z;
+//                 vertex.biTangent.z = bitangent.y;
+//                 vertex.biTangent = glm::vec3{swap * glm::vec4{vertex.biTangent, 1.0}};
+//             }
+//         } else {
+//             vertex.uv = glm::vec2{0.0f, 0.0f};
+//         }
+//
+//         mMeshes[mesh->mMaterialIndex].mVertexData.push_back(vertex);
+//     }
+//
+//     for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
+//         aiFace face = mesh->mFaces[i];
+//         for (uint32_t j = 0; j < face.mNumIndices; j++) {
+//             mMeshes[mesh->mMaterialIndex].mIndexData.push_back((uint32_t)face.mIndices[j] + index_offset);
+//         }
+//     }
+//
+//     auto& render_resource = app->getRendererResource();
+//     auto& mmesh = mMeshes[mesh->mMaterialIndex];
+//
+//     auto load_texture = [&](aiTextureType type, MaterialProps flag, Texture** target) {
+//         for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
+//             mmesh.mMaterial.setFlag(flag, true);
+//             aiString str;
+//             material->GetTexture(type, i, &str);
+//             std::string texture_path = RESOURCE_DIR;
+//             texture_path += "/";
+//             texture_path += str.C_Str();
+//
+//             size_t pos = 0;
+//             while ((pos = texture_path.find("%20", pos)) != std::string::npos) {
+//                 texture_path.replace(pos, 3, " ");  // replace 3 chars ("%20") with 1 space
+//                 pos += 1;                           // move past the inserted space
+//             }
+//
+//             *target = new Texture{render_resource.device, texture_path};
+//             if ((*target)->createView() == nullptr) {
+//                 std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName,
+//                 texture_path);
+//             } else {
+//                 std::cout << std::format("succesfully create view for {} at {}\n", mName, texture_path);
+//             }
+//             (*target)->uploadToGPU(render_resource.queue);
+//             mmesh.isTransparent = (*target)->isTransparent();
+//         }
+//     };
+//
+//     if (mmesh.mTexture == nullptr) {
+//         load_texture(aiTextureType_DIFFUSE, MaterialProps::HasDiffuseMap, &mmesh.mTexture);
+//     }
+//     if (mmesh.mSpecularTexture == nullptr) {
+//         load_texture(aiTextureType_DIFFUSE_ROUGHNESS, MaterialProps::HasRoughnessMap, &mmesh.mSpecularTexture);
+//         // aiTextureType_SPECULAR
+//     }
+//     if (mmesh.mNormalMapTexture == nullptr) {
+//         load_texture(aiTextureType_HEIGHT, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
+//     }
+//     if (mmesh.mNormalMapTexture == nullptr) {
+//         load_texture(aiTextureType_NORMALS, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
+//     }
+// }
+
 void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId,
                         const glm::mat4& globalTransform) {
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
     std::map<size_t, std::vector<std::pair<size_t, float>>> bonemap;
-
-    size_t index_offset = mMeshes[mesh->mMaterialIndex].mVertexData.size();
+    mMeshes[mMeshNumber] = {};
+    size_t index_offset = mMeshes[mMeshNumber].mVertexData.size();
     std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << meshId << " " << mesh->mMaterialIndex << '\n';
 
     if (mesh->HasBones()) {
@@ -314,18 +478,20 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             vertex.uv = glm::vec2{0.0f, 0.0f};
         }
 
-        mMeshes[mesh->mMaterialIndex].mVertexData.push_back(vertex);
+        mMeshes[mMeshNumber].mVertexData.push_back(vertex);
     }
 
     for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
         aiFace face = mesh->mFaces[i];
         for (uint32_t j = 0; j < face.mNumIndices; j++) {
-            mMeshes[mesh->mMaterialIndex].mIndexData.push_back((uint32_t)face.mIndices[j] + index_offset);
+            mMeshes[mMeshNumber].mIndexData.push_back((uint32_t)face.mIndices[j] + index_offset);
         }
+        std::cout << "Indexes for mesh " << mMeshNumber << " at " << getName() << " is "
+                  << mMeshes[mMeshNumber].mIndexData.size() << "\n";
     }
 
     auto& render_resource = app->getRendererResource();
-    auto& mmesh = mMeshes[mesh->mMaterialIndex];
+    auto& mmesh = mMeshes[mMeshNumber];
 
     auto load_texture = [&](aiTextureType type, MaterialProps flag, Texture** target) {
         for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
@@ -366,6 +532,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
     if (mmesh.mNormalMapTexture == nullptr) {
         load_texture(aiTextureType_NORMALS, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
     }
+    mMeshNumber++;
 }
 
 Model& Model::load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout) {

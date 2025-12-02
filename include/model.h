@@ -148,6 +148,7 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
 
         Buffer mIndexBuffer = {};
         std::map<int, Mesh> mMeshes;
+        int mMeshNumber = 0;
         size_t instances = 1;
         Instance* instance = nullptr;
         std::vector<BaseModel*> mChildrens{};
