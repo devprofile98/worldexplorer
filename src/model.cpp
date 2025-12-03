@@ -67,6 +67,32 @@ void Drawable::draw(Application* app, WGPURenderPassEncoder encoder) {
     (void)encoder;
 }
 
+Node* Node::buildNodeTree(aiNode* ainode, Node* parent) {
+    Node* node = new Node{};
+
+    node->mName = ainode->mName.C_Str();
+    node->mLocalTransform = AiToGlm(ainode->mTransformation);
+    node->mParent = parent;
+
+    // store mesh indices attached to this node
+    for (size_t i = 0; i < ainode->mNumMeshes; ++i) {
+        node->mMeshIndices.push_back(ainode->mMeshes[i]);
+    }
+
+    // add child nodes to this newly created node for its children recursively
+    for (size_t i = 0; i < ainode->mNumChildren; ++i) {
+        node->mChildrens.push_back(buildNodeTree(ainode->mChildren[i], node));
+    }
+    return node;
+}
+
+glm::mat4 Node::getGlobalTransform() const {
+    if (mParent) {
+        return mParent->getGlobalTransform() * mLocalTransform;
+    }
+    return mLocalTransform;
+}
+
 Buffer& Drawable::getUniformBuffer() { return mUniformBuffer; }
 
 Model::Model(CoordinateSystem cs) : BaseModel(), mCoordinateSystem(cs) {
@@ -486,8 +512,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
         for (uint32_t j = 0; j < face.mNumIndices; j++) {
             mMeshes[mMeshNumber].mIndexData.push_back((uint32_t)face.mIndices[j] + index_offset);
         }
-        std::cout << "Indexes for mesh " << mMeshNumber << " at " << getName() << " is "
-                  << mMeshes[mMeshNumber].mIndexData.size() << "\n";
     }
 
     auto& render_resource = app->getRendererResource();
@@ -532,6 +556,9 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
     if (mmesh.mNormalMapTexture == nullptr) {
         load_texture(aiTextureType_NORMALS, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
     }
+
+    mFlattenMeshes[meshId] = mMeshes[mMeshNumber];  // Directly maps to assimp mesh id, so the hirarchy tree could
+                                                    // use this without headache when drawing
     mMeshNumber++;
 }
 
@@ -555,10 +582,16 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
         std::cout << std::format("Assimp - Succesfully loaded model {}\n", (const char*)path.c_str());
     }
     mScene = scene;
+
     std::cout << "----------------------------------------\n " << getName() << std::endl;
     mTransform.mObjectInfo.isAnimated = anim->initAnimation(mScene);
     updateAnimation(0);
 
+    mRootNode = Node::buildNodeTree(scene->mRootNode, nullptr);
+
+    if (mRootNode != nullptr) {
+        std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$ Node hirarchy created for" << getName() << " Succesfuly\n";
+    }
     processNode(app, scene->mRootNode, scene, glm::mat4{1.0});
 
     return *this;

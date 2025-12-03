@@ -54,6 +54,19 @@ struct alignas(16) ObjectInfo {
         uint32_t isAnimated;
 };
 
+class Node {
+    public:
+        std::string mName;
+        glm::mat4 mLocalTransform;
+        Node* mParent;
+        std::vector<Node*> mChildrens;
+        std::vector<unsigned int> mMeshIndices;
+
+        glm::mat4 getGlobalTransform() const;
+
+        static inline Node* buildNodeTree(aiNode* ainode, Node* parent);
+};
+
 // Hold the properties and needed object to represents the object transformation
 class Transform {
         friend class BaseModel;
@@ -143,11 +156,13 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         /* Scene graph related property */
         BaseModel* mParent = nullptr;
         Transform mTransform;
+        Node* mRootNode = nullptr;
 
         BoneSocket* mSocket = nullptr;
 
         Buffer mIndexBuffer = {};
         std::map<int, Mesh> mMeshes;
+        std::map<int, Mesh> mFlattenMeshes;
         int mMeshNumber = 0;
         size_t instances = 1;
         Instance* instance = nullptr;
