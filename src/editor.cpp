@@ -298,11 +298,11 @@ struct GizmoModelCenter : public IModel {
         };
 };
 
-REGISTER_MODEL("gizmo_center", GizmoModelCenter, Visibility_Editor, &GizmoElement::center);
-REGISTER_MODEL("gizmo", GizmoModel, Visibility_Editor, &GizmoElement::z);
-REGISTER_MODEL("gizmo_x", GizmoModelX, Visibility_Editor, &GizmoElement::x);
-REGISTER_MODEL("gizmo_y", GizmoModelY, Visibility_Editor, &GizmoElement::y);
-REGISTER_MODEL("bone", BoneModel, Visibility_Editor, &Editor::BoneIndicator);
+// REGISTER_MODEL("gizmo_center", GizmoModelCenter, Visibility_Editor, &GizmoElement::center);
+// REGISTER_MODEL("gizmo", GizmoModel, Visibility_Editor, &GizmoElement::z);
+// REGISTER_MODEL("gizmo_x", GizmoModelX, Visibility_Editor, &GizmoElement::x);
+// REGISTER_MODEL("gizmo_y", GizmoModelY, Visibility_Editor, &GizmoElement::y);
+// REGISTER_MODEL("bone", BoneModel, Visibility_Editor, &Editor::BoneIndicator);
 
 void Editor::showBoneAt(const glm::mat4& transformation) {
     auto [trans, scale, rot] = decomposeTransformation(transformation);

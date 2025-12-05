@@ -167,12 +167,14 @@ void Application::initializePipeline() {
         object_information
             .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(ObjectInfo))
             .addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4))
+            .addBuffer(2, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY, 10 * sizeof(glm::mat4))
             .createLayout(this, "Object Tranformation Matrix uniform");
 
     BindingGroup default_mesh_information;
     WGPUBindGroupLayout default_mesh_mat_layout =
         default_mesh_information
             .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Material))
+            .addBuffer(1, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t))
             .createLayout(this, "mesh material Matrix uniform");
 
     mBindGroupLayouts = {bind_group_layout,        obj_transform_layout,        texture_bind_group_layout,
@@ -448,6 +450,12 @@ void Application::initializeBuffers() {
     }
     wgpuQueueWriteBuffer(getRendererResource().queue, mDefaultBoneFinalTransformData.getBuffer(), 0, bones.data(),
                          sizeof(glm::mat4) * bones.size());
+
+    mDefaultMeshGlobalTransformData.setLabel("default global mesh transform")
+        .setSize(10 * sizeof(glm::mat4))
+        .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
+        .setMappedAtCraetion(false)
+        .create(this);
 }
 
 void Application::onResize() {
@@ -778,7 +786,7 @@ void Application::mainLoop() {
     {
         ZoneScoped;
         mShadowPass->lightPos = mLightingUniforms.directions[0];
-        mShadowPass->renderAllCascades(encoder);
+        // mShadowPass->renderAllCascades(encoder);
     }
     //
     //-------------- End of shadow pass
@@ -807,7 +815,7 @@ void Application::mainLoop() {
             // PerfTimer timer{"test"};
             wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mDepthPrePass->getPipeline()->getPipeline());
             for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-                model->draw(this, render_pass_encoder);
+                // model->draw(this, render_pass_encoder);
             }
         }
 
@@ -880,7 +888,11 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
         for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
             // if (!model->isTransparent()) {
-            model->draw(this, render_pass_encoder);
+            // if (model->getName() != "ghamgham" && model->getName() != "human") {
+            // model->draw(this, render_pass_encoder);
+            // } else {
+            model->drawHirarchy(this, render_pass_encoder);
+            // }
             // }
         }
     }
@@ -979,7 +991,7 @@ void Application::mainLoop() {
     {
         ZoneScopedNC("3D viewport and loader", 0xF0F00F);
         // 3D editor elements pass
-        m3DviewportPass->execute(encoder);
+        // m3DviewportPass->execute(encoder);
 
         // polling if any model loading process is done and append it to loaded model list
         ModelRegistry::instance().tick(this);

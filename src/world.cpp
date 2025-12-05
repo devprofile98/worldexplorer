@@ -20,6 +20,7 @@
 #include "physics.h"
 #include "point_light.h"
 #include "utils.h"
+#include "webgpu/webgpu.h"
 
 using json = nlohmann::json;
 
@@ -272,6 +273,15 @@ struct BaseModelLoader : public IModel {
                 wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mSkiningTransformationBuffer.getBuffer(),
                                      0, bones.data(), sizeof(glm::mat4) * bones.size());
             }
+            mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
+                .setSize(10 * sizeof(glm::mat4))
+                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
+                .create(app);
+
+            auto& databuffer = mModel->mGlobalMeshTransformationData;
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
+                                 0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
 
             if (getModel()->mTransform.mObjectInfo.isAnimated) {

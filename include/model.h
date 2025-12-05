@@ -99,6 +99,7 @@ class Drawable {
         Drawable();
         void configure(Application* app);
         virtual void draw(Application* app, WGPURenderPassEncoder encoder);
+        virtual void drawHirarchy(Application* app, WGPURenderPassEncoder encoder);
 
         Buffer& getUniformBuffer();
 
@@ -162,7 +163,7 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
 
         Buffer mIndexBuffer = {};
         std::map<int, Mesh> mMeshes;
-        std::map<int, Mesh> mFlattenMeshes;
+        std::unordered_map<int, Mesh> mFlattenMeshes;
         int mMeshNumber = 0;
         size_t instances = 1;
         Instance* instance = nullptr;
@@ -188,6 +189,9 @@ class Model : public BaseModel {
         Model& load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout);
         Model& uploadToGPU(Application* app);
         void draw(Application* app, WGPURenderPassEncoder encoder) override;
+        void drawHirarchy(Application* app, WGPURenderPassEncoder encoder) override;
+        void drawGraph(Application* app, WGPURenderPassEncoder encoder, Node* node);
+        void internalDraw(Application* app, WGPURenderPassEncoder encoder, Node* node);
 
         Model& setFoliage();
         Model& useTexture(bool use = true);
@@ -201,6 +205,7 @@ class Model : public BaseModel {
 
         Buffer mIndirectDrawArgsBuffer;
         Buffer mSkiningTransformationBuffer;
+        Buffer mGlobalMeshTransformationBuffer;
 
         // std::unordered_map<std::string, aiNode*> mNodeCache;
         // void buildNodeCache(aiNode* node);
@@ -211,6 +216,7 @@ class Model : public BaseModel {
 
         Animation* anim;
         std::vector<glm::vec3> mBonePosition;
+        std::vector<glm::mat4> mGlobalMeshTransformationData;
         WGPUBindGroupEntry mSkiningDataEntry;
 
 #ifdef DEVELOPMENT_BUILD

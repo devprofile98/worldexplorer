@@ -105,6 +105,7 @@ class Mesh {
         Buffer mIndexBuffer = {};
         Buffer mIndirectDrawArgsBuffer;  // copy dst, map read
         Buffer mMaterialBuffer;          // copy dst, map read
+        Buffer mMeshMapIdx;              // copy dst, map read
         bool isTransparent = false;
         WGPUBindGroup mTextureBindGroup = {};
         std::vector<WGPUBindGroupEntry> binding_data{2};

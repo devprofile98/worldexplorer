@@ -102,6 +102,7 @@ class Application {
         Buffer mLightBuffer;
         Buffer mVisibleIndexBuffer;
         Buffer mDefaultBoneFinalTransformData;
+        Buffer mDefaultMeshGlobalTransformData;
         std::vector<WGPUBindGroupEntry> mBindingData{20};
         WGPUTextureView mCurrentTargetView;
         LineEngine* mLineEngine;

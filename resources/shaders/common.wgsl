@@ -91,16 +91,16 @@ struct OffsetData {
     maxAABB: vec4f
 };
 
+struct MeshTransformations {
+    global: array<mat4x4f>,
+};
+
 @group(0) @binding(0) var<uniform> uMyUniform: array<MyUniform, 10>;
 @group(0) @binding(1) var<uniform> lightCount: i32;
 @group(0) @binding(2) var textureSampler: sampler;
 @group(0) @binding(3) var<uniform> lightingInfos: LightingUniforms;
 @group(0) @binding(4) var<uniform> pointLight: array<PointLight,10>;
 @group(0) @binding(5) var<uniform> numOfCascades: u32;
-//@group(0) @binding(6) var grass_ground_texture: texture_2d_array<f32>;
-//@group(0) @binding(7) var rock_mountain_texture: texture_2d_array<f32>;
-//@group(0) @binding(8) var sand_lake_texture: texture_2d_array<f32>;
-//@group(0) @binding(9) var snow_mountain_texture: texture_2d_array<f32>;
 @group(0) @binding(6) var depth_texture: texture_depth_2d_array;
 @group(0) @binding(7) var<uniform> lightSpaceTrans: array<Scene, 5>;
 @group(0) @binding(8) var shadowMapSampler: sampler_comparison;
@@ -108,4 +108,5 @@ struct OffsetData {
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 @group(1) @binding(1) var<uniform> bonesFinalTransform: array<mat4x4f, 100>;
+@group(1) @binding(2) var<storage, read> meshTransformation: MeshTransformations;
 

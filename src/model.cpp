@@ -67,12 +67,21 @@ void Drawable::draw(Application* app, WGPURenderPassEncoder encoder) {
     (void)encoder;
 }
 
+void Drawable::drawHirarchy(Application* app, WGPURenderPassEncoder encoder) {
+    (void)app;
+    (void)encoder;
+}
+
 Node* Node::buildNodeTree(aiNode* ainode, Node* parent) {
     Node* node = new Node{};
 
     node->mName = ainode->mName.C_Str();
     node->mLocalTransform = AiToGlm(ainode->mTransformation);
+    auto [pos, scale, rot] = decomposeTransformation(node->mLocalTransform);
     node->mParent = parent;
+    std::cout << node->mName << " ************************ Is a direct child of "
+              << (parent == nullptr ? "nullptr" : parent->mName) << " with rot of " << glm::to_string(rot)
+              << " And scale " << glm::to_string(scale) << " " << glm::to_string(pos) << std::endl;
 
     // store mesh indices attached to this node
     for (size_t i = 0; i < ainode->mNumMeshes; ++i) {
@@ -84,6 +93,20 @@ Node* Node::buildNodeTree(aiNode* ainode, Node* parent) {
         node->mChildrens.push_back(buildNodeTree(ainode->mChildren[i], node));
     }
     return node;
+}
+
+void populateGlobalMeshesTransformationBuffer(Application* app, Node* node, std::vector<glm::mat4>& buffer,
+                                              std::unordered_map<int, Mesh>& meshes) {
+    if (node == nullptr) {
+        return;
+    }
+
+    for (auto idx : node->mMeshIndices) {
+        buffer[idx] = node->getGlobalTransform();
+    }
+    for (auto* child : node->mChildrens) {
+        populateGlobalMeshesTransformationBuffer(app, child, buffer, meshes);
+    }
 }
 
 glm::mat4 Node::getGlobalTransform() const {
@@ -221,179 +244,14 @@ void Model::processNode(Application* app, aiNode* node, const aiScene* scene, co
     for (uint32_t i = 0; i < node->mNumMeshes; i++) {
         unsigned int mid = node->mMeshes[i];
         aiMesh* mesh = scene->mMeshes[mid];
-        processMesh(app, mesh, scene, mid, globalTransform);
+        processMesh(app, mesh, scene, mid, /*globalTransform*/ nodeTransform);
     }
 
     // Recursively process child nodes
     for (uint32_t i = 0; i < node->mNumChildren; i++) {
-        processNode(app, node->mChildren[i], scene, globalTransform);
+        processNode(app, node->mChildren[i], scene, nodeTransform);
     }
 }
-
-// Modified processMesh to accept global transformation
-// void Model::processMesh2(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId,
-//                          const glm::mat4& globalTransform) {
-//     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-//     std::map<size_t, std::vector<std::pair<size_t, float>>> bonemap;
-//
-//     size_t index_offset = mMeshes[mesh->mMaterialIndex].mVertexData.size();
-//     std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << meshId << " " << mesh->mMaterialIndex << '\n';
-//
-//     if (mesh->HasBones()) {
-//         Action* action = anim->getActiveAction();
-//         std::cout << " ))))))))))))))))) has bone " << mesh->HasBones() << " and " << mesh->mNumBones << std::endl;
-//         for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
-//             auto bone = mesh->mBones[i];
-//             for (size_t j = 0; j < bone->mNumWeights; ++j) {
-//                 const char* name = bone->mName.C_Str();
-//
-//                 auto& vid = bone->mWeights[j].mVertexId;
-//                 if (bonemap.count(vid) == 0) {
-//                     bonemap[vid] = {};
-//                 }
-//                 if (action && action->Bonemap.contains(name)) {
-//                     bonemap[vid].push_back({action->Bonemap[name]->id, bone->mWeights[j].mWeight});
-//                 }
-//             }
-//         }
-//     }
-//
-//     // Compute normal transformation (inverse transpose for normals)
-//     glm::mat4 normalTransform = glm::transpose(glm::inverse(globalTransform));
-//
-//     for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
-//         VertexAttributes vertex;
-//
-//         // Transform vertex position
-//         glm::vec4 pos(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z, 1.0f);
-//         pos = globalTransform * pos;
-//         glm::vec3 vector(pos.x, pos.y, pos.z);
-//
-//         // Adjust coordinate system (as in your original code)
-//         vertex.position.x = vector.x;
-//         vertex.position.z = vector.y;
-//         vertex.position.y = -vector.z;
-//
-//         glm::mat4 swap{1.0};  // identity matrix for default case
-//         if (mCoordinateSystem == CoordinateSystem::Z_UP) {
-//             swap = {{1, 0, 0, 0}, {0, 0, -1, 0}, {0, 1, 0, 0}, {0, 0, 0, 1}};
-//         }
-//         auto temp = swap * glm::vec4{vertex.position, 1.0};
-//         vertex.position = glm::vec3{temp};
-//
-//         size_t bid_cnt = 0;
-//         if (mesh->HasBones()) {
-//             for (const auto& [bid, bwg] : bonemap[i]) {
-//                 vertex.boneIds[bid_cnt % 4] = bid;
-//                 vertex.weights[bid_cnt % 4] = bwg;
-//                 ++bid_cnt;
-//             }
-//         }
-//
-//         // Update bounding box
-//         min.x = std::min(min.x, vertex.position.x);
-//         min.y = std::min(min.y, vertex.position.y);
-//         min.z = std::min(min.z, vertex.position.z);
-//         max.x = std::max(max.x, vertex.position.x);
-//         max.y = std::max(max.y, vertex.position.y);
-//         max.z = std::max(max.z, vertex.position.z);
-//
-//         if (mesh->HasNormals()) {
-//             // Transform normal
-//             glm::vec3 normal(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
-//             normal = glm::mat3(normalTransform) * normal;
-//             vertex.normal.x = normal.x;
-//             vertex.normal.y = normal.z;
-//             vertex.normal.z = normal.y;
-//
-//             auto temp = swap * glm::vec4{vertex.normal, 1.0};
-//             vertex.normal = glm::vec3{temp};
-//         }
-//
-//         aiColor4D baseColor(1.0f, 0.0f, 1.0f, 1.0f);
-//         material->Get(AI_MATKEY_COLOR_DIFFUSE, baseColor);
-//         vertex.color = glm::vec3(baseColor.r, baseColor.g, baseColor.b);
-//
-//         if (mesh->mTextureCoords[0]) {
-//             glm::vec2 vec;
-//             vec.x = mesh->mTextureCoords[0][i].x;
-//             vec.y = mesh->mTextureCoords[0][i].y;
-//             vertex.uv = vec;
-//             if (mesh->mTangents && mesh->mBitangents) {
-//                 // Transform tangent
-//                 glm::vec3 tangent(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);
-//                 tangent = glm::mat3(globalTransform) * tangent;
-//                 vertex.tangent.x = tangent.x;
-//                 vertex.tangent.y = tangent.z;
-//                 vertex.tangent.z = tangent.y;
-//                 vertex.tangent = glm::vec3{swap * glm::vec4{vertex.tangent, 1.0}};
-//
-//                 // Transform bitangent
-//                 glm::vec3 bitangent(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z);
-//                 bitangent = glm::mat3(globalTransform) * bitangent;
-//                 vertex.biTangent.x = bitangent.x;
-//                 vertex.biTangent.y = bitangent.z;
-//                 vertex.biTangent.z = bitangent.y;
-//                 vertex.biTangent = glm::vec3{swap * glm::vec4{vertex.biTangent, 1.0}};
-//             }
-//         } else {
-//             vertex.uv = glm::vec2{0.0f, 0.0f};
-//         }
-//
-//         mMeshes[mesh->mMaterialIndex].mVertexData.push_back(vertex);
-//     }
-//
-//     for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
-//         aiFace face = mesh->mFaces[i];
-//         for (uint32_t j = 0; j < face.mNumIndices; j++) {
-//             mMeshes[mesh->mMaterialIndex].mIndexData.push_back((uint32_t)face.mIndices[j] + index_offset);
-//         }
-//     }
-//
-//     auto& render_resource = app->getRendererResource();
-//     auto& mmesh = mMeshes[mesh->mMaterialIndex];
-//
-//     auto load_texture = [&](aiTextureType type, MaterialProps flag, Texture** target) {
-//         for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
-//             mmesh.mMaterial.setFlag(flag, true);
-//             aiString str;
-//             material->GetTexture(type, i, &str);
-//             std::string texture_path = RESOURCE_DIR;
-//             texture_path += "/";
-//             texture_path += str.C_Str();
-//
-//             size_t pos = 0;
-//             while ((pos = texture_path.find("%20", pos)) != std::string::npos) {
-//                 texture_path.replace(pos, 3, " ");  // replace 3 chars ("%20") with 1 space
-//                 pos += 1;                           // move past the inserted space
-//             }
-//
-//             *target = new Texture{render_resource.device, texture_path};
-//             if ((*target)->createView() == nullptr) {
-//                 std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName,
-//                 texture_path);
-//             } else {
-//                 std::cout << std::format("succesfully create view for {} at {}\n", mName, texture_path);
-//             }
-//             (*target)->uploadToGPU(render_resource.queue);
-//             mmesh.isTransparent = (*target)->isTransparent();
-//         }
-//     };
-//
-//     if (mmesh.mTexture == nullptr) {
-//         load_texture(aiTextureType_DIFFUSE, MaterialProps::HasDiffuseMap, &mmesh.mTexture);
-//     }
-//     if (mmesh.mSpecularTexture == nullptr) {
-//         load_texture(aiTextureType_DIFFUSE_ROUGHNESS, MaterialProps::HasRoughnessMap, &mmesh.mSpecularTexture);
-//         // aiTextureType_SPECULAR
-//     }
-//     if (mmesh.mNormalMapTexture == nullptr) {
-//         load_texture(aiTextureType_HEIGHT, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
-//     }
-//     if (mmesh.mNormalMapTexture == nullptr) {
-//         load_texture(aiTextureType_NORMALS, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
-//     }
-// }
 
 void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId,
                         const glm::mat4& globalTransform) {
@@ -401,7 +259,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
     std::map<size_t, std::vector<std::pair<size_t, float>>> bonemap;
     mMeshes[mMeshNumber] = {};
     size_t index_offset = mMeshes[mMeshNumber].mVertexData.size();
-    std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << meshId << " " << mesh->mMaterialIndex << '\n';
+    // std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << meshId << " " << mesh->mMaterialIndex << '\n';
 
     if (mesh->HasBones()) {
         Action* action = anim->getActiveAction();
@@ -556,7 +414,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
     if (mmesh.mNormalMapTexture == nullptr) {
         load_texture(aiTextureType_NORMALS, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
     }
-
+    mMeshes[mMeshNumber].meshId = meshId;
     mFlattenMeshes[meshId] = mMeshes[mMeshNumber];  // Directly maps to assimp mesh id, so the hirarchy tree could
                                                     // use this without headache when drawing
     mMeshNumber++;
@@ -592,7 +450,12 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     if (mRootNode != nullptr) {
         std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$ Node hirarchy created for" << getName() << " Succesfuly\n";
     }
+
     processNode(app, scene->mRootNode, scene, glm::mat4{1.0});
+
+    mGlobalMeshTransformationData.reserve(mFlattenMeshes.size());
+    mGlobalMeshTransformationData.resize(mFlattenMeshes.size());
+    populateGlobalMeshesTransformationBuffer(app, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes);
 
     return *this;
 }
@@ -651,7 +514,29 @@ BaseModel& BaseModel::moveTo(const glm::vec3& moveVec) {
 
 Model& Model::uploadToGPU(Application* app) {
     // upload vertex attribute data to GPU
-    for (auto& [_mat_id, mesh] : mMeshes) {
+    // for (auto& [_mat_id, mesh] : mFlattenMeshes) {
+    //     std::cout << getName() << " mesh has " << mesh.mVertexData.size() << '\n';
+    //     mesh.mVertexBuffer.setLabel("Uniform buffer for object info")
+    //         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
+    //         .setSize((mesh.mVertexData.size() + 1) * sizeof(VertexAttributes))
+    //         .setMappedAtCraetion()
+    //         .create(app);
+    //
+    //     wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mVertexBuffer.getBuffer(), 0,
+    //                          mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
+    //
+    //     mesh.mIndexBuffer.setLabel("index buffer for object info")
+    //         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex | WGPUBufferUsage_Index)
+    //         .setSize((mesh.mIndexData.size()) * sizeof(uint32_t))
+    //         .setMappedAtCraetion()
+    //         .create(app);
+    //
+    //     wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndexBuffer.getBuffer(), 0,
+    //     mesh.mIndexData.data(),
+    //                          mesh.mIndexData.size() * sizeof(uint32_t));
+    // }
+    // if (getName() == "ghamgham" || getName() == "human") {
+    for (auto& [_mat_id, mesh] : mFlattenMeshes) {
         std::cout << getName() << " mesh has " << mesh.mVertexData.size() << '\n';
         mesh.mVertexBuffer.setLabel("Uniform buffer for object info")
             .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
@@ -671,15 +556,16 @@ Model& Model::uploadToGPU(Application* app) {
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndexBuffer.getBuffer(), 0, mesh.mIndexData.data(),
                              mesh.mIndexData.size() * sizeof(uint32_t));
     }
+    // }
     return *this;
 };
 
-size_t BaseModel::getVertexCount() const { return mMeshes.at(0).mVertexData.size(); }
+size_t BaseModel::getVertexCount() const { return mFlattenMeshes.at(0).mVertexData.size(); }
 
 Buffer BaseModel::getIndexBuffer() { return mIndexBuffer; }
 
 void BaseModel::setTransparent(bool value) {
-    for (auto& [mat_id, mesh] : mMeshes) {
+    for (auto& [mat_id, mesh] : mFlattenMeshes) {
         mesh.isTransparent = value;
     }
     mIsTransparent = value;
@@ -694,7 +580,7 @@ void BaseModel::selected(bool selected) {
 bool BaseModel::isSelected() const { return mTransform.mObjectInfo.isSelected; }
 
 void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData) {
-    std::array<WGPUBindGroupEntry, 2> mBindGroupEntry = {};
+    std::array<WGPUBindGroupEntry, 3> mBindGroupEntry = {};
     mBindGroupEntry[0].nextInChain = nullptr;
     mBindGroupEntry[0].binding = 0;
     mBindGroupEntry[0].buffer = Drawable::getUniformBuffer().getBuffer();
@@ -708,16 +594,22 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     mBindGroupEntry[1].offset = 0;
     mBindGroupEntry[1].size = 100 * sizeof(glm::mat4);
 
+    mBindGroupEntry[2].nextInChain = nullptr;
+    mBindGroupEntry[2].buffer = mGlobalMeshTransformationBuffer.getBuffer();
+    mBindGroupEntry[2].binding = 2;
+    mBindGroupEntry[2].offset = 0;
+    mBindGroupEntry[2].size = 10 * sizeof(glm::mat4);
+
     WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
     mTrasBindGroupDesc.nextInChain = nullptr;
     mTrasBindGroupDesc.entries = mBindGroupEntry.data();
-    mTrasBindGroupDesc.entryCount = 2;
-    mTrasBindGroupDesc.label = createStringView("translation bind group");
+    mTrasBindGroupDesc.entryCount = 3;
+    mTrasBindGroupDesc.label = WGPUStringView{"translation bind group", WGPU_STRLEN};
     mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
 
     ggg = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);
 
-    for (auto& [mat_id, mesh] : mMeshes) {
+    for (auto& [mat_id, mesh] : mFlattenMeshes) {
         mesh.binding_data = bindingData;
         // if (mesh.isTransparent) {
         //     continue;
@@ -756,18 +648,34 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial,
                              sizeof(Material));
 
-        std::array<WGPUBindGroupEntry, 1> material_bg_entries = {};
+        std::array<WGPUBindGroupEntry, 2> material_bg_entries = {};
         material_bg_entries[0].nextInChain = nullptr;
         material_bg_entries[0].buffer = mesh.mMaterialBuffer.getBuffer();
         material_bg_entries[0].binding = 0;
         material_bg_entries[0].offset = 0;
         material_bg_entries[0].size = sizeof(Material);
 
+        // Also create and initialize material buffer
+        mesh.mMeshMapIdx.setLabel("mesh map index")
+            .setSize(sizeof(uint32_t))
+            .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
+            .setMappedAtCraetion(false)
+            .create(app);
+
+        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMeshMapIdx.getBuffer(), 0, &mesh.meshId,
+                             sizeof(uint32_t));
+
+        material_bg_entries[1].nextInChain = nullptr;
+        material_bg_entries[1].buffer = mesh.mMeshMapIdx.getBuffer();
+        material_bg_entries[1].binding = 1;
+        material_bg_entries[1].offset = 0;
+        material_bg_entries[1].size = sizeof(uint32_t);
+
         WGPUBindGroupDescriptor mat_desc = {};
         mat_desc.nextInChain = nullptr;
         mat_desc.entries = material_bg_entries.data();
-        mat_desc.entryCount = 1;
-        mat_desc.label = createStringView("mesh material bind group");
+        mat_desc.entryCount = 2;
+        mat_desc.label = WGPUStringView{"mesh material bind group", WGPU_STRLEN};
         mat_desc.layout = app->mBindGroupLayouts[6];
 
         mesh.mMaterialBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mat_desc);
@@ -810,12 +718,60 @@ void Model::update(Application* app, float dt, float physicSimulating) {
     if (mTransform.mDirty) {
         wgpuQueueWriteBuffer(queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
                              sizeof(ObjectInfo));
-        for (auto& [id, mesh] : mMeshes) {
+        for (auto& [id, mesh] : mFlattenMeshes) {
             wgpuQueueWriteBuffer(queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial, sizeof(Material));
         }
         mTransform.mDirty = false;
     }
 }
+
+void Model::internalDraw(Application* app, WGPURenderPassEncoder encoder, Node* node) {
+    for (auto& mid : node->mMeshIndices) {
+        auto& mesh = mFlattenMeshes[mid];
+        WGPUBindGroup active_bind_group = nullptr;
+        // if (!mesh.isTransparent) {
+        active_bind_group = app->getBindingGroup().getBindGroup();
+
+        wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
+                                             wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
+        wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
+                                            wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
+        wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
+
+        wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(encoder, 2,
+                                          mesh.mTextureBindGroup == nullptr
+                                              ? app->mDefaultTextureBindingGroup.getBindGroup()
+                                              : mesh.mTextureBindGroup,
+                                          0, nullptr);
+
+        wgpuRenderPassEncoderSetBindGroup(encoder, 6, mesh.mMaterialBindGroup, 0, nullptr);
+        if (this->instance != nullptr) {
+            wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
+        } else {
+            wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
+        }
+    }
+}
+
+void Model::drawGraph(Application* app, WGPURenderPassEncoder encoder, Node* node) {
+    if (node == nullptr) {
+        return;
+    }
+    // std::cout << "DDDDDDrawing child " << node->mName << node->mChildrens.size() << std::endl;
+
+    // Draw the node itself
+    internalDraw(app, encoder, node);
+
+    // Draw its childs
+    for (auto* child : node->mChildrens) {
+        // Drawing functionality
+        // std::cout << "Drawing child " << child->mName << child->mChildrens.size() << std::endl;
+        drawGraph(app, encoder, child);
+    }
+}
+
+void Model::drawHirarchy(Application* app, WGPURenderPassEncoder encoder) { drawGraph(app, encoder, mRootNode); }
 
 void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
     auto& render_resource = app->getRendererResource();
@@ -948,7 +904,7 @@ void Model::userInterface() {
     }
 
     bool dirty = false;
-    for (auto& [id, mesh] : mMeshes) {
+    for (auto& [id, mesh] : mFlattenMeshes) {
         ImGui::PushID((void*)&mesh);
         if (ImGui::CollapsingHeader("Materials",
                                     ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
