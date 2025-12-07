@@ -34,6 +34,7 @@ struct Bone {
         int parentIndex = -1;
         std::vector<int> childrens;
         AnimationChannel channel;
+        bool hasSkining = false;
 };
 
 struct Action {
@@ -42,6 +43,7 @@ struct Action {
         double mAnimationSecond = 0.0;
         double mAnimationDuration = 0.0;
         bool loop = false;
+        bool hasSkining = false;
 };
 
 struct Animation {

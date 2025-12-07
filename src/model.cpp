@@ -170,8 +170,8 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
 }
 
 void Model::updateAnimation(float dt) {
-    if (mTransform.mObjectInfo.isAnimated || mName == "tire") {
-        auto* action = anim->getActiveAction();
+    auto* action = anim->getActiveAction();
+    if (mTransform.mObjectInfo.isAnimated) {
         action->mAnimationSecond += dt * 1000.0;
         auto duration_ms = action->mAnimationDuration * 1000.0;
 
@@ -190,26 +190,29 @@ void Model::updateAnimation(float dt) {
         return;
     }
 
-    // TODO: fix this rotation, we need a 90 degree rotation to be aligned with z-up coordinate system of the mesh data
-    // auto rot = glm::rotate(glm::mat4{1.0}, glm::radians(0.0f), glm::vec3{0.0, 0.0, 1.0});
+    if (action->hasSkining) {
+        for (const auto& [boneName, _] : action->Bonemap) {
+            const auto& global = action->calculatedTransform[boneName];
+            const auto& offset = action->Bonemap[boneName]->offsetMatrix;
 
-    // for (const std::string& boneName : anim->uniqueBones) {
-    Action* action = anim->getActiveAction();
-    for (const auto& [boneName, _] : action->Bonemap) {
-        // if (action->Bonemap.find(boneName) != action->Bonemap.end()) {
-        const auto& global = action->calculatedTransform[boneName];
-        const auto& offset = action->Bonemap[boneName]->offsetMatrix;
+            auto final = global * offset;
 
-        auto final = global * offset;
-
-        if (mName == "tire") {
-            anim->mFinalTransformations[action->Bonemap[boneName]->id] = global;
-            return;
+            if (std::isfinite(final[0][0])) {
+                anim->mFinalTransformations[action->Bonemap[boneName]->id] = final;
+            }
         }
-        if (std::isfinite(final[0][0])) {
-            anim->mFinalTransformations[action->Bonemap[boneName]->id] = final;
+    } else {
+        for (const auto& [boneName, _] : action->Bonemap) {
+            std::cout << getName() << " Is not skinned but animated" << boneName << "\n";
+            const auto& global = action->calculatedTransform[boneName];
+
+            mTransform.mTransformMatrix = global * mTransform.mTransformMatrix;
+            mTransform.mDirty = true;
+            // auto [pos, sc, rot] = decomposeTransformation(global);
+            // moveTo(pos);
+            // // scale(sc);
+            // rotate(rot);
         }
-        // }
     }
 }
 
@@ -442,7 +445,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     mScene = scene;
 
     std::cout << "----------------------------------------\n " << getName() << std::endl;
-    mTransform.mObjectInfo.isAnimated = anim->initAnimation(mScene);
+    mTransform.mObjectInfo.isAnimated = anim->initAnimation(mScene);  // && (getName() != "tire");
     updateAnimation(0);
 
     mRootNode = Node::buildNodeTree(scene->mRootNode, nullptr);
@@ -687,7 +690,7 @@ void Model::update(Application* app, float dt, float physicSimulating) {
 
     updateAnimation(dt);
 
-    if (mScene->HasAnimations()) {
+    if (mScene->HasAnimations() && anim->getActiveAction()->hasSkining) {
         wgpuQueueWriteBuffer(queue, mSkiningTransformationBuffer.getBuffer(), 0 * sizeof(glm::mat4),
                              anim->mFinalTransformations.data(),
                              anim->mFinalTransformations.size() * sizeof(glm::mat4));

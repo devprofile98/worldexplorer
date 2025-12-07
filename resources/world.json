@@ -3,7 +3,7 @@
     {
       "id": "house",
       "name": "house",
-      "enabled": true,
+      "enabled": false,
       "path": "ourhome.gltf",
       "animated": false,
       "cs": "y",
@@ -160,7 +160,7 @@
       "id": "ghamgham",
       "name": "ghamgham",
       "enabled": false,
-      "path": "ghamgham.gltf",
+      "path": "spheremonkey.gltf",
       "animated": false,
       "cs": "z",
       "translate": [-2.5, 1.144, -3.247],

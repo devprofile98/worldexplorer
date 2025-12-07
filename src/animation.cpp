@@ -267,12 +267,16 @@ bool Animation::initAnimation(const aiScene* scene) {
                 }
                 b->id = action->Bonemap.size();
                 action->Bonemap[channel->mNodeName.C_Str()] = b;
-                // std::cout << "\tChannel with name " << channel->mNodeName.C_Str()
-                //           << " has data : trans: " << b->channel.translations.size()
-                //           << " scales:  " << b->channel.scales.size() << " rotations:  " << b->channel.quats.size()
-                //           << std::endl;
-                // std::cout << " ------------------------------------------------------------\n";
+                if (scene->mNumAnimations == 1) {
+                    std::cout << "\tChannel with name " << channel->mNodeName.C_Str()
+                              << " has data : trans: " << b->channel.translations.size()
+                              << " scales:  " << b->channel.scales.size() << " rotations:  " << b->channel.quats.size()
+                              << std::endl;
+                    std::cout << " ------------------------------------------------------------\n";
+                }
             }
+
+            bool is_node_based = true;
             std::cout << " Model have: " << scene->mNumMeshes << " Meshes \n";
             for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
                 aiMesh* mesh = scene->mMeshes[m];
@@ -282,23 +286,21 @@ bool Animation::initAnimation(const aiScene* scene) {
                     std::string boneName = bone->mName.C_Str();
                     if (action->Bonemap.contains(boneName)) {
                         action->Bonemap[boneName]->offsetMatrix = AiToGlm(bone->mOffsetMatrix);
+                        action->Bonemap[boneName]->hasSkining = true;
+                        is_node_based = false;
+
                     } else {
                         // action->Bonemap[boneName];
                         std::cout << "Bone with name " << boneName << " doesnt have any data\n";
                     }
                 }
             }
-            // std::function<void(const aiNode*)> visit = [&](const aiNode* n) {
-            //     std::string name = n->mName.C_Str();
-            //     if (action->Bonemap.count(name) == 0) {
-            //         action->Bonemap[];
-            //         // offset matrix is identity for non-skinned nodes – you can keep it empty
-            //     }
-            //     for (unsigned i = 0; i < n->mNumChildren; ++i) visit(n->mChildren[i]);
-            // };
-            // visit(scene->mRootNode);
 
+            action->hasSkining = !is_node_based;
+            std::cout << "\n\n\nAction " << anim->mName.C_Str() << " Is "
+                      << (action->hasSkining ? "Skinned" : "Node based") << "\n";
             actions[anim->mName.C_Str()] = action;
+
             activeAction = action;
         }
 
