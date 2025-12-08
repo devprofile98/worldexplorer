@@ -203,12 +203,18 @@ void Model::updateAnimation(float dt) {
             }
         }
     } else {
-        for (const auto& [boneName, _] : action->Bonemap) {
-            std::cout << getName() << " Is not skinned but animated" << boneName << "\n";
-            const auto& global = action->calculatedTransform[boneName];
+        for (auto& [node_name, node] : mNodeNameMap) {
+            const auto& global = action->calculatedTransform.at(node_name);
+            std::cout << getName() << " Is not skinned but animated " << node_name << "\n"
+                      << glm::to_string(node->mLocalTransform) << "\n";
 
-            mTransform.mTransformMatrix = mTransform.mTransformMatrix * global;
-            mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
+            node->mLocalTransform = node->mLocalTransform * global;
+            populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes);
+            auto& databuffer = mGlobalMeshTransformationData;
+            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mGlobalMeshTransformationBuffer.getBuffer(), 0,
+                                 databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+            // mTransform.mTransformMatrix = mTransform.mTransformMatrix * global;
+            // mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
             mTransform.mDirty = true;
             // auto [pos, sc, rot] = decomposeTransformation(global);
             // moveTo(pos);
