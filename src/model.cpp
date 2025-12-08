@@ -72,7 +72,7 @@ void Drawable::drawHirarchy(Application* app, WGPURenderPassEncoder encoder) {
     (void)encoder;
 }
 
-Node* Node::buildNodeTree(aiNode* ainode, Node* parent) {
+Node* Node::buildNodeTree(aiNode* ainode, Node* parent, std::unordered_map<std::string, Node*>& nodemap) {
     Node* node = new Node{};
 
     node->mName = ainode->mName.C_Str();
@@ -87,10 +87,11 @@ Node* Node::buildNodeTree(aiNode* ainode, Node* parent) {
     for (size_t i = 0; i < ainode->mNumMeshes; ++i) {
         node->mMeshIndices.push_back(ainode->mMeshes[i]);
     }
+    nodemap[node->mName] = node;
 
     // add child nodes to this newly created node for its children recursively
     for (size_t i = 0; i < ainode->mNumChildren; ++i) {
-        node->mChildrens.push_back(buildNodeTree(ainode->mChildren[i], node));
+        node->mChildrens.push_back(buildNodeTree(ainode->mChildren[i], node, nodemap));
     }
     return node;
 }
@@ -206,7 +207,8 @@ void Model::updateAnimation(float dt) {
             std::cout << getName() << " Is not skinned but animated" << boneName << "\n";
             const auto& global = action->calculatedTransform[boneName];
 
-            mTransform.mTransformMatrix = global * mTransform.mTransformMatrix;
+            mTransform.mTransformMatrix = mTransform.mTransformMatrix * global;
+            mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
             mTransform.mDirty = true;
             // auto [pos, sc, rot] = decomposeTransformation(global);
             // moveTo(pos);
@@ -427,6 +429,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     // load model from disk
     (void)layout;
     mName = name;
+    mApp = app;
 
     Drawable::configure(app);
 
@@ -448,7 +451,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     mTransform.mObjectInfo.isAnimated = anim->initAnimation(mScene);  // && (getName() != "tire");
     updateAnimation(0);
 
-    mRootNode = Node::buildNodeTree(scene->mRootNode, nullptr);
+    mRootNode = Node::buildNodeTree(scene->mRootNode, nullptr, mNodeNameMap);
 
     if (mRootNode != nullptr) {
         std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$ Node hirarchy created for" << getName() << " Succesfuly\n";
@@ -890,6 +893,33 @@ void Model::userInterface() {
         ImGui::PushID((void*)&action);
         if (ImGui::Button(name.c_str())) {
             anim->playAction(name, true);
+        }
+        ImGui::PopID();  // Pop the unique ID for this item
+    }
+
+    for (auto& [name, node] : mNodeNameMap) {
+        ImGui::PushID((void*)node);
+        // if (ImGui::Button(name.c_str())) {
+        //
+        // }
+        ImGui::Text("%s->%s", name.c_str(), node->mParent != nullptr ? node->mParent->mName.c_str() : "world");
+        auto [pos, sc, rot] = decomposeTransformation(node->getGlobalTransform());
+        bool pos_changed = ImGui::DragFloat3("pos", glm::value_ptr(pos));
+        bool rot_changed = ImGui::DragFloat3("rot", glm::value_ptr(rot));
+        bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(sc));
+        if (pos_changed || rot_changed || scale_changed) {
+            auto newglobaltrans =
+                glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4(1.0f), sc);
+            glm::mat4 parent_global =
+                (node->mParent != nullptr) ? node->mParent->getGlobalTransform() : glm::mat4(1.0f);
+            glm::mat4 newLocal = glm::inverse(parent_global) * newglobaltrans;
+            node->mLocalTransform = newLocal;
+
+            populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes);
+
+            auto& databuffer = mGlobalMeshTransformationData;
+            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mGlobalMeshTransformationBuffer.getBuffer(), 0,
+                                 databuffer.data(), sizeof(glm::mat4) * databuffer.size());
         }
         ImGui::PopID();  // Pop the unique ID for this item
     }

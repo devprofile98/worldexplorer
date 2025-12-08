@@ -4,6 +4,7 @@
 #include <assimp/scene.h>
 
 #include <limits>
+#include <string>
 #include <unordered_map>
 
 // #include "animation.h"
@@ -64,7 +65,8 @@ class Node {
 
         glm::mat4 getGlobalTransform() const;
 
-        static inline Node* buildNodeTree(aiNode* ainode, Node* parent);
+        static inline Node* buildNodeTree(aiNode* ainode, Node* parent,
+                                          std::unordered_map<std::string, Node*>& nodemap);
 };
 
 // Hold the properties and needed object to represents the object transformation
@@ -158,6 +160,7 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         BaseModel* mParent = nullptr;
         Transform mTransform;
         Node* mRootNode = nullptr;
+        std::unordered_map<std::string, Node*> mNodeNameMap;
 
         BoneSocket* mSocket = nullptr;
 
@@ -218,6 +221,7 @@ class Model : public BaseModel {
         std::vector<glm::vec3> mBonePosition;
         std::vector<glm::mat4> mGlobalMeshTransformationData;
         WGPUBindGroupEntry mSkiningDataEntry;
+        Application* mApp = nullptr;
 
 #ifdef DEVELOPMENT_BUILD
         // Common User-Interface to interact with Object in the Development state
