@@ -79,9 +79,9 @@ Node* Node::buildNodeTree(aiNode* ainode, Node* parent, std::unordered_map<std::
     node->mLocalTransform = AiToGlm(ainode->mTransformation);
     auto [pos, scale, rot] = decomposeTransformation(node->mLocalTransform);
     node->mParent = parent;
-    std::cout << node->mName << " ************************ Is a direct child of "
-              << (parent == nullptr ? "nullptr" : parent->mName) << " with rot of " << glm::to_string(rot)
-              << " And scale " << glm::to_string(scale) << " " << glm::to_string(pos) << std::endl;
+    // std::cout << node->mName << " ************************ Is a direct child of "
+    //           << (parent == nullptr ? "nullptr" : parent->mName) << " with rot of " << glm::to_string(rot)
+    //           << " And scale " << glm::to_string(scale) << " " << glm::to_string(pos) << std::endl;
 
     // store mesh indices attached to this node
     for (size_t i = 0; i < ainode->mNumMeshes; ++i) {
@@ -97,16 +97,21 @@ Node* Node::buildNodeTree(aiNode* ainode, Node* parent, std::unordered_map<std::
 }
 
 void populateGlobalMeshesTransformationBuffer(Application* app, Node* node, std::vector<glm::mat4>& buffer,
-                                              std::unordered_map<int, Mesh>& meshes) {
+                                              std::unordered_map<int, Mesh>& meshes,
+                                              const std::unordered_map<std::string, glm::mat4>& animation) {
     if (node == nullptr) {
         return;
     }
 
     for (auto idx : node->mMeshIndices) {
-        buffer[idx] = node->getGlobalTransform();
+        glm::mat4 anim{1.0};
+        if (animation.contains(node->mName)) {
+            anim = animation.at(node->mName);
+        }
+        buffer[idx] = node->getGlobalTransform() * anim;
     }
     for (auto* child : node->mChildrens) {
-        populateGlobalMeshesTransformationBuffer(app, child, buffer, meshes);
+        populateGlobalMeshesTransformationBuffer(app, child, buffer, meshes, animation);
     }
 }
 
@@ -203,23 +208,29 @@ void Model::updateAnimation(float dt) {
             }
         }
     } else {
+        bool shoulddo = false;
+        std::unordered_map<std::string, glm::mat4> anims;
         for (auto& [node_name, node] : mNodeNameMap) {
+            shoulddo = true;
             const auto& global = action->calculatedTransform.at(node_name);
-            std::cout << getName() << " Is not skinned but animated " << node_name << "\n"
-                      << glm::to_string(node->mLocalTransform) << "\n";
+            anims[node_name] = node->mLocalTransform * global;
+            // std::cout << getName() << " Is not skinned but animated " << node_name << "\n"
+            //           << glm::to_string(node->mLocalTransform) << "\n";
 
-            node->mLocalTransform = node->mLocalTransform * global;
-            populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes);
-            auto& databuffer = mGlobalMeshTransformationData;
-            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mGlobalMeshTransformationBuffer.getBuffer(), 0,
-                                 databuffer.data(), sizeof(glm::mat4) * databuffer.size());
             // mTransform.mTransformMatrix = mTransform.mTransformMatrix * global;
             // mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
-            mTransform.mDirty = true;
             // auto [pos, sc, rot] = decomposeTransformation(global);
             // moveTo(pos);
             // // scale(sc);
             // rotate(rot);
+        }
+        if (shoulddo) {
+            populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes,
+                                                     anims);
+            auto& databuffer = mGlobalMeshTransformationData;
+            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mGlobalMeshTransformationBuffer.getBuffer(), 0,
+                                 databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+            mTransform.mDirty = true;
         }
     }
 }
@@ -467,7 +478,7 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 
     mGlobalMeshTransformationData.reserve(mFlattenMeshes.size());
     mGlobalMeshTransformationData.resize(mFlattenMeshes.size());
-    populateGlobalMeshesTransformationBuffer(app, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes);
+    populateGlobalMeshesTransformationBuffer(app, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes, {});
 
     return *this;
 }
@@ -909,7 +920,7 @@ void Model::userInterface() {
         //
         // }
         ImGui::Text("%s->%s", name.c_str(), node->mParent != nullptr ? node->mParent->mName.c_str() : "world");
-        auto [pos, sc, rot] = decomposeTransformation(node->getGlobalTransform());
+        auto [pos, sc, rot] = decomposeTransformation(node->mLocalTransform);
         bool pos_changed = ImGui::DragFloat3("pos", glm::value_ptr(pos));
         bool rot_changed = ImGui::DragFloat3("rot", glm::value_ptr(rot));
         bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(sc));
@@ -921,7 +932,8 @@ void Model::userInterface() {
             glm::mat4 newLocal = glm::inverse(parent_global) * newglobaltrans;
             node->mLocalTransform = newLocal;
 
-            populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes);
+            populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes,
+                                                     {});
 
             auto& databuffer = mGlobalMeshTransformationData;
             wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mGlobalMeshTransformationBuffer.getBuffer(), 0,
