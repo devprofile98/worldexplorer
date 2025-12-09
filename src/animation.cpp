@@ -18,18 +18,18 @@ glm::mat4 AiToGlm(const aiMatrix4x4& aiMat) {
 
 void printAnimationInfos(const std::string& name, const aiScene* scene) {
     if (scene->mAnimations != nullptr) {
-        std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ There are animations " << name << " " << scene->mNumAnimations
-                  << std::endl;
+        // std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ There are animations " << name << " " << scene->mNumAnimations
+        // << std::endl;
         for (size_t i = 0; i < scene->mNumAnimations; i++) {
             const aiAnimation* anim = scene->mAnimations[i];
-            std::cout << "@@@@@@@@@@@@@@@@@@@@@ " << anim->mName.C_Str() << " " << anim->mNumChannels << std::endl;
+            // std::cout << "@@@@@@@@@@@@@@@@@@@@@ " << anim->mName.C_Str() << " " << anim->mNumChannels << std::endl;
             for (size_t j = 0; j < anim->mNumChannels; j++) {
                 const aiNodeAnim* nodeAnim = anim->mChannels[j];
-                std::cout << "--------------------------------" << nodeAnim->mNodeName.C_Str() << " "
-                          << nodeAnim->mNumPositionKeys << " " << nodeAnim->mNumRotationKeys << " "
-                          << nodeAnim->mNumScalingKeys << std::endl;
+                // std::cout << "--------------------------------" << nodeAnim->mNodeName.C_Str() << " "
+                //           << nodeAnim->mNumPositionKeys << " " << nodeAnim->mNumRotationKeys << " "
+                //           << nodeAnim->mNumScalingKeys << std::endl;
                 for (size_t k = 0; k < nodeAnim->mNumPositionKeys; k++) {
-                    std::cout << std::format("at: {}\n", nodeAnim->mPositionKeys[k].mTime / anim->mTicksPerSecond);
+                    // std::cout << std::format("at: {}\n", nodeAnim->mPositionKeys[k].mTime / anim->mTicksPerSecond);
                 }
             }
         }
@@ -245,7 +245,7 @@ bool Animation::initAnimation(const aiScene* scene) {
         for (size_t a = 0; a < scene->mNumAnimations; ++a) {
             Action* action = new Action{};
             aiAnimation* anim = scene->mAnimations[a];
-            std::cout << "-----+++++++ Model: " << scene->mNumAnimations << " Animations " << std::endl;
+            // std::cout << "-----+++++++ Model: " << scene->mNumAnimations << " Animations " << std::endl;
             action->mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
             for (size_t i = 0; i < anim->mNumChannels; ++i) {
                 aiNodeAnim* channel = anim->mChannels[i];
@@ -268,19 +268,20 @@ bool Animation::initAnimation(const aiScene* scene) {
                 b->id = action->Bonemap.size();
                 action->Bonemap[channel->mNodeName.C_Str()] = b;
                 if (scene->mNumAnimations == 1) {
-                    std::cout << "\tChannel with name " << channel->mNodeName.C_Str()
-                              << " has data : trans: " << b->channel.translations.size()
-                              << " scales:  " << b->channel.scales.size() << " rotations:  " << b->channel.quats.size()
-                              << std::endl;
-                    std::cout << " ------------------------------------------------------------\n";
+                    // std::cout << "\tChannel with name " << channel->mNodeName.C_Str()
+                    //           << " has data : trans: " << b->channel.translations.size()
+                    //           << " scales:  " << b->channel.scales.size() << " rotations:  " <<
+                    //           b->channel.quats.size()
+                    //           << std::endl;
+                    // std::cout << " ------------------------------------------------------------\n";
                 }
             }
 
             bool is_node_based = true;
-            std::cout << " Model have: " << scene->mNumMeshes << " Meshes \n";
+            // std::cout << " Model have: " << scene->mNumMeshes << " Meshes \n";
             for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
                 aiMesh* mesh = scene->mMeshes[m];
-                std::cout << " \tMesh have: " << mesh->mBones << " Bones \n";
+                // std::cout << " \tMesh have: " << mesh->mBones << " Bones \n";
                 for (unsigned int b = 0; b < mesh->mNumBones; ++b) {
                     aiBone* bone = mesh->mBones[b];
                     std::string boneName = bone->mName.C_Str();
@@ -291,14 +292,14 @@ bool Animation::initAnimation(const aiScene* scene) {
 
                     } else {
                         // action->Bonemap[boneName];
-                        std::cout << "Bone with name " << boneName << " doesnt have any data\n";
+                        // std::cout << "Bone with name " << boneName << " doesnt have any data\n";
                     }
                 }
             }
 
             action->hasSkining = !is_node_based;
-            std::cout << "\n\n\nAction " << anim->mName.C_Str() << " Is "
-                      << (action->hasSkining ? "Skinned" : "Node based") << "\n";
+            // std::cout << "\n\n\nAction " << anim->mName.C_Str() << " Is "
+            //           << (action->hasSkining ? "Skinned" : "Node based") << "\n";
             actions[anim->mName.C_Str()] = action;
 
             activeAction = action;

@@ -285,7 +285,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
     if (mesh->HasBones()) {
         Action* action = anim->getActiveAction();
-        std::cout << " ))))))))))))))))) has bone " << mesh->HasBones() << " and " << mesh->mNumBones << std::endl;
+        // std::cout << " ))))))))))))))))) has bone " << mesh->HasBones() << " and " << mesh->mNumBones << std::endl;
         for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
             auto bone = mesh->mBones[i];
             for (size_t j = 0; j < bone->mNumWeights; ++j) {
@@ -400,6 +400,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
     auto load_texture = [&](aiTextureType type, MaterialProps flag, Texture** target) {
         for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
             mmesh.mMaterial.setFlag(flag, true);
+            std::cout << "---- " << getName() << mmesh.mMaterial.materialProps << std::endl;
             aiString str;
             material->GetTexture(type, i, &str);
             std::string texture_path = RESOURCE_DIR;
@@ -464,14 +465,14 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     }
     mScene = scene;
 
-    std::cout << "----------------------------------------\n " << getName() << std::endl;
+    // std::cout << "----------------------------------------\n " << getName() << std::endl;
     mTransform.mObjectInfo.isAnimated = anim->initAnimation(mScene);  // && (getName() != "tire");
     updateAnimation(0);
 
     mRootNode = Node::buildNodeTree(scene->mRootNode, nullptr, mNodeNameMap);
 
     if (mRootNode != nullptr) {
-        std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$ Node hirarchy created for" << getName() << " Succesfuly\n";
+        // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$ Node hirarchy created for" << getName() << " Succesfuly\n";
     }
 
     processNode(app, scene->mRootNode, scene, glm::mat4{1.0});
@@ -560,7 +561,7 @@ Model& Model::uploadToGPU(Application* app) {
     // }
     // if (getName() == "ghamgham" || getName() == "human") {
     for (auto& [_mat_id, mesh] : mFlattenMeshes) {
-        std::cout << getName() << " mesh has " << mesh.mVertexData.size() << '\n';
+        // std::cout << getName() << " mesh has " << mesh.mVertexData.size() << '\n';
         mesh.mVertexBuffer.setLabel("Uniform buffer for object info")
             .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
             .setSize((mesh.mVertexData.size() + 1) * sizeof(VertexAttributes))
@@ -640,27 +641,33 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
         //
         //
 
-        if (mesh.mTexture != nullptr) {
-            if (mesh.mTexture->getTextureView() != nullptr) {
-                mesh.binding_data[0].nextInChain = nullptr;
-                mesh.binding_data[0].binding = 0;
-                mesh.binding_data[0].textureView = mesh.mTexture->getTextureView();
-            }
-            if (mesh.mSpecularTexture != nullptr && mesh.mSpecularTexture->getTextureView() != nullptr) {
-                mesh.binding_data[1].nextInChain = nullptr;
-                mesh.binding_data[1].binding = 1;
-                mesh.binding_data[1].textureView = mesh.mSpecularTexture->getTextureView();
-            }
-            if (mesh.mNormalMapTexture != nullptr && mesh.mNormalMapTexture->getTextureView() != nullptr) {
-                mesh.binding_data[2].nextInChain = nullptr;
-                mesh.binding_data[2].binding = 2;
-                mesh.binding_data[2].textureView = mesh.mNormalMapTexture->getTextureView();
-            }
-            auto& desc = app->mDefaultTextureBindingGroup.getDescriptor();
-            desc.entries = mesh.binding_data.data();
-            desc.entryCount = mesh.binding_data.size();
-            mesh.mTextureBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &desc);
-        }
+        // if (mesh.mTexture != nullptr) {
+        // if (/*mesh.mTexture != nullptr && */ mesh.mTexture->getTextureView() != nullptr) {
+        mesh.binding_data[0].nextInChain = nullptr;
+        mesh.binding_data[0].binding = 0;
+        mesh.binding_data[0].textureView =
+            mesh.mTexture != nullptr ? mesh.mTexture->getTextureView() : app->mDefaultDiffuse->getTextureView();
+        // }
+        // if (/*mesh.mSpecularTexture != nullptr && */ mesh.mSpecularTexture->getTextureView() != nullptr) {
+        mesh.binding_data[1].nextInChain = nullptr;
+        mesh.binding_data[1].binding = 1;
+        mesh.binding_data[1].textureView = mesh.mSpecularTexture != nullptr
+                                               ? mesh.mSpecularTexture->getTextureView()
+                                               : app->mDefaultMetallicRoughness->getTextureView();
+        // }
+        // if (mesh.mNormalMapTexture != nullptr && mesh.mNormalMapTexture->getTextureView() != nullptr) {
+        mesh.binding_data[2].nextInChain = nullptr;
+        mesh.binding_data[2].binding = 2;
+        mesh.binding_data[2].textureView = mesh.mNormalMapTexture != nullptr ? mesh.mNormalMapTexture->getTextureView()
+                                                                             : app->mDefaultNormalMap->getTextureView();
+        // }
+        auto& desc = app->mDefaultTextureBindingGroup.getDescriptor();
+        desc.entries = mesh.binding_data.data();
+        desc.entryCount = mesh.binding_data.size();
+        mesh.mTextureBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &desc);
+        // } else {
+        //     std::cout << "Faield to create Texture bindgroup for it " << getName() << std::endl;
+        // }
 
         // Also create and initialize material buffer
         mesh.mMaterialBuffer.setLabel("")
@@ -947,7 +954,7 @@ void Model::userInterface() {
             ImGui::PushID((void*)bone);
             if (ImGui::Button(name.c_str())) {
                 if (anim->activeAction->calculatedTransform.contains(name)) {
-                    std::cout << "Bone " << name << " Exists!\n";
+                    // std::cout << "Bone " << name << " Exists!\n";
                 }
             }
             ImGui::PopID();  // Pop the unique ID for this item
