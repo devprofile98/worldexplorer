@@ -67,6 +67,7 @@ void GizmoElement::onMouseMove(MouseEvent event) {
 
     auto [width, height] = that->getWindowSize();
     auto intersected_model = GizmoElement::testSelection(that->getCamera(), width, height, {move.xPos, move.yPos});
+    static glm::vec3 first_click_pos;
 
     if (!GizmoElement::mIsLocked) {
         if (intersected_model != nullptr) {
@@ -132,6 +133,16 @@ struct GizmoModel : public IModel {
             mModel->uploadToGPU(app);
             mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
+
+            // if mesh in node animated
+            mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
+                .setSize(10 * sizeof(glm::mat4))
+                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
+                .create(app);
+
+            auto& databuffer = mModel->mGlobalMeshTransformationData;
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
+                                 0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
 
@@ -156,6 +167,16 @@ struct GizmoModelY : public IModel {
             mModel->uploadToGPU(app);
             mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
+
+            // if mesh in node animated
+            mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
+                .setSize(10 * sizeof(glm::mat4))
+                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
+                .create(app);
+
+            auto& databuffer = mModel->mGlobalMeshTransformationData;
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
+                                 0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
 
@@ -212,7 +233,7 @@ struct BoneModel : public IModel {
                                  app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
                                  ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size() - 1));
 
-            std::cout << "(((((((((((((((( in mesh " << mModel->mMeshes.size() << std::endl;
+            // std::cout << "(((((((((((((((( in mesh " << mModel->mMeshes.size() << std::endl;
 
             mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for bone indicator "))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
@@ -225,7 +246,7 @@ struct BoneModel : public IModel {
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
                                  &indirect, sizeof(DrawIndexedIndirectArgs));
 
-            for (auto& [mat_id, mesh] : mModel->mMeshes) {
+            for (auto& [mat_id, mesh] : mModel->mFlattenMeshes) {
                 mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())
                     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
                     .setSize(sizeof(DrawIndexedIndirectArgs))
@@ -261,6 +282,16 @@ struct GizmoModelX : public IModel {
             mModel->uploadToGPU(app);
             mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
+
+            // if mesh in node animated
+            mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
+                .setSize(10 * sizeof(glm::mat4))
+                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
+                .create(app);
+
+            auto& databuffer = mModel->mGlobalMeshTransformationData;
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
+                                 0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
 
@@ -285,6 +316,17 @@ struct GizmoModelCenter : public IModel {
             mModel->uploadToGPU(app);
             mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
+
+            // if mesh in node animated
+            mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
+                .setSize(10 * sizeof(glm::mat4))
+                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
+                .create(app);
+
+            auto& databuffer = mModel->mGlobalMeshTransformationData;
+            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
+                                 0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
         }
 
@@ -298,10 +340,10 @@ struct GizmoModelCenter : public IModel {
         };
 };
 
-// REGISTER_MODEL("gizmo_center", GizmoModelCenter, Visibility_Editor, &GizmoElement::center);
-// REGISTER_MODEL("gizmo", GizmoModel, Visibility_Editor, &GizmoElement::z);
-// REGISTER_MODEL("gizmo_x", GizmoModelX, Visibility_Editor, &GizmoElement::x);
-// REGISTER_MODEL("gizmo_y", GizmoModelY, Visibility_Editor, &GizmoElement::y);
+REGISTER_MODEL("gizmo_center", GizmoModelCenter, Visibility_Editor, &GizmoElement::center);
+REGISTER_MODEL("gizmo", GizmoModel, Visibility_Editor, &GizmoElement::z);
+REGISTER_MODEL("gizmo_x", GizmoModelX, Visibility_Editor, &GizmoElement::x);
+REGISTER_MODEL("gizmo_y", GizmoModelY, Visibility_Editor, &GizmoElement::y);
 // REGISTER_MODEL("bone", BoneModel, Visibility_Editor, &Editor::BoneIndicator);
 
 void Editor::showBoneAt(const glm::mat4& transformation) {
@@ -383,12 +425,21 @@ void Screen::onMouseClick(MouseEvent event) {
             auto intersected_model =
                 testIntersection(mApp->getCamera(), w_width, w_height, {xpos, ypos},
                                  ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User));
+            std::cout << "First here " << (intersected_model) << " " << mApp->mSelectedModel << "\n";
             if (intersected_model != nullptr) {
                 if (mApp->mSelectedModel) {
                     mApp->mSelectedModel->selected(false);
                 }
                 mApp->mSelectedModel = intersected_model;
                 mApp->mSelectedModel->selected(true);
+                if (GizmoElement::z != nullptr && GizmoElement::x != nullptr && GizmoElement::y != nullptr &&
+                    GizmoElement::center != nullptr) {
+                    auto [min, max] = mApp->mSelectedModel->getWorldSpaceAABB();
+                    auto center = (min + max) / glm::vec3{2.0f};
+                    GizmoElement::moveTo(center);
+                } else {
+                    std::cout << "Couldnt find the gizmo model " << mApp->mSelectedModel->getName() << std::endl;
+                }
             }
         }
     } else if (click.click == GLFW_MOUSE_BUTTON_RIGHT) {

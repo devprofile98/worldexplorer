@@ -40,7 +40,8 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 
     if instance_index != 0 {
         let original_instance_idx = visible_instances_indices[off_id + instance_index];
-        transform = offsetInstance[original_instance_idx + off_id].transformation;
+        //transform = offsetInstance[original_instance_idx + off_id].transformation;
+        transform = offsetInstance[instance_index + off_id].transformation * meshTransformation.global[meshIdx];
     } else {
         transform = objectTranformation.transformations;
         transform = objectTranformation.transformations * meshTransformation.global[meshIdx];

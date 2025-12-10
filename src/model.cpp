@@ -777,7 +777,8 @@ void Model::internalDraw(Application* app, WGPURenderPassEncoder encoder, Node* 
 
         wgpuRenderPassEncoderSetBindGroup(encoder, 6, mesh.mMaterialBindGroup, 0, nullptr);
         if (this->instance != nullptr) {
-            wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
+            // wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mIndirectDrawArgsBuffer.getBuffer(), 0);
+            wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), instance->getInstanceCount(), 0, 0, 0);
         } else {
             wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
         }
@@ -826,7 +827,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
 
         wgpuRenderPassEncoderSetBindGroup(encoder, 6, mesh.mMaterialBindGroup, 0, nullptr);
         if (this->instance != nullptr) {
-            wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
+            wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mIndirectDrawArgsBuffer.getBuffer(), 0);
         } else {
             wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
         }

@@ -81,7 +81,8 @@ fn vs_main(vertex: Vertex) -> VSOutput {
     var transform: mat4x4f;
     if vertex.instance_index != 0 {
         let original_instance_idx = visible_instances_indices[off_id + vertex.instance_index];
-        transform = offsetInstance[original_instance_idx + off_id].transformation;
+        // transform = offsetInstance[original_instance_idx + off_id].transformation;
+        transform = offsetInstance[off_id + vertex.instance_index].transformation * meshTransformation.global[meshIdx];
     } else {
         transform = objectTranformation.transformations * meshTransformation.global[meshIdx];
     }

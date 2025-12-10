@@ -385,7 +385,9 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
             if (model->instance == nullptr) {
                 wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
             } else {
-                wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mesh.mIndirectDrawArgsBuffer.getBuffer(), 0);
+                // wgpuRenderPassEncoderDrawIndexedIndirect(encoder, model->mIndirectDrawArgsBuffer.getBuffer(), 0);
+                wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), model->instance->getInstanceCount(),
+                                                 0, 0, 0);
             }
         }
     }

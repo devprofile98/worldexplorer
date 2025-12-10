@@ -764,7 +764,7 @@ void Application::mainLoop() {
                          sizeof(FrustumPlanesUniform));
 
     if (cull_frustum) {
-        runFrustumCullingTask(this, encoder);
+        // runFrustumCullingTask(this, encoder);
     }
 
     // -------------------------------------------------------------------------
@@ -818,7 +818,7 @@ void Application::mainLoop() {
             // PerfTimer timer{"test"};
             wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mDepthPrePass->getPipeline()->getPipeline());
             for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-                model->drawHirarchy(this, render_pass_encoder);
+                // model->drawHirarchy(this, render_pass_encoder);
             }
         }
 
@@ -994,7 +994,7 @@ void Application::mainLoop() {
     {
         ZoneScopedNC("3D viewport and loader", 0xF0F00F);
         // 3D editor elements pass
-        // m3DviewportPass->execute(encoder);
+        m3DviewportPass->execute(encoder);
 
         // polling if any model loading process is done and append it to loaded model list
         ModelRegistry::instance().tick(this);

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "application.h"
+#include "glm/ext/vector_float3.hpp"
 #include "input_manager.h"
 #include "model.h"
 
@@ -25,9 +26,16 @@ struct PhysicsParams {
         std::string type;
 };
 
+struct Transformation {
+        glm::vec3 position;
+        glm::vec3 scale;
+        glm::vec3 rotation;
+};
+
 struct ObjectLoaderParam {
         SocketParams socketParam;
         PhysicsParams physicsParams;
+        std::vector<Transformation> instanceTransformations;
         std::string name;
         std::string path;
         bool animated;

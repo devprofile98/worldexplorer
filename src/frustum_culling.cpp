@@ -311,7 +311,7 @@ void runFrustumCullingTask(Application* app, WGPUCommandEncoder encoder) {
 
         // perform a buffer copy for indirect draw args for mesh parts
         if (model->instance != nullptr) {
-            for (auto& [mat_id, mesh] : model->mMeshes) {
+            for (auto& [mat_id, mesh] : model->mFlattenMeshes) {
                 wgpuCommandEncoderCopyBufferToBuffer(
                     encoder, model->mIndirectDrawArgsBuffer.getBuffer(),
                     offsetof(DrawIndexedIndirectArgs, instanceCount), mesh.mIndirectDrawArgsBuffer.getBuffer(),

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <optional>
 #include <utility>
+#include <vector>
 
 #include "animation.h"
 #include "application.h"
@@ -273,6 +274,7 @@ struct BaseModelLoader : public IModel {
                 wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mSkiningTransformationBuffer.getBuffer(),
                                      0, bones.data(), sizeof(glm::mat4) * bones.size());
             }
+            // if mesh in node animated
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
                 .setSize(10 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
@@ -281,6 +283,40 @@ struct BaseModelLoader : public IModel {
             auto& databuffer = mModel->mGlobalMeshTransformationData;
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
                                  0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+
+            // If model is instanced
+            //
+            if (mModel->getName() == "coin") {
+                std::vector<glm::vec3> positions;
+                std::vector<glm::vec3> scales;
+                // std::vector<glm::vec3> rotations;
+                std::vector<float> rotations;
+                for (const auto& instance : param.instanceTransformations) {
+                    positions.push_back(instance.position);
+                    scales.push_back(instance.scale);
+                    rotations.push_back(0);
+                }
+                // auto positions = std::vector<glm::vec3>{{-2.5, 1.154, -2.947}, {-2.6, 1.154, -2.947}};
+
+                auto* ins = new Instance{positions, glm::vec3{1.0, 0.0, 0.0},     rotations,
+                                         scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
+
+                wgpuQueueWriteBuffer(app->getRendererResource().queue,
+                                     app->mInstanceManager->getInstancingBuffer().getBuffer(), 0 * sizeof(InstanceData),
+                                     ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
+
+                mModel->mTransform.mObjectInfo.instanceOffsetId = 0;
+                mModel->setInstanced(ins);
+
+                std::cout << "(((((((((((((((( in mesh " << mModel->mMeshes.size() << std::endl;
+
+                mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + mModel->getName()).c_str())
+                    .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+                              WGPUBufferUsage_CopyDst)
+                    .setSize(sizeof(DrawIndexedIndirectArgs))
+                    .setMappedAtCraetion()
+                    .create(app);
+            }
 
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
 
@@ -335,6 +371,19 @@ std::optional<SocketParams> parseSocketParam(const json& params) {
     return SocketParams{name, bone_name, translate, scale, glm::quat{1.0, rotate}, true};
 }
 
+std::vector<Transformation> parseinstanceinfo(const json& params) {
+    std::vector<Transformation> res;
+
+    for (const auto& instance : params) {
+        glm::vec3 translate = toGlm(instance["position"].get<std::array<float, 3>>());
+        glm::vec3 scale = toGlm(instance["scale"].get<std::array<float, 3>>());
+        glm::vec3 rotate = toGlm(instance["rotation"].get<std::array<float, 3>>());
+        res.push_back({translate, scale, rotate});
+    }
+
+    return res;
+}
+
 std::optional<PhysicsParams> parsePhysics(const json& params) {
     if (params.is_null()) {
         return std::nullopt;
@@ -380,8 +429,17 @@ void World::loadWorld() {
             socket_param.isValid = true;
         }
 
+        std::vector<Transformation> instance_info;
+        if (object.contains("instance")) {
+            instance_info = parseinstanceinfo(object["instance"]);
+        } else {
+        }
+
         ObjectLoaderParam param{name,  path,   is_animated, cs,           translate,
                                 scale, rotate, childs,      default_clip, socket_param};
+
+        param.instanceTransformations = instance_info;
+
         param.isDefaultActor = actorName == name;
         if (physics_props.has_value()) {
             param.isPhysicEnabled = true;

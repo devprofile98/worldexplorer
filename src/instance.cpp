@@ -25,7 +25,7 @@ Instance::Instance(std::vector<glm::vec3> positions, glm::vec3 rotationAxis, std
         auto rotate = glm::rotate(glm::mat4{1.0f}, degree[i], rotationAxis);
         auto scale = glm::scale(glm::mat4{1.0f}, scales[i]);
         auto model_matrix = trans * rotate * scale;
-        model_matrix = glm::rotate(model_matrix, glm::radians(180.0f), glm::vec3{1.0, 0.0, 0.0});
+        // model_matrix = glm::rotate(model_matrix, glm::radians(180.0f), glm::vec3{1.0, 0.0, 0.0});
         mInstanceBuffer.push_back({model_matrix, model_matrix * minAABB, model_matrix * maxAABB});
     }
 }
