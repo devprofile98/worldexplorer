@@ -11,6 +11,8 @@
 
 @group(5) @binding(0) var<storage, read> visible_instances_indices: array<u32>;
 
+@group(6) @binding(0) var<uniform> meshMaterial: Material;
+@group(6) @binding(1) var<uniform> meshIdx: i32;
 
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
@@ -22,7 +24,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
         let original_instance_idx = visible_instances_indices[off_id + instance_index];
         transform = offsetInstance[original_instance_idx + off_id].transformation;
     } else {
-        transform = objectTranformation.transformations;
+        transform = objectTranformation.transformations * meshTransformation.global[meshIdx];
     }
 
 

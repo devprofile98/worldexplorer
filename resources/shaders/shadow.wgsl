@@ -45,6 +45,9 @@ struct Material {
     uvMultiplier: vec3f,
 }
 
+struct MeshTransformations {
+    global: array<mat4x4f>,
+};
 
 
 @group(0) @binding(0) var<uniform> scene: array<Scene, 2>;
@@ -60,10 +63,15 @@ struct Material {
 
 @group(3) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 @group(3) @binding(1) var<uniform> bonesFinalTransform: array<mat4x4f, 100>;
-@group(3) @binding(2) var<uniform> meshMaterial: Material;
+@group(3) @binding(2) var<storage, read> meshTransformation: MeshTransformations;
+
 
 
 @group(4) @binding(0) var<uniform> sceneIndex: u32;
+
+@group(5) @binding(0) var<uniform> meshMaterial: Material;
+@group(5) @binding(1) var<uniform> meshIdx: i32;
+
 
 @vertex
 fn vs_main(vertex: Vertex) -> VSOutput {
@@ -75,7 +83,7 @@ fn vs_main(vertex: Vertex) -> VSOutput {
         let original_instance_idx = visible_instances_indices[off_id + vertex.instance_index];
         transform = offsetInstance[original_instance_idx + off_id].transformation;
     } else {
-        transform = objectTranformation.transformations;
+        transform = objectTranformation.transformations * meshTransformation.global[meshIdx];
     }
 
 

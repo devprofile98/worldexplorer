@@ -789,7 +789,7 @@ void Application::mainLoop() {
     {
         ZoneScoped;
         mShadowPass->lightPos = mLightingUniforms.directions[0];
-        // mShadowPass->renderAllCascades(encoder);
+        mShadowPass->renderAllCascades(encoder);
     }
     //
     //-------------- End of shadow pass
@@ -818,7 +818,7 @@ void Application::mainLoop() {
             // PerfTimer timer{"test"};
             wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mDepthPrePass->getPipeline()->getPipeline());
             for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-                // model->draw(this, render_pass_encoder);
+                model->drawHirarchy(this, render_pass_encoder);
             }
         }
 

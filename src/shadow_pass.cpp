@@ -106,7 +106,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
 
     mRenderPipeline = new Pipeline{mApp,
                                    {bind_group_layout, texture_bind_group_layout, mApp->getBindGroupLayouts()[5],
-                                    mApp->getBindGroupLayouts()[1], layout},
+                                    mApp->getBindGroupLayouts()[1], layout, mApp->getBindGroupLayouts()[6]},
                                    "shadow pass pipeline layout"};
 
     WGPUVertexBufferLayout d = mRenderPipeline->mVertexBufferLayout
@@ -364,7 +364,7 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
     mBindingData[0].buffer = mSceneUniformBuffer.getBuffer();
     mBindingData[2].buffer = mFrustuIndexBuffer[which].getBuffer();
     for (auto& model : models) {
-        for (auto& [mat_id, mesh] : model->mMeshes) {
+        for (auto& [mat_id, mesh] : model->mFlattenMeshes) {
             ZoneScopedN("inner loop loop");
             wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                                  wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
@@ -380,6 +380,7 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
             wgpuRenderPassEncoderSetBindGroup(encoder, 2, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
             wgpuRenderPassEncoderSetBindGroup(encoder, 3, model->getObjectInfoBindGroup(), 0, nullptr);
             wgpuRenderPassEncoderSetBindGroup(encoder, 4, mSceneIndicesBindGroup[which], 0, nullptr);
+            wgpuRenderPassEncoderSetBindGroup(encoder, 5, mesh.mMaterialBindGroup, 0, nullptr);
 
             if (model->instance == nullptr) {
                 wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
@@ -437,7 +438,7 @@ void DepthPrePass::createRenderPass(WGPUTextureFormat textureFormat) {
     auto* layouts = mApp->getBindGroupLayouts();
     mRenderPipeline = new Pipeline{
         mApp,
-        {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4], layouts[5] /*, layouts[6] , mLayerThree*/},
+        {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4], layouts[5], layouts[6] /*, mLayerThree*/},
         "Depth Pre-Pass"};
 
     WGPUColorTargetState colorTargetState;
