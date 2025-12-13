@@ -7,6 +7,7 @@
 #include "application.h"
 #include "binding_group.h"
 #include "glm/fwd.hpp"
+#include "instance.h"
 #include "model.h"
 #include "rendererResource.h"
 #include "texture.h"

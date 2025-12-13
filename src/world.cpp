@@ -16,6 +16,7 @@
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtx/string_cast.hpp"
+#include "instance.h"
 #include "model.h"
 #include "model_registery.h"
 #include "physics.h"
@@ -300,6 +301,8 @@ struct BaseModelLoader : public IModel {
 
                 auto* ins = new Instance{positions, glm::vec3{1.0, 0.0, 0.0},     rotations,
                                          scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
+                ins->mPositions = positions;
+                ins->mScale = scales;
 
                 wgpuQueueWriteBuffer(app->getRendererResource().queue,
                                      app->mInstanceManager->getInstancingBuffer().getBuffer(), 0 * sizeof(InstanceData),

@@ -17,6 +17,7 @@
 #include "glm/geometric.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "gpu_buffer.h"
+#include "instance.h"
 #include "model.h"
 #include "profiling.h"
 #include "rendererResource.h"

@@ -25,6 +25,7 @@
 #include "assimp/vector3.h"
 #include "glm/ext/matrix_common.hpp"
 #include "glm/gtc/quaternion.hpp"
+#include "instance.h"
 #include "mesh.h"
 #include "physics.h"
 #include "texture.h"
@@ -914,40 +915,83 @@ void Model::userInterface() {
         mTransform.mDirty = true;
     }
 
-    for (auto& [name, action] : anim->actions) {
-        ImGui::PushID((void*)&action);
-        if (ImGui::Button(name.c_str())) {
-            anim->playAction(name, true);
+    if (ImGui::CollapsingHeader("Available Actions:  (press to play)",
+                                ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+        for (auto& [name, action] : anim->actions) {
+            ImGui::PushID((void*)&action);
+            if (ImGui::Button(name.c_str())) {
+                anim->playAction(name, true);
+            }
+            ImGui::PopID();  // Pop the unique ID for this item
         }
-        ImGui::PopID();  // Pop the unique ID for this item
     }
 
-    for (auto& [name, node] : mNodeNameMap) {
-        ImGui::PushID((void*)node);
-        // if (ImGui::Button(name.c_str())) {
-        //
-        // }
-        ImGui::Text("%s->%s", name.c_str(), node->mParent != nullptr ? node->mParent->mName.c_str() : "world");
-        auto [pos, sc, rot] = decomposeTransformation(node->mLocalTransform);
-        bool pos_changed = ImGui::DragFloat3("pos", glm::value_ptr(pos));
-        bool rot_changed = ImGui::DragFloat3("rot", glm::value_ptr(rot));
-        bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(sc));
-        if (pos_changed || rot_changed || scale_changed) {
-            auto newglobaltrans =
-                glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4(1.0f), sc);
-            glm::mat4 parent_global =
-                (node->mParent != nullptr) ? node->mParent->getGlobalTransform() : glm::mat4(1.0f);
-            glm::mat4 newLocal = glm::inverse(parent_global) * newglobaltrans;
-            node->mLocalTransform = newLocal;
+    if (ImGui::CollapsingHeader("Mesh transformations",
+                                ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+        for (auto& [name, node] : mNodeNameMap) {
+            ImGui::PushID((void*)node);
+            // if (ImGui::Button(name.c_str())) {
+            //
+            // }
+            ImGui::Text("%s->%s", name.c_str(), node->mParent != nullptr ? node->mParent->mName.c_str() : "world");
+            auto [pos, sc, rot] = decomposeTransformation(node->mLocalTransform);
+            bool pos_changed = ImGui::DragFloat3("pos", glm::value_ptr(pos));
+            bool rot_changed = ImGui::DragFloat3("rot", glm::value_ptr(rot));
+            bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(sc));
+            if (pos_changed || rot_changed || scale_changed) {
+                auto newglobaltrans =
+                    glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4(1.0f), sc);
+                glm::mat4 parent_global =
+                    (node->mParent != nullptr) ? node->mParent->getGlobalTransform() : glm::mat4(1.0f);
+                glm::mat4 newLocal = glm::inverse(parent_global) * newglobaltrans;
+                node->mLocalTransform = newLocal;
 
-            populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes,
-                                                     {});
+                populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes,
+                                                         {});
 
-            auto& databuffer = mGlobalMeshTransformationData;
-            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mGlobalMeshTransformationBuffer.getBuffer(), 0,
-                                 databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+                auto& databuffer = mGlobalMeshTransformationData;
+                wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mGlobalMeshTransformationBuffer.getBuffer(), 0,
+                                     databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+            }
+            ImGui::PopID();  // Pop the unique ID for this item
         }
-        ImGui::PopID();  // Pop the unique ID for this item
+    }
+
+    if (ImGui::CollapsingHeader("Instances",
+                                ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+        size_t instances_count = instance != nullptr ? instance->mPositions.size() : 0;
+        for (size_t i = 0; i < instances_count; ++i) {
+            ImGui::PushID((void*)&instance->mPositions[i]);
+            ImGui::LabelText("Label", "instance #%ld", i);
+            bool pos_changed = ImGui::DragFloat3("pos", glm::value_ptr(instance->mPositions[i]), 0.01);
+            bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(instance->mScale[i]), 0.01);
+
+            if (pos_changed || scale_changed) {
+                glm::mat4 t = glm::translate(glm::mat4{1.0}, instance->mPositions[i]);
+                t = glm::rotate(t, 0.f, {1.0, 0.0, 0.0});
+                t = glm::scale(t, instance->mScale[i]);
+                std::cout << "Changing here" << glm::to_string(instance->mPositions[i]) << '\n';
+
+                instance->mInstanceBuffer[i] = {t, t * glm::vec4{min, 1.0f}, t * glm::vec4{max, 1.0f}};
+
+                wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
+                                     mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
+                                     i * sizeof(InstanceData), &instance->mInstanceBuffer[i], sizeof(InstanceData));
+            }
+
+            ImGui::PopID();  // Pop the unique ID for this item
+        }
+    }
+
+    // ImGui::LabelText("Label", "Add new instance");
+    if (ImGui::Button("New instance")) {
+        size_t new_idx = instance->duplicateLastInstance(glm::vec3{.01}, min, max);
+        wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
+                             mApp->mInstanceManager->getInstancingBuffer().getBuffer(), new_idx * sizeof(InstanceData),
+                             &instance->mInstanceBuffer[new_idx], sizeof(InstanceData));
+    }
+    if (ImGui::Button("Export instances info")) {
+        instance->dumpJson();
     }
 
     if (mTransform.mObjectInfo.isAnimated) {

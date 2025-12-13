@@ -8,6 +8,7 @@
 #include "application.h"
 #include "glm/gtx/string_cast.hpp"
 #include "input_manager.h"
+#include "instance.h"
 #include "model_registery.h"
 #include "utils.h"
 #include "world.h"

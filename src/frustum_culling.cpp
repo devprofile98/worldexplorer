@@ -10,6 +10,7 @@
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/trigonometric.hpp"
+#include "instance.h"
 #include "rendererResource.h"
 #include "shapes.h"
 #include "webgpu/webgpu.h"

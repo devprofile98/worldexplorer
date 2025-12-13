@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "glm/ext/matrix_float4x4.hpp"
+#include "glm/fwd.hpp"
 #include "gpu_buffer.h"
 
 class Application;
@@ -37,6 +38,9 @@ class Instance {
         // Getter
         size_t getInstanceCount();
         uint16_t getInstanceID();
+        // uint16_t addNewInstance(const glm::vec3& positoin, const glm::vec3& scale, const glm::quat& rot);
+        uint16_t duplicateLastInstance(const glm::vec3& posOffset, const glm::vec3& min, const glm::vec3& max);
+        void dumpJson();
         std::vector<glm::vec3> mPositions;
         std::vector<glm::vec3> mRotation;
         std::vector<glm::vec3> mScale;

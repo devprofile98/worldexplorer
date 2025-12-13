@@ -22,7 +22,7 @@
 
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
-#include "instance.h"
+// #include "instance.h"
 #include "mesh.h"
 // #include "texture.h"
 #include "webgpu/webgpu.h"
@@ -32,6 +32,7 @@
 class Application;
 class Texture;
 class BaseModel;
+class Instance;
 struct Animation;
 class Behaviour;
 struct BoneSocket;
