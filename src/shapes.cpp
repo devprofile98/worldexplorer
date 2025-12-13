@@ -3,11 +3,13 @@
 #include <array>
 #include <cstdint>
 #include <glm/fwd.hpp>
+#include <limits>
 #include <vector>
 
 #include "application.h"
 #include "binding_group.h"
 #include "glm/ext/scalar_constants.hpp"
+#include "glm/gtc/type_ptr.hpp"
 #include "glm/trigonometric.hpp"
 #include "mesh.h"
 #include "pipeline.h"
@@ -261,8 +263,11 @@ void LineEngine::initialize(Application* app) {
     mLineRenderingPass->init();
 
     //// create attribute vector
-    mBindGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::STORAGE_READONLY,
-                         mMaxPoints * sizeof(glm::vec4));
+    mBindGroup
+        .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::STORAGE_READONLY,
+                   mMaxPoints * sizeof(LineSegment))
+        .addBuffer(1, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::STORAGE_READONLY,
+                   mMaxPoints * sizeof(glm::mat4));
     mCameraBindGroup.addBuffer(0,  //
                                BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
                                sizeof(CameraInfo));
@@ -297,26 +302,18 @@ void LineEngine::initialize(Application* app) {
         .setDepthStencilState(true, 0xFF, 0xFF, WGPUTextureFormat_Depth24PlusStencil8)
         .setFragmentState()
         .createPipeline(app);
-    //
-    // mOffsetBuffer.setSize(100 * sizeof(glm::vec4))
-    //     .setLabel("Instancing Shader Storage Buffer for lines")
-    //     .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
-    //     .setMappedAtCraetion()
-    //     .create(app);
-    mOffsetBuffer.setSize(mMaxPoints * sizeof(glm::vec4))
+
+    mOffsetBuffer.setSize(mMaxPoints * sizeof(LineSegment))
         .setLabel("Instancing Shader Storage Buffer for lines")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setMappedAtCraetion(false)  // No need to map initially
         .create(app);
-    // mLineList.emplace_back(glm::vec4{0.0});
-    // mLineList.emplace_back(glm::vec4{10.0, 10.0, 0.0, 0.0});
-    // mLineList.emplace_back(glm::vec4{12.0, 10.0, 0.0, 1.0});
-    // mLineList.emplace_back(glm::vec4{15.0, 0.0, 0.0, 0.0});
-    // mLineList.emplace_back(glm::vec4{16.0, -5.0, 0.0, 0.0});
-    // mLineList.emplace_back(glm::vec4{18.0, 10.0, 0.0, 0.0});
-    //
-    // wgpuQueueWriteBuffer(app->getRendererResource().queue, mOffsetBuffer.getBuffer(), 0, mLineList.data(),
-    //                      sizeof(glm::vec4) * mLineList.size());
+
+    mTransformationBuffer.setSize(mMaxPoints * sizeof(glm::mat4))
+        .setLabel("Transformation storage for lines")
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
+        .setMappedAtCraetion(false)  // No need to map initially
+        .create(app);
 
     mVertexBuffer.setSize(sizeof(mLineInstance))
         .setLabel("Single Line Instance Vertex Buffer")
@@ -349,12 +346,20 @@ void LineEngine::initialize(Application* app) {
                          mCircleIndexData.size() * sizeof(uint16_t));
 
     mBindingData.push_back({});
+    mBindingData.push_back({});
     mBindingData[0] = {};
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].buffer = mOffsetBuffer.getBuffer();
     mBindingData[0].binding = 0;
     mBindingData[0].offset = 0;
-    mBindingData[0].size = mMaxPoints * sizeof(glm::vec4);
+    mBindingData[0].size = mMaxPoints * sizeof(LineSegment);
+
+    mBindingData[1] = {};
+    mBindingData[1].nextInChain = nullptr;
+    mBindingData[1].buffer = mTransformationBuffer.getBuffer();
+    mBindingData[1].binding = 1;
+    mBindingData[1].offset = 0;
+    mBindingData[1].size = mMaxPoints * sizeof(glm::mat4);
 
     mCameraBindingData.push_back({});
     mCameraBindingData[0].nextInChain = nullptr;
@@ -371,7 +376,7 @@ void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
     // Calculate total points needed
     uint32_t totalPoints = 0;
     for (const auto& [id, group] : mLineGroups) {
-        totalPoints += static_cast<uint32_t>(group.points.size());
+        totalPoints += static_cast<uint32_t>(group.segment.size());
     }
 
     // Resize if needed
@@ -382,7 +387,7 @@ void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
         uint32_t currentOffset = 0;
         for (auto& [id, group] : mLineGroups) {
             group.buffer_offset = currentOffset;
-            currentOffset += static_cast<uint32_t>(group.points.size());
+            currentOffset += static_cast<uint32_t>(group.segment.size());
             group.dirty = true;  // Force write since offset may have changed
         }
         mGlobalDirty = false;
@@ -390,11 +395,14 @@ void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
 
     // Write dirty groups to buffer
     WGPUQueue queue = app->getRendererResource().queue;
-    for (const auto& [id, group] : mLineGroups) {
-        if (group.dirty && !group.points.empty()) {
-            uint64_t byteOffset = static_cast<uint64_t>(group.buffer_offset) * sizeof(glm::vec4);
-            uint64_t byteSize = group.points.size() * sizeof(glm::vec4);
-            wgpuQueueWriteBuffer(queue, mOffsetBuffer.getBuffer(), byteOffset, group.points.data(), byteSize);
+    for (auto& [id, group] : mLineGroups) {
+        if (group.dirty && !group.segment.empty()) {
+            uint64_t byteOffset = static_cast<uint64_t>(group.buffer_offset) * sizeof(LineSegment);
+            uint64_t byteSize = group.segment.size() * sizeof(LineSegment);
+            wgpuQueueWriteBuffer(queue, mOffsetBuffer.getBuffer(), byteOffset, group.segment.data(), byteSize);
+            wgpuQueueWriteBuffer(queue, mTransformationBuffer.getBuffer(), id * sizeof(glm::mat4),
+                                 glm::value_ptr(group.transformation), sizeof(glm::mat4));
+            group.dirty = false;
             // No need to set dirty=false here; do it after successful write if you add error handling
         }
     }
@@ -409,7 +417,7 @@ void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
 
     // Draw each group separately
     for (const auto& [id, group] : mLineGroups) {
-        uint32_t instanceCount = static_cast<uint32_t>(group.points.size()) - 1;
+        uint32_t instanceCount = static_cast<uint32_t>(group.segment.size()) - 1;
         if (instanceCount > 0) {
             wgpuRenderPassEncoderDraw(encoder, 6, instanceCount, 0, group.buffer_offset);
         }
@@ -434,11 +442,20 @@ void LineEngine::executePass() {
 
 // Returns a handle for the new group
 uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points) {
-    if (points.size() < 2) return UINT32_MAX;  // Invalid; need at least one segment
+    // Invalid cases
+    if (points.size() < 2 || mNextGroupId >= 1024) {
+        return std::numeric_limits<uint32_t>::max();
+    }
 
-    std::cout << mNextGroupId << " " << mLineGroups.size() << std::endl;
     uint32_t id = mNextGroupId++;
-    mLineGroups[id] = {points, 0, true};
+    // std::vector<LineSegment> segments;
+    mLineGroups[id] = {glm::mat4{1.0}, {}, 0, true};
+    auto& segments = mLineGroups[id].segment;
+    for (const auto& p : points) {
+        segments.emplace_back(LineSegment{p, {0.0, 1.0, 0.0}, id});
+        std::cout << segments.size() << " " << id << std::endl;
+    }
+    // std::cout << "Line is " << mNextGroupId << " " << mLineGroups[id].segment.transformationId << std::endl;
     mGlobalDirty = true;
     return id;
 }
@@ -456,10 +473,22 @@ void LineEngine::updateLines(uint32_t id, const std::vector<glm::vec4>& newPoint
     if (it == mLineGroups.end()) return;
 
     LineGroup& group = it->second;
-    bool sizeChanged = (newPoints.size() != group.points.size());
-    group.points = newPoints;
+    bool sizeChanged = (newPoints.size() != group.segment.size());
+    std::vector<LineSegment> segments;
+    for (const auto& p : newPoints) {
+        segments.emplace_back(LineSegment{p, {0.0, 1.0, 0.0}, id});
+    }
+    group.segment = segments;
     group.dirty = true;
     if (sizeChanged) {
         mGlobalDirty = true;
     }
+}
+
+void LineEngine::updateLineTransformation(uint32_t id, const glm::mat4& trans) {
+    auto it = mLineGroups.find(id);
+    if (it == mLineGroups.end()) return;
+    LineGroup& group = it->second;
+    group.transformation = trans;
+    group.dirty = true;
 }

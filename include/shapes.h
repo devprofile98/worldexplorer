@@ -1,6 +1,7 @@
 #ifndef WEBGPUTEST_SHAPE_H
 #define WEBGPUTEST_SHAPE_H
 
+#include <cstdint>
 #include <vector>
 
 #include "../webgpu/webgpu.h"
@@ -90,10 +91,18 @@ struct LineEngine {
         std::vector<WGPUBindGroupEntry> mBindingData;
         std::vector<WGPUBindGroupEntry> mCameraBindingData;
         Buffer mOffsetBuffer;
+        Buffer mTransformationBuffer;
         NewRenderPass* mLineRenderingPass;
 
+        struct alignas(16) LineSegment {
+                glm::vec4 point;
+                glm::vec3 color;
+                uint32_t transformationId;
+        };
+
         struct LineGroup {
-                std::vector<glm::vec4> points;
+                glm::mat4 transformation;
+                std::vector<LineSegment> segment;
                 uint32_t buffer_offset = 0;  // Starting index in the storage buffer
                 bool dirty = true;           // Needs write to buffer?
         };
@@ -101,6 +110,7 @@ struct LineEngine {
         uint32_t addLines(const std::vector<glm::vec4>& points);
         void removeLines(uint32_t id);
         void updateLines(uint32_t id, const std::vector<glm::vec4>& newPoints);
+        void updateLineTransformation(uint32_t id, const glm::mat4& trans);
 
         std::unordered_map<uint32_t, LineGroup> mLineGroups;
         uint32_t mNextGroupId = 0;   // For assigning handles

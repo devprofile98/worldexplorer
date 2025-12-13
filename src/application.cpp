@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <format>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -1289,18 +1290,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                                      glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
             }
 
-            static float hey[3] = {0.0};
-            static float heyloc[3] = {0.0};
-            if (ImGui::DragFloat3("hey", hey, 0.01) || ImGui::DragFloat3("heyloc", heyloc, 0.01)) {
-                glm::vec3 min = {heyloc[0] - hey[0], heyloc[1] - hey[1], heyloc[2] - hey[2]};
-                glm::vec3 max = {heyloc[0] + hey[0], heyloc[1] + hey[1], heyloc[2] + hey[2]};
-                if (boxId < 1024) {
-                    mLineEngine->updateLines(boxId, generateAABBLines(min, max));
-                } else {
-                    boxId = mLineEngine->addLines(generateAABBLines(min, max));
-                }
-            }
-
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Objects")) {
@@ -1363,6 +1352,55 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
         if (ImGui::BeginTabItem("Physics")) {
             ImGui::Checkbox("Run Physics", &runPhysics);
+            // if (ImGui::Button("Create new Physically simulated shape")) {
+            static uint32_t boxIndicator = std::numeric_limits<uint32_t>::max();
+
+            // static float hey[3] = {0.0};
+            // static float heyloc[3] = {1.0, 0, 0.0};
+            static glm::vec3 center{0.0};
+            static glm::vec3 half_extent{0.0};
+            if (ImGui::DragFloat3("center", glm::value_ptr(center), 0.01) ||
+                ImGui::DragFloat3("half extent", glm::value_ptr(half_extent), 0.01)) {
+                // if (mSelectedModel->mPhysicComponent != nullptr) {
+                // auto [pos, rot] = physics::getPositionById(mSelectedModel->mPhysicComponent->bodyId);
+                // glm::quat rotation;
+                // rotation.x = rot.GetX();
+                // rotation.y = rot.GetY();
+                // rotation.z = rot.GetZ();
+                // rotation.w = rot.GetW();
+                // std::cout << ".......................... " << glm::to_string(pos) << '\n';
+                // std::cout << ":::::::::::::::::::::::::: "
+                //           << glm::to_string(mSelectedModel->mTransform.getPosition()) << '\n';
+
+                glm::mat4 t{1.0};
+                // t = glm::translate(t, center);  // 1. translate
+                // t = glm::toMat4(rotation) * t;  // 2. apply quaternion rotation
+                // t = t * glm::toMat4(rotation);  // depending on order you want
+                // t = glm::scale(t, glm::vec3(1.0f));
+                auto box = generateBox(center, half_extent);
+                if (boxId < 1024) {
+                    // glm::mat4 t{1.0};
+                    // t = glm::scale(t, {hey[0], hey[1], hey[2]});
+                    // t = glm::rotate(t, 0.0f, {heyloc[0], heyloc[1], heyloc[2]});
+                    mLineEngine->updateLines(boxId, box);
+                    mLineEngine->updateLineTransformation(boxId, glm::mat4{1.0});
+                } else {
+                    // boxId = mLineEngine->addLines(generateAABBLines(min, max));
+                    boxId = mLineEngine->addLines(box);
+                }
+                // }
+            }
+            if (ImGui::Button("Create box")) {
+                glm::quat qu;
+                qu.w = 1.0;
+                qu.x = 0.0;
+                qu.y = 0.0;
+                qu.z = 0.0;
+
+                auto* pc = physics::createAndAddBody(half_extent, center, qu, true, 0.5, 0.0f, 0.0f, 1.f);
+                std::cout << pc << " " << pc->bodyId.IsInvalid() << std::endl;
+            }
+            // }
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();

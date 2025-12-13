@@ -109,6 +109,8 @@ std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width,
                                                    const glm::vec3& max);
 // Terrain generateTerrainVertices(size_t gridSize);
 std::vector<glm::vec4> generateAABBLines(const glm::vec3& min, const glm::vec3& max);
+std::vector<glm::vec4> generateCone();
+std::vector<glm::vec4> generateBox(const glm::vec3& center = {0, 0, 0}, const glm::vec3& halfExtents = {0.5, 0.5, 0.5});
 
 class PerfTimer {
     public:

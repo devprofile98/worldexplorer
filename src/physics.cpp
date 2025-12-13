@@ -167,7 +167,8 @@ PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 cente
     BodyCreationSettings boxSettings(new BoxShape(Vec3(shape.x, shape.z, shape.y), 0.01),  // 2x2x2 meter box
                                      RVec3(centerPos.x, centerPos.z, centerPos.y),         // start 10 meters up
                                      {rotation.x, rotation.z, rotation.y, rotation.w},
-                                     active ? EMotionType::Dynamic : EMotionType::Static, Layers::MOVING);
+                                     active ? EMotionType::Dynamic : EMotionType::Static,
+                                     active ? Layers::MOVING : Layers::NON_MOVING);
     boxSettings.mAllowSleeping = false;
 
     boxSettings.mFriction = friction;

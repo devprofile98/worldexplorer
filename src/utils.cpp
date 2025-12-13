@@ -781,6 +781,81 @@ std::vector<glm::vec4> generateAABBLines(const glm::vec3& min, const glm::vec3& 
     return result;
 }
 
+std::vector<glm::vec4> generateBox(const glm::vec3& center, const glm::vec3& halfExtents) {
+    std::vector<glm::vec4> result;
+
+    const float cx = center.x;
+    const float cy = center.y;
+    const float cz = center.z;
+
+    const float hx = halfExtents.x;
+    const float hy = halfExtents.y;
+    const float hz = halfExtents.z;
+
+    // Bottom face (Y = center.y - half.y)
+    auto bottomFrontLeft = glm::vec3(cx - hx, cy - hy, cz - hz);
+    auto bottomFrontRight = glm::vec3(cx + hx, cy - hy, cz - hz);
+    auto bottomBackLeft = glm::vec3(cx - hx, cy - hy, cz + hz);
+    auto bottomBackRight = glm::vec3(cx + hx, cy - hy, cz + hz);
+
+    // Top face (Y = center.y + half.y)
+    glm::vec3 topFrontLeft = glm::vec3(cx - hx, cy + hy, cz - hz);
+    auto topFrontRight = glm::vec3(cx + hx, cy + hy, cz - hz);
+    auto topBackLeft = glm::vec3(cx - hx, cy + hy, cz + hz);
+    auto topBackRight = glm::vec3(cx + hx, cy + hy, cz + hz);
+
+    // front
+    result.emplace_back(glm::vec4{topFrontLeft, 0.0});
+    result.emplace_back(glm::vec4{topFrontRight, 0.0});
+    result.emplace_back(glm::vec4{topBackRight, 0.0});
+    result.emplace_back(glm::vec4{topBackLeft, 0.0});
+    result.emplace_back(glm::vec4{topFrontLeft, 0.0});
+    // back
+    result.emplace_back(glm::vec4{bottomFrontLeft, 0.0});
+    result.emplace_back(glm::vec4{bottomFrontRight, 0.0});
+    result.emplace_back(glm::vec4{bottomBackRight, 0.0});
+    result.emplace_back(glm::vec4{bottomBackLeft, 0.0});
+    result.emplace_back(glm::vec4{bottomFrontLeft, 1.0});
+
+    // connecting lines
+    result.emplace_back(glm::vec4{topBackLeft, 0.0});
+    result.emplace_back(glm::vec4{bottomBackLeft, 1.0});
+
+    result.emplace_back(glm::vec4{topBackRight, 0.0});
+    result.emplace_back(glm::vec4{bottomBackRight, 1.0});
+
+    result.emplace_back(glm::vec4{topFrontRight, 0.0});
+    result.emplace_back(glm::vec4{bottomFrontRight, 1.0});
+
+    return result;
+}
+
+std::vector<glm::vec4> generateCone() {
+    std::vector<glm::vec4> result;
+
+    glm::vec3 head{0.0};
+    glm::vec3 base_center{head};
+    base_center.z += 0.5;
+    glm::vec3 first = base_center + glm::vec3{0.5, 0.5, 0.0};
+    glm::vec3 second = base_center + glm::vec3{0.5, -0.5, 0.0};
+    glm::vec3 third = base_center + glm::vec3{-0.5, 0.5, 0.0};
+    glm::vec3 fourth = base_center + glm::vec3{-0.5, -0.5, 0.0};
+    result.emplace_back(head, 0.0);
+    result.emplace_back(first, 0.0);
+    result.emplace_back(second, 0.0);
+    result.emplace_back(fourth, 0.0);
+    result.emplace_back(third, 0.0);
+    result.emplace_back(first, 0.0);
+    result.emplace_back(head, 0.0);
+    result.emplace_back(second, 1.0);
+    result.emplace_back(head, 0.0);
+    result.emplace_back(third, 1.0);
+    result.emplace_back(head, 0.0);
+    result.emplace_back(fourth, 1.0);
+
+    return result;
+}
+
 PerfTimer::PerfTimer(std::string_view label) : mLabel(label), mStart(std::chrono::high_resolution_clock::now()) {}
 
 PerfTimer::~PerfTimer() {
