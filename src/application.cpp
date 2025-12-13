@@ -691,7 +691,7 @@ void Application::mainLoop() {
         if (boxIdForAABB < 1024) {
             mLineEngine->updateLines(boxIdForAABB, generateAABBLines(min, max));
         } else {
-            boxIdForAABB = mLineEngine->addLines(generateAABBLines(min, max));
+            boxIdForAABB = mLineEngine->addLines(generateAABBLines(min, max), {0.8, 0.5, 0.0});
         }
     }
     // if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {

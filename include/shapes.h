@@ -102,12 +102,13 @@ struct LineEngine {
 
         struct LineGroup {
                 glm::mat4 transformation;
+                glm::vec3 groupColor;
                 std::vector<LineSegment> segment;
                 uint32_t buffer_offset = 0;  // Starting index in the storage buffer
                 bool dirty = true;           // Needs write to buffer?
         };
 
-        uint32_t addLines(const std::vector<glm::vec4>& points);
+        uint32_t addLines(const std::vector<glm::vec4>& points, const glm::vec3& color = {0.0, 1.0, 0.0});
         void removeLines(uint32_t id);
         void updateLines(uint32_t id, const std::vector<glm::vec4>& newPoints);
         void updateLineTransformation(uint32_t id, const glm::mat4& trans);

@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <format>
 
+#include "glm/ext/matrix_transform.hpp"
+#include "glm/gtx/quaternion.hpp"
+
 #define GLM_ENABLE_EXPERIMENTAL
 #include <webgpu/webgpu.h>
 
@@ -82,23 +85,36 @@ void LightManager::renderGUI() {
         std::format("{} color # {}", mPointlight->type == SPOT ? "Spot" : "Point", mSelectedLightInGui).c_str(),
         glm::value_ptr(tmp_light.mAmbient));
 
-    if (ImGui::SliderFloat3("Position", glm::value_ptr(tmp_light.mPosition), -20.0f, 20.0f)) {
-        if (boxId < 1024) {
-            mApp->mLineEngine->updateLines(boxId, generateAABBLines(glm::vec3{tmp_light.mPosition} - glm::vec3{0.3},
-                                                                    glm::vec3{tmp_light.mPosition} + glm::vec3{0.3}));
-        } else {
-            boxId = mApp->mLineEngine->addLines(generateAABBLines(glm::vec3{tmp_light.mPosition} - glm::vec3{0.3},
-                                                                  glm::vec3{tmp_light.mPosition} + glm::vec3{0.3}));
-        }
-    }
+    bool changed = false;
+    changed |= ImGui::SliderFloat3("Position", glm::value_ptr(tmp_light.mPosition), -20.0f, 20.0f);
 
     if (tmp_light.type == SPOT) {
-        ImGui::SliderFloat3("sDirection", glm::value_ptr(tmp_light.mDirection), -1.0, 1.0f);
-        ImGui::SliderFloat("Inner Cutoff", &tmp_light.mInnerCutoff, 0, 2.0);
-        ImGui::SliderFloat("outer Cutoff", &tmp_light.mOuterCutoff, 0, 2.0);
+        changed |= ImGui::SliderFloat3("sDirection", glm::value_ptr(tmp_light.mDirection), -1.0, 1.0f);
+        changed |= ImGui::SliderFloat("Inner Cutoff", &tmp_light.mInnerCutoff, 0, 2.0);
+        changed |= ImGui::SliderFloat("outer Cutoff", &tmp_light.mOuterCutoff, 0, 2.0);
     }
-    ImGui::SliderFloat("Linear", &tmp_light.mLinear, -10.0f, 10.0f);
-    ImGui::SliderFloat("Quadratic", &tmp_light.mQuadratic, -10.0f, 10.0f);
+    changed |= ImGui::SliderFloat("Linear", &tmp_light.mLinear, -10.0f, 10.0f);
+    changed |= ImGui::SliderFloat("Quadratic", &tmp_light.mQuadratic, -10.0f, 10.0f);
+    if (changed) {
+        // if (boxId < 1024) {
+        //     mApp->mLineEngine->updateLines(boxId, generateAABBLines(glm::vec3{tmp_light.mPosition} - glm::vec3{0.3},
+        //                                                             glm::vec3{tmp_light.mPosition} +
+        //                                                             glm::vec3{0.3}));
+        // } else {
+        //     boxId = mApp->mLineEngine->addLines(generateAABBLines(glm::vec3{tmp_light.mPosition} - glm::vec3{0.3},
+        //                                                           glm::vec3{tmp_light.mPosition} + glm::vec3{0.3}));
+        // }
+        if (boxId < 1024) {
+            glm::mat4 t{1.0};
+            t = glm::translate(t, glm::vec3(tmp_light.mPosition));
+            glm::quat rot = rotationBetweenVectors(glm::vec3{0.0, 0.0, 1.0}, tmp_light.mDirection);
+            t = glm::toMat4(rot) * t;
+            t = glm::scale(t, glm::vec3{1.0});
+            mApp->mLineEngine->updateLineTransformation(boxId, t);
+        } else {
+            boxId = mApp->mLineEngine->addLines(generateCone());
+        }
+    }
 
     if (!glm::all(glm::equal(tmp_light.mAmbient, mPointlight->mAmbient)) ||
         !glm::all(glm::equal(tmp_light.mPosition, mPointlight->mPosition)) ||
@@ -121,12 +137,26 @@ void LightManager::renderGUI() {
         if (ImGui::Selectable(mLightsNames[i].c_str(), light == &getLights()[mSelectedLightInGui])) {
             ImGui::Text("%s", glm::to_string(light->mPosition).c_str());
             mSelectedLightInGui = i;
+            // if (boxId < 1024) {
+            //     mApp->mLineEngine->updateLines(boxId, generateAABBLines(glm::vec3{light->mPosition} - glm::vec3{0.3},
+            //                                                             glm::vec3{light->mPosition} +
+            //                                                             glm::vec3{0.3}));
+            // } else {
+            //     boxId = mApp->mLineEngine->addLines(generateAABBLines(glm::vec3{light->mPosition} - glm::vec3{0.3},
+            //                                                           glm::vec3{light->mPosition} + glm::vec3{0.3}));
+            // }
+
             if (boxId < 1024) {
-                mApp->mLineEngine->updateLines(boxId, generateAABBLines(glm::vec3{light->mPosition} - glm::vec3{0.3},
-                                                                        glm::vec3{light->mPosition} + glm::vec3{0.3}));
+                glm::mat4 t{1.0};
+                t = glm::translate(t, glm::vec3(tmp_light.mPosition));
+                glm::quat rot = rotationBetweenVectors(glm::vec3{0.0, 0.0, 1.0}, tmp_light.mDirection);
+                t = glm::translate(t, glm::vec3(0.0f, 0.0f, 0.25f));  // Offset forward halfway (pre-rotate)
+                t = t * glm::toMat4(rot);
+                t = glm::translate(t, glm::vec3(0.0f, 0.0f, -0.25f));
+                t = glm::scale(t, glm::vec3{1.0});
+                mApp->mLineEngine->updateLineTransformation(boxId, t);
             } else {
-                boxId = mApp->mLineEngine->addLines(generateAABBLines(glm::vec3{light->mPosition} - glm::vec3{0.3},
-                                                                      glm::vec3{light->mPosition} + glm::vec3{0.3}));
+                boxId = mApp->mLineEngine->addLines(generateCone());
             }
         }
 

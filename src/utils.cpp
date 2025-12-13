@@ -856,6 +856,31 @@ std::vector<glm::vec4> generateCone() {
     return result;
 }
 
+glm::quat rotationBetweenVectors(glm::vec3 start, glm::vec3 dest) {
+    start = glm::normalize(start);
+    dest = glm::normalize(dest);
+
+    float cos_theta = glm::dot(start, dest);
+    glm::vec3 rotation_axis;
+
+    if (cos_theta < -0.9999f) {  // Nearly opposite directions → 180° rotation
+        // Find a perpendicular axis (try cross with X, fallback to Y)
+        rotation_axis = glm::cross(glm::vec3(0.0f, 0.0f, 1.0f), start);
+        if (glm::length(rotation_axis) < 0.01f) {
+            rotation_axis = glm::cross(glm::vec3(1.0f, 0.0f, 0.0f), start);
+        }
+        rotation_axis = glm::normalize(rotation_axis);
+        return glm::angleAxis(glm::radians(180.0f), rotation_axis);
+    }
+
+    // Standard case: cross product gives axis, half-angle formula for stability
+    rotation_axis = glm::cross(start, dest);
+    float s = std::sqrt((1.0f + cos_theta) * 2.0f);
+    float invs = 1.0f / s;
+
+    return glm::quat(s * 0.5f, rotation_axis.x * invs, rotation_axis.y * invs, rotation_axis.z * invs);
+}
+
 PerfTimer::PerfTimer(std::string_view label) : mLabel(label), mStart(std::chrono::high_resolution_clock::now()) {}
 
 PerfTimer::~PerfTimer() {

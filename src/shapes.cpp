@@ -441,7 +441,7 @@ void LineEngine::executePass() {
 }
 
 // Returns a handle for the new group
-uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points) {
+uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points, const glm::vec3& color) {
     // Invalid cases
     if (points.size() < 2 || mNextGroupId >= 1024) {
         return std::numeric_limits<uint32_t>::max();
@@ -449,10 +449,10 @@ uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points) {
 
     uint32_t id = mNextGroupId++;
     // std::vector<LineSegment> segments;
-    mLineGroups[id] = {glm::mat4{1.0}, {}, 0, true};
+    mLineGroups[id] = {glm::mat4{1.0}, color, {}, 0, true};
     auto& segments = mLineGroups[id].segment;
     for (const auto& p : points) {
-        segments.emplace_back(LineSegment{p, {0.0, 1.0, 0.0}, id});
+        segments.emplace_back(LineSegment{p, color, id});
         std::cout << segments.size() << " " << id << std::endl;
     }
     // std::cout << "Line is " << mNextGroupId << " " << mLineGroups[id].segment.transformationId << std::endl;
@@ -476,7 +476,7 @@ void LineEngine::updateLines(uint32_t id, const std::vector<glm::vec4>& newPoint
     bool sizeChanged = (newPoints.size() != group.segment.size());
     std::vector<LineSegment> segments;
     for (const auto& p : newPoints) {
-        segments.emplace_back(LineSegment{p, {0.0, 1.0, 0.0}, id});
+        segments.emplace_back(LineSegment{p, group.groupColor, id});
     }
     group.segment = segments;
     group.dirty = true;
