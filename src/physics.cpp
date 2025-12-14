@@ -22,19 +22,24 @@
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 
 #include <glm/fwd.hpp>
+#include <memory>
 
 #include "Jolt/Math/Quat.h"
 #include "Jolt/Math/Vec3.h"
 #include "Jolt/Physics/Body/BodyID.h"
 #include "Jolt/Physics/Body/MotionType.h"
+#include "application.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_float3.hpp"
 #include "glm/fwd.hpp"
 #include "glm/geometric.hpp"
 #include "glm/gtc/noise.hpp"
 #include "glm/gtc/type_ptr.hpp"
+#include "glm/gtx/quaternion.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "glm/trigonometric.hpp"
+#include "shapes.h"
+#include "utils.h"
 
 namespace physics {
 using namespace JPH;
@@ -258,4 +263,30 @@ void JoltLoop(float dt) {
     // BodyInterface& bodyInterface = physicsSystem.GetBodyInterface();
     physicsSystem.Update(dt, 1, temp_allocator, job_system);
 }
+
+BoxCollider::BoxCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent)
+    : mCenter(center), mHalfExtent(halfExtent) {
+    auto box = generateBox(mCenter, mHalfExtent);
+    mBoxId = app->mLineEngine->addLines(box);
+    mPhysicComponent = std::shared_ptr<PhysicsComponent>{
+        physics::createAndAddBody(halfExtent, center, {1, 0, 0, 0}, true, 0.5, 0.0f, 0.0f, 1.f)};
+}
+
+glm::mat4 BoxCollider::getTransformation() const {
+    auto [pos, rot] = getPositionById(mPhysicComponent->bodyId);
+    glm::quat newrot;
+    newrot.x = rot.GetX();
+    newrot.y = rot.GetY();
+    newrot.z = rot.GetZ();
+    newrot.w = rot.GetW();
+    return glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(newrot);
+}
+
+uint32_t BoxCollider::getBoxId() const { return mBoxId; }
+
+uint32_t PhysicSystem::createCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent) {
+    mColliders.emplace_back(app, center, halfExtent);
+    return mColliders.size() - 1;
+}
+
 }  // namespace physics

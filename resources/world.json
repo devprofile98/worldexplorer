@@ -260,7 +260,7 @@
       "type": "spot",
       "name": "red light",
       "color": [1.0, 0.55, 0.3],
-      "position": [-1.2, 2.4, -0.222],
+      "position": [-1.2, 5.207, -0.924],
       "direction": [0.0, 0.0, -1.0],
       "inner_cutoff": 0.399,
       "outer_cutoff": 0.353,

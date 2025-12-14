@@ -13,15 +13,45 @@
 #include <Jolt/Physics/Body/BodyID.h>
 
 // GLM forward declarations are fine
+#include <cstdint>
 #include <glm/fwd.hpp>
+#include <limits>
+#include <memory>
+#include <vector>
 
 #include "Jolt/Physics/Character/CharacterVirtual.h"
+#include "glm/ext/vector_float3.hpp"
+
+class Application;
 
 struct PhysicsComponent {
         JPH::BodyID bodyId;
 };
 
 namespace physics {
+
+class BoxCollider {
+    public:
+        BoxCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent);
+        glm::vec3 mCenter;
+        glm::vec3 mHalfExtent;
+        uint32_t getBoxId() const;
+        glm::mat4 getTransformation() const;
+
+    private:
+        uint32_t mBoxId = std::numeric_limits<uint32_t>::max();
+        std::shared_ptr<PhysicsComponent> mPhysicComponent;
+};
+
+class PhysicSystem {
+    public:
+        static uint32_t createCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent);
+        static inline std::vector<BoxCollider> mColliders;
+
+    private:
+        Application* mApp;
+};
+
 void prepareJolt();
 void JoltLoop(float dt);
 std::pair<glm::vec3, JPH::Quat> getPositionById(JPH::BodyID id);

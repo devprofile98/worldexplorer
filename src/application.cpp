@@ -15,6 +15,7 @@
 #include "animation.h"
 #include "binding_group.h"
 #include "glm/detail/qualifier.hpp"
+#include "glm/gtx/quaternion.hpp"
 #include "glm/matrix.hpp"
 #include "mesh.h"
 #include "physics.h"
@@ -63,8 +64,10 @@
 #include "wgpu_utils.h"
 #include "window.h"
 
-static bool cull_frustum = true;
+static bool cull_frustum = false;
+static bool show_physic_objects = false;
 static bool runPhysics = true;
+static Model* selectedPhysicModel = nullptr;
 
 bool flip_x = false;
 bool flip_y = false;
@@ -692,6 +695,37 @@ void Application::mainLoop() {
             mLineEngine->updateLines(boxIdForAABB, generateAABBLines(min, max));
         } else {
             boxIdForAABB = mLineEngine->addLines(generateAABBLines(min, max), {0.8, 0.5, 0.0});
+        }
+    }
+    if (show_physic_objects) {
+        for (const auto& collider : physics::PhysicSystem::mColliders) {
+            auto t = collider.getTransformation();
+            // std::cout << collider.getBoxId() << " " << glm::to_string(t) << std::endl;
+            mLineEngine->updateLineTransformation(collider.getBoxId(), t);
+        }
+        if (selectedPhysicModel != nullptr) {
+            static uint32_t debugboxid = std::numeric_limits<uint32_t>::max();
+            if (debugboxid < 1024) {
+                auto [pos, rot] = physics::getPositionById(selectedPhysicModel->mPhysicComponent->bodyId);
+                glm::quat new_rot;
+                new_rot.x = rot.GetX();
+                new_rot.y = rot.GetY();
+                new_rot.z = rot.GetZ();
+                new_rot.w = rot.GetW();
+                mLineEngine->updateLineTransformation(
+                    debugboxid,
+                    glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(new_rot) *
+                        glm::scale(glm::mat4{1.0}, selectedPhysicModel->mTransform.getScale() * glm::vec3{2.0}));
+            } else {
+                debugboxid = mLineEngine->addLines(
+                    generateBox(/*gham->mTransform.getPosition(), gham->mTransform.getScale()*/), {0.2, 0.0, 8.0});
+            }
+        } else {
+            for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+                if (model->getName() == "smallcube") {
+                    selectedPhysicModel = model;
+                }
+            }
         }
     }
     // if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
@@ -1355,39 +1389,20 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             // if (ImGui::Button("Create new Physically simulated shape")) {
             static uint32_t boxIndicator = std::numeric_limits<uint32_t>::max();
 
-            // static float hey[3] = {0.0};
-            // static float heyloc[3] = {1.0, 0, 0.0};
+            ImGui::Checkbox("show physics objects", &show_physic_objects);
+
             static glm::vec3 center{0.0};
             static glm::vec3 half_extent{0.0};
             if (ImGui::DragFloat3("center", glm::value_ptr(center), 0.01) ||
                 ImGui::DragFloat3("half extent", glm::value_ptr(half_extent), 0.01)) {
-                // if (mSelectedModel->mPhysicComponent != nullptr) {
-                // auto [pos, rot] = physics::getPositionById(mSelectedModel->mPhysicComponent->bodyId);
-                // glm::quat rotation;
-                // rotation.x = rot.GetX();
-                // rotation.y = rot.GetY();
-                // rotation.z = rot.GetZ();
-                // rotation.w = rot.GetW();
-                // std::cout << ".......................... " << glm::to_string(pos) << '\n';
-                // std::cout << ":::::::::::::::::::::::::: "
-                //           << glm::to_string(mSelectedModel->mTransform.getPosition()) << '\n';
-
-                glm::mat4 t{1.0};
-                // t = glm::translate(t, center);  // 1. translate
-                // t = glm::toMat4(rotation) * t;  // 2. apply quaternion rotation
-                // t = t * glm::toMat4(rotation);  // depending on order you want
-                // t = glm::scale(t, glm::vec3(1.0f));
                 auto box = generateBox(center, half_extent);
                 if (boxId < 1024) {
-                    // glm::mat4 t{1.0};
-                    // t = glm::scale(t, {hey[0], hey[1], hey[2]});
-                    // t = glm::rotate(t, 0.0f, {heyloc[0], heyloc[1], heyloc[2]});
                     mLineEngine->updateLines(boxId, box);
                     mLineEngine->updateLineTransformation(boxId, glm::mat4{1.0});
                 } else {
-                    // boxId = mLineEngine->addLines(generateAABBLines(min, max));
                     boxId = mLineEngine->addLines(box);
                 }
+
                 // }
             }
             if (ImGui::Button("Create box")) {
@@ -1397,8 +1412,36 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                 qu.y = 0.0;
                 qu.z = 0.0;
 
-                auto* pc = physics::createAndAddBody(half_extent, center, qu, true, 0.5, 0.0f, 0.0f, 1.f);
-                std::cout << pc << " " << pc->bodyId.IsInvalid() << std::endl;
+                physics::PhysicSystem::createCollider(this, center, half_extent);
+            }
+
+            if (ImGui::CollapsingHeader("Physic objects",
+                                        ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+                for (const auto& item :
+                     ModelRegistry::instance().getLoadedModel(Visibility_User) /*mWorld->rootContainer*/) {
+                    if (item->mPhysicComponent != nullptr) {
+                        ImGui::PushID((void*)item);
+                        // Create a unique ID for each selectable item based on its unique item.id
+                        if (ImGui::Button(item->getName().c_str())) {
+                            selectedPhysicModel = item;
+                        }
+                        ImGui::PopID();  // Pop the unique ID for this item
+                    }
+                }
+            }
+
+            if (ImGui::CollapsingHeader("Colliders",
+                                        ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+                for (const auto& collider : physics::PhysicSystem::mColliders /*mWorld->rootContainer*/) {
+                    ImGui::PushID((void*)&collider);
+                    // Create a unique ID for each selectable item based on its unique item.id
+                    if (ImGui::Button(std::to_string(collider.getBoxId()).c_str())) {
+                    }
+                    ImGui::PopID();  // Pop the unique ID for this item
+                }
+
+                if (ImGui::Button("Create new collider")) {
+                }
             }
             // }
             ImGui::EndTabItem();

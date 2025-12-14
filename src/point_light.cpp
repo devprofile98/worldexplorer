@@ -108,9 +108,9 @@ void LightManager::renderGUI() {
             glm::mat4 t{1.0};
             t = glm::translate(t, glm::vec3(tmp_light.mPosition));
             glm::quat rot = rotationBetweenVectors(glm::vec3{0.0, 0.0, 1.0}, tmp_light.mDirection);
-            t = glm::toMat4(rot) * t;
-            t = glm::scale(t, glm::vec3{1.0});
-            mApp->mLineEngine->updateLineTransformation(boxId, t);
+            // t = glm::toMat4(rot);
+            // t = glm::scale(t, glm::vec3{1.0});
+            mApp->mLineEngine->updateLineTransformation(boxId, t * glm::toMat4(rot));
         } else {
             boxId = mApp->mLineEngine->addLines(generateCone());
         }
@@ -148,11 +148,9 @@ void LightManager::renderGUI() {
 
             if (boxId < 1024) {
                 glm::mat4 t{1.0};
-                t = glm::translate(t, glm::vec3(tmp_light.mPosition));
+                // t = glm::translate(t, glm::vec3(tmp_light.mPosition));
                 glm::quat rot = rotationBetweenVectors(glm::vec3{0.0, 0.0, 1.0}, tmp_light.mDirection);
-                t = glm::translate(t, glm::vec3(0.0f, 0.0f, 0.25f));  // Offset forward halfway (pre-rotate)
                 t = t * glm::toMat4(rot);
-                t = glm::translate(t, glm::vec3(0.0f, 0.0f, -0.25f));
                 t = glm::scale(t, glm::vec3{1.0});
                 mApp->mLineEngine->updateLineTransformation(boxId, t);
             } else {
