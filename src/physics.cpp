@@ -233,8 +233,8 @@ void prepareJolt() {
     //     boxBodyID = bodyInterface.CreateAndAddBody(boxSettings, EActivation::Activate);
     // }
 }
-
-std::pair<glm::vec3, Quat> getPositionById(BodyID id) {
+std::pair<glm::vec3, glm::quat> getPositionAndRotationyId(BodyID id) {
+    // TRS getTRSById(BodyID id) {
     BodyInterface& bodyInterface = physicsSystem.GetBodyInterface();
     RMat44 boxTransform = bodyInterface.GetCenterOfMassTransform(id);
     RVec3 position = boxTransform.GetTranslation();
@@ -243,7 +243,13 @@ std::pair<glm::vec3, Quat> getPositionById(BodyID id) {
     rotation.SetY(rotation.GetZ());
     // negative sing is CRITICAL to sync the physical world with the renderer world
     rotation.SetZ(-y);
-    return {glm::vec3{position.GetX(), position.GetZ(), position.GetY()}, rotation};
+
+    glm::quat glm_rot;
+    glm_rot.x = rotation.GetX();
+    glm_rot.y = rotation.GetY();
+    glm_rot.z = rotation.GetZ();
+    glm_rot.w = rotation.GetW();
+    return {glm::vec3{position.GetX(), position.GetZ(), position.GetY()}, glm_rot};
 }
 
 void setRotation(BodyID id, const glm::quat& rot) {
@@ -264,10 +270,12 @@ void JoltLoop(float dt) {
     physicsSystem.Update(dt, 1, temp_allocator, job_system);
 }
 
-BoxCollider::BoxCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent)
-    : mCenter(center), mHalfExtent(halfExtent) {
-    auto box = generateBox(mCenter, mHalfExtent);
-    mBoxId = app->mLineEngine->addLines(box);
+BoxCollider::BoxCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent, bool isStatic)
+    : mCenter(center), mHalfExtent(halfExtent), mIsStatic(isStatic) {
+    auto box = generateBox();
+    mBoxId = app->mLineEngine->addLines(
+        box, glm::translate(glm::mat4{1.0}, mCenter) * glm::scale(glm::mat4{1.0}, halfExtent * glm::vec3{2.0}),
+        mIsStatic ? glm::vec3{0.0, 1.0, 0.0} : glm::vec3{1.0, 0.0, 0.0});
 
     glm::quat qu;
     qu.w = 1.0;
@@ -275,23 +283,21 @@ BoxCollider::BoxCollider(Application* app, const glm::vec3& center, const glm::v
     qu.y = 0.0;
     qu.z = 0.0;
     mPhysicComponent = std::shared_ptr<PhysicsComponent>{
-        physics::createAndAddBody(halfExtent, center, glm::normalize(qu), true, 0.5, 0.0f, 0.0f, 1.f)};
+        physics::createAndAddBody(halfExtent, center, glm::normalize(qu), isStatic, 0.5, 0.0f, 0.0f, 1.f)};
 }
 
 glm::mat4 BoxCollider::getTransformation() const {
-    auto [pos, rot] = getPositionById(mPhysicComponent->bodyId);
-    glm::quat newrot;
-    newrot.x = rot.GetX();
-    newrot.y = rot.GetY();
-    newrot.z = rot.GetZ();
-    newrot.w = rot.GetW();
-    return glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(newrot);
+    auto [pos, rot] = getPositionAndRotationyId(mPhysicComponent->bodyId);
+
+    return glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
+           glm::scale(glm::mat4{1.0}, mHalfExtent * glm::vec3{2.0});
 }
 
 uint32_t BoxCollider::getBoxId() const { return mBoxId; }
 
-uint32_t PhysicSystem::createCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent) {
-    mColliders.emplace_back(app, center, halfExtent);
+uint32_t PhysicSystem::createCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent,
+                                      bool isStatic) {
+    mColliders.emplace_back(app, center, halfExtent, isStatic);
     return mColliders.size() - 1;
 }
 

@@ -700,21 +700,20 @@ void Application::mainLoop() {
     if (show_physic_objects) {
         for (const auto& collider : physics::PhysicSystem::mColliders) {
             auto t = collider.getTransformation();
-            std::cout << collider.getBoxId() << " " << glm::to_string(t) << std::endl;
             mLineEngine->updateLineTransformation(collider.getBoxId(), t);
         }
         if (selectedPhysicModel != nullptr) {
             static uint32_t debugboxid = std::numeric_limits<uint32_t>::max();
             if (debugboxid < 1024) {
-                auto [pos, rot] = physics::getPositionById(selectedPhysicModel->mPhysicComponent->bodyId);
-                glm::quat new_rot;
-                new_rot.x = rot.GetX();
-                new_rot.y = rot.GetY();
-                new_rot.z = rot.GetZ();
-                new_rot.w = rot.GetW();
+                auto [pos, rot] = physics::getPositionAndRotationyId(selectedPhysicModel->mPhysicComponent->bodyId);
+                // glm::quat new_rot;
+                // new_rot.x = rot.GetX();
+                // new_rot.y = rot.GetY();
+                // new_rot.z = rot.GetZ();
+                // new_rot.w = rot.GetW();
                 mLineEngine->updateLineTransformation(
                     debugboxid,
-                    glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(new_rot) *
+                    glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
                         glm::scale(glm::mat4{1.0}, selectedPhysicModel->mTransform.getScale() * glm::vec3{2.0}));
             } else {
                 debugboxid =
@@ -1394,6 +1393,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
             static glm::vec3 center{0.0};
             static glm::vec3 half_extent{0.0};
+            static bool is_static = true;
             if (ImGui::DragFloat3("center", glm::value_ptr(center), 0.01) ||
                 ImGui::DragFloat3("half extent", glm::value_ptr(half_extent), 0.01)) {
                 if (boxId < 1024) {
@@ -1406,14 +1406,9 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                     boxId = mLineEngine->addLines(box, glm::mat4{1.0}, glm::vec3{1.0});
                 }
             }
+            ImGui::Checkbox("is Dynamic?", &is_static);
             if (ImGui::Button("Create box")) {
-                // glm::quat qu;
-                // qu.w = 1.0;
-                // qu.x = 0.0;
-                // qu.y = 0.0;
-                // qu.z = 0.0;
-
-                physics::PhysicSystem::createCollider(this, center, half_extent);
+                physics::PhysicSystem::createCollider(this, center, half_extent, is_static);
             }
 
             if (ImGui::CollapsingHeader("Physic objects",

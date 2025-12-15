@@ -726,12 +726,12 @@ void Model::update(Application* app, float dt, float physicSimulating) {
 
     // Apply position/Rotation changes to the meshes
     if (mPhysicComponent != nullptr && physicSimulating) {
-        auto [new_pos, jolt_quat] = physics::getPositionById(mPhysicComponent->bodyId);
-        glm::quat rotation;
-        rotation.x = jolt_quat.GetX();
-        rotation.y = jolt_quat.GetY();
-        rotation.z = jolt_quat.GetZ();
-        rotation.w = jolt_quat.GetW();
+        auto [new_pos, rotation] = physics::getPositionAndRotationyId(mPhysicComponent->bodyId);
+        // glm::quat rotation;
+        // rotation.x = jolt_quat.GetX();
+        // rotation.y = jolt_quat.GetY();
+        // rotation.z = jolt_quat.GetZ();
+        // rotation.w = jolt_quat.GetW();
         // if (flip_x) {
         //     rotation.x *= -1;
         // }

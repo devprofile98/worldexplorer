@@ -20,7 +20,11 @@
 #include <vector>
 
 #include "Jolt/Physics/Character/CharacterVirtual.h"
+#include "glm/ext/matrix_float4x4.hpp"
+#include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_float3.hpp"
+#include "glm/fwd.hpp"
+#include "glm/gtx/string_cast.hpp"
 
 class Application;
 
@@ -32,7 +36,7 @@ namespace physics {
 
 class BoxCollider {
     public:
-        BoxCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent);
+        BoxCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent, bool isStatic);
         glm::vec3 mCenter;
         glm::vec3 mHalfExtent;
         uint32_t getBoxId() const;
@@ -41,11 +45,13 @@ class BoxCollider {
     private:
         uint32_t mBoxId = std::numeric_limits<uint32_t>::max();
         std::shared_ptr<PhysicsComponent> mPhysicComponent;
+        bool mIsStatic;
 };
 
 class PhysicSystem {
     public:
-        static uint32_t createCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent);
+        static uint32_t createCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent,
+                                       bool isStatic);
         static inline std::vector<BoxCollider> mColliders;
 
     private:
@@ -54,7 +60,7 @@ class PhysicSystem {
 
 void prepareJolt();
 void JoltLoop(float dt);
-std::pair<glm::vec3, JPH::Quat> getPositionById(JPH::BodyID id);
+std::pair<glm::vec3, glm::quat> getPositionAndRotationyId(JPH::BodyID id);
 PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const glm::quat& rotation,
                                    bool active, float friction, float restitution, float linearDamping,
                                    float gravityFactor);
