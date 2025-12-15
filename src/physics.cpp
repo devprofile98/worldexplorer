@@ -268,8 +268,14 @@ BoxCollider::BoxCollider(Application* app, const glm::vec3& center, const glm::v
     : mCenter(center), mHalfExtent(halfExtent) {
     auto box = generateBox(mCenter, mHalfExtent);
     mBoxId = app->mLineEngine->addLines(box);
+
+    glm::quat qu;
+    qu.w = 1.0;
+    qu.x = 0.0;
+    qu.y = 0.0;
+    qu.z = 0.0;
     mPhysicComponent = std::shared_ptr<PhysicsComponent>{
-        physics::createAndAddBody(halfExtent, center, {1, 0, 0, 0}, true, 0.5, 0.0f, 0.0f, 1.f)};
+        physics::createAndAddBody(halfExtent, center, glm::normalize(qu), true, 0.5, 0.0f, 0.0f, 1.f)};
 }
 
 glm::mat4 BoxCollider::getTransformation() const {

@@ -835,11 +835,11 @@ std::vector<glm::vec4> generateCone() {
 
     glm::vec3 head{0.0};
     glm::vec3 base_center{head};
-    base_center.z += 0.5;
-    glm::vec3 first = base_center + glm::vec3{0.5, 0.5, 0.0};
-    glm::vec3 second = base_center + glm::vec3{0.5, -0.5, 0.0};
-    glm::vec3 third = base_center + glm::vec3{-0.5, 0.5, 0.0};
-    glm::vec3 fourth = base_center + glm::vec3{-0.5, -0.5, 0.0};
+    // base_center.z += 0.5;
+    glm::vec3 first = base_center + glm::vec3{0.5, 0.5, 0.5};
+    glm::vec3 second = base_center + glm::vec3{0.5, -0.5, 0.5};
+    glm::vec3 third = base_center + glm::vec3{-0.5, 0.5, 0.5};
+    glm::vec3 fourth = base_center + glm::vec3{-0.5, -0.5, 0.5};
     result.emplace_back(head, 0.0);
     result.emplace_back(first, 0.0);
     result.emplace_back(second, 0.0);

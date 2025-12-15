@@ -694,13 +694,13 @@ void Application::mainLoop() {
         if (boxIdForAABB < 1024) {
             mLineEngine->updateLines(boxIdForAABB, generateAABBLines(min, max));
         } else {
-            boxIdForAABB = mLineEngine->addLines(generateAABBLines(min, max), {0.8, 0.5, 0.0});
+            boxIdForAABB = mLineEngine->addLines(generateAABBLines(min, max), glm::mat4{1.0}, {0.8, 0.5, 0.0});
         }
     }
     if (show_physic_objects) {
         for (const auto& collider : physics::PhysicSystem::mColliders) {
             auto t = collider.getTransformation();
-            // std::cout << collider.getBoxId() << " " << glm::to_string(t) << std::endl;
+            std::cout << collider.getBoxId() << " " << glm::to_string(t) << std::endl;
             mLineEngine->updateLineTransformation(collider.getBoxId(), t);
         }
         if (selectedPhysicModel != nullptr) {
@@ -717,8 +717,9 @@ void Application::mainLoop() {
                     glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(new_rot) *
                         glm::scale(glm::mat4{1.0}, selectedPhysicModel->mTransform.getScale() * glm::vec3{2.0}));
             } else {
-                debugboxid = mLineEngine->addLines(
-                    generateBox(/*gham->mTransform.getPosition(), gham->mTransform.getScale()*/), {0.2, 0.0, 8.0});
+                debugboxid =
+                    mLineEngine->addLines(generateBox(/*gham->mTransform.getPosition(), gham->mTransform.getScale()*/),
+                                          glm::mat4{1.0}, {0.2, 0.0, 8.0});
             }
         } else {
             for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
@@ -1395,22 +1396,22 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             static glm::vec3 half_extent{0.0};
             if (ImGui::DragFloat3("center", glm::value_ptr(center), 0.01) ||
                 ImGui::DragFloat3("half extent", glm::value_ptr(half_extent), 0.01)) {
-                auto box = generateBox(center, half_extent);
                 if (boxId < 1024) {
-                    mLineEngine->updateLines(boxId, box);
-                    mLineEngine->updateLineTransformation(boxId, glm::mat4{1.0});
+                    // mLineEngine->updateLines(boxId, box);
+                    mLineEngine->updateLineTransformation(boxId,
+                                                          glm::translate(glm::mat4{1.0}, center) *
+                                                              glm::scale(glm::mat4{1.0}, half_extent * glm::vec3{2.0}));
                 } else {
-                    boxId = mLineEngine->addLines(box);
+                    auto box = generateBox();
+                    boxId = mLineEngine->addLines(box, glm::mat4{1.0}, glm::vec3{1.0});
                 }
-
-                // }
             }
             if (ImGui::Button("Create box")) {
-                glm::quat qu;
-                qu.w = 1.0;
-                qu.x = 0.0;
-                qu.y = 0.0;
-                qu.z = 0.0;
+                // glm::quat qu;
+                // qu.w = 1.0;
+                // qu.x = 0.0;
+                // qu.y = 0.0;
+                // qu.z = 0.0;
 
                 physics::PhysicSystem::createCollider(this, center, half_extent);
             }

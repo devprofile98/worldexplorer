@@ -441,7 +441,8 @@ void LineEngine::executePass() {
 }
 
 // Returns a handle for the new group
-uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points, const glm::vec3& color) {
+uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points, const glm::mat4 transformation,
+                              const glm::vec3& color) {
     // Invalid cases
     if (points.size() < 2 || mNextGroupId >= 1024) {
         return std::numeric_limits<uint32_t>::max();
@@ -449,7 +450,7 @@ uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points, const glm::v
 
     uint32_t id = mNextGroupId++;
     // std::vector<LineSegment> segments;
-    mLineGroups[id] = {glm::mat4{1.0}, color, {}, 0, true};
+    mLineGroups[id] = {transformation, color, {}, 0, true};
     auto& segments = mLineGroups[id].segment;
     for (const auto& p : points) {
         segments.emplace_back(LineSegment{p, color, id});
@@ -487,7 +488,10 @@ void LineEngine::updateLines(uint32_t id, const std::vector<glm::vec4>& newPoint
 
 void LineEngine::updateLineTransformation(uint32_t id, const glm::mat4& trans) {
     auto it = mLineGroups.find(id);
-    if (it == mLineGroups.end()) return;
+    if (it == mLineGroups.end()) {
+        std::cout << "Failed to find the line group with id " << id << '\n';
+        return;
+    }
     LineGroup& group = it->second;
     group.transformation = trans;
     group.dirty = true;
