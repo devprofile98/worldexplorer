@@ -5,7 +5,10 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <sstream>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "../webgpu/webgpu.h"
@@ -55,6 +58,21 @@ class Texture {
         std::vector<std::vector<uint8_t>> mBufferData;
         bool mIsTextureAlive = false;  // Indicate whether the texure is still valid on VRAM or not
         bool mHasAlphaChannel = false;
+};
+
+template <typename K, typename V>
+class Registery {
+    public:
+        void addToRegistery(const K& key, std::shared_ptr<V> value) { mRegistery[key] = value; }
+        std::shared_ptr<V> get(const std::string& key) {
+            if (mRegistery.contains(key)) {
+                return mRegistery[key];
+            }
+            return nullptr;
+        }
+
+    private:
+        std::unordered_map<K, std::shared_ptr<V>> mRegistery;
 };
 
 #endif  // WEBGPUTEST_TEXTURE_H

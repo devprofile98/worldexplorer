@@ -13,6 +13,7 @@
 #include "gpu_buffer.h"
 #include "model.h"
 #include "terrain_pass.h"
+#include "texture.h"
 #include "utils.h"
 // #include "water_pass.h"
 #include "webgpu/webgpu.h"
@@ -31,7 +32,8 @@ class Pipeline;
 class CompositionPass;
 class WaterPass;
 class World;
-//
+template <typename K, typename V>
+class Registry;  // Forward declaration
 template <typename W>
 class Window;
 struct RendererResource;
@@ -90,6 +92,8 @@ class Application {
         Texture* mDefaultDiffuse = nullptr;
         Texture* mDefaultMetallicRoughness = nullptr;
         Texture* mDefaultNormalMap = nullptr;
+
+        Registery<std::string, Texture>* mTextureRegistery;
 
         BindingGroup mDefaultSkiningData = {};
         BindingGroup mDefaultTextureBindingGroup = {};

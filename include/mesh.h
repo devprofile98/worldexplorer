@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <format>
 #include <iostream>
+#include <memory>
 
 #include "../tinyobjloader/tiny_obj_loader.h"
 #include "glm/fwd.hpp"
@@ -98,9 +99,9 @@ class Mesh {
         unsigned int meshId;
         std::vector<VertexAttributes> mVertexData;
         std::vector<uint32_t> mIndexData;
-        Texture* mTexture = nullptr;
-        Texture* mSpecularTexture = nullptr;
-        Texture* mNormalMapTexture = nullptr;
+        std::shared_ptr<Texture> mTexture = nullptr;
+        std::shared_ptr<Texture> mSpecularTexture = nullptr;
+        std::shared_ptr<Texture> mNormalMapTexture = nullptr;
         Buffer mVertexBuffer = {};
         Buffer mIndexBuffer = {};
         Buffer mIndirectDrawArgsBuffer;  // copy dst, map read

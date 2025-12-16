@@ -8,6 +8,7 @@
 #include <string>
 
 #include "glm/exponential.hpp"
+#include "profiling.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -170,6 +171,8 @@ Texture::Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths
     mBufferData.reserve(extent);
     mBufferData.resize(extent);
 
+    ZoneScopedNC("Loading base texture for ", 0xFF00FF);
+
     for (size_t k = 0; k < extent; ++k) {
         auto& path = paths[k];
         int width, height, channels;
@@ -232,6 +235,52 @@ Texture& Texture::setBufferData(std::vector<uint8_t>& data) {
 
 bool Texture::isTransparent() { return mHasAlphaChannel; }
 
+void generateMipMaps(WGPUTexelCopyBufferLayout& source, WGPUTexelCopyTextureInfo& destination,
+                     WGPUTextureDescriptor& descriptor, std::vector<std::vector<uint8_t>>& buffer, uint32_t layer,
+                     WGPUQueue queue) {
+    // generate and upload other levels
+    WGPUExtent3D mip_level_size = descriptor.size;
+    // WGPUExtent3D prev_mip_level_size;
+    std::vector<uint8_t> previous_level_pixels = buffer[layer];
+    WGPUExtent3D prev_mip_level_size = descriptor.size;
+    prev_mip_level_size.depthOrArrayLayers = 1;
+    for (uint32_t level = 1; level < descriptor.mipLevelCount; ++level) {
+        prev_mip_level_size = mip_level_size;
+        prev_mip_level_size.depthOrArrayLayers = 1;
+        mip_level_size.height /= 2;
+        mip_level_size.width /= 2;
+        mip_level_size.depthOrArrayLayers = 1;
+        std::vector<uint8_t> pixels(4 * mip_level_size.width * mip_level_size.height);
+
+        for (uint32_t i = 0; i < mip_level_size.width; ++i) {
+            for (uint32_t j = 0; j < mip_level_size.height; ++j) {
+                uint8_t* p = &pixels[4 * (j * mip_level_size.width + i)];
+                // std::cout << "2Pixel buffer size: " << pixels.size() << " " << 4 * (j * mip_level_size.width + i)
+                //           << std::endl;  // forces materialization
+                // Get the corresponding 4 pixels from the previous level
+                uint8_t* p00 = &previous_level_pixels[4 * ((2 * j + 0) * prev_mip_level_size.width + (2 * i + 0))];
+                uint8_t* p01 = &previous_level_pixels[4 * ((2 * j + 0) * prev_mip_level_size.width + (2 * i + 1))];
+                uint8_t* p10 = &previous_level_pixels[4 * ((2 * j + 1) * prev_mip_level_size.width + (2 * i + 0))];
+                uint8_t* p11 = &previous_level_pixels[4 * ((2 * j + 1) * prev_mip_level_size.width + (2 * i + 1))];
+                // Average
+                for (int c = 0; c < 4; ++c) {
+                    p[c] = (p00[c] + p01[c] + p10[c] + p11[c] + 2) >> 2;
+                }
+                // p[0] = (p00[0] + p01[0] + p10[0] + p11[0]) / 4;
+                // p[1] = (p00[1] + p01[1] + p10[1] + p11[1]) / 4;
+                // p[2] = (p00[2] + p01[2] + p10[2] + p11[2]) / 4;
+                // p[3] = (p00[3] + p01[3] + p10[3] + p11[3]) / 4;
+            }
+        }
+
+        destination.mipLevel = level;
+        source.bytesPerRow = 4 * mip_level_size.width;
+        source.rowsPerImage = mip_level_size.height;
+        wgpuQueueWriteTexture(queue, &destination, pixels.data(), pixels.size(), &source, &mip_level_size);
+        previous_level_pixels = std::move(pixels);
+    }
+}
+
 void Texture::uploadToGPU(WGPUQueue deviceQueue) {
     for (uint32_t layer = 0; layer < mDescriptor.size.depthOrArrayLayers; ++layer) {
         WGPUTexelCopyTextureInfo destination;
@@ -250,44 +299,7 @@ void Texture::uploadToGPU(WGPUQueue deviceQueue) {
         wgpuQueueWriteTexture(deviceQueue, &destination, mBufferData[layer].data(), mBufferData[layer].size(), &source,
                               &tmp_size);
 
-        // generate and upload other levels
-        WGPUExtent3D mip_level_size = mDescriptor.size;
-        // WGPUExtent3D prev_mip_level_size;
-        std::vector<uint8_t> previous_level_pixels = mBufferData[layer];
-        WGPUExtent3D prev_mip_level_size = mDescriptor.size;
-        prev_mip_level_size.depthOrArrayLayers = 1;
-        for (uint32_t level = 1; level < mDescriptor.mipLevelCount; ++level) {
-            prev_mip_level_size = mip_level_size;
-            prev_mip_level_size.depthOrArrayLayers = 1;
-            mip_level_size.height /= 2;
-            mip_level_size.width /= 2;
-            mip_level_size.depthOrArrayLayers = 1;
-            std::vector<uint8_t> pixels(4 * mip_level_size.width * mip_level_size.height);
-
-            for (uint32_t i = 0; i < mip_level_size.width; ++i) {
-                for (uint32_t j = 0; j < mip_level_size.height; ++j) {
-                    uint8_t* p = &pixels[4 * (j * mip_level_size.width + i)];
-
-                    // Get the corresponding 4 pixels from the previous level
-                    uint8_t* p00 = &previous_level_pixels[4 * ((2 * j + 0) * prev_mip_level_size.width + (2 * i + 0))];
-                    uint8_t* p01 = &previous_level_pixels[4 * ((2 * j + 0) * prev_mip_level_size.width + (2 * i + 1))];
-                    uint8_t* p10 = &previous_level_pixels[4 * ((2 * j + 1) * prev_mip_level_size.width + (2 * i + 0))];
-                    uint8_t* p11 = &previous_level_pixels[4 * ((2 * j + 1) * prev_mip_level_size.width + (2 * i + 1))];
-                    // Average
-                    p[0] = (p00[0] + p01[0] + p10[0] + p11[0]) / 4;
-                    p[1] = (p00[1] + p01[1] + p10[1] + p11[1]) / 4;
-                    p[2] = (p00[2] + p01[2] + p10[2] + p11[2]) / 4;
-                    p[3] = (p00[3] + p01[3] + p10[3] + p11[3]) / 4;
-                    /*p[3] = 1.0;*/
-                }
-            }
-
-            destination.mipLevel = level;
-            source.bytesPerRow = 4 * mip_level_size.width;
-            source.rowsPerImage = mip_level_size.height;
-            wgpuQueueWriteTexture(deviceQueue, &destination, pixels.data(), pixels.size(), &source, &mip_level_size);
-            previous_level_pixels = std::move(pixels);
-        }
+        generateMipMaps(source, destination, mDescriptor, mBufferData, layer, deviceQueue);
     }
 }
 

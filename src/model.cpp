@@ -12,6 +12,7 @@
 #include <format>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -29,6 +30,7 @@
 #include "mesh.h"
 #include "physics.h"
 #include "texture.h"
+#include "tracy/Tracy.hpp"
 #include "utils.h"
 #include "wgpu_utils.h"
 
@@ -398,7 +400,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
     auto& render_resource = app->getRendererResource();
     auto& mmesh = mMeshes[mMeshNumber];
 
-    auto load_texture = [&](aiTextureType type, MaterialProps flag, Texture** target) {
+    auto load_texture = [&](aiTextureType type, MaterialProps flag, std::shared_ptr<Texture>* target) {
         for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
             mmesh.mMaterial.setFlag(flag, true);
             std::cout << "---- " << getName() << mmesh.mMaterial.materialProps << std::endl;
@@ -414,13 +416,26 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 pos += 1;                           // move past the inserted space
             }
 
-            *target = new Texture{render_resource.device, texture_path};
+            auto tt = mApp->mTextureRegistery->get(texture_path);
+            if (tt != nullptr) {
+                *target = tt;
+            } else {
+                *target = std::make_shared<Texture>(render_resource.device, texture_path);
+                mApp->mTextureRegistery->addToRegistery(texture_path, *target);
+            }
             if ((*target)->createView() == nullptr) {
                 std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName, texture_path);
             } else {
                 std::cout << std::format("succesfully create view for {} at {}\n", mName, texture_path);
             }
-            (*target)->uploadToGPU(render_resource.queue);
+            if (getName() == "house") {
+                std::string pp = "************************* Uploading texture: " + texture_path;
+                std::cout << pp << std::endl;
+                ZoneScopedNC("Upload Texture and mips to the gpu", 0xFFFF00);
+                (*target)->uploadToGPU(render_resource.queue);
+            } else {
+                (*target)->uploadToGPU(render_resource.queue);
+            }
             mmesh.isTransparent = (*target)->isTransparent();
         }
     };
@@ -648,6 +663,7 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
         mesh.binding_data[0].binding = 0;
         mesh.binding_data[0].textureView =
             mesh.mTexture != nullptr ? mesh.mTexture->getTextureView() : app->mDefaultDiffuse->getTextureView();
+
         // }
         // if (/*mesh.mSpecularTexture != nullptr && */ mesh.mSpecularTexture->getTextureView() != nullptr) {
         mesh.binding_data[1].nextInChain = nullptr;
@@ -1174,7 +1190,7 @@ std::pair<glm::vec3, glm::vec3> BaseModel::getWorldMin() {
 
 const std::string& BaseModel::getName() { return mName; }
 
-Texture* BaseModel::getDiffuseTexture() { return mMeshes[0].mTexture; }
+Texture* BaseModel::getDiffuseTexture() { return mMeshes[0].mTexture.get(); }
 
 glm::mat4 BaseModel::getGlobalTransform() {
     auto* root = mParent;
