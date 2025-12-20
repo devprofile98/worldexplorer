@@ -4,8 +4,10 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <iostream>
 #include <memory>
+#include <queue>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -41,6 +43,7 @@ class Texture {
         WGPUTextureView createViewDepthStencil(uint32_t base = 0, uint32_t count = 1);
         WGPUTextureView createViewDepthOnly2(uint32_t base = 0, uint32_t count = 1);
         WGPUTextureView createViewArray(uint32_t base, uint32_t count);
+        void writeBaseTexture(const std::filesystem::path& path, uint32_t extent = 1);
         void uploadToGPU(WGPUQueue deviceQueue);
         bool isTransparent();
 
@@ -60,9 +63,33 @@ class Texture {
         bool mHasAlphaChannel = false;
 };
 
+class TextureLoader {
+    public:
+        struct LoadRequest {
+                std::string path;
+                std::promise<std::shared_ptr<Texture>> promise;
+                WGPUQueue queue;  // for GPU upload after CPU work
+                std::shared_ptr<Texture> baseTexture;
+        };
+
+        TextureLoader(size_t numThreads = std::thread::hardware_concurrency() - 1);
+        ~TextureLoader();
+        std::future<std::shared_ptr<Texture>> loadAsync(const std::string& path, WGPUQueue queue,
+                                                        std::shared_ptr<Texture> baseTexture);
+        WGPUDevice device;
+
+    private:
+        std::vector<std::thread> workers;
+        std::queue<LoadRequest> requests;
+        std::mutex queueMutex;
+        std::condition_variable cv;
+        bool shouldTerminate = false;
+};
+
 template <typename K, typename V>
 class Registery {
     public:
+        Registery() {}
         void addToRegistery(const K& key, std::shared_ptr<V> value) { mRegistery[key] = value; }
         std::shared_ptr<V> get(const std::string& key) {
             if (mRegistery.contains(key)) {
@@ -71,8 +98,9 @@ class Registery {
             return nullptr;
         }
 
+        TextureLoader mLoader;
+
     private:
         std::unordered_map<K, std::shared_ptr<V>> mRegistery;
 };
-
 #endif  // WEBGPUTEST_TEXTURE_H

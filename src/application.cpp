@@ -581,6 +581,7 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     this->getRendererResource().window = provided_window;
 
     mTextureRegistery = new Registery<std::string, Texture>{};
+    mTextureRegistery->mLoader.device = render_device;
 
     // Configuring the surface
     WGPUSurfaceConfiguration surface_configuration = {};

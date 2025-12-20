@@ -120,31 +120,14 @@ Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, Texture
     mIsTextureAlive = true;
 }
 
-Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureFormat textureFormat,
-                 uint32_t extent) {
+void Texture::writeBaseTexture(const std::filesystem::path& path, uint32_t extent) {
     int width, height, channels;
     width = height = channels = 0;
     unsigned char* pixel_data = stbi_load(path.string().c_str(), &width, &height, &channels, 0);
-
     if (nullptr == pixel_data) {
         std::cout << "failed to find file at " << path.string().c_str() << std::endl;
         return;
     };
-
-    mDescriptor = {};
-    mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
-    std::string path_str = path.string();
-    mDescriptor.label = WGPUStringView{path_str.c_str(), path_str.size()};
-    mDescriptor.format = textureFormat;
-    mDescriptor.mipLevelCount = glm::log2((float)width);
-    mDescriptor.sampleCount = 1;
-    mDescriptor.size = {(uint32_t)width, (uint32_t)height, extent};
-    mDescriptor.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
-    mDescriptor.viewFormatCount = 0;
-    mDescriptor.viewFormats = nullptr;
-
-    mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
-
     size_t image_byte_size = (width * height * 4);
     mBufferData.reserve(extent);
     mBufferData.resize(extent);
@@ -164,6 +147,29 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
 
     stbi_image_free(pixel_data);
     mIsTextureAlive = true;
+}
+
+Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureFormat textureFormat,
+                 uint32_t extent) {
+    int width, height, channels;
+    auto ret = stbi_info(path.string().c_str(), &width, &height, &channels);
+    std::cout << "texture outputs are like this " << ret << " " << width << " " << height << " " << channels
+              << std::endl;
+
+    mDescriptor = {};
+    mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
+    std::string path_str = path.string();
+    mDescriptor.label = WGPUStringView{path_str.c_str(), path_str.size()};
+    mDescriptor.format = textureFormat;
+    mDescriptor.mipLevelCount = glm::log2((float)width);
+    mDescriptor.sampleCount = 1;
+    mDescriptor.size = {(uint32_t)width, (uint32_t)height, extent};
+    mDescriptor.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+    mDescriptor.viewFormatCount = 0;
+    mDescriptor.viewFormats = nullptr;
+
+    mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
+    writeBaseTexture(path, extent);
 }
 
 Texture::Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths, WGPUTextureFormat textureFormat,
@@ -332,4 +338,56 @@ std::vector<uint8_t> Texture::expandToRGBA(uint8_t* data, size_t height, size_t 
     }
 
     return buffer_data;
+}
+
+TextureLoader::TextureLoader(size_t numThreads) {
+    std::cout << "Number of hardware concurrency is " << numThreads << std::endl;
+    for (size_t i = 0; i < numThreads; ++i) {
+        workers.emplace_back([this] {
+            while (true) {
+                LoadRequest request;
+                {
+                    std::unique_lock<std::mutex> lock(queueMutex);
+                    cv.wait(lock, [this] { return !requests.empty() || shouldTerminate; });
+                    if (shouldTerminate && requests.empty()) return;
+                    request = std::move(requests.front());
+                    requests.pop();
+                }
+
+                // Heavy work: read file + generate mipmaps on CPU
+                // auto texture = std::make_shared<Texture>(device, request.path);  // reads file here
+                request.baseTexture->writeBaseTexture(request.path);
+                // texture->prepareCPUMipChain();  // or do it inside uploadToGPU but split CPU part
+
+                // GPU upload (can be quick or blocking — depends on WebGPU driver)
+                request.baseTexture->uploadToGPU(request.queue);
+
+                // Fulfill promise on main/update thread if needed
+                request.promise.set_value(request.baseTexture);
+            }
+        });
+    }
+}
+
+TextureLoader::~TextureLoader() {
+    {
+        std::lock_guard<std::mutex> lock(queueMutex);
+        shouldTerminate = true;
+    }
+    cv.notify_all();
+    for (auto& w : workers) w.join();
+}
+
+std::future<std::shared_ptr<Texture>> TextureLoader::loadAsync(const std::string& path, WGPUQueue queue,
+                                                               std::shared_ptr<Texture> baseTexture) {
+    LoadRequest req{path, {}, queue, baseTexture};
+    std::future<std::shared_ptr<Texture>> future = req.promise.get_future();
+
+    {
+        std::lock_guard<std::mutex> lock(queueMutex);
+        requests.push(std::move(req));
+    }
+    cv.notify_one();
+
+    return future;
 }

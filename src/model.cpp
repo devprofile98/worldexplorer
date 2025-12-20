@@ -402,8 +402,11 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
     auto load_texture = [&](aiTextureType type, MaterialProps flag, std::shared_ptr<Texture>* target) {
         for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
+            // Create the placeholder for each texture first, so we only need to update the content of them later
+            // and not to recreate bind groups
             mmesh.mMaterial.setFlag(flag, true);
-            std::cout << "---- " << getName() << mmesh.mMaterial.materialProps << std::endl;
+
+            // std::cout << "---- " << getName() << mmesh.mMaterial.materialProps << std::endl;
             aiString str;
             material->GetTexture(type, i, &str);
             std::string texture_path = RESOURCE_DIR;
@@ -416,27 +419,48 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 pos += 1;                           // move past the inserted space
             }
 
-            auto tt = mApp->mTextureRegistery->get(texture_path);
-            if (tt != nullptr) {
-                *target = tt;
-            } else {
-                *target = std::make_shared<Texture>(render_resource.device, texture_path);
-                mApp->mTextureRegistery->addToRegistery(texture_path, *target);
+            auto cached = mApp->mTextureRegistery->get(texture_path);
+            if (cached != nullptr) {
+                *target = cached;
+                mmesh.isTransparent = (*target)->isTransparent();
+                continue;
             }
-            if ((*target)->createView() == nullptr) {
-                std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName, texture_path);
-            } else {
-                std::cout << std::format("succesfully create view for {} at {}\n", mName, texture_path);
-            }
-            if (getName() == "house") {
-                std::string pp = "************************* Uploading texture: " + texture_path;
-                std::cout << pp << std::endl;
-                ZoneScopedNC("Upload Texture and mips to the gpu", 0xFFFF00);
-                (*target)->uploadToGPU(render_resource.queue);
-            } else {
-                (*target)->uploadToGPU(render_resource.queue);
-            }
-            mmesh.isTransparent = (*target)->isTransparent();
+
+            auto texture =
+                std::make_shared<Texture>(mApp->getRendererResource().device, texture_path);  // reads file here
+            *target = texture;
+            // Otherwise: queue async load
+            auto future = mApp->mTextureRegistery->mLoader.loadAsync(texture_path, render_resource.queue, texture);
+            // {
+            //     *target = std::make_shared<Texture>(render_resource.device, texture_path);
+            //     mApp->mTextureRegistery->addToRegistery(texture_path, *target);
+            //
+            //     if ((*target)->createView() == nullptr) {
+            //         std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName,
+            //                                  texture_path);
+            //     } else {
+            //         std::cout << std::format("succesfully create view for {} at {}\n", mName, texture_path);
+            //     }
+            //     (*target)->uploadToGPU(render_resource.queue);
+            // }
+            // Option A: Fire-and-forget (texture appears later when ready)
+            std::thread([target, future = std::move(future), &mmesh, texture_path, this]() mutable {
+                auto texture = future.get();  // blocks only this helper thread
+
+                mApp->mTextureRegistery->addToRegistery(texture_path, texture);
+
+                // Update material on main thread if needed (or use lock-free update)
+                // For now, assume thread-safe or defer to main thread
+                *target = texture;
+                mmesh.isTransparent = texture->isTransparent();
+
+                if (texture->createView() == nullptr) {
+                    std::cout << std::format("Failed to create view for {} at {}\n", mName, texture_path);
+                } else {
+                    std::cout << std::format("Successfully loaded texture {} at {}\n", mName, texture_path);
+                }
+                // mmesh.isTransparent = (*target)->isTransparent();
+            }).detach();
         }
     };
 
@@ -654,37 +678,26 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
         // if (mesh.isTransparent) {
         //     continue;
         // }
-        //
-        //
 
-        // if (mesh.mTexture != nullptr) {
-        // if (/*mesh.mTexture != nullptr && */ mesh.mTexture->getTextureView() != nullptr) {
         mesh.binding_data[0].nextInChain = nullptr;
         mesh.binding_data[0].binding = 0;
         mesh.binding_data[0].textureView =
             mesh.mTexture != nullptr ? mesh.mTexture->getTextureView() : app->mDefaultDiffuse->getTextureView();
 
-        // }
-        // if (/*mesh.mSpecularTexture != nullptr && */ mesh.mSpecularTexture->getTextureView() != nullptr) {
         mesh.binding_data[1].nextInChain = nullptr;
         mesh.binding_data[1].binding = 1;
         mesh.binding_data[1].textureView = mesh.mSpecularTexture != nullptr
                                                ? mesh.mSpecularTexture->getTextureView()
                                                : app->mDefaultMetallicRoughness->getTextureView();
-        // }
-        // if (mesh.mNormalMapTexture != nullptr && mesh.mNormalMapTexture->getTextureView() != nullptr) {
+
         mesh.binding_data[2].nextInChain = nullptr;
         mesh.binding_data[2].binding = 2;
         mesh.binding_data[2].textureView = mesh.mNormalMapTexture != nullptr ? mesh.mNormalMapTexture->getTextureView()
                                                                              : app->mDefaultNormalMap->getTextureView();
-        // }
         auto& desc = app->mDefaultTextureBindingGroup.getDescriptor();
         desc.entries = mesh.binding_data.data();
         desc.entryCount = mesh.binding_data.size();
         mesh.mTextureBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &desc);
-        // } else {
-        //     std::cout << "Faield to create Texture bindgroup for it " << getName() << std::endl;
-        // }
 
         // Also create and initialize material buffer
         mesh.mMaterialBuffer.setLabel("")
