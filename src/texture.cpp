@@ -146,7 +146,6 @@ void Texture::writeBaseTexture(const std::filesystem::path& path, uint32_t exten
     }
 
     stbi_image_free(pixel_data);
-    mIsTextureAlive = true;
 }
 
 Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureFormat textureFormat,
@@ -169,7 +168,8 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     mDescriptor.viewFormats = nullptr;
 
     mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
-    writeBaseTexture(path, extent);
+    // writeBaseTexture(path, extent);
+    mIsTextureAlive = true;
 }
 
 Texture::Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths, WGPUTextureFormat textureFormat,

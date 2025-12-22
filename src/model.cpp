@@ -30,7 +30,8 @@
 #include "mesh.h"
 #include "physics.h"
 #include "texture.h"
-#include "tracy/Tracy.hpp"
+// #include "tracy/Tracy.hpp"
+#include "profiling.h"
 #include "utils.h"
 #include "wgpu_utils.h"
 
@@ -428,7 +429,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
             auto texture =
                 std::make_shared<Texture>(mApp->getRendererResource().device, texture_path);  // reads file here
-            *target = texture;
+            // *target = texture;
             // Otherwise: queue async load
             auto future = mApp->mTextureRegistery->mLoader.loadAsync(texture_path, render_resource.queue, texture);
             // {
@@ -444,23 +445,23 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             //     (*target)->uploadToGPU(render_resource.queue);
             // }
             // Option A: Fire-and-forget (texture appears later when ready)
-            std::thread([target, future = std::move(future), &mmesh, texture_path, this]() mutable {
-                auto texture = future.get();  // blocks only this helper thread
+            // std::thread([target, future = std::move(future), &mmesh, texture_path, this]() mutable {
+            // auto texture = future.get();  // blocks only this helper thread
 
-                mApp->mTextureRegistery->addToRegistery(texture_path, texture);
+            mApp->mTextureRegistery->addToRegistery(texture_path, texture);
 
-                // Update material on main thread if needed (or use lock-free update)
-                // For now, assume thread-safe or defer to main thread
-                *target = texture;
-                mmesh.isTransparent = texture->isTransparent();
+            // Update material on main thread if needed (or use lock-free update)
+            // For now, assume thread-safe or defer to main thread
+            *target = texture;
+            mmesh.isTransparent = texture->isTransparent();
 
-                if (texture->createView() == nullptr) {
-                    std::cout << std::format("Failed to create view for {} at {}\n", mName, texture_path);
-                } else {
-                    std::cout << std::format("Successfully loaded texture {} at {}\n", mName, texture_path);
-                }
-                // mmesh.isTransparent = (*target)->isTransparent();
-            }).detach();
+            if (texture->createView() == nullptr) {
+                std::cout << std::format("Failed to create view for {} at {}\n", mName, texture_path);
+            } else {
+                std::cout << std::format("Successfully loaded texture {} at {}\n", mName, texture_path);
+            }
+            // mmesh.isTransparent = (*target)->isTransparent();
+            // }).detach();
         }
     };
 

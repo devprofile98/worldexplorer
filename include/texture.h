@@ -98,7 +98,7 @@ class Registery {
             return nullptr;
         }
 
-        TextureLoader mLoader;
+        TextureLoader mLoader{4};
 
     private:
         std::unordered_map<K, std::shared_ptr<V>> mRegistery;

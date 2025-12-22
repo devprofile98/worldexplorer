@@ -141,7 +141,7 @@ CharacterVirtual* createCharacter() {
 
     JPH::Quat rotate90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
     // Create the character
-    return new CharacterVirtual(settings, RVec3(0, 10.26, 0),  // initial position
+    return new CharacterVirtual(settings, RVec3(0, -1.26, 0),  // initial position
                                 rotate90X,                     // initial rotation
                                 0,                             // user data (optional)
                                 &physicsSystem);
