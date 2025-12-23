@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <future>
 #include <iostream>
 #include <memory>
@@ -70,12 +71,14 @@ class TextureLoader {
                 std::promise<std::shared_ptr<Texture>> promise;
                 WGPUQueue queue;  // for GPU upload after CPU work
                 std::shared_ptr<Texture> baseTexture;
+                std::function<void(LoadRequest* req)> callback;
         };
 
         TextureLoader(size_t numThreads = std::thread::hardware_concurrency() - 1);
         ~TextureLoader();
         std::future<std::shared_ptr<Texture>> loadAsync(const std::string& path, WGPUQueue queue,
-                                                        std::shared_ptr<Texture> baseTexture);
+                                                        std::shared_ptr<Texture> baseTexture,
+                                                        std::function<void(LoadRequest*)> cb);
         WGPUDevice device;
 
     private:

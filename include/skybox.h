@@ -1,6 +1,7 @@
 #ifndef TEST_WGPU_SKYBOX_H
 #define TEST_WGPU_SKYBOX_H
 
+#include <array>
 #include <filesystem>
 
 #include "../webgpu/webgpu.h"
@@ -13,7 +14,9 @@ class Application;
 
 class SkyBox {
     public:
-        SkyBox(Application* app, const std::filesystem::path& cubeTexturePath);
+        SkyBox(Application* app, const std::filesystem::path& cubeTexturePath,
+               std::array<const char*, 6> sideNames = {"right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg",
+                                                       "back.jpg"});
 
         Pipeline* getPipeline();
         void setReflectedCameraMatrix();

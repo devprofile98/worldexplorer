@@ -279,6 +279,13 @@ void Model::processNode(Application* app, aiNode* node, const aiScene* scene, co
     }
 }
 
+void loaderCallback(TextureLoader::LoadRequest* request) {
+    // Heavy work: read file + generate mipmaps on CPU
+    request->baseTexture->writeBaseTexture(request->path);
+    request->baseTexture->uploadToGPU(request->queue);
+    request->promise.set_value(request->baseTexture);
+}
+
 void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId,
                         const glm::mat4& globalTransform) {
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
@@ -431,7 +438,8 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 std::make_shared<Texture>(mApp->getRendererResource().device, texture_path);  // reads file here
             // *target = texture;
             // Otherwise: queue async load
-            auto future = mApp->mTextureRegistery->mLoader.loadAsync(texture_path, render_resource.queue, texture);
+            auto future = mApp->mTextureRegistery->mLoader.loadAsync(texture_path, render_resource.queue, texture,
+                                                                     loaderCallback);
             // {
             //     *target = std::make_shared<Texture>(render_resource.device, texture_path);
             //     mApp->mTextureRegistery->addToRegistery(texture_path, *target);

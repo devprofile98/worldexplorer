@@ -117,7 +117,7 @@
       "path": "model2.gltf",
       "animated": true,
       "cs": "z",
-      "translate": [-1.2, 2.4, -3.262],
+      "translate": [-1.377, 0.148, -3.252],
       "scale": [0.1, 0.1, 0.1],
       "rotate": [90.0, 0.0, 0.0],
       "childrens": [""],

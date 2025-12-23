@@ -46,13 +46,21 @@ void SkyBox::CreateBuffer() {
     mMatrixBuffer = wgpuDeviceCreateBuffer(app->getRendererResource().device, &buffer_descriptor);
 }
 
-SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
+static void loaderCallback(TextureLoader::LoadRequest* request) {}
+SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath, std::array<const char*, 6> sideNames) {
     this->app = app;
+
+    int uniform_width, uniform_height, uniform_channels;
+
+    std::string path = cubeTexturePath.string() + "/";
+    path += sideNames[0];
+    auto ret = stbi_info(path.c_str(), &uniform_width, &uniform_height, &uniform_channels);
 
     // create Texture descriptor
     WGPUTextureDescriptor texture_descriptor = {};
     texture_descriptor.dimension = WGPUTextureDimension_2D;
-    texture_descriptor.size = {2048, 2048, 6};
+    texture_descriptor.size = {static_cast<uint32_t>(uniform_width), static_cast<uint32_t>(uniform_height),
+                               sideNames.size()};
     texture_descriptor.format = WGPUTextureFormat_RGBA8Unorm;
     texture_descriptor.usage = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding;
     texture_descriptor.mipLevelCount = 1;
@@ -61,37 +69,79 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath) {
 
     std::vector<Texture> textures;
 
-    const char* sides_index[] = {"right", "left", "top", "bottom", "front", "back"};
-    for (uint32_t i = 0; i < 6; i++) {
+    // for (uint32_t i = 0; i < sideNames.size(); i++) {
+    //
+    //
+    //     // load each side first
+    //     WGPUTexelCopyTextureInfo copy_texture = {};
+    //     copy_texture.texture = cubeMapTetxure;
+    //     copy_texture.origin = {0, 0, i};
+    //
+    //     std::string path = cubeTexturePath.string() + "/";
+    //     path += sideNames[i];
+    //
+    //     int width, height, channels;
+    //     unsigned char* pixel_data = stbi_load(path.c_str(), &width, &height, &channels, 0);
+    //     // If data is null, loading failed.
+    //     if (nullptr == pixel_data || width != uniform_width || height != uniform_height) {
+    //         std::cout << "Skybox: Textures are not uniform in size with each other: " << path.c_str() << '\n';
+    //         return;
+    //     }
+    //
+    //     WGPUTexelCopyBufferLayout texture_data_layout = {};
+    //     texture_data_layout.offset = 0;
+    //     texture_data_layout.bytesPerRow = width * 4;
+    //     texture_data_layout.rowsPerImage = height;
+    //
+    //     WGPUExtent3D copy_size = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
+    //
+    //     if (channels == 3) {
+    //         auto buffer_data = Texture::expandToRGBA(pixel_data, height, width);
+    //
+    //         std::cout << "Loading texture " << path.c_str() << ' ' << channels << std::endl;
+    //         wgpuQueueWriteTexture(app->getRendererResource().queue, &copy_texture, buffer_data.data(),
+    //                               height * width * 4, &texture_data_layout, &copy_size);
+    //
+    //     } else {
+    //         std::cout << "Skybox: No support for textures channel != 3 channels\n";
+    //     }
+    //     stbi_image_free(pixel_data);
+    //
+    //         auto future = app->mTextureRegistery->mLoader.loadAsync(path, app->getRendererResource().queue,
+    //         cubeMapTetxure,
+    //                                                                  loaderCallback);
+    // }
+
+    for (uint32_t i = 0; i < sideNames.size(); i++) {
         // load each side first
         WGPUTexelCopyTextureInfo copy_texture = {};
         copy_texture.texture = cubeMapTetxure;
         copy_texture.origin = {0, 0, i};
 
         std::string path = cubeTexturePath.string() + "/";
-        path += sides_index[i];
-        path += ".jpg";
-
-        // textures.push_back(Texture{app->getRendererResource().device, path});
+        path += sideNames[i];
 
         int width, height, channels;
         unsigned char* pixel_data = stbi_load(path.c_str(), &width, &height, &channels, 0);
         // If data is null, loading failed.
-        if (nullptr == pixel_data) return;
+        if (nullptr == pixel_data || width != uniform_width || height != uniform_height) {
+            std::cout << "Skybox: Textures are not uniform in size with each other: " << path.c_str() << '\n';
+            return;
+        }
 
         WGPUTexelCopyBufferLayout texture_data_layout = {};
         texture_data_layout.offset = 0;
-        texture_data_layout.bytesPerRow = 2048 * 4;
-        texture_data_layout.rowsPerImage = 2048;
+        texture_data_layout.bytesPerRow = width * 4;
+        texture_data_layout.rowsPerImage = height;
 
-        WGPUExtent3D copy_size = {2048, 2048, 1};
+        WGPUExtent3D copy_size = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
 
         if (channels == 3) {
             auto buffer_data = Texture::expandToRGBA(pixel_data, height, width);
 
             std::cout << "Loading texture " << path.c_str() << ' ' << channels << std::endl;
-            wgpuQueueWriteTexture(app->getRendererResource().queue, &copy_texture, buffer_data.data(), 2048 * 2048 * 4,
-                                  &texture_data_layout, &copy_size);
+            wgpuQueueWriteTexture(app->getRendererResource().queue, &copy_texture, buffer_data.data(),
+                                  height * width * 4, &texture_data_layout, &copy_size);
 
         } else {
             std::cout << "Skybox: No support for textures channel != 3 channels\n";

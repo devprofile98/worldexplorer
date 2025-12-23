@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <format>
+#include <functional>
 #include <string>
 
 #include "glm/exponential.hpp"
@@ -167,7 +168,9 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     mDescriptor.viewFormatCount = 0;
     mDescriptor.viewFormats = nullptr;
 
+    std::cout << "11111111111111111111111111\n";
     mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
+    std::cout << "22222222222222222222222\n";
     // writeBaseTexture(path, extent);
     mIsTextureAlive = true;
 }
@@ -355,15 +358,12 @@ TextureLoader::TextureLoader(size_t numThreads) {
                 }
 
                 // Heavy work: read file + generate mipmaps on CPU
-                // auto texture = std::make_shared<Texture>(device, request.path);  // reads file here
-                request.baseTexture->writeBaseTexture(request.path);
-                // texture->prepareCPUMipChain();  // or do it inside uploadToGPU but split CPU part
-
-                // GPU upload (can be quick or blocking — depends on WebGPU driver)
-                request.baseTexture->uploadToGPU(request.queue);
-
-                // Fulfill promise on main/update thread if needed
-                request.promise.set_value(request.baseTexture);
+                // request.baseTexture->writeBaseTexture(request.path);
+                //
+                // request.baseTexture->uploadToGPU(request.queue);
+                //
+                // request.promise.set_value(request.baseTexture);
+                request.callback(&request);
             }
         });
     }
@@ -379,8 +379,9 @@ TextureLoader::~TextureLoader() {
 }
 
 std::future<std::shared_ptr<Texture>> TextureLoader::loadAsync(const std::string& path, WGPUQueue queue,
-                                                               std::shared_ptr<Texture> baseTexture) {
-    LoadRequest req{path, {}, queue, baseTexture};
+                                                               std::shared_ptr<Texture> baseTexture,
+                                                               std::function<void(LoadRequest*)> cb) {
+    LoadRequest req{path, {}, queue, baseTexture, cb};
     std::future<std::shared_ptr<Texture>> future = req.promise.get_future();
 
     {

@@ -644,8 +644,8 @@ struct HumanBehaviour : public Behaviour {
 
         HumanBehaviour(std::string name)
             : name(name),
-              front(0.0f, -1.0f, 0.0f),  // Forward after 90-degree X rotation
-              up(0.0f, 0.0f, -1.0f),     // Up after 90-degree X rotation
+              front(0.0f, 1.0f, 0.0f),  // Forward after 90-degree X rotation
+              up(0.0f, 0.0f, -1.0f),    // Up after 90-degree X rotation
               targetDistance(0.3),
               targetOffset(0.0, 0.0, 0.2),
               yaw(90.0f),
