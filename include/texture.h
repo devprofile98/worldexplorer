@@ -26,7 +26,8 @@ class Texture {
                 std::string textureLabel = "texture label");
 
         Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path,
-                WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm, uint32_t extent = 1);
+                WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm, uint32_t extent = 1,
+                size_t mipLevels = 0);
 
         Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths,
                 WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm, uint32_t extent = 1);
@@ -44,6 +45,7 @@ class Texture {
         WGPUTextureView createViewDepthStencil(uint32_t base = 0, uint32_t count = 1);
         WGPUTextureView createViewDepthOnly2(uint32_t base = 0, uint32_t count = 1);
         WGPUTextureView createViewArray(uint32_t base, uint32_t count);
+        WGPUTextureView createViewCube(uint32_t base, uint32_t count);
         void writeBaseTexture(const std::filesystem::path& path, uint32_t extent = 1);
         void uploadToGPU(WGPUQueue deviceQueue);
         bool isTransparent();
@@ -72,13 +74,14 @@ class TextureLoader {
                 WGPUQueue queue;  // for GPU upload after CPU work
                 std::shared_ptr<Texture> baseTexture;
                 std::function<void(LoadRequest* req)> callback;
+                void* userData = nullptr;
         };
 
         TextureLoader(size_t numThreads = std::thread::hardware_concurrency() - 1);
         ~TextureLoader();
         std::future<std::shared_ptr<Texture>> loadAsync(const std::string& path, WGPUQueue queue,
                                                         std::shared_ptr<Texture> baseTexture,
-                                                        std::function<void(LoadRequest*)> cb);
+                                                        std::function<void(LoadRequest*)> cb, void* userData = nullptr);
         WGPUDevice device;
 
     private:
@@ -101,7 +104,7 @@ class Registery {
             return nullptr;
         }
 
-        TextureLoader mLoader{4};
+        TextureLoader mLoader;
 
     private:
         std::unordered_map<K, std::shared_ptr<V>> mRegistery;
