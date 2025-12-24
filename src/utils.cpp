@@ -4,6 +4,7 @@
 
 #include <format>
 #include <iostream>
+#include <numbers>
 #include <numeric>
 #include <string>
 #include <vector>
@@ -11,6 +12,7 @@
 #include "application.h"
 #include "glm/ext/quaternion_geometric.hpp"
 #include "glm/fwd.hpp"
+#include "glm/trigonometric.hpp"
 #include "mesh.h"
 #include "model.h"
 #include "rendererResource.h"
@@ -828,6 +830,45 @@ std::vector<glm::vec4> generateBox(const glm::vec3& center, const glm::vec3& hal
     result.emplace_back(glm::vec4{bottomFrontRight, 1.0});
 
     return result;
+}
+
+std::vector<glm::vec4> generateSphere() {
+    const int num_longitudes = 16;
+    const size_t num_segments = 12;
+    std::vector<glm::vec4> results;
+
+    std::vector<glm::vec3> meridians;
+    for (size_t lon = 0; lon < num_longitudes; ++lon) {
+        auto theta = lon * (2 * std::numbers::pi) / num_longitudes;
+        for (size_t seg = 0; seg < num_segments; ++seg) {
+            auto phi = seg * (std::numbers::pi) / num_segments;
+            float x = glm::sin(phi) * glm::cos(theta);
+            float y = glm::sin(phi) * glm::sin(theta);
+            float z = glm::cos(phi);
+            meridians.emplace_back(x, y, z);
+        }
+    }
+
+    for (size_t i = 0; i < meridians.size() - 1; ++i) {
+        results.emplace_back(glm::vec4{meridians[i], 0});
+        results.emplace_back(glm::vec4{meridians[i + 1], i % num_longitudes == 0 ? 1 : 0});
+    }
+    return results;
+    // 1. Longitude meridians (vertical lines through poles)
+    // for lon in 0 to num_longitudes-1:
+    //     θ = lon * (2π / num_longitudes)
+    //     meridian_points = []
+    //     for seg in 0 to num_segments:  // e.g., 20–40 segments per meridian
+    //         φ = seg * (π / num_segments)
+    //         x = sin(φ) * cos(θ)
+    //         y = sin(φ) * sin(θ)
+    //         z = cos(φ)
+    //         vertices.append( (x, y, z) )
+    //         meridian_points.append( current_vertex_index )
+    //
+    //     // Connect points along this meridian
+    //     for i in 0 to len(meridian_points)-2:
+    //         edges.append( (meridian_points[i], meridian_points[i+1]) )
 }
 
 std::vector<glm::vec4> generateCone() {

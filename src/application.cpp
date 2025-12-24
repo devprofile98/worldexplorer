@@ -1,5 +1,6 @@
 #include "application.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -86,6 +87,7 @@ WGPULimits GetRequiredLimits(WGPUAdapter adapter);
 bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height);
 uint32_t boxId = std::numeric_limits<uint32_t>().max();
 uint32_t boxIdForAABB = std::numeric_limits<uint32_t>().max();
+uint32_t sphereId = std::numeric_limits<uint32_t>().max();
 
 WGPUTextureFormat Application::getTextureFormat() { return mSurfaceFormat; }
 
@@ -1408,6 +1410,17 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::Checkbox("is Dynamic?", &is_static);
             if (ImGui::Button("Create box")) {
                 physics::PhysicSystem::createCollider(this, center, half_extent, is_static);
+            }
+            if (ImGui::Button("Create sphere")) {
+                if (sphereId < 1024) {
+                    // mLineEngine->updateLineTransformation(sphereId,
+                    //                                       glm::translate(glm::mat4{1.0}, center) *
+                    //                                           glm::scale(glm::mat4{1.0}, half_extent *
+                    //                                           glm::vec3{2.0}));
+                } else {
+                    auto sphere = generateSphere();
+                    sphereId = mLineEngine->addLines(std::move(sphere), glm::mat4{1.0}, glm::vec3{1.0});
+                }
             }
 
             if (ImGui::CollapsingHeader("Physic objects",
