@@ -53,6 +53,46 @@ static constexpr uint8_t NON_MOVING = 0;
 static constexpr uint8_t MOVING = 1;
 static constexpr uint8_t NUM_LAYERS = 2;
 };  // namespace Layers
+    //
+
+class MyContactListener : public ContactListener {
+    public:
+        void OnContactAdded(const Body& body1, const Body& body2, const ContactManifold& manifold,
+                            ContactSettings& settings) override {
+            // Log or adjust impulses for cube-character collisions
+            // if (body1.IsDynamic() && body2.IsDynamic() /* USERDATA_CHARACTER*/) {
+            // settings.mCombinedFriction = 0.5f;  // Example: Adjust friction
+            std::cout << "Happening!\n";
+            // }
+        }
+};
+
+// class MyCharacterContactListener : public CharacterContactListener {
+//     public:
+//         MyCharacterContactListener(PhysicsSystem* physics_system) : CharacterContactListener() {}
+//
+//         void OnContactAdded(const CharacterVirtual* character, const BodyID& body_id, const SubShapeID& sub_shape_id,
+//                             RVec3Arg contact_position, Vec3Arg contact_normal,
+//                             CharacterContactSettings& settings) override {
+//             // Log collision with a dynamic body
+//             const BodyLockInterface& lock_interface = mPhysicsSystem->GetBodyLockInterfaceNoLock();
+//             {
+//                 BodyLockRead lock(lock_interface, body_id);
+//                 if (lock.Succeeded()) {
+//                     const Body& body = lock.GetBody();
+//                     if (body.IsDynamic()) {
+//                         std::cout << "CharacterVirtual collided with dynamic body ID: "
+//                                   << body_id.GetIndexAndSequenceNumber() << "\n";
+//                     }
+//                 }
+//             }
+//             // Allow the contact to proceed (e.g., apply friction or push)
+//             settings.mCanPushCharacter = true;
+//             settings.mCanReceiveImpulses = true;
+//         }
+// };
+
+// physics_system->SetContactListener(new MyContactListener());
 
 // Broad phase layer interface (decides which broadphase layers objects belong to)
 class BroadPhaseLayerInterfaceImpl final : public BroadPhaseLayerInterface {
@@ -128,7 +168,6 @@ CharacterVirtual* createCharacter() {
 
     // Shape: usually a capsule or cylinder
     Ref<Shape> capsule = new CapsuleShape(0.01f, 0.01f);  // half_height = 0.8m (full cyl height 1.6m), radius = 0.4m
-    // settings->mShape = capsule->Create().Get();
     settings->mShape = capsule;
 
     // Important parameters
@@ -232,6 +271,7 @@ void prepareJolt() {
     //
     //     boxBodyID = bodyInterface.CreateAndAddBody(boxSettings, EActivation::Activate);
     // }
+    getPhysicsSystem()->SetContactListener(new MyContactListener());
 }
 std::pair<glm::vec3, glm::quat> getPositionAndRotationyId(BodyID id) {
     // TRS getTRSById(BodyID id) {

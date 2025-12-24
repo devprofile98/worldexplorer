@@ -30,6 +30,24 @@ WGPUTextureView Texture::createView() {
     std::cout << "failed here " << mIsTextureAlive << std::endl;
     return nullptr;
 }
+
+WGPUTextureView Texture::createViewCube(uint32_t base, uint32_t count) {
+    if (mIsTextureAlive) {
+        WGPUTextureViewDescriptor texture_view_descriptor = {};
+        texture_view_descriptor.nextInChain = nullptr;
+        texture_view_descriptor.format = WGPUTextureFormat_RGBA8Unorm;
+        texture_view_descriptor.dimension = WGPUTextureViewDimension_Cube;
+        texture_view_descriptor.baseMipLevel = 0;
+        texture_view_descriptor.mipLevelCount = 1;
+        texture_view_descriptor.baseArrayLayer = base;
+        texture_view_descriptor.arrayLayerCount = count;
+        mTextureView = wgpuTextureCreateView(mTexture, &texture_view_descriptor);
+        return mTextureView;
+    }
+    std::cout << "failed here " << mIsTextureAlive << std::endl;
+    return nullptr;
+}
+
 WGPUTextureView Texture::createViewDepthStencil(uint32_t base, uint32_t count) {
     if (mIsTextureAlive) {
         WGPUTextureViewDescriptor texture_view_desc = {};
@@ -150,7 +168,7 @@ void Texture::writeBaseTexture(const std::filesystem::path& path, uint32_t exten
 }
 
 Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureFormat textureFormat,
-                 uint32_t extent) {
+                 uint32_t extent, size_t mipLevels) {
     int width, height, channels;
     auto ret = stbi_info(path.string().c_str(), &width, &height, &channels);
     std::cout << "texture outputs are like this " << ret << " " << width << " " << height << " " << channels
@@ -161,7 +179,7 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     std::string path_str = path.string();
     mDescriptor.label = WGPUStringView{path_str.c_str(), path_str.size()};
     mDescriptor.format = textureFormat;
-    mDescriptor.mipLevelCount = glm::log2((float)width);
+    mDescriptor.mipLevelCount = mipLevels == 0 ? glm::log2((float)width) : mipLevels;
     mDescriptor.sampleCount = 1;
     mDescriptor.size = {(uint32_t)width, (uint32_t)height, extent};
     mDescriptor.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
@@ -171,7 +189,6 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     std::cout << "11111111111111111111111111\n";
     mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
     std::cout << "22222222222222222222222\n";
-    // writeBaseTexture(path, extent);
     mIsTextureAlive = true;
 }
 
@@ -380,8 +397,8 @@ TextureLoader::~TextureLoader() {
 
 std::future<std::shared_ptr<Texture>> TextureLoader::loadAsync(const std::string& path, WGPUQueue queue,
                                                                std::shared_ptr<Texture> baseTexture,
-                                                               std::function<void(LoadRequest*)> cb) {
-    LoadRequest req{path, {}, queue, baseTexture, cb};
+                                                               std::function<void(LoadRequest*)> cb, void* userData) {
+    LoadRequest req{path, {}, queue, baseTexture, cb, userData};
     std::future<std::shared_ptr<Texture>> future = req.promise.get_future();
 
     {

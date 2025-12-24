@@ -110,10 +110,7 @@ void Application::initializePipeline() {
 
     // Creating default meatlic-roughness texture
     mDefaultMetallicRoughness = new Texture{this->getRendererResource().device, 1, 1, TextureDimension::TEX_2D};
-
     WGPUTextureView default_metallic_roughness_texture_view = mDefaultMetallicRoughness->createView();
-    std::cout << ":::::::::::::::::::::::::::::::: Default metallic roughness is at "
-              << default_metallic_roughness_texture_view << std::endl;
     texture_data = {255, 120, 10, 255};
     mDefaultMetallicRoughness->setBufferData(texture_data);
     mDefaultMetallicRoughness->uploadToGPU(this->getRendererResource().queue);
