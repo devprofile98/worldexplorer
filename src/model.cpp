@@ -586,29 +586,6 @@ BaseModel& BaseModel::moveTo(const glm::vec3& moveVec) {
 }
 
 Model& Model::uploadToGPU(Application* app) {
-    // upload vertex attribute data to GPU
-    // for (auto& [_mat_id, mesh] : mFlattenMeshes) {
-    //     std::cout << getName() << " mesh has " << mesh.mVertexData.size() << '\n';
-    //     mesh.mVertexBuffer.setLabel("Uniform buffer for object info")
-    //         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
-    //         .setSize((mesh.mVertexData.size() + 1) * sizeof(VertexAttributes))
-    //         .setMappedAtCraetion()
-    //         .create(app);
-    //
-    //     wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mVertexBuffer.getBuffer(), 0,
-    //                          mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
-    //
-    //     mesh.mIndexBuffer.setLabel("index buffer for object info")
-    //         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex | WGPUBufferUsage_Index)
-    //         .setSize((mesh.mIndexData.size()) * sizeof(uint32_t))
-    //         .setMappedAtCraetion()
-    //         .create(app);
-    //
-    //     wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndexBuffer.getBuffer(), 0,
-    //     mesh.mIndexData.data(),
-    //                          mesh.mIndexData.size() * sizeof(uint32_t));
-    // }
-    // if (getName() == "ghamgham" || getName() == "human") {
     for (auto& [_mat_id, mesh] : mFlattenMeshes) {
         // std::cout << getName() << " mesh has " << mesh.mVertexData.size() << '\n';
         mesh.mVertexBuffer.setLabel("Uniform buffer for object info")
@@ -671,7 +648,7 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     mBindGroupEntry[2].buffer = mGlobalMeshTransformationBuffer.getBuffer();
     mBindGroupEntry[2].binding = 2;
     mBindGroupEntry[2].offset = 0;
-    mBindGroupEntry[2].size = 10 * sizeof(glm::mat4);
+    mBindGroupEntry[2].size = 20 * sizeof(glm::mat4);
 
     WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
     mTrasBindGroupDesc.nextInChain = nullptr;

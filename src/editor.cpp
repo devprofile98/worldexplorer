@@ -137,7 +137,7 @@ struct GizmoModel : public IModel {
 
             // if mesh in node animated
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
-                .setSize(10 * sizeof(glm::mat4))
+                .setSize(20 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
                 .create(app);
 
@@ -171,7 +171,7 @@ struct GizmoModelY : public IModel {
 
             // if mesh in node animated
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
-                .setSize(10 * sizeof(glm::mat4))
+                .setSize(20 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
                 .create(app);
 
@@ -286,7 +286,7 @@ struct GizmoModelX : public IModel {
 
             // if mesh in node animated
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
-                .setSize(10 * sizeof(glm::mat4))
+                .setSize(20 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
                 .create(app);
 
@@ -320,7 +320,7 @@ struct GizmoModelCenter : public IModel {
 
             // if mesh in node animated
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
-                .setSize(10 * sizeof(glm::mat4))
+                .setSize(20 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
                 .create(app);
 

@@ -277,7 +277,7 @@ struct BaseModelLoader : public IModel {
             }
             // if mesh in node animated
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
-                .setSize(10 * sizeof(glm::mat4))
+                .setSize(20 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
                 .create(app);
 
@@ -287,7 +287,7 @@ struct BaseModelLoader : public IModel {
 
             // If model is instanced
             //
-            if (mModel->getName() == "coin") {
+            if (mModel->getName() == "coin" || mModel->getName() == "house") {
                 std::vector<glm::vec3> positions;
                 std::vector<glm::vec3> scales;
                 // std::vector<glm::vec3> rotations;

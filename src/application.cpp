@@ -173,7 +173,7 @@ void Application::initializePipeline() {
         object_information
             .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(ObjectInfo))
             .addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4))
-            .addBuffer(2, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY, 10 * sizeof(glm::mat4))
+            .addBuffer(2, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY, 20 * sizeof(glm::mat4))
             .createLayout(this, "Object Tranformation Matrix uniform");
 
     BindingGroup default_mesh_information;
@@ -454,7 +454,7 @@ void Application::initializeBuffers() {
                          sizeof(glm::mat4) * bones.size());
 
     mDefaultMeshGlobalTransformData.setLabel("default global mesh transform")
-        .setSize(10 * sizeof(glm::mat4))
+        .setSize(20 * sizeof(glm::mat4))
         .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
         .setMappedAtCraetion(false)
         .create(this);
@@ -1408,16 +1408,21 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             if (ImGui::Button("Create box")) {
                 physics::PhysicSystem::createCollider(this, center, half_extent, is_static);
             }
-            if (ImGui::Button("Create sphere")) {
+
+            {
                 if (sphereId < 1024) {
-                    // mLineEngine->updateLineTransformation(sphereId,
-                    //                                       glm::translate(glm::mat4{1.0}, center) *
-                    //                                           glm::scale(glm::mat4{1.0}, half_extent *
-                    //                                           glm::vec3{2.0}));
-                } else {
-                    auto sphere = generateSphere();
-                    sphereId = mLineEngine->addLines(std::move(sphere), glm::mat4{1.0}, glm::vec3{1.0});
+                    static glm::vec3 scale{0.0};
+                    static glm::vec3 translation{0.0};
+                    if (ImGui::DragFloat3("sphere center", glm::value_ptr(translation), 0.01) ||
+                        ImGui::DragFloat3("sphere scale ", glm::value_ptr(scale), 0.01)) {
+                        mLineEngine->updateLineTransformation(
+                            sphereId, glm::translate(glm::mat4{1.0}, translation) * glm::scale(glm::mat4{1.0}, scale));
+                    }
                 }
+            }
+            if (ImGui::Button("Create sphere")) {
+                auto sphere = generateSphere();
+                sphereId = mLineEngine->addLines(std::move(sphere), glm::mat4{1.0}, glm::vec3{0.5, 0.5, 0.0});
             }
 
             if (ImGui::CollapsingHeader("Physic objects",

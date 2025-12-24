@@ -111,7 +111,7 @@ std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width,
 std::vector<glm::vec4> generateAABBLines(const glm::vec3& min, const glm::vec3& max);
 std::vector<glm::vec4> generateCone();
 std::vector<glm::vec4> generateBox(const glm::vec3& center = {0, 0, 0}, const glm::vec3& halfExtents = {0.5, 0.5, 0.5});
-std::vector<glm::vec4> generateSphere();
+std::vector<glm::vec4> generateSphere(uint8_t numLong = 16, uint8_t numLat = 12, uint8_t numLongSegments = 8);
 
 glm::quat rotationBetweenVectors(glm::vec3 start, glm::vec3 dest);
 

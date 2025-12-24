@@ -582,7 +582,7 @@ void Terrain::createSomeBinding(Application* app) {
     mBindGroupEntry[2].buffer = app->mDefaultMeshGlobalTransformData.getBuffer();
     mBindGroupEntry[2].binding = 2;
     mBindGroupEntry[2].offset = 0;
-    mBindGroupEntry[2].size = 10 * sizeof(glm::mat4);
+    mBindGroupEntry[2].size = 20 * sizeof(glm::mat4);
 
     WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
     mTrasBindGroupDesc.nextInChain = nullptr;
@@ -832,16 +832,15 @@ std::vector<glm::vec4> generateBox(const glm::vec3& center, const glm::vec3& hal
     return result;
 }
 
-std::vector<glm::vec4> generateSphere() {
-    const int num_longitudes = 16;
-    const size_t num_segments = 12;
+std::vector<glm::vec4> generateSphere(uint8_t numLong, uint8_t numLat, uint8_t numLongSegments) {
     std::vector<glm::vec4> results;
 
     std::vector<glm::vec3> meridians;
-    for (size_t lon = 0; lon < num_longitudes; ++lon) {
-        auto theta = lon * (2 * std::numbers::pi) / num_longitudes;
-        for (size_t seg = 0; seg < num_segments; ++seg) {
-            auto phi = seg * (std::numbers::pi) / num_segments;
+    // longitudes
+    for (size_t lon = 0; lon < numLong; ++lon) {
+        auto theta = lon * (2 * std::numbers::pi) / numLong;
+        for (size_t seg = 0; seg < numLongSegments + 1; ++seg) {
+            auto phi = seg * (std::numbers::pi) / numLongSegments;
             float x = glm::sin(phi) * glm::cos(theta);
             float y = glm::sin(phi) * glm::sin(theta);
             float z = glm::cos(phi);
@@ -850,25 +849,33 @@ std::vector<glm::vec4> generateSphere() {
     }
 
     for (size_t i = 0; i < meridians.size() - 1; ++i) {
+        auto line_ended = (i % (numLongSegments - 1)) == 0;
         results.emplace_back(glm::vec4{meridians[i], 0});
-        results.emplace_back(glm::vec4{meridians[i + 1], i % num_longitudes == 0 ? 1 : 0});
+        results.emplace_back(glm::vec4{meridians[i + 1], line_ended ? 1 : 0});
     }
+    results[results.size() - 1].w = 1;
+
+    for (size_t lat = 1; lat < numLat; ++lat) {
+        auto phi = lat * (std::numbers::pi / numLat);
+        std::vector<glm::vec3> rings;
+        // for (size_t seg = 0; seg < num_segments + 1; ++seg) {
+        for (size_t lon = 0; lon < numLong; ++lon) {
+            auto theta = lon * (2 * std::numbers::pi / numLong);
+            // auto phi = seg * (std::numbers::pi) / num_segments;
+            float x = glm::sin(phi) * glm::cos(theta);
+            float y = glm::sin(phi) * glm::sin(theta);
+            float z = glm::cos(phi);
+            rings.emplace_back(x, y, z);
+        }
+        for (size_t i = 0; i < rings.size(); ++i) {
+            auto line_ended = i + 1 == rings.size();
+            auto next_i = (i + 1) % numLong;
+            results.emplace_back(glm::vec4{rings[i], 0});
+            results.emplace_back(glm::vec4{rings[next_i], line_ended ? 1 : 0});
+        }
+    }
+
     return results;
-    // 1. Longitude meridians (vertical lines through poles)
-    // for lon in 0 to num_longitudes-1:
-    //     θ = lon * (2π / num_longitudes)
-    //     meridian_points = []
-    //     for seg in 0 to num_segments:  // e.g., 20–40 segments per meridian
-    //         φ = seg * (π / num_segments)
-    //         x = sin(φ) * cos(θ)
-    //         y = sin(φ) * sin(θ)
-    //         z = cos(φ)
-    //         vertices.append( (x, y, z) )
-    //         meridian_points.append( current_vertex_index )
-    //
-    //     // Connect points along this meridian
-    //     for i in 0 to len(meridian_points)-2:
-    //         edges.append( (meridian_points[i], meridian_points[i+1]) )
 }
 
 std::vector<glm::vec4> generateCone() {
