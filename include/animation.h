@@ -39,6 +39,7 @@ struct Bone {
 
 struct Action {
         std::map<std::string, glm::mat4> calculatedTransform;
+        std::map<std::string, glm::mat4> localTransformation;
         std::map<std::string, Bone*> Bonemap;
         double mAnimationSecond = 0.0;
         double mAnimationDuration = 0.0;
@@ -55,9 +56,10 @@ struct Animation {
         glm::mat4 getLocalTransformAtTime(const aiNode* node, double time);
 
         void computeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, double time,
-                                     std::map<std::string, glm::mat4>& outGlobalMap);
+                                     std::map<std::string, glm::mat4>& outGlobalMap,
+                                     std::map<std::string, glm::mat4>& outLocalMap);
 
-        bool initAnimation(const aiScene* scene);
+        bool initAnimation(const aiScene* scene, std::string name);
         void update(aiNode* root);
         Action* getActiveAction();
         Action* getAction(const std::string& actionName);

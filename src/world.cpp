@@ -287,7 +287,7 @@ struct BaseModelLoader : public IModel {
 
             // If model is instanced
             //
-            if (mModel->getName() == "coin" || mModel->getName() == "house") {
+            if (mModel->getName() == "coin") {
                 std::vector<glm::vec3> positions;
                 std::vector<glm::vec3> scales;
                 // std::vector<glm::vec3> rotations;
@@ -311,7 +311,7 @@ struct BaseModelLoader : public IModel {
                 mModel->mTransform.mObjectInfo.instanceOffsetId = 0;
                 mModel->setInstanced(ins);
 
-                std::cout << "(((((((((((((((( in mesh " << mModel->mMeshes.size() << std::endl;
+                std::cout << "(((((((((((((((( in mesh " << mModel->mFlattenMeshes.size() << std::endl;
 
                 mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + mModel->getName()).c_str())
                     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |

@@ -205,15 +205,6 @@ glm::mat4 Animation::getLocalTransformAtTime(const aiNode* node, double time) {
     }
 
     glm::vec3 pos = calculateInterpolatedPosition(time, bone, node);
-
-    // if (std::strcmp(node->mName.C_Str(), "Upper_Arm.L") == 0 ||
-    //     std::strcmp(node->mName.C_Str(), "Armature_Upper_Arm_L") == 0) {
-    //     std::cout << "For pos2 is " << glm::to_string(pos2) << " and channel is null?" << (channel == nullptr)
-    //               << std::endl;
-    //     std::cout << "For pos is " << glm::to_string(pos) << std::endl;
-    //     std::cout << " ---------------------------------------- " << std::endl;
-    // }
-
     glm::quat rotation = CalcInterpolatedRotation(time, bone, node);
     glm::vec3 scale = calculateInterpolatedScale(time, bone, node);
 
@@ -225,18 +216,20 @@ glm::mat4 Animation::getLocalTransformAtTime(const aiNode* node, double time) {
 }
 
 void Animation::computeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, double time,
-                                        std::map<std::string, glm::mat4>& outGlobalMap) {
+                                        std::map<std::string, glm::mat4>& outGlobalMap,
+                                        std::map<std::string, glm::mat4>& outLocalMap) {
     glm::mat4 local = getLocalTransformAtTime(node, time);
     glm::mat4 global = parentGlobal * local;
 
+    outLocalMap[node->mName.C_Str()] = local;
     outGlobalMap[node->mName.C_Str()] = global;
 
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-        computeGlobalTransforms(node->mChildren[i], global, time, outGlobalMap);
+        computeGlobalTransforms(node->mChildren[i], global, time, outGlobalMap, outLocalMap);
     }
 }
 
-bool Animation::initAnimation(const aiScene* scene) {
+bool Animation::initAnimation(const aiScene* scene, std::string name) {
     activeActionIdx = 0;
     mFinalTransformations.reserve(100);
     mFinalTransformations.resize(100);
@@ -245,35 +238,44 @@ bool Animation::initAnimation(const aiScene* scene) {
         for (size_t a = 0; a < scene->mNumAnimations; ++a) {
             Action* action = new Action{};
             aiAnimation* anim = scene->mAnimations[a];
-            // std::cout << "-----+++++++ Model: " << scene->mNumAnimations << " Animations " << std::endl;
             action->mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
             for (size_t i = 0; i < anim->mNumChannels; ++i) {
                 aiNodeAnim* channel = anim->mChannels[i];
 
-                // std::cout << " ------------------------------------------------------------\n";
+                if (name == "tire") {
+                    std::cout << " ------------------------------------------------------------\n";
+                }
+
                 // storing bone datas
                 Bone* b = new Bone{};
                 for (size_t i = 0; i < channel->mNumPositionKeys; ++i) {
                     auto [time, value, interpolation] = channel->mPositionKeys[i];
-                    b->channel.translations.push_back({(float)time, assimpToGlmVec3(value)});
+                    b->channel.translations.emplace_back((float)time, assimpToGlmVec3(value));
                 }
                 for (size_t i = 0; i < channel->mNumRotationKeys; ++i) {
                     auto [time, value, interpolation] = channel->mRotationKeys[i];
-                    b->channel.quats.push_back({(float)time, assimpToGlmQuat(value)});
+                    b->channel.quats.emplace_back((float)time, assimpToGlmQuat(value));
                 }
                 for (size_t i = 0; i < channel->mNumScalingKeys; ++i) {
                     auto [time, value, interpolation] = channel->mScalingKeys[i];
-                    b->channel.scales.push_back({(float)time, assimpToGlmVec3(value)});
+                    b->channel.scales.emplace_back((float)time, assimpToGlmVec3(value));
                 }
                 b->id = action->Bonemap.size();
                 action->Bonemap[channel->mNodeName.C_Str()] = b;
-                if (scene->mNumAnimations == 1) {
-                    // std::cout << "\tChannel with name " << channel->mNodeName.C_Str()
-                    //           << " has data : trans: " << b->channel.translations.size()
-                    //           << " scales:  " << b->channel.scales.size() << " rotations:  " <<
-                    //           b->channel.quats.size()
-                    //           << std::endl;
-                    // std::cout << " ------------------------------------------------------------\n";
+                // if (scene->mNumAnimations == 1) {
+                if (name == "tire") {
+                    std::cout << "\tChannel with name " << channel->mNodeName.C_Str()
+                              << " has data : trans: " << b->channel.translations.size()
+                              << " scales:  " << b->channel.scales.size() << " rotations:  " << b->channel.quats.size()
+                              << std::endl;
+                    std::cout << " ------------------------------------------------------------\n";
+
+                    for (const auto& p : b->channel.translations) {
+                        std::cout << p.time << " :::::::::::::: " << glm::to_string(p.value) << std::endl;
+                    }
+                    for (const auto& p : b->channel.quats) {
+                        std::cout << p.time << " ||||||||||||||| " << glm::to_string(p.value) << std::endl;
+                    }
                 }
             }
 
@@ -284,10 +286,10 @@ bool Animation::initAnimation(const aiScene* scene) {
                 // std::cout << " \tMesh have: " << mesh->mBones << " Bones \n";
                 for (unsigned int b = 0; b < mesh->mNumBones; ++b) {
                     aiBone* bone = mesh->mBones[b];
-                    std::string boneName = bone->mName.C_Str();
-                    if (action->Bonemap.contains(boneName)) {
-                        action->Bonemap[boneName]->offsetMatrix = AiToGlm(bone->mOffsetMatrix);
-                        action->Bonemap[boneName]->hasSkining = true;
+                    std::string bone_name = bone->mName.C_Str();
+                    if (action->Bonemap.contains(bone_name)) {
+                        action->Bonemap[bone_name]->offsetMatrix = AiToGlm(bone->mOffsetMatrix);
+                        action->Bonemap[bone_name]->hasSkining = true;
                         is_node_based = false;
 
                     } else {
@@ -298,10 +300,7 @@ bool Animation::initAnimation(const aiScene* scene) {
             }
 
             action->hasSkining = !is_node_based;
-            // std::cout << "\n\n\nAction " << anim->mName.C_Str() << " Is "
-            //           << (action->hasSkining ? "Skinned" : "Node based") << "\n";
             actions[anim->mName.C_Str()] = action;
-
             activeAction = action;
         }
 
@@ -311,15 +310,16 @@ bool Animation::initAnimation(const aiScene* scene) {
 }
 
 void Animation::update(aiNode* root) {
-    const aiMatrix4x4 rootTransform = root->mTransformation;
+    // const aiMatrix4x4 rootTransform = root->mTransformation;
 
     // 2. Convert to glm and invert
     // Use a helper function for conversion from Assimp's aiMatrix4x4 to glm::mat4
-    glm::mat4 globalInverseMatrix = AiToGlm(rootTransform);
-    globalInverseMatrix = glm::inverse(globalInverseMatrix);
+    glm::mat4 globalInverseMatrix = glm::inverse(AiToGlm(root->mTransformation));
+    // globalInverseMatrix = glm::inverse(globalInverseMatrix);
     auto* action = getActiveAction();
 
-    computeGlobalTransforms(root, globalInverseMatrix, action->mAnimationSecond, action->calculatedTransform);
+    computeGlobalTransforms(root, std::move(globalInverseMatrix), action->mAnimationSecond, action->calculatedTransform,
+                            action->localTransformation);
 }
 
 Action* Animation::getActiveAction() { return activeAction; }

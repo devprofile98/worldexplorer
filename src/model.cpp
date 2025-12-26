@@ -26,6 +26,7 @@
 #include "assimp/vector3.h"
 #include "glm/ext/matrix_common.hpp"
 #include "glm/gtc/quaternion.hpp"
+#include "glm/matrix.hpp"
 #include "instance.h"
 #include "mesh.h"
 #include "physics.h"
@@ -80,12 +81,8 @@ Node* Node::buildNodeTree(aiNode* ainode, Node* parent, std::unordered_map<std::
     Node* node = new Node{};
 
     node->mName = ainode->mName.C_Str();
-    node->mLocalTransform = AiToGlm(ainode->mTransformation);
-    auto [pos, scale, rot] = decomposeTransformation(node->mLocalTransform);
+    node->mLocalTransform = glm::mat4{1.0};  // AiToGlm(ainode->mTransformation);
     node->mParent = parent;
-    // std::cout << node->mName << " ************************ Is a direct child of "
-    //           << (parent == nullptr ? "nullptr" : parent->mName) << " with rot of " << glm::to_string(rot)
-    //           << " And scale " << glm::to_string(scale) << " " << glm::to_string(pos) << std::endl;
 
     // store mesh indices attached to this node
     for (size_t i = 0; i < ainode->mNumMeshes; ++i) {
@@ -95,7 +92,7 @@ Node* Node::buildNodeTree(aiNode* ainode, Node* parent, std::unordered_map<std::
 
     // add child nodes to this newly created node for its children recursively
     for (size_t i = 0; i < ainode->mNumChildren; ++i) {
-        node->mChildrens.push_back(buildNodeTree(ainode->mChildren[i], node, nodemap));
+        node->mChildrens.emplace_back(buildNodeTree(ainode->mChildren[i], node, nodemap));
     }
     return node;
 }
@@ -181,6 +178,9 @@ glm::mat3x3 computeTBN(VertexAttributes* vertex, const glm::vec3& expectedN) {
 
 void Model::updateAnimation(float dt) {
     auto* action = anim->getActiveAction();
+    if (action == nullptr) {
+        return;
+    }
     if (mTransform.mObjectInfo.isAnimated) {
         action->mAnimationSecond += dt * 1000.0;
         auto duration_ms = action->mAnimationDuration * 1000.0;
@@ -207,26 +207,17 @@ void Model::updateAnimation(float dt) {
 
             auto final = global * offset;
 
-            if (std::isfinite(final[0][0])) {
-                anim->mFinalTransformations[action->Bonemap[boneName]->id] = final;
-            }
+            // if (std::isfinite(final[0][0])) {
+            anim->mFinalTransformations[action->Bonemap[boneName]->id] = final;
+            // }
         }
     } else {
         bool shoulddo = false;
         std::unordered_map<std::string, glm::mat4> anims;
-        for (auto& [node_name, node] : mNodeNameMap) {
+        for (const auto& [node_name, node] : mNodeNameMap) {
             shoulddo = true;
-            const auto& global = action->calculatedTransform.at(node_name);
-            anims[node_name] = node->mLocalTransform * global;
-            // std::cout << getName() << " Is not skinned but animated " << node_name << "\n"
-            //           << glm::to_string(node->mLocalTransform) << "\n";
-
-            // mTransform.mTransformMatrix = mTransform.mTransformMatrix * global;
-            // mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
-            // auto [pos, sc, rot] = decomposeTransformation(global);
-            // moveTo(pos);
-            // // scale(sc);
-            // rotate(rot);
+            const auto& animation_transform = action->localTransformation.at(node_name);
+            anims[node_name] = node->mLocalTransform * animation_transform;
         }
         if (shoulddo) {
             populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes,
@@ -263,7 +254,8 @@ glm::mat4 aiMatrix4x4ToGlm(const aiMatrix4x4& from) {
 // Modified processNode to pass parent transformation
 void Model::processNode(Application* app, aiNode* node, const aiScene* scene, const glm::mat4& parentTransform) {
     // Compute global transformation for this node
-    glm::mat4 nodeTransform = aiMatrix4x4ToGlm(node->mTransformation);
+    glm::mat4 nodeTransform = glm::mat4{1.0};
+    // aiMatrix4x4ToGlm(node->mTransformation);
     glm::mat4 globalTransform = parentTransform * nodeTransform;
 
     // Process meshes in this node
@@ -421,6 +413,8 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             texture_path += "/";
             texture_path += str.C_Str();
 
+            std::cout << "Loading " << texture_path << " As " << getName() << std::endl;
+
             size_t pos = 0;
             while ((pos = texture_path.find("%20", pos)) != std::string::npos) {
                 texture_path.replace(pos, 3, " ");  // replace 3 chars ("%20") with 1 space
@@ -436,25 +430,10 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
             auto texture =
                 std::make_shared<Texture>(mApp->getRendererResource().device, texture_path);  // reads file here
-            // *target = texture;
-            // Otherwise: queue async load
+
+            // queue async load
             auto future = mApp->mTextureRegistery->mLoader.loadAsync(texture_path, render_resource.queue, texture,
                                                                      loaderCallback);
-            // {
-            //     *target = std::make_shared<Texture>(render_resource.device, texture_path);
-            //     mApp->mTextureRegistery->addToRegistery(texture_path, *target);
-            //
-            //     if ((*target)->createView() == nullptr) {
-            //         std::cout << std::format("Failed to create diffuse Texture view for {} at {}\n", mName,
-            //                                  texture_path);
-            //     } else {
-            //         std::cout << std::format("succesfully create view for {} at {}\n", mName, texture_path);
-            //     }
-            //     (*target)->uploadToGPU(render_resource.queue);
-            // }
-            // Option A: Fire-and-forget (texture appears later when ready)
-            // std::thread([target, future = std::move(future), &mmesh, texture_path, this]() mutable {
-            // auto texture = future.get();  // blocks only this helper thread
 
             mApp->mTextureRegistery->addToRegistery(texture_path, texture);
 
@@ -514,14 +493,16 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     }
     mScene = scene;
 
-    // std::cout << "----------------------------------------\n " << getName() << std::endl;
-    mTransform.mObjectInfo.isAnimated = anim->initAnimation(mScene);  // && (getName() != "tire");
+    // if (getName() != "house") {
+    mTransform.mObjectInfo.isAnimated = anim->initAnimation(mScene, getName());
     updateAnimation(0);
+    // }
 
     mRootNode = Node::buildNodeTree(scene->mRootNode, nullptr, mNodeNameMap);
 
     if (mRootNode != nullptr) {
-        // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$ Node hirarchy created for" << getName() << " Succesfuly\n";
+        std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$ Node hirarchy created for" << getName() << " Succesfuly\n";
+        std::cout << glm::to_string(AiToGlm(mScene->mRootNode->mTransformation)) << "\n";
     }
 
     processNode(app, scene->mRootNode, scene, glm::mat4{1.0});
@@ -733,7 +714,7 @@ void Model::update(Application* app, float dt, float physicSimulating) {
 
     updateAnimation(dt);
 
-    if (mScene->HasAnimations() && anim->getActiveAction()->hasSkining) {
+    if (mScene->HasAnimations() && anim->getActiveAction() && anim->getActiveAction()->hasSkining) {
         wgpuQueueWriteBuffer(queue, mSkiningTransformationBuffer.getBuffer(), 0 * sizeof(glm::mat4),
                              anim->mFinalTransformations.data(),
                              anim->mFinalTransformations.size() * sizeof(glm::mat4));
@@ -742,20 +723,6 @@ void Model::update(Application* app, float dt, float physicSimulating) {
     // Apply position/Rotation changes to the meshes
     if (mPhysicComponent != nullptr && physicSimulating) {
         auto [new_pos, rotation] = physics::getPositionAndRotationyId(mPhysicComponent->bodyId);
-        // glm::quat rotation;
-        // rotation.x = jolt_quat.GetX();
-        // rotation.y = jolt_quat.GetY();
-        // rotation.z = jolt_quat.GetZ();
-        // rotation.w = jolt_quat.GetW();
-        // if (flip_x) {
-        //     rotation.x *= -1;
-        // }
-        // if (flip_y) {
-        //     rotation.y *= -1;
-        // }
-        // if (flip_z) {
-        //     rotation.z *= -1;
-        // }
         moveTo(new_pos);
         rotate(glm::normalize(rotation));
     }
@@ -950,24 +917,26 @@ void Model::userInterface() {
             // }
             ImGui::Text("%s->%s", name.c_str(), node->mParent != nullptr ? node->mParent->mName.c_str() : "world");
             auto [pos, sc, rot] = decomposeTransformation(node->mLocalTransform);
-            bool pos_changed = ImGui::DragFloat3("pos", glm::value_ptr(pos));
+            bool pos_changed = ImGui::DragFloat3("post", glm::value_ptr(pos));
             bool rot_changed = ImGui::DragFloat3("rot", glm::value_ptr(rot));
             bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(sc));
-            if (pos_changed || rot_changed || scale_changed) {
-                auto newglobaltrans =
-                    glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4(1.0f), sc);
-                glm::mat4 parent_global =
-                    (node->mParent != nullptr) ? node->mParent->getGlobalTransform() : glm::mat4(1.0f);
-                glm::mat4 newLocal = glm::inverse(parent_global) * newglobaltrans;
-                node->mLocalTransform = newLocal;
-
-                populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes,
-                                                         {});
-
-                auto& databuffer = mGlobalMeshTransformationData;
-                wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mGlobalMeshTransformationBuffer.getBuffer(), 0,
-                                     databuffer.data(), sizeof(glm::mat4) * databuffer.size());
-            }
+            // if (pos_changed || rot_changed || scale_changed) {
+            //     auto new_global =
+            //         glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4(1.0f), sc);
+            //     glm::mat4 parent_global =
+            //         (node->mParent != nullptr) ? node->mParent->getGlobalTransform() : glm::mat4(1.0f);
+            //     glm::mat4 newLocal = glm::inverse(parent_global) * new_global;
+            //     node->mLocalTransform = newLocal;
+            //
+            //     populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData,
+            //     mFlattenMeshes,
+            //                                              {});
+            //
+            //     auto& databuffer = mGlobalMeshTransformationData;
+            //     wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mGlobalMeshTransformationBuffer.getBuffer(),
+            //     0,
+            //                          databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+            // }
             ImGui::PopID();  // Pop the unique ID for this item
         }
     }
@@ -1009,17 +978,17 @@ void Model::userInterface() {
         instance->dumpJson();
     }
 
-    if (mTransform.mObjectInfo.isAnimated) {
-        for (auto& [name, bone] : anim->activeAction->Bonemap) {
-            ImGui::PushID((void*)bone);
-            if (ImGui::Button(name.c_str())) {
-                if (anim->activeAction->calculatedTransform.contains(name)) {
-                    // std::cout << "Bone " << name << " Exists!\n";
-                }
-            }
-            ImGui::PopID();  // Pop the unique ID for this item
-        }
-    }
+    // if (mTransform.mObjectInfo.isAnimated && anim->getActiveAction() != nullptr) {
+    //     for (auto& [name, bone] : anim->activeAction->Bonemap) {
+    //         ImGui::PushID((void*)bone);
+    //         if (ImGui::Button(name.c_str())) {
+    //             if (anim->activeAction->calculatedTransform.contains(name)) {
+    //                 // std::cout << "Bone " << name << " Exists!\n";
+    //             }
+    //         }
+    //         ImGui::PopID();  // Pop the unique ID for this item
+    //     }
+    // }
 
     bool dirty = false;
     for (auto& [id, mesh] : mFlattenMeshes) {

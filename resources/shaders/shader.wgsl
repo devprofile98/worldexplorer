@@ -43,7 +43,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
         //transform = offsetInstance[original_instance_idx + off_id].transformation;
         transform = offsetInstance[instance_index + off_id].transformation * meshTransformation.global[meshIdx];
     } else {
-        transform = objectTranformation.transformations;
+        // transform = objectTranformation.transformations;
         transform = objectTranformation.transformations * meshTransformation.global[meshIdx];
     }
 
@@ -270,6 +270,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
 
     ////////////// Calculations for point lights
+
     for (var i = 0u; i < 5; i += 1u) {
         let light = pointLight[i];
         if light.ftype == 3i {
@@ -304,9 +305,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         var kD = vec3f(1.0) - kS;
         kD = kD * (1.0 - metallic);
 
-        let NdotL = max(dot(N, L), 0.0);
+        let NdotL = dot(N, L);
 
-        lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - shadow) ;
+        //lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - shadow) ;
+        //lo += F * radiance * NdotL * (1.0 - shadow);
+        lo += L;
     }
 
     let ambient = vec3(0.03) * albedo * ao;
@@ -319,7 +322,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     color = pow(color, vec3(1.1 / 1.0));
 
 
-    return vec4f(color, 1.0);
+    //return vec4f(color, 1.0);
     //let animated = f32(in.materialProps >> 6);
     //if in.shadowIdx == 0u {
 
@@ -332,6 +335,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //    return vec4f(0.0, 0.0, 1.0, 1.0);
     //}
 
-    //return vec4f(N.rgb * (1 - shadow * (0.75)), 1.0);
+    //if lo.x < 0.0 || lo.y < 0.0 || lo.z < 0.0 {
+    //    return vec4f(0.0, 1.0, 0.0, 1.0);
+    //} else {
+    //    return vec4f(0.0, 0.0, 1.0, 1.0);
+    //}
+
+    return vec4f((ambient + lo), 1.0);
     //return vec4f(in.shadowIdx * 50.0, in.shadowIdx * 50.0, f32(in.shadowIdx) * 50.0, 1.0);
 }
