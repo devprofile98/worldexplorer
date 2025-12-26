@@ -305,11 +305,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         var kD = vec3f(1.0) - kS;
         kD = kD * (1.0 - metallic);
 
-        let NdotL = dot(N, L);
+        let NdotL = max(dot(N, L), 0.0);
 
-        //lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - shadow) ;
+        lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - shadow) ;
         //lo += F * radiance * NdotL * (1.0 - shadow);
-        lo += L;
+        //lo += L;
     }
 
     let ambient = vec3(0.03) * albedo * ao;
@@ -322,7 +322,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     color = pow(color, vec3(1.1 / 1.0));
 
 
-    //return vec4f(color, 1.0);
+    return vec4f(color, 1.0);
     //let animated = f32(in.materialProps >> 6);
     //if in.shadowIdx == 0u {
 
@@ -341,6 +341,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //    return vec4f(0.0, 0.0, 1.0, 1.0);
     //}
 
-    return vec4f((ambient + lo), 1.0);
+    //return vec4f((ambient + lo), 1.0);
     //return vec4f(in.shadowIdx * 50.0, in.shadowIdx * 50.0, f32(in.shadowIdx) * 50.0, 1.0);
 }
