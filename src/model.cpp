@@ -201,15 +201,21 @@ void Model::updateAnimation(float dt) {
     }
 
     if (action->hasSkining) {
-        for (const auto& [boneName, _] : action->Bonemap) {
-            const auto& global = action->calculatedTransform[boneName];
-            const auto& offset = action->Bonemap[boneName]->offsetMatrix;
+        if (action != nullptr) {
+            for (const auto& [boneName, _] : action->Bonemap) {
+                const auto& global = action->calculatedTransform[boneName];
+                const auto& offset = action->Bonemap[boneName]->offsetMatrix;
 
-            auto final = global * offset;
+                auto final = global * offset;
 
-            // if (std::isfinite(final[0][0])) {
-            anim->mFinalTransformations[action->Bonemap[boneName]->id] = final;
-            // }
+                // if (std::isfinite(final[0][0])) {
+                anim->mFinalTransformations[action->Bonemap[boneName]->id] = final;
+                // }
+            }
+        } else {
+            for (auto& transformation : anim->mFinalTransformations) {
+                transformation = glm::mat4{1.0};
+            }
         }
     } else {
         bool shoulddo = false;
@@ -281,25 +287,23 @@ void loaderCallback(TextureLoader::LoadRequest* request) {
 void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId,
                         const glm::mat4& globalTransform) {
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-    std::map<size_t, std::vector<std::pair<size_t, float>>> bonemap;
+    std::map<size_t, std::vector<std::pair<size_t, float>>> vertex_weights;
     mMeshes[mMeshNumber] = {};
     size_t index_offset = mMeshes[mMeshNumber].mVertexData.size();
-    // std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << meshId << " " << mesh->mMaterialIndex << '\n';
 
-    if (mesh->HasBones()) {
-        Action* action = anim->getActiveAction();
-        // std::cout << " ))))))))))))))))) has bone " << mesh->HasBones() << " and " << mesh->mNumBones << std::endl;
+    if (mesh->HasBones() && !anim->actions.empty()) {
+        Action* action = anim->actions.begin()->second;
         for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
-            auto bone = mesh->mBones[i];
+            const auto* bone = mesh->mBones[i];
             for (size_t j = 0; j < bone->mNumWeights; ++j) {
                 const char* name = bone->mName.C_Str();
 
                 auto& vid = bone->mWeights[j].mVertexId;
-                if (bonemap.count(vid) == 0) {
-                    bonemap[vid] = {};
+                if (vertex_weights.count(vid) == 0) {
+                    vertex_weights[vid] = {};
                 }
                 if (action && action->Bonemap.contains(name)) {
-                    bonemap[vid].push_back({action->Bonemap[name]->id, bone->mWeights[j].mWeight});
+                    vertex_weights[vid].emplace_back(action->Bonemap[name]->id, bone->mWeights[j].mWeight);
                 }
             }
         }
@@ -330,7 +334,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
         size_t bid_cnt = 0;
         if (mesh->HasBones()) {
-            for (const auto& [bid, bwg] : bonemap[i]) {
+            for (const auto& [bid, bwg] : vertex_weights[i]) {
                 vertex.boneIds[bid_cnt % 4] = bid;
                 vertex.weights[bid_cnt % 4] = bwg;
                 ++bid_cnt;
@@ -892,24 +896,24 @@ void Model::userInterface() {
     }
 
     bool is_animated = mTransform.mObjectInfo.isAnimated;
-    if (ImGui::Checkbox("Is Animated", &is_animated)) {
+    if (ImGui::Checkbox("Animated /Rest Pose", &is_animated)) {
         mTransform.mObjectInfo.isAnimated = is_animated;
         mTransform.mDirty = true;
     }
 
-    if (ImGui::CollapsingHeader("Available Actions:  (press to play)",
-                                ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+    if (ImGui::CollapsingHeader("Available Actions:  (press to play)", ImGuiTreeNodeFlags_DefaultOpen)) {
         for (auto& [name, action] : anim->actions) {
             ImGui::PushID((void*)&action);
             if (ImGui::Button(name.c_str())) {
+                mTransform.mObjectInfo.isAnimated = true;
+                mTransform.mDirty = true;
                 anim->playAction(name, true);
             }
             ImGui::PopID();  // Pop the unique ID for this item
         }
     }
 
-    if (ImGui::CollapsingHeader("Mesh transformations",
-                                ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+    if (ImGui::CollapsingHeader("Mesh transformations")) {
         for (auto& [name, node] : mNodeNameMap) {
             ImGui::PushID((void*)node);
             // if (ImGui::Button(name.c_str())) {
@@ -941,8 +945,7 @@ void Model::userInterface() {
         }
     }
 
-    if (ImGui::CollapsingHeader("Instances",
-                                ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+    if (ImGui::CollapsingHeader("Instances")) {
         size_t instances_count = instance != nullptr ? instance->mPositions.size() : 0;
         for (size_t i = 0; i < instances_count; ++i) {
             ImGui::PushID((void*)&instance->mPositions[i]);
@@ -965,17 +968,16 @@ void Model::userInterface() {
 
             ImGui::PopID();  // Pop the unique ID for this item
         }
-    }
-
-    // ImGui::LabelText("Label", "Add new instance");
-    if (ImGui::Button("New instance")) {
-        size_t new_idx = instance->duplicateLastInstance(glm::vec3{.01}, min, max);
-        wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
-                             mApp->mInstanceManager->getInstancingBuffer().getBuffer(), new_idx * sizeof(InstanceData),
-                             &instance->mInstanceBuffer[new_idx], sizeof(InstanceData));
-    }
-    if (ImGui::Button("Export instances info")) {
-        instance->dumpJson();
+        // ImGui::LabelText("Label", "Add new instance");
+        if (ImGui::Button("New instance")) {
+            size_t new_idx = instance->duplicateLastInstance(glm::vec3{.01}, min, max);
+            wgpuQueueWriteBuffer(
+                mApp->getRendererResource().queue, mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
+                new_idx * sizeof(InstanceData), &instance->mInstanceBuffer[new_idx], sizeof(InstanceData));
+        }
+        if (ImGui::Button("Export instances info")) {
+            instance->dumpJson();
+        }
     }
 
     // if (mTransform.mObjectInfo.isAnimated && anim->getActiveAction() != nullptr) {
@@ -990,12 +992,9 @@ void Model::userInterface() {
     //     }
     // }
 
-    bool dirty = false;
-    for (auto& [id, mesh] : mFlattenMeshes) {
-        ImGui::PushID((void*)&mesh);
-        if (ImGui::CollapsingHeader("Materials",
-                                    ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
-                                                                        //
+    if (ImGui::CollapsingHeader("Materials")) {  // DefaultOpen makes it open initially
+        for (auto& [id, mesh] : mFlattenMeshes) {
+            ImGui::PushID((void*)&mesh);
 
             bool has_normal = mesh.mMaterial.hasFlag(MaterialProps::HasNormalMap);
             if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
@@ -1019,9 +1018,32 @@ void Model::userInterface() {
             if (ImGui::DragFloat3("Uv Values", glm::value_ptr(mesh.mMaterial.uvMultiplier), drag_speed, 100.0f)) {
                 mTransform.mDirty = true;
             }
+            ImGui::PopID();  // Pop the unique ID for this item
         }
-
-        ImGui::PopID();  // Pop the unique ID for this item
+    }
+    if (ImGui::CollapsingHeader("Textures")) {  // DefaultOpen makes it open initially
+                                                // if (!mFlattenMeshes.empty()) {
+        for (auto& [id, mesh] : mFlattenMeshes) {
+            if (ImGui::TreeNode(std::format("Textures {}##texture_{}", id, id).c_str())) {
+                if (mesh.mTexture) {
+                    ImGui::Text("Diffuse/Albedo");
+                    ImGui::Image((ImTextureID)(intptr_t)mesh.mTexture->getTextureView(),
+                                 ImVec2(1920 / 4.0, 1022 / 4.0));
+                }
+                if (mesh.mSpecularTexture) {
+                    ImGui::Text("Specular");
+                    ImGui::Image((ImTextureID)(intptr_t)mesh.mSpecularTexture->getTextureView(),
+                                 ImVec2(1920 / 4.0, 1022 / 4.0));
+                }
+                if (mesh.mNormalMapTexture) {
+                    ImGui::Text("Normal Map");
+                    ImGui::Image((ImTextureID)(intptr_t)mesh.mNormalMapTexture->getTextureView(),
+                                 ImVec2(1920 / 4.0, 1022 / 4.0));
+                }
+                ImGui::TreePop();
+            }
+        }
+        // }
     }
     // }
 }

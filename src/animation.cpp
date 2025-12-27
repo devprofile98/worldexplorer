@@ -216,8 +216,8 @@ glm::mat4 Animation::getLocalTransformAtTime(const aiNode* node, double time) {
 }
 
 void Animation::computeGlobalTransforms(const aiNode* node, const glm::mat4& parentGlobal, double time,
-                                        std::map<std::string, glm::mat4>& outGlobalMap,
-                                        std::map<std::string, glm::mat4>& outLocalMap) {
+                                        std::unordered_map<std::string, glm::mat4>& outGlobalMap,
+                                        std::unordered_map<std::string, glm::mat4>& outLocalMap) {
     glm::mat4 local = getLocalTransformAtTime(node, time);
     glm::mat4 global = parentGlobal * local;
 
@@ -241,10 +241,6 @@ bool Animation::initAnimation(const aiScene* scene, std::string name) {
             action->mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
             for (size_t i = 0; i < anim->mNumChannels; ++i) {
                 aiNodeAnim* channel = anim->mChannels[i];
-
-                if (name == "tire") {
-                    std::cout << " ------------------------------------------------------------\n";
-                }
 
                 // storing bone datas
                 Bone* b = new Bone{};
@@ -301,7 +297,7 @@ bool Animation::initAnimation(const aiScene* scene, std::string name) {
 
             action->hasSkining = !is_node_based;
             actions[anim->mName.C_Str()] = action;
-            activeAction = action;
+            // activeAction = action;
         }
 
         return true;
