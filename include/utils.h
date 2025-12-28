@@ -15,6 +15,7 @@
 #include "glm/glm.hpp"
 #include "model.h"
 #include "model_registery.h"
+#include "physics.h"
 
 namespace fs = std::filesystem;
 
@@ -97,8 +98,9 @@ struct VertexBufferLayout {
 bool intersection(const glm::vec3& ray_origin, const glm::vec3& ray_dir, const glm::vec3& box_min,
                   const glm::vec3& box_max, glm::vec3* intersection_point = nullptr);
 
-BaseModel* testIntersection(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
-                            const ModelRegistry::ModelContainer& models);
+using IntersectionRes = std::variant<std::monostate, BaseModel*, physics::BoxCollider*>;
+IntersectionRes testIntersection(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
+                                 const ModelRegistry::ModelContainer& models);
 BaseModel* testIntersection2(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
                              const std::vector<BaseModel*>& models);
 float rayDotVector(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,

@@ -516,6 +516,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     // GLFWwindow* provided_window = glfwCreateWindow(window_width, window_height, "World Explorer", nullptr, nullptr);
     GLFWwindow* provided_window = res.value();
 
+    mEditor = new Editor{};
+
     // Set up Callbacks
     // TODO refactor these into their own files
     glfwSetWindowUserPointer(mWindow->getWindow(), this);  // set user pointer to be used in the callback function
@@ -526,8 +528,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     glfwSetKeyCallback(mWindow->getWindow(), InputManager::handleKeyboard);
 
     auto& input_manager = InputManager::instance();
-    input_manager.mMouseMoveListeners.push_back(&mEditor.gizmo);
-    input_manager.mMouseButtonListeners.push_back(&mEditor.gizmo);
+    input_manager.mMouseMoveListeners.push_back(&mEditor->gizmo);
+    input_manager.mMouseButtonListeners.push_back(&mEditor->gizmo);
 
     Screen::instance().initialize(this);
 

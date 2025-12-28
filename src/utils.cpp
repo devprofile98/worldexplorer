@@ -7,6 +7,7 @@
 #include <numbers>
 #include <numeric>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "application.h"
@@ -15,6 +16,7 @@
 #include "glm/trigonometric.hpp"
 #include "mesh.h"
 #include "model.h"
+#include "physics.h"
 #include "rendererResource.h"
 #include "stb_image.h"
 #include "wgpu_utils.h"
@@ -690,8 +692,8 @@ float rayDotVector(Camera& camera, size_t width, size_t height, std::pair<size_t
     return glm::dot(glm::vec3{worldray}, vec);
 }
 
-BaseModel* testIntersection(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
-                            const ModelRegistry::ModelContainer& models) {
+IntersectionRes testIntersection(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
+                                 const ModelRegistry::ModelContainer& models) {
     auto [xpos, ypos] = mouseCoord;
     double xndc = 2.0 * xpos / (float)width - 1.0;
     double yndc = 1.0 - (2.0 * ypos) / (float)height;
@@ -710,7 +712,7 @@ BaseModel* testIntersection(Camera& camera, size_t width, size_t height, std::pa
             return obj;
         }
     }
-    return nullptr;
+    return std::monostate{};
 }
 
 std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width, size_t height,

@@ -2,10 +2,13 @@
 #ifndef WORLD_EXPLORER_EDTIOR_H
 #define WORLD_EXPLORER_EDTIOR_H
 
+#include <variant>
+
 #include "camera.h"
 #include "glm/fwd.hpp"
 #include "input_manager.h"
 #include "model.h"
+#include "physics.h"
 
 class Application;
 
@@ -30,6 +33,7 @@ struct Editor {
         void showBoneAt(const glm::mat4& transformation);
         static inline BaseModel* BoneIndicator = nullptr;
         GizmoElement gizmo;
+        std::variant<std::monostate, BaseModel*, physics::BoxCollider*> mSelectedObject;
 };
 
 class Screen : public MouseMoveListener,

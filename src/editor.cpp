@@ -1,15 +1,20 @@
 
 #include "editor.h"
 
+#include <optional>
 #include <random>
 #include <variant>
 
 #include "GLFW/glfw3.h"
 #include "application.h"
+#include "camera.h"
+#include "glm/ext/vector_float3.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "input_manager.h"
 #include "instance.h"
+#include "model.h"
 #include "model_registery.h"
+#include "physics.h"
 #include "utils.h"
 #include "world.h"
 
@@ -57,6 +62,48 @@ void GizmoElement::onMouseClick(MouseEvent event) {
     }
 }
 
+// template <typename T>
+std::optional<glm::vec3> processGizmoMove(float scalar, const glm::vec3& pos, Camera& camera, Move& move, size_t width,
+                                          size_t height) {
+    bool happend = false;
+    glm::vec3 move_data;
+    if (GizmoElement::mSelectedPart == GizmoElement::x) {
+        // a hypo YZ wall  orthogonal to axis X to capture moves along X on a plane
+        auto [_, data] = testIntersectionWithBox(camera, width, height, {move.xPos, move.yPos},
+                                                 {-scalar, pos.y, -scalar},     // wall min
+                                                 {scalar, pos.y + 1.0, scalar}  // wall max
+        );
+        move_data = std::move(data);
+        happend = true;
+    } else if (GizmoElement::mSelectedPart == GizmoElement::y) {
+        // a hypo XZ wall  orthogonal to axis Y to capture moves along Y on a plane
+        auto [_, data] = testIntersectionWithBox(camera, width, height, {move.xPos, move.yPos},
+                                                 {pos.x, -scalar, -scalar},   // wall min
+                                                 {pos.x + 1, scalar, scalar}  // wall max
+        );
+        move_data = std::move(data);
+        happend = true;
+    } else if (GizmoElement::mSelectedPart == GizmoElement::z) {
+        // a hypo XY wall  orthogonal to axis Z to capture moves along Z on a plane
+        auto [_, data] = testIntersectionWithBox(camera, width, height, {move.xPos, move.yPos},
+                                                 {-scalar, pos.y, -scalar},     // wall min
+                                                 {scalar, pos.y + 1.0, scalar}  // wall max
+        );
+        move_data = std::move(data);
+        happend = true;
+    }
+    if (happend) {
+        auto& which_gizmo = GizmoElement::mSelectedPart;
+        glm::vec3 new_pos = {
+            which_gizmo == GizmoElement::x ? move_data.x : pos.x,
+            which_gizmo == GizmoElement::y ? move_data.y : pos.y,
+            which_gizmo == GizmoElement::z ? move_data.z : pos.z,
+        };
+        return new_pos;
+    }
+    return std::nullopt;
+}
+
 void GizmoElement::onMouseMove(MouseEvent event) {
     auto move = std::get<Move>(event);
     auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(move.window));
@@ -70,6 +117,8 @@ void GizmoElement::onMouseMove(MouseEvent event) {
     auto intersected_model = GizmoElement::testSelection(that->getCamera(), width, height, {move.xPos, move.yPos});
     static glm::vec3 first_click_pos;
 
+    auto& editor_selected = that->mEditor->mSelectedObject;
+    // if (std::holds_alternative<BaseModel*>(editor_selected)) {
     if (!GizmoElement::mIsLocked) {
         if (intersected_model != nullptr) {
             if (GizmoElement::mSelectedPart != nullptr) {
@@ -84,39 +133,26 @@ void GizmoElement::onMouseMove(MouseEvent event) {
                 GizmoElement::mSelectedPart = nullptr;
             }
         }
-    } else if (that->mSelectedModel != nullptr && GizmoElement::mSelectedPart != nullptr) {
-        glm::vec3 intersection_box_min;
-        glm::vec3 intersection_box_max;
-        float scalar = 100.0f;
-        auto& pos = that->mSelectedModel->mTransform.getPosition();
-        bool happend = false;
-        if (GizmoElement::mSelectedPart == GizmoElement::x) {
-            intersection_box_min = {-scalar, pos.y, -scalar};
-            intersection_box_max = {scalar, pos.y + 1.0, scalar};
-            auto [res, data] = testIntersectionWithBox(that->getCamera(), width, height, {move.xPos, move.yPos},
-                                                       intersection_box_min, intersection_box_max);
-            that->mSelectedModel->moveTo({data.x, pos.y, pos.z});
-            happend = true;
-        } else if (GizmoElement::mSelectedPart == GizmoElement::y) {
-            // std::cout << "the Result for box intersection is "<< std::endl;
-            intersection_box_min = {pos.x, -scalar, -scalar};
-            intersection_box_max = {pos.x + 1, scalar, scalar};
-            auto [res, data] = testIntersectionWithBox(that->getCamera(), width, height, {move.xPos, move.yPos},
-                                                       intersection_box_min, intersection_box_max);
-            that->mSelectedModel->moveTo({pos.x, data.y, pos.z});
-            happend = true;
-        } else if (GizmoElement::mSelectedPart == GizmoElement::z) {
-            intersection_box_min = {-scalar, pos.y, -scalar};
-            intersection_box_max = {scalar, pos.y + 1.0, scalar};
-            auto [res, data] = testIntersectionWithBox(that->getCamera(), width, height, {move.xPos, move.yPos},
-                                                       intersection_box_min, intersection_box_max);
-            that->mSelectedModel->moveTo({pos.x, pos.y, data.z});
-            happend = true;
-        }
+    } else if (GizmoElement::mSelectedPart != nullptr) {
+        if (std::holds_alternative<BaseModel*>(editor_selected)) {
+            BaseModel* selected_entity = std::get<BaseModel*>(editor_selected);
+            auto& pos = selected_entity->mTransform.getPosition();
+            auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
+            if (new_pos.has_value()) {
+                selected_entity->moveTo(new_pos.value());
+                auto [min, max] = selected_entity->getWorldSpaceAABB();
+                GizmoElement::moveTo((max + min) / glm::vec3{2.0});
+            }
 
-        if (happend) {
-            auto [min, max] = that->mSelectedModel->getWorldSpaceAABB();
-            GizmoElement::moveTo((max + min) / glm::vec3{2.0});
+        } else if (std::holds_alternative<physics::BoxCollider*>(editor_selected)) {
+            physics::BoxCollider* selected_entity = std::get<physics::BoxCollider*>(editor_selected);
+            auto& pos = selected_entity->mCenter;
+            auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
+            if (new_pos.has_value()) {
+                selected_entity->mCenter = new_pos.value();
+                // auto [min, max] = selected_entity->getWorldSpaceAABB();
+                GizmoElement::moveTo(selected_entity->mCenter);
+            }
         }
     }
 }
@@ -426,20 +462,29 @@ void Screen::onMouseClick(MouseEvent event) {
             auto intersected_model =
                 testIntersection(mApp->getCamera(), w_width, w_height, {xpos, ypos},
                                  ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User));
-            std::cout << "First here " << (intersected_model) << " " << mApp->mSelectedModel << "\n";
-            if (intersected_model != nullptr) {
-                if (mApp->mSelectedModel) {
-                    mApp->mSelectedModel->selected(false);
+            // std::cout << "First here " << (intersected_model) << " " << mApp->mSelectedModel << "\n";
+            if (!std::holds_alternative<std::monostate>(intersected_model)) {
+                if (std::holds_alternative<BaseModel*>(intersected_model)) {
+                    if (mApp->mSelectedModel) {
+                        mApp->mSelectedModel->selected(false);
+                    }
+                    mApp->mSelectedModel = std::get<BaseModel*>(intersected_model);
+                    mApp->mSelectedModel->selected(true);
+                    mApp->mEditor->mSelectedObject = mApp->mSelectedModel;
                 }
-                mApp->mSelectedModel = intersected_model;
-                mApp->mSelectedModel->selected(true);
-                if (GizmoElement::z != nullptr && GizmoElement::x != nullptr && GizmoElement::y != nullptr &&
-                    GizmoElement::center != nullptr) {
-                    auto [min, max] = mApp->mSelectedModel->getWorldSpaceAABB();
-                    auto center = (min + max) / glm::vec3{2.0f};
-                    GizmoElement::moveTo(center);
-                } else {
-                    std::cout << "Couldnt find the gizmo model " << mApp->mSelectedModel->getName() << std::endl;
+                auto& editor_selected = mApp->mEditor->mSelectedObject;
+
+                if (std::holds_alternative<BaseModel*>(editor_selected)) {
+                    if (GizmoElement::z != nullptr && GizmoElement::x != nullptr && GizmoElement::y != nullptr &&
+                        GizmoElement::center != nullptr) {
+                        auto [min, max] = std::get<BaseModel*>(editor_selected)->getWorldSpaceAABB();
+                        auto center = (min + max) / glm::vec3{2.0f};
+                        GizmoElement::moveTo(center);
+                    } else {
+                        std::cout << "Couldnt find the gizmo model " << mApp->mSelectedModel->getName() << std::endl;
+                    }
+                } else if (std::holds_alternative<physics::BoxCollider*>(editor_selected)) {
+                    std::cout << "Now we hold a box collider" << std::endl;
                 }
             }
         }

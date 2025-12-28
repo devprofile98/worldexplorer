@@ -9,7 +9,7 @@
 
 #include "binding_group.h"
 #include "camera.h"
-#include "editor.h"
+// #include "editor.h"
 #include "gpu_buffer.h"
 #include "model.h"
 #include "terrain_pass.h"
@@ -37,6 +37,7 @@ class Registry;  // Forward declaration
 template <typename W>
 class Window;
 struct RendererResource;
+struct Editor;
 
 /*
  * Corresponding data for wgsl struct representing Directional light in scene
@@ -101,7 +102,7 @@ class Application {
         BindingGroup mDefaultClipPlaneBG = {};
         BindingGroup mDefaultVisibleBuffer = {};
 
-        Editor mEditor;
+        Editor* mEditor;
         BaseModel* mSelectedModel = nullptr;
         Buffer mLightBuffer;
         Buffer mVisibleIndexBuffer;
