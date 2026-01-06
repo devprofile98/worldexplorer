@@ -108,7 +108,7 @@ struct LineEngine {
                 bool dirty = true;           // Needs write to buffer?
         };
 
-        uint32_t addLines(const std::vector<glm::vec4>& points, const glm::mat4 transformation = glm::mat4{1.0},
+        uint32_t addLines(const std::vector<glm::vec4>& points, const glm::mat4& transformation = glm::mat4{1.0},
                           const glm::vec3& color = {0.0, 1.0, 0.0});
         void removeLines(uint32_t id);
         void updateLines(uint32_t id, const std::vector<glm::vec4>& newPoints);

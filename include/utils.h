@@ -16,10 +16,12 @@
 #include "model.h"
 #include "model_registery.h"
 #include "physics.h"
+#include "point_light.h"
 
 namespace fs = std::filesystem;
 
 class Appliaction;  // forward declaration of the app class
+struct LineEngine;
 
 void setDefault(WGPUDepthStencilState& depthStencilState);
 void setDefault(WGPUStencilFaceState& stencilFaceState);
@@ -29,6 +31,17 @@ void setDefaultActiveStencil(WGPUDepthStencilState& depthStencilState);
 void setDefaultActiveStencil2(WGPUDepthStencilState& depthStencilState);
 void setDefault(WGPUBindGroupLayoutEntry& bindingLayout);
 void setDefault(WGPULimits& limits);
+
+struct DebugBox {
+        glm::vec3 center;
+        glm::vec3 halfExtent;
+        uint32_t debugLinesId = std::numeric_limits<uint32_t>().max();
+        void create(LineEngine* lineEngine, const glm::mat4& transformation, const glm::vec3& color);
+        void update();
+
+    private:
+        LineEngine* mLineEngine = nullptr;
+};
 
 struct TransformProperties {
         glm::vec3 translation;
@@ -98,9 +111,9 @@ struct VertexBufferLayout {
 bool intersection(const glm::vec3& ray_origin, const glm::vec3& ray_dir, const glm::vec3& box_min,
                   const glm::vec3& box_max, glm::vec3* intersection_point = nullptr);
 
-using IntersectionRes = std::variant<std::monostate, BaseModel*, physics::BoxCollider*>;
+using IntersectionRes = std::variant<std::monostate, BaseModel*, physics::BoxCollider*, DebugBox*, Light*>;
 IntersectionRes testIntersection(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
-                                 const ModelRegistry::ModelContainer& models);
+                                 const ModelRegistry::ModelContainer& models, std::vector<DebugBox*>&& debugBoxes);
 BaseModel* testIntersection2(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
                              const std::vector<BaseModel*>& models);
 float rayDotVector(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,

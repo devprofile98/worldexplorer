@@ -26,10 +26,14 @@ LightManager::LightManager(Application* app) {
 }
 
 LightManager* LightManager::init(Application* app) {
-    static LightManager mLightInstance{app};
-    mLightInstance.mLights.reserve(10);
-    return &mLightInstance;
+    if (mLightInstance == nullptr) {
+        mLightInstance = new LightManager{app};
+        mLightInstance->mLights.reserve(10);
+    }
+    return mLightInstance;
 }
+
+LightManager* LightManager::getInstance() { return mLightInstance; }
 
 Buffer& LightManager::getCountBuffer() { return mLightCountBuffer; }
 
@@ -45,7 +49,7 @@ void LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff
     light.mQuadratic = quad;
     light.type = POINT;
 
-    mLights.push_back(light);
+    mLights.emplace_back(std::move(light));
     mLightsNames.push_back(name);
 }
 

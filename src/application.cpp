@@ -85,7 +85,7 @@ static auto rotation_offset = glm::quat{1.0, {0.0, -.1, 0.7}};
 WGPUTextureView getNextSurfaceTextureView(RendererResource& resources);
 WGPULimits GetRequiredLimits(WGPUAdapter adapter);
 bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height);
-uint32_t boxId = std::numeric_limits<uint32_t>().max();
+// uint32_t boxId = std::numeric_limits<uint32_t>().max();
 uint32_t boxIdForAABB = std::numeric_limits<uint32_t>().max();
 uint32_t sphereId = std::numeric_limits<uint32_t>().max();
 
@@ -602,7 +602,7 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     surface_configuration.viewFormatCount = 0;
     surface_configuration.viewFormats = nullptr;
     surface_configuration.device = this->getRendererResource().device;
-    surface_configuration.presentMode = WGPUPresentMode_Immediate;
+    surface_configuration.presentMode = WGPUPresentMode_Fifo;
     surface_configuration.alphaMode = WGPUCompositeAlphaMode_Auto;
 
     wgpuSurfaceConfigure(this->getRendererResource().surface, &surface_configuration);
@@ -670,22 +670,24 @@ void Application::mainLoop() {
         physics::JoltLoop(delta_time);
     } else {
         for (const auto& cube : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            if (cube->mName == "cube" || cube->mName == "smallcube" || cube->mName == "cube2") {
-                // auto rot = glm::normalize(cube->mTransform.mOrientation);
-                // if (flip_x) {
-                //     rot.x *= -1;
-                // }
-                // if (flip_y) {
-                //     rot.y *= -1;
-                // }
-                // if (flip_z) {
-                //     rot.z *= -1;
-                // }
-                // rot = glm::normalize(rot);
-                // physics::setRotation(cube->mPhysicComponent->bodyId, rot);
+            // if (cube->mName == "cube" || cube->mName == "smallcube" || cube->mName == "cube2") {
+            // auto rot = glm::normalize(cube->mTransform.mOrientation);
+            // if (flip_x) {
+            //     rot.x *= -1;
+            // }
+            // if (flip_y) {
+            //     rot.y *= -1;
+            // }
+            // if (flip_z) {
+            //     rot.z *= -1;
+            // }
+            // rot = glm::normalize(rot);
+            // physics::setRotation(cube->mPhysicComponent->bodyId, rot);
+            if (cube->mPhysicComponent != nullptr) {
                 physics::setRotation(cube->mPhysicComponent->bodyId, glm::normalize(cube->mTransform.mOrientation));
                 physics::setPosition(cube->mPhysicComponent->bodyId, cube->mTransform.getPosition());
             }
+            // }
         }
     }
 
@@ -1183,7 +1185,7 @@ bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height)
     surface_configuration.viewFormatCount = 0;
     surface_configuration.viewFormats = nullptr;
     surface_configuration.device = resources.device;
-    surface_configuration.presentMode = WGPUPresentMode_Immediate;
+    surface_configuration.presentMode = WGPUPresentMode_Fifo;
     surface_configuration.alphaMode = WGPUCompositeAlphaMode_Auto;
 
     wgpuSurfaceConfigure(resources.surface, &surface_configuration);
@@ -1387,28 +1389,26 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
         if (ImGui::BeginTabItem("Physics")) {
             ImGui::Checkbox("Run Physics", &runPhysics);
             // if (ImGui::Button("Create new Physically simulated shape")) {
-            static uint32_t boxIndicator = std::numeric_limits<uint32_t>::max();
+            // static uint32_t boxIndicator = std::numeric_limits<uint32_t>::max();
 
             ImGui::Checkbox("show physics objects", &show_physic_objects);
 
-            static glm::vec3 center{0.0};
-            static glm::vec3 half_extent{0.0};
+            // static glm::vec3 center{0.0};
+            // static glm::vec3 half_extent{0.0};
             static bool is_static = true;
-            if (ImGui::DragFloat3("center", glm::value_ptr(center), 0.01) ||
-                ImGui::DragFloat3("half extent", glm::value_ptr(half_extent), 0.01)) {
-                if (boxId < 1024) {
-                    // mLineEngine->updateLines(boxId, box);
-                    mLineEngine->updateLineTransformation(boxId,
-                                                          glm::translate(glm::mat4{1.0}, center) *
-                                                              glm::scale(glm::mat4{1.0}, half_extent * glm::vec3{2.0}));
+            if (ImGui::DragFloat3("center", glm::value_ptr(debugbox.center), 0.01) ||
+                ImGui::DragFloat3("half extent", glm::value_ptr(debugbox.halfExtent), 0.01)) {
+                if (debugbox.debugLinesId < 1024) {
+                    debugbox.update();
                 } else {
-                    auto box = generateBox();
-                    boxId = mLineEngine->addLines(box, glm::mat4{1.0}, glm::vec3{1.0});
+                    debugbox.create(mLineEngine, glm::mat4{1.0}, glm::vec3{1.0});
+                    mEditor->gizmo.moveTo(debugbox.center);
+                    mEditor->mSelectedObject = &debugbox;
                 }
             }
             ImGui::Checkbox("is Dynamic?", &is_static);
             if (ImGui::Button("Create box")) {
-                physics::PhysicSystem::createCollider(this, center, half_extent, is_static);
+                physics::PhysicSystem::createCollider(this, debugbox.center, debugbox.halfExtent, is_static);
             }
 
             {

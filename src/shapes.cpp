@@ -441,7 +441,7 @@ void LineEngine::executePass() {
 }
 
 // Returns a handle for the new group
-uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points, const glm::mat4 transformation,
+uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points, const glm::mat4& transformation,
                               const glm::vec3& color) {
     // Invalid cases
     if (points.size() < 2 || mNextGroupId >= 1024) {

@@ -17,7 +17,9 @@
 #include "mesh.h"
 #include "model.h"
 #include "physics.h"
+#include "point_light.h"
 #include "rendererResource.h"
+#include "shapes.h"
 #include "stb_image.h"
 #include "wgpu_utils.h"
 
@@ -692,8 +694,16 @@ float rayDotVector(Camera& camera, size_t width, size_t height, std::pair<size_t
     return glm::dot(glm::vec3{worldray}, vec);
 }
 
+bool isInside(const glm::vec3& pos, const glm::vec3& min, const glm::vec3& max) {
+    bool in_x = pos.x >= min.x && pos.x <= max.x;
+    bool in_y = pos.y >= min.y && pos.y <= max.y;
+    bool in_z = pos.z >= min.z && pos.z <= max.z;
+
+    return in_x && in_y && in_z;
+}
+
 IntersectionRes testIntersection(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
-                                 const ModelRegistry::ModelContainer& models) {
+                                 const ModelRegistry::ModelContainer& models, std::vector<DebugBox*>&& debugBoxes) {
     auto [xpos, ypos] = mouseCoord;
     double xndc = 2.0 * xpos / (float)width - 1.0;
     double yndc = 1.0 - (2.0 * ypos) / (float)height;
@@ -708,10 +718,35 @@ IntersectionRes testIntersection(Camera& camera, size_t width, size_t height, st
     for (auto& obj : models) {
         auto [obj_in_world_min, obj_in_world_max] = obj->getWorldMin();
         bool does_intersect = intersection(ray_origin, normalized, obj_in_world_min, obj_in_world_max);
-        if (does_intersect) {
+        auto is_inside = isInside(ray_origin, obj_in_world_min, obj_in_world_max);
+
+        if (does_intersect && !is_inside) {
             return obj;
         }
     }
+
+    for (auto& debug_obj : debugBoxes) {
+        auto world_min = debug_obj->center + debug_obj->halfExtent;
+        auto world_max = debug_obj->center - debug_obj->halfExtent;
+        bool does_intersect = intersection(ray_origin, normalized, world_min, world_max);
+        auto is_inside = isInside(ray_origin, world_min, world_max);
+
+        if (does_intersect && !is_inside) {
+            return debug_obj;
+        }
+    }
+
+    for (auto& debug_obj : LightManager::getLights()) {
+        auto world_min = debug_obj->center + debug_obj->halfExtent;
+        auto world_max = debug_obj->center - debug_obj->halfExtent;
+        bool does_intersect = intersection(ray_origin, normalized, world_min, world_max);
+        auto is_inside = isInside(ray_origin, world_min, world_max);
+
+        if (does_intersect && !is_inside) {
+            return debug_obj;
+        }
+    }
+
     return std::monostate{};
 }
 
@@ -937,4 +972,15 @@ PerfTimer::~PerfTimer() {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = end - mStart;
     std::cout << "Completes in " << duration.count() << std::endl;
+}
+
+void DebugBox::create(LineEngine* lineEngine, const glm::mat4& transformation, const glm::vec3& color) {
+    mLineEngine = lineEngine;
+    auto box = generateBox();
+    debugLinesId = lineEngine->addLines(box, transformation, color);
+}
+
+void DebugBox::update() {
+    mLineEngine->updateLineTransformation(
+        debugLinesId, glm::translate(glm::mat4{1.0}, center) * glm::scale(glm::mat4{1.0}, halfExtent * glm::vec3{2.0}));
 }

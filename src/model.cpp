@@ -260,7 +260,7 @@ glm::mat4 aiMatrix4x4ToGlm(const aiMatrix4x4& from) {
 // Modified processNode to pass parent transformation
 void Model::processNode(Application* app, aiNode* node, const aiScene* scene, const glm::mat4& parentTransform) {
     // Compute global transformation for this node
-    glm::mat4 nodeTransform = glm::mat4{1.0};
+    glm::mat4 nodeTransform = glm::mat4{1.0};  // AiToGlm(node->mTransformation);
     // aiMatrix4x4ToGlm(node->mTransformation);
     glm::mat4 globalTransform = parentTransform * nodeTransform;
 
@@ -268,7 +268,7 @@ void Model::processNode(Application* app, aiNode* node, const aiScene* scene, co
     for (uint32_t i = 0; i < node->mNumMeshes; i++) {
         unsigned int mid = node->mMeshes[i];
         aiMesh* mesh = scene->mMeshes[mid];
-        processMesh(app, mesh, scene, mid, /*globalTransform*/ nodeTransform);
+        processMesh(app, mesh, scene, mid, globalTransform);
     }
 
     // Recursively process child nodes
@@ -311,7 +311,12 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
     // Compute normal transformation (inverse transpose for normals)
     glm::mat4 normalTransform = glm::transpose(glm::inverse(globalTransform));
+    glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(globalTransform)));
 
+    glm::mat4 yUpToZUp = glm::mat4(1.0f);
+    yUpToZUp = glm::rotate(yUpToZUp, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));  // 90° around X
+    glm::mat3 rot3 = glm::mat3(yUpToZUp);
+    //
     for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
         VertexAttributes vertex;
 
@@ -320,10 +325,12 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
         pos = globalTransform * pos;
         glm::vec3 vector(pos.x, pos.y, pos.z);
 
+        pos = yUpToZUp * pos;
         // Adjust coordinate system (as in your original code)
-        vertex.position.x = vector.x;
-        vertex.position.z = vector.y;
-        vertex.position.y = -vector.z;
+        // vertex.position.x = vector.x;
+        // vertex.position.z = vector.y;
+        // vertex.position.y = -vector.z;
+        vertex.position = glm::vec3(pos);
 
         glm::mat4 swap{1.0};  // identity matrix for default case
         if (mCoordinateSystem == CoordinateSystem::Z_UP) {
@@ -352,12 +359,13 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
         if (mesh->HasNormals()) {
             // Transform normal
             glm::vec3 normal(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
-            normal = glm::mat3(normalTransform) * normal;
-            vertex.normal.x = normal.x;
-            vertex.normal.y = normal.z;
-            vertex.normal.z = normal.y;
+            normal = normalMatrix * normal;
+            // vertex.normal.x = normal.x;
+            // vertex.normal.y = -normal.z;
+            // vertex.normal.z = normal.y;
+            vertex.normal = rot3 * normal;
 
-            auto temp = swap * glm::vec4{vertex.normal, 1.0};
+            auto temp = swap * glm::vec4{vertex.normal, 0.0};
             vertex.normal = glm::vec3{temp};
         }
 
@@ -373,19 +381,24 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             if (mesh->mTangents && mesh->mBitangents) {
                 // Transform tangent
                 glm::vec3 tangent(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);
-                tangent = glm::mat3(globalTransform) * tangent;
-                vertex.tangent.x = tangent.x;
-                vertex.tangent.y = tangent.z;
-                vertex.tangent.z = tangent.y;
-                vertex.tangent = glm::vec3{swap * glm::vec4{vertex.tangent, 1.0}};
+                tangent = normalMatrix * tangent;
+                // vertex.tangent.x = tangent.x;
+                // vertex.tangent.y = -tangent.z;
+                // vertex.tangent.z = tangent.y;
+                vertex.tangent = rot3 * tangent;
+                vertex.tangent = glm::vec3{swap * glm::vec4{vertex.tangent, 0.0}};
+                vertex.tangent =
+                    glm::normalize(vertex.tangent - vertex.normal * glm::dot(vertex.normal, vertex.tangent));
 
                 // Transform bitangent
                 glm::vec3 bitangent(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z);
-                bitangent = glm::mat3(globalTransform) * bitangent;
-                vertex.biTangent.x = bitangent.x;
-                vertex.biTangent.y = bitangent.z;
-                vertex.biTangent.z = bitangent.y;
-                vertex.biTangent = glm::vec3{swap * glm::vec4{vertex.biTangent, 1.0}};
+                bitangent = normalMatrix * bitangent;
+                // vertex.biTangent.x = bitangent.x;
+                // vertex.biTangent.y = -bitangent.z;
+                // vertex.biTangent.z = bitangent.y;
+                vertex.biTangent = rot3 * bitangent;
+                vertex.biTangent = glm::vec3{swap * glm::vec4{vertex.biTangent, 0.0}};
+                vertex.biTangent = glm::cross(vertex.normal, vertex.tangent);
             }
         } else {
             vertex.uv = glm::vec2{0.0f, 0.0f};
@@ -623,8 +636,8 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     mBindGroupEntry[0].size = sizeof(ObjectInfo);
 
     mBindGroupEntry[1].nextInChain = nullptr;
-    mBindGroupEntry[1].buffer = mScene->HasAnimations() ? mSkiningTransformationBuffer.getBuffer()
-                                                        : app->mDefaultBoneFinalTransformData.getBuffer();
+    mBindGroupEntry[1].buffer = mTransform.mObjectInfo.isAnimated ? mSkiningTransformationBuffer.getBuffer()
+                                                                  : app->mDefaultBoneFinalTransformData.getBuffer();
     mBindGroupEntry[1].binding = 1;
     mBindGroupEntry[1].offset = 0;
     mBindGroupEntry[1].size = 100 * sizeof(glm::mat4);

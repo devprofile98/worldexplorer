@@ -34,6 +34,7 @@ struct Light {
 class LightManager {
     public:
         static LightManager* init(Application* app);
+        static LightManager* getInstance();
         void createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float cons, float lin,
                               float quad, const char* name);
 
@@ -51,8 +52,8 @@ class LightManager {
 
     private:
         Application* mApp;
+        inline static LightManager* mLightInstance = nullptr;
         LightManager(Application* app);
-        /*static inline Light* mLightInstance;*/
         Buffer mLightCountBuffer;
         std::vector<Light> mLights;
         std::vector<std::string> mLightsNames;

@@ -83,7 +83,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 
     out.tangent = T;
     out.biTangent = B;
-    out.aNormal = normalize(out.normal);
+    out.aNormal = N;
 
     var index: u32 = numOfCascades - 1u;
     for (var i: u32 = 0u; i < numOfCascades; i = i + 1u) {
@@ -147,25 +147,18 @@ fn calculateSpotLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo:
     let kS = F;
     var kD = vec3f(1.0) - kS;
     kD = kD * (1.0 - metallic);
-    let NdotL = max(abs(dot(normalize(N), L)), 0.0);
+    let NdotL = max(dot(normalize(N), L), 0.0);
     return (kD * albedo / 3.1415926535 + specular) * radiance * NdotL;
-    //if NdotL > 0.001f {
-    //   return vec3f(NdotL, NdotL, NdotL);
-    //}
-    //return L;
 }
 
 fn calculatePointLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo: vec3f, roughness: f32, metallic: f32, F0: vec3f) -> vec3f {
-    // Only process point lights (type == 3)
     if light.ftype != 3i {
         return vec3f(0.0);
     }
 
     let diff = light.position.xyz - pos;
     let distance = length(diff);
-    //if distance > 5.0 {
-     //   return vec3f(0.0);
-    //}
+
     let L = normalize(diff);
     let H = normalize(V + L);
     let attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
@@ -175,13 +168,13 @@ fn calculatePointLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo
     let G = geometrySmith(N, V, L, roughness);
     let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 
-    let numerator = NDF * G * F;
-    let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-    let specular = numerator / denominator;
-
     let kS = F;
     var kD = vec3f(1.0) - kS;
     kD = kD * (1.0 - metallic);
+
+    let numerator = NDF * G * F;
+    let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    let specular = numerator / denominator;
 
     let NdotL = max(dot(N, L), 0.0);
 
@@ -249,15 +242,36 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     var metallic = material.b;
 
 
-    var normal = textureSample(normal_map, textureSampler, uv).rgb;
-    normal = normal * 2.0 - 1.0;
-    let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
+    var normal = textureSample(normal_map, textureSampler, uv).rgb * 2.0 - 1.0;
+    //normal = normal * 2.0 - 1.0;
+    //let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.normal));
+
+    let nnn = normalize(in.aNormal);
+    let T = normalize(in.tangent);
+    let T_ortho = normalize(T - nnn * dot(T, nnn));
+
+// Base bitangent (always same direction)
+    let B_base = cross(nnn, T_ortho);
+
+// Compute handedness sign by comparing to loaded bitangent
+    let handedness = sign(dot(B_base, normalize(in.biTangent)));  // +1.0 or -1.0
+
+// Final bitangent with correct flip for mirrored UVs
+    let B = B_base * handedness;
+
+    let TBN = mat3x3f(T_ortho, B, nnn);
+
+
+
+    //let TBN = mat3x3f(normalize(in.tangent), normalize(in.biTangent), normalize(in.aNormal));
     var N = normalize(TBN * normal);
+
     let V = normalize(in.viewDirection);
 
     if (in.materialProps & (1u << 1u)) != 2u {
         N = in.aNormal;
     }
+
 
     if (in.materialProps & (1u << 3u)) != 8u {
         metallic = in.userSpecular;
@@ -274,7 +288,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     for (var i = 0u; i < 5; i += 1u) {
         let light = pointLight[i];
         if light.ftype == 3i {
-            //lo += calculatePointLight(light, in.normal, V, in.worldPos, in.albedo, in.roughness, in.metallic, F0);
             lo += calculatePointLight(light, N, V, in.worldPos, albedo, roughness, metallic, F0);
         } else if light.ftype == 2i {
             lo += calculateSpotLight(light, N, V, in.worldPos, albedo, roughness, metallic, F0);
@@ -298,18 +311,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
         let specular = numerator / denominator;
 
-        //return vec4f(numerator, 1.0);
-
         let kS = F;
-
         var kD = vec3f(1.0) - kS;
         kD = kD * (1.0 - metallic);
 
         let NdotL = max(dot(N, L), 0.0);
 
-        lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - shadow) ;
-        //lo += F * radiance * NdotL * (1.0 - shadow);
-        //lo += L;
+        lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - shadow);
+        //lo += (albedo / PI + specular) * radiance * NdotL * (1.0 - shadow);
+        //lo += (kD);
     }
 
     let ambient = vec3(0.03) * albedo * ao;
@@ -319,10 +329,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	// HDR tonemapping
     color = color / (color + vec3f(1.0));
 	// gamma correct
-    color = pow(color, vec3(1.1 / 1.0));
+    //color = pow(color, vec3(1.2));
 
 
     return vec4f(color, 1.0);
+    //return vec4f(lo, 1.0);
+    //return vec4f(vec3f(handedness * 255.0, 0.0, 0.0), 1.0);
     //let animated = f32(in.materialProps >> 6);
     //if in.shadowIdx == 0u {
 
@@ -341,6 +353,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //    return vec4f(0.0, 0.0, 1.0, 1.0);
     //}
 
-    //return vec4f((ambient + lo), 1.0);
     //return vec4f(in.shadowIdx * 50.0, in.shadowIdx * 50.0, f32(in.shadowIdx) * 50.0, 1.0);
 }

@@ -9,6 +9,7 @@
 #include "input_manager.h"
 #include "model.h"
 #include "physics.h"
+#include "utils.h"
 
 class Application;
 
@@ -33,7 +34,7 @@ struct Editor {
         void showBoneAt(const glm::mat4& transformation);
         static inline BaseModel* BoneIndicator = nullptr;
         GizmoElement gizmo;
-        std::variant<std::monostate, BaseModel*, physics::BoxCollider*> mSelectedObject;
+        std::variant<std::monostate, BaseModel*, physics::BoxCollider*, DebugBox*> mSelectedObject;
 };
 
 class Screen : public MouseMoveListener,

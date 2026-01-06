@@ -256,12 +256,8 @@ struct BaseModelLoader : public IModel {
                 .scale(param.scale)
                 .rotate(param.rotate, 0.0);
             mModel->uploadToGPU(app);
-            // mModel->setTransparent(false);
-            // mModel->setFoliage();
-            //
-            //
-            //
 
+            mModel->mTransform.mObjectInfo.isAnimated = param.animated;
             if (param.animated) {
                 mModel->mSkiningTransformationBuffer.setLabel("default skining data transform for human")
                     .setSize(100 * sizeof(glm::mat4))

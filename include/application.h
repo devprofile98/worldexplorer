@@ -113,6 +113,7 @@ class Application {
         LineEngine* mLineEngine;
         SkyBox* mSkybox;
         Window<GLFWwindow>* mWindow;
+        DebugBox debugbox;
 
         // private:
         Camera mCamera;

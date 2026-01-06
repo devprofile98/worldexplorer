@@ -150,8 +150,17 @@ void GizmoElement::onMouseMove(MouseEvent event) {
             auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
             if (new_pos.has_value()) {
                 selected_entity->mCenter = new_pos.value();
-                // auto [min, max] = selected_entity->getWorldSpaceAABB();
                 GizmoElement::moveTo(selected_entity->mCenter);
+            }
+        } else if (std::holds_alternative<DebugBox*>(editor_selected)) {
+            std::cout << "Debug Box\n";
+            DebugBox* selected_entity = std::get<DebugBox*>(editor_selected);
+            auto& pos = selected_entity->center;
+            auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
+            if (new_pos.has_value()) {
+                selected_entity->center = new_pos.value();
+                GizmoElement::moveTo(selected_entity->center);
+                selected_entity->update();
             }
         }
     }
@@ -459,10 +468,9 @@ void Screen::onMouseClick(MouseEvent event) {
                 GizmoElement::mIsLocked = true;
                 return;
             }
-            auto intersected_model =
-                testIntersection(mApp->getCamera(), w_width, w_height, {xpos, ypos},
-                                 ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User));
-            // std::cout << "First here " << (intersected_model) << " " << mApp->mSelectedModel << "\n";
+            auto intersected_model = testIntersection(
+                mApp->getCamera(), w_width, w_height, {xpos, ypos},
+                ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User), {&mApp->debugbox});
             if (!std::holds_alternative<std::monostate>(intersected_model)) {
                 if (std::holds_alternative<BaseModel*>(intersected_model)) {
                     if (mApp->mSelectedModel) {
@@ -471,6 +479,8 @@ void Screen::onMouseClick(MouseEvent event) {
                     mApp->mSelectedModel = std::get<BaseModel*>(intersected_model);
                     mApp->mSelectedModel->selected(true);
                     mApp->mEditor->mSelectedObject = mApp->mSelectedModel;
+                } else if (std::holds_alternative<DebugBox*>(intersected_model)) {
+                    mApp->mEditor->mSelectedObject = std::get<DebugBox*>(intersected_model);
                 }
                 auto& editor_selected = mApp->mEditor->mSelectedObject;
 
@@ -484,7 +494,9 @@ void Screen::onMouseClick(MouseEvent event) {
                         std::cout << "Couldnt find the gizmo model " << mApp->mSelectedModel->getName() << std::endl;
                     }
                 } else if (std::holds_alternative<physics::BoxCollider*>(editor_selected)) {
-                    std::cout << "Now we hold a box collider" << std::endl;
+                } else if (std::holds_alternative<DebugBox*>(editor_selected)) {
+                    auto* box = std::get<DebugBox*>(intersected_model);
+                    GizmoElement::moveTo(box->center);
                 }
             }
         }
