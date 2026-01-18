@@ -60,13 +60,10 @@ struct alignas(16) Material {
         uint32_t isFoliage;
         uint32_t materialProps;
 
-        // Block 2: Starts at Offset 16
         float roughness;  // Matches metallicness: f32 (4 bytes)
 
-        // EXPLICIT PADDING (12 bytes needed: 16 + 4 = 20. Next 16-byte boundary is 32. 32 - 20 = 12 bytes.)
         uint32_t _padding[3];  // 3 * 4 bytes = 12 bytes
 
-        // Block 3: Starts at Offset 32. This is correct for the vec3f (16-byte alignment).
         glm::vec3 uvMultiplier = glm::vec3{1.0};  // Matches uvMultiplier: vec3f (12 bytes)
 
         inline bool hasFlag(MaterialProps checkFlag) {
@@ -104,9 +101,9 @@ class Mesh {
         std::shared_ptr<Texture> mNormalMapTexture = nullptr;
         Buffer mVertexBuffer = {};
         Buffer mIndexBuffer = {};
-        Buffer mIndirectDrawArgsBuffer;  // copy dst, map read
-        Buffer mMaterialBuffer;          // copy dst, map read
-        Buffer mMeshMapIdx;              // copy dst, map read
+        Buffer mIndirectDrawArgsBuffer;
+        Buffer mMaterialBuffer;
+        Buffer mMeshMapIdx;
         bool isTransparent = false;
         WGPUBindGroup mTextureBindGroup = {};
         std::vector<WGPUBindGroupEntry> binding_data{2};

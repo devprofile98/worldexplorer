@@ -41,7 +41,7 @@ class ShadowPass : public RenderPass {
         WGPUTextureView getShadowMapView();
         void render(ModelRegistry::ModelContainer& models, WGPURenderPassEncoder encoder, size_t which);
         void renderAllCascades(WGPUCommandEncoder encoder);
-        // std::vector<Scene>& getScene2();
+        WGPUTextureView getTextureView(size_t level, size_t count);
 
         glm::vec3 lightPos = glm::vec3{0.0f};
 

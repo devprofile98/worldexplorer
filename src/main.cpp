@@ -21,7 +21,7 @@ int main(int, char**) {
         while (app.isRunning()) {
             app.mainLoop();
         }
-        std::cout << "What the fuck!" << std::endl;
+        std::cout << "Engine Closed!" << std::endl;
 
         app.terminate();
         return 0;

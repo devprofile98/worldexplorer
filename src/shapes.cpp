@@ -453,7 +453,7 @@ uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points, const glm::m
     mLineGroups[id] = {transformation, color, {}, 0, true};
     auto& segments = mLineGroups[id].segment;
     for (const auto& p : points) {
-        segments.emplace_back(LineSegment{p, color, id});
+        segments.emplace_back(LineSegment{p, color, id, true});
         std::cout << segments.size() << " " << id << std::endl;
     }
     // std::cout << "Line is " << mNextGroupId << " " << mLineGroups[id].segment.transformationId << std::endl;
@@ -468,16 +468,27 @@ void LineEngine::removeLines(uint32_t id) {
     }
 }
 
-// Update a group's points (e.g., when object moves)
+void LineEngine::setVisibility(uint32_t id, bool visibility) {
+    auto it = mLineGroups.find(id);
+    if (it == mLineGroups.end()) return;
+
+    LineGroup& group = it->second;
+    for (auto& p : group.segment) {
+        p.isActive = visibility;
+    }
+    group.dirty = true;
+}
+
 void LineEngine::updateLines(uint32_t id, const std::vector<glm::vec4>& newPoints) {
     auto it = mLineGroups.find(id);
+    // std::cout << "updating debug line group " << id << std::endl;
     if (it == mLineGroups.end()) return;
 
     LineGroup& group = it->second;
     bool sizeChanged = (newPoints.size() != group.segment.size());
     std::vector<LineSegment> segments;
     for (const auto& p : newPoints) {
-        segments.emplace_back(LineSegment{p, group.groupColor, id});
+        segments.emplace_back(LineSegment{p, group.groupColor, id, true});
     }
     group.segment = segments;
     group.dirty = true;
@@ -494,5 +505,18 @@ void LineEngine::updateLineTransformation(uint32_t id, const glm::mat4& trans) {
     }
     LineGroup& group = it->second;
     group.transformation = trans;
+    group.dirty = true;
+}
+
+void LineEngine::updateLineColor(uint32_t id, const glm::vec3& color) {
+    auto it = mLineGroups.find(id);
+    mLineGroups.find(id);
+    std::cout << id << std::endl;
+    if (it == mLineGroups.end()) return;
+
+    LineGroup& group = it->second;
+    for (auto& p : group.segment) {
+        p.color = color;
+    }
     group.dirty = true;
 }

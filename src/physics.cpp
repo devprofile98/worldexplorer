@@ -21,6 +21,7 @@
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 
+#include <algorithm>
 #include <glm/fwd.hpp>
 #include <memory>
 
@@ -256,7 +257,7 @@ void prepareJolt() {
         floorSettings.mFriction = 1.0f;
         floorSettings.mRestitution = 0.1f;  // no bounce
 
-        bodyInterface.CreateAndAddBody(floorSettings, EActivation::DontActivate);
+        // bodyInterface.CreateAndAddBody(floorSettings, EActivation::DontActivate);
     }
 
     // {
@@ -305,13 +306,11 @@ void setPosition(BodyID id, const glm::vec3& pos) {
     interface.SetPosition(id, {pos.x, pos.z, pos.y}, EActivation::Activate);
 }
 
-void JoltLoop(float dt) {
-    // BodyInterface& bodyInterface = physicsSystem.GetBodyInterface();
-    physicsSystem.Update(dt, 1, temp_allocator, job_system);
-}
+void JoltLoop(float dt) { physicsSystem.Update(dt, 1, temp_allocator, job_system); }
 
-BoxCollider::BoxCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent, bool isStatic)
-    : mCenter(center), mHalfExtent(halfExtent), mIsStatic(isStatic) {
+BoxCollider::BoxCollider(Application* app, const std::string& name, const glm::vec3& center,
+                         const glm::vec3& halfExtent, bool isStatic)
+    : mCenter(center), mHalfExtent(halfExtent), mName(name), mIsStatic(isStatic) {
     auto box = generateBox();
     mBoxId = app->mLineEngine->addLines(
         box, glm::translate(glm::mat4{1.0}, mCenter) * glm::scale(glm::mat4{1.0}, halfExtent * glm::vec3{2.0}),
@@ -335,10 +334,22 @@ glm::mat4 BoxCollider::getTransformation() const {
 
 uint32_t BoxCollider::getBoxId() const { return mBoxId; }
 
-uint32_t PhysicSystem::createCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent,
-                                      bool isStatic) {
-    mColliders.emplace_back(app, center, halfExtent, isStatic);
+std::shared_ptr<PhysicsComponent> BoxCollider::getPhysicsComponent() { return mPhysicComponent; }
+
+uint32_t PhysicSystem::createCollider(Application* app, const std::string& name, const glm::vec3& center,
+                                      const glm::vec3& halfExtent, bool isStatic) {
+    mColliders.emplace_back(app, name, center, halfExtent, isStatic);
     return mColliders.size() - 1;
+}
+
+void PhysicSystem::removeCollider(BoxCollider& collider) {
+    // TODO check how to check for the result
+    auto body_id = collider.getPhysicsComponent()->bodyId;
+    BodyInterface& body_interface = physicsSystem.GetBodyInterface();
+
+    auto _ = std::remove_if(mColliders.begin(), mColliders.end(),
+                            [&body_id](BoxCollider& box) { return body_id == box.getPhysicsComponent()->bodyId; });
+    body_interface.RemoveBody(body_id);
 }
 
 }  // namespace physics

@@ -386,7 +386,6 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
             if (model->instance == nullptr) {
                 wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
             } else {
-                // wgpuRenderPassEncoderDrawIndexedIndirect(encoder, model->mIndirectDrawArgsBuffer.getBuffer(), 0);
                 wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), model->instance->getInstanceCount(),
                                                  0, 0, 0);
             }
@@ -394,9 +393,10 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
     }
 }
 
-// std::vector<Scene>& ShadowPass::getScene2() { return mScenes; }
-
 WGPUTextureView ShadowPass::getShadowMapView() { return mShadowDepthTexture->getTextureViewArray(); }
+WGPUTextureView ShadowPass::getTextureView(size_t level, size_t count) {
+    return mShadowDepthTexture->createViewDepthOnly2(0, 1);
+}
 
 void printMatrix(const glm::mat4& matrix) {
     for (int row = 0; row < 4; ++row) {
@@ -407,22 +407,12 @@ void printMatrix(const glm::mat4& matrix) {
     }
 }
 
-// -------------------------------------------------------------------
-// -------------------------------------------------------------------
-// -------------------------------------------------------------------
-// -------------------------------------------------------------------
-//
-//
-//
-//
-
 DepthPrePass::DepthPrePass(Application* app, const std::string& name, WGPUTextureView depthTexture)
     : RenderPass(name), mApp(app) {
     mColorAttachment =
         ColorAttachment{nullptr, nullptr, WGPUColor{0.02, 0.80, 0.92, 1.0}, StoreOp::Discard, LoadOp::Load};
 
     auto* mRenderPassDesc = getRenderPassDescriptor();
-    // setDefault(mRenderPassDesc);
     *mRenderPassDesc = {};
     mRenderPassDesc->nextInChain = nullptr;
     mRenderPassDesc->colorAttachmentCount = 1;

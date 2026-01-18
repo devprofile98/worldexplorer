@@ -125,6 +125,10 @@ struct AABB {
         glm::vec3 getAABBSize();
 };
 
+struct Transformable {
+        virtual Transformable& moveTo(const glm::vec3& to);
+};
+
 class BaseModel : public Drawable, public AABB, public DebugUI {
     public:
         BaseModel()

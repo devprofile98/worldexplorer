@@ -15,20 +15,6 @@
 
 const PI: f32 = 3.141592653589793;
 
-fn degreeToRadians(degrees: f32) -> f32 {
-    return degrees * (PI / 180.0); // Convert 90 degrees to radians
-}
-
-fn decideColor(default_color: vec3f, is_flat: i32, Y: f32) -> vec3f {
-
-    if is_flat == 1 {
-        if Y > 2.0 {
-            return vec3f(1.0, 0.0, 0.0);
-        }
-        return vec3f(0.0, 1.0, 0.0);
-    }
-    return default_color;
-}
 
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
@@ -77,16 +63,20 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
         }
     }
     // if length(out.viewSpacePos) > ElapsedTime { index = 1;}
-    out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
+    //out.shadowPos = lightSpaceTrans[index].projection * lightSpaceTrans[index].view * world_position;
     //out.shadowIdx = index;
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+    let sun_dir = vec3f(-0.7, 1.0, 1.0);
     if in.shadowIdx > 0 {
-        return vec4f(in.color, 0.3);
+        return vec4f(vec3f(0.5, 0.5, 0.0), 0.9);
     }
-    return vec4f(in.color, 0.9);
+
+    let N = normalize(in.normal);
+    let NdotL = max(dot(N, sun_dir), 0.0) ;
+    return vec4f(mix(N, in.color, 0.9), 0.5);
 }
 

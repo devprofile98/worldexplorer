@@ -1,5 +1,7 @@
 #include "instance.h"
 
+#include <strings.h>
+
 #include "application.h"
 #include "glm/ext/quaternion_transform.hpp"
 #include "glm/trigonometric.hpp"
@@ -25,7 +27,7 @@ Instance::Instance(std::vector<glm::vec3> positions, glm::vec3 rotationAxis, std
         auto scale = glm::scale(glm::mat4{1.0f}, scales[i]);
         auto model_matrix = trans * rotate * scale;
         // model_matrix = glm::rotate(model_matrix, glm::radians(180.0f), glm::vec3{1.0, 0.0, 0.0});
-        mInstanceBuffer.push_back({model_matrix, model_matrix * minAABB, model_matrix * maxAABB});
+        mInstanceBuffer.emplace_back(model_matrix, model_matrix * minAABB, model_matrix * maxAABB);
     }
 }
 
@@ -75,3 +77,25 @@ void Instance::dumpJson() {
 size_t Instance::getInstanceCount() { return mInstanceBuffer.size(); }
 
 uint16_t Instance::getInstanceID() { return mOffsetID; }
+
+SingleInstance Instance::createInstanceWrapper(size_t index) { return SingleInstance(index, this); }
+
+SingleInstance::SingleInstance(size_t idx, Instance* ins) : idx(idx), instance(ins) {}
+
+Transformable& SingleInstance::moveTo(const glm::vec3& to) {
+    // auto& ins = instance->mInstanceBuffer[idx];
+    auto& ins_pos = instance->mPositions[idx];
+    ins_pos = to;
+
+    glm::mat4 t = glm::translate(glm::mat4{1.0}, instance->mPositions[idx]);
+    t = glm::rotate(t, 0.f, {1.0, 0.0, 0.0});
+    t = glm::scale(t, instance->mScale[idx]);
+
+    instance->mInstanceBuffer[idx] = {t, t * glm::vec4{instance->parent->min, 1.0f},
+                                      t * glm::vec4{instance->parent->max, 1.0f}};
+
+    auto& queue = instance->mApp->getRendererResource().queue;
+    wgpuQueueWriteBuffer(queue, instance->mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
+                         idx * sizeof(InstanceData), &instance->mInstanceBuffer[idx], sizeof(InstanceData));
+    return *this;
+}

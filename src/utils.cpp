@@ -2,6 +2,7 @@
 
 #include <webgpu/webgpu.h>
 
+#include <algorithm>
 #include <format>
 #include <iostream>
 #include <numbers>
@@ -13,7 +14,10 @@
 #include "application.h"
 #include "glm/ext/quaternion_geometric.hpp"
 #include "glm/fwd.hpp"
+#include "glm/geometric.hpp"
+#include "glm/gtx/string_cast.hpp"
 #include "glm/trigonometric.hpp"
+#include "instance.h"
 #include "mesh.h"
 #include "model.h"
 #include "physics.h"
@@ -679,17 +683,18 @@ bool intersection(const glm::vec3& ray_origin, const glm::vec3& ray_dir, const g
     return false;
 }
 
-float rayDotVector(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
-                   const glm::vec3& vec) {
+glm::vec4 toClipSpace(size_t width, size_t height, const std::pair<size_t, size_t>& mouseCoord) {
     auto [xpos, ypos] = mouseCoord;
     double xndc = 2.0 * xpos / (float)width - 1.0;
     double yndc = 1.0 - (2.0 * ypos) / (float)height;
-    glm::vec4 clip_coords = glm::vec4{xndc, yndc, 0.0, 1.0};
+    return glm::vec4{xndc, yndc, 0.0, 1.0};
+}
+
+float rayDotVector(Camera& camera, size_t width, size_t height, const std::pair<size_t, size_t>& mouseCoord,
+                   const glm::vec3& vec) {
+    const glm::vec4 clip_coords = toClipSpace(width, height, mouseCoord);
     glm::vec4 eyecoord = glm::inverse(camera.getProjection()) * clip_coords;
     eyecoord = glm::vec4{eyecoord.x, eyecoord.y, -1.0f, 0.0f};
-
-    // auto ray_origin = camera.getPos();
-
     glm::vec4 worldray = glm::normalize(glm::inverse(camera.getView()) * eyecoord);
     return glm::dot(glm::vec3{worldray}, vec);
 }
@@ -702,61 +707,84 @@ bool isInside(const glm::vec3& pos, const glm::vec3& min, const glm::vec3& max) 
     return in_x && in_y && in_z;
 }
 
+glm::vec3 worldToClip(const glm::mat4& projection, const glm::vec3& vector) {
+    auto res = projection * glm::vec4(vector, 0.0);
+    // std::cout << "0--------> " << glm::to_string() << std::endl;
+    return glm::normalize(glm::vec3(std::move(res)));
+}
+
 IntersectionRes testIntersection(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
                                  const ModelRegistry::ModelContainer& models, std::vector<DebugBox*>&& debugBoxes) {
-    auto [xpos, ypos] = mouseCoord;
-    double xndc = 2.0 * xpos / (float)width - 1.0;
-    double yndc = 1.0 - (2.0 * ypos) / (float)height;
-    glm::vec4 clip_coords = glm::vec4{xndc, yndc, 0.0, 1.0};
+    const glm::vec4 clip_coords = toClipSpace(width, height, mouseCoord);
     glm::vec4 eyecoord = glm::inverse(camera.getProjection()) * clip_coords;
     eyecoord = glm::vec4{eyecoord.x, eyecoord.y, -1.0f, 0.0f};
 
     auto ray_origin = camera.getPos();
 
-    glm::vec4 worldray = glm::inverse(camera.getView()) * eyecoord;
-    auto normalized = glm::normalize(worldray);
-    for (auto& obj : models) {
-        auto [obj_in_world_min, obj_in_world_max] = obj->getWorldMin();
-        bool does_intersect = intersection(ray_origin, normalized, obj_in_world_min, obj_in_world_max);
-        auto is_inside = isInside(ray_origin, obj_in_world_min, obj_in_world_max);
+    using HitResult = std::pair<IntersectionRes, glm::vec3>;
+    std::vector<HitResult> hits;
 
+    auto worldray = glm::normalize(glm::inverse(camera.getView()) * eyecoord);
+    for (auto& obj : models) {
+        auto [obj_min, obj_max] = obj->getWorldMin();
+        bool does_intersect = intersection(ray_origin, worldray, obj_min, obj_max);
+        auto is_inside = isInside(ray_origin, obj_min, obj_max);
+
+        if (obj->instance != nullptr) {
+            auto* ins = obj->instance;
+            for (size_t i = 0; i < ins->mInstanceBuffer.size(); ++i) {
+                auto [_, obj_in_world_min, obj_in_world_max] = ins->mInstanceBuffer[i];
+                bool does_intersect = intersection(ray_origin, worldray, obj_in_world_min, obj_in_world_max);
+                auto is_inside = isInside(ray_origin, obj_in_world_min, obj_in_world_max);
+                if (does_intersect && !is_inside) {
+                    std::cout << "Instance object is intersecting with the ray!\n";
+                    hits.emplace_back(ins->createInstanceWrapper(i), glm::vec3(ins->mPositions[i]));
+                }
+            }
+        }
         if (does_intersect && !is_inside) {
-            return obj;
+            hits.emplace_back(obj, obj->mTransform.mPosition);
         }
     }
 
     for (auto& debug_obj : debugBoxes) {
         auto world_min = debug_obj->center + debug_obj->halfExtent;
         auto world_max = debug_obj->center - debug_obj->halfExtent;
-        bool does_intersect = intersection(ray_origin, normalized, world_min, world_max);
+        bool does_intersect = intersection(ray_origin, worldray, world_min, world_max);
         auto is_inside = isInside(ray_origin, world_min, world_max);
 
         if (does_intersect && !is_inside) {
-            return debug_obj;
+            hits.emplace_back(debug_obj, debug_obj->center);
         }
     }
 
-    for (auto& debug_obj : LightManager::getLights()) {
-        auto world_min = debug_obj->center + debug_obj->halfExtent;
-        auto world_max = debug_obj->center - debug_obj->halfExtent;
-        bool does_intersect = intersection(ray_origin, normalized, world_min, world_max);
+    for (auto& debug_obj : LightManager::getInstance()->getLights()) {
+        auto half_extent = glm::vec4{0.5, 0.5, 0.5, 0.5};
+        auto world_min = debug_obj.mPosition + half_extent;
+        auto world_max = debug_obj.mPosition - half_extent;
+        bool does_intersect = intersection(ray_origin, worldray, world_min, world_max);
         auto is_inside = isInside(ray_origin, world_min, world_max);
 
         if (does_intersect && !is_inside) {
-            return debug_obj;
+            hits.emplace_back(&debug_obj, glm::vec3(debug_obj.mPosition));
         }
     }
 
-    return std::monostate{};
+    std::cout << "ray Hit " << hits.size() << " Objects \n";
+
+    std::sort(hits.begin(), hits.end(), [ray_origin](HitResult& a, HitResult& b) {
+        auto a_dist = std::abs(glm::distance(a.second, ray_origin));
+        auto b_dist = std::abs(glm::distance(b.second, ray_origin));
+        return a_dist < b_dist;
+    });
+
+    return hits.size() == 0 ? std::monostate{} : hits[0].first;
 }
 
 std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width, size_t height,
                                                    std::pair<size_t, size_t> mouseCoord, const glm::vec3& min,
                                                    const glm::vec3& max) {
-    auto [xpos, ypos] = mouseCoord;
-    double xndc = 2.0 * xpos / (float)width - 1.0;
-    double yndc = 1.0 - (2.0 * ypos) / (float)height;
-    glm::vec4 clip_coords = glm::vec4{xndc, yndc, 0.0, 1.0};
+    const glm::vec4 clip_coords = toClipSpace(width, height, mouseCoord);
     glm::vec4 eyecoord = glm::inverse(camera.getProjection()) * clip_coords;
     eyecoord = glm::vec4{eyecoord.x, eyecoord.y, -1.0f, 0.0f};
 
@@ -772,10 +800,7 @@ std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width,
 
 BaseModel* testIntersection2(Camera& camera, size_t width, size_t height, std::pair<size_t, size_t> mouseCoord,
                              const std::vector<BaseModel*>& models) {
-    auto [xpos, ypos] = mouseCoord;
-    double xndc = 2.0 * xpos / (float)width - 1.0;
-    double yndc = 1.0 - (2.0 * ypos) / (float)height;
-    glm::vec4 clip_coords = glm::vec4{xndc, yndc, 0.0, 1.0};
+    const glm::vec4 clip_coords = toClipSpace(width, height, mouseCoord);
     glm::vec4 eyecoord = glm::inverse(camera.getProjection()) * clip_coords;
     eyecoord = glm::vec4{eyecoord.x, eyecoord.y, -1.0f, 0.0f};
 
@@ -971,7 +996,7 @@ PerfTimer::PerfTimer(std::string_view label) : mLabel(label), mStart(std::chrono
 PerfTimer::~PerfTimer() {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = end - mStart;
-    std::cout << "Completes in " << duration.count() << std::endl;
+    std::cout << mLabel << " Completes in " << duration.count() << std::endl;
 }
 
 void DebugBox::create(LineEngine* lineEngine, const glm::mat4& transformation, const glm::vec3& color) {

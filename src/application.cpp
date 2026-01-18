@@ -15,6 +15,7 @@
 
 #include "animation.h"
 #include "binding_group.h"
+#include "camera.h"
 #include "glm/detail/qualifier.hpp"
 #include "glm/gtx/quaternion.hpp"
 #include "glm/matrix.hpp"
@@ -67,8 +68,10 @@
 
 static bool cull_frustum = false;
 static bool show_physic_objects = false;
-static bool runPhysics = true;
+static bool show_physic_debugs = true;
+static bool runPhysics = false;
 static Model* selectedPhysicModel = nullptr;
+static uint32_t debugboxid = std::numeric_limits<uint32_t>::max();
 
 bool flip_x = false;
 bool flip_y = false;
@@ -429,11 +432,6 @@ void Application::initializeBuffers() {
         .setSize(sizeof(Light) * 10)
         .setMappedAtCraetion(false)
         .create(this);
-    glm::vec4 red = {1.0, 0.0, 0.0, 1.0};
-    glm::vec4 blue = {0.0, 0.0, 1.0, 1.0};
-
-    mLightManager->createPointLight({-2.5, -5.833, 0.184, 1.0}, red, red, red, 1.0, -3.0, 1.8, "red light 1");
-    mLightManager->createPointLight({-1.0, -0.833, 1.0, 1.0}, blue, blue, blue, 1.0, -0.922, 1.8, "blue light 1");
 
     mLightManager->uploadToGpu(this, mLightBuffer.getBuffer());
 
@@ -616,6 +614,7 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     physics::prepareJolt();
 
     mWorld = new World{this};
+    // mWorld->actor = mEditor->mEditorActive ? nullptr : mWorld->actor;
 
     // WGPUBufferDescriptor resolveBufferDesc{};
     // resolveBufferDesc.label = {"timing buffer", WGPU_STRLEN};
@@ -644,6 +643,7 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
 static bool first_time = true;
 
 void Application::mainLoop() {
+    double time = glfwGetTime();
     glfwPollEvents();
 
     ZoneScopedNC("Main Render Loop", 0x0000FF);
@@ -653,12 +653,12 @@ void Application::mainLoop() {
         glfwPollEvents();
     }
 
-    double time = glfwGetTime();
     double delta_time = time - last_frame_time;
     last_frame_time = time;
     mWorld->delta = delta_time;
 
     {
+        // PerfTimer timer{"loop timer"};
         ZoneScopedNC("next surface", 0xFFFA00);
         mCurrentTargetView = getNextSurfaceTextureView(getRendererResource());
         if (mCurrentTargetView == nullptr) {
@@ -699,13 +699,13 @@ void Application::mainLoop() {
             boxIdForAABB = mLineEngine->addLines(generateAABBLines(min, max), glm::mat4{1.0}, {0.8, 0.5, 0.0});
         }
     }
+
     if (show_physic_objects) {
         for (const auto& collider : physics::PhysicSystem::mColliders) {
             auto t = collider.getTransformation();
             mLineEngine->updateLineTransformation(collider.getBoxId(), t);
         }
         if (selectedPhysicModel != nullptr) {
-            static uint32_t debugboxid = std::numeric_limits<uint32_t>::max();
             if (debugboxid < 1024) {
                 auto [pos, rot] = physics::getPositionAndRotationyId(selectedPhysicModel->mPhysicComponent->bodyId);
                 // glm::quat new_rot;
@@ -722,18 +722,9 @@ void Application::mainLoop() {
                     mLineEngine->addLines(generateBox(/*gham->mTransform.getPosition(), gham->mTransform.getScale()*/),
                                           glm::mat4{1.0}, {0.2, 0.0, 8.0});
             }
-        } else {
-            for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-                if (model->getName() == "smallcube") {
-                    selectedPhysicModel = model;
-                }
-            }
         }
     }
-    // if (mSelectedModel && mSelectedModel->mTransform.mObjectInfo.isAnimated) {
-    // for (const auto& m : mWorld->rootContainer) {
-    if (mWorld->actor != nullptr) {
-        // if (m->mName == "sword" && m->mSocket != nullptr) {
+    if (!mEditor->mEditorActive && mWorld->actor != nullptr && mWorld->actor->mBehaviour) {
         auto* m = mWorld->actor->mBehaviour->getWeapon();
         if (m != nullptr && m->mSocket != nullptr) {
             Model* pistol = m;
@@ -763,11 +754,9 @@ void Application::mainLoop() {
 
             pistol->moveTo(t);
             pistol->scale(s);
-            pistol->rotate(r);
+            pistol->rotate(normalize(r));
         }
     }
-    // }
-    // }
 
     {
         // PerfTimer timer{"tick"};
@@ -778,9 +767,10 @@ void Application::mainLoop() {
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_Editor)) {
             model->update(this, delta_time, runPhysics);
         }
-        if (mWorld->actor != nullptr) {
-            mWorld->actor->mBehaviour->handleAttachedCamera(mWorld->actor, &mCamera);
-            mWorld->actor->mBehaviour->update(mWorld->actor, delta_time);
+        auto* actor = mWorld->actor;
+        if (!mEditor->mEditorActive && actor != nullptr && actor->mBehaviour != nullptr) {
+            actor->mBehaviour->handleAttachedCamera(actor, &mCamera);
+            actor->mBehaviour->update(actor, delta_time);
         }
     }
 
@@ -992,8 +982,9 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 6, mTerrainPass->mTexturesBindgroup.getBindGroup(), 0,
                                           nullptr);
 
-        if (mWorld->actor == nullptr) {
-            updateGui(terrain_pass_encoder, time);
+        // if (mWorld->actor == nullptr) {
+        if (mEditor->mEditorActive) {
+            updateGui(terrain_pass_encoder, delta_time);
         }
 
         wgpuRenderPassEncoderEnd(terrain_pass_encoder);
@@ -1028,7 +1019,8 @@ void Application::mainLoop() {
     // wgpuRenderPassEncoderEnd(outline_pass_encoder);
     // wgpuRenderPassEncoderRelease(outline_pass_encoder);
 
-    {
+    // if (mWorld->actor == nullptr) {
+    if (mEditor->mEditorActive) {
         ZoneScopedNC("3D viewport and loader", 0xF0F00F);
         // 3D editor elements pass
         m3DviewportPass->execute(encoder);
@@ -1069,45 +1061,45 @@ void Application::mainLoop() {
     /*wgpuRenderPassEncoderEnd(composition_pass_encoder);*/
     /*wgpuRenderPassEncoderRelease(composition_pass_encoder);*/
 
+    static WGPUCommandBufferDescriptor command_buffer_descriptor = {};
+    command_buffer_descriptor.nextInChain = nullptr;
+    command_buffer_descriptor.label = {"command buffer", WGPU_STRLEN};
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &command_buffer_descriptor);
+
     {
         // {
         ZoneScopedNC("terrain for refraction", 0x00F00F);
         // }
         // PerfTimer timer{"test"};
+        wgpuDevicePoll(this->getRendererResource().device, true, nullptr);
+    }
+    wgpuQueueSubmit(this->getRendererResource().queue, 1, &command);
+    // static WGPUQueueWorkDoneCallbackInfo cbinfo{};
+    // cbinfo.nextInChain = nullptr;
+    // cbinfo.callback = [](WGPUQueueWorkDoneStatus status, void* userdata1, void* userdata2) {
+    //     Application* app = (Application*)userdata1;
+    //     if (status == WGPUQueueWorkDoneStatus_Success) {
+    //     }
+    // };
+    //
+    // cbinfo.userdata1 = this;
 
-        WGPUCommandBufferDescriptor command_buffer_descriptor = {};
-        command_buffer_descriptor.nextInChain = nullptr;
-        command_buffer_descriptor.label = createStringView("command buffer");
-        WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &command_buffer_descriptor);
+    // wgpuQueueOnSubmittedWorkDone(this->getRendererResource().queue, cbinfo);
+    wgpuCommandBufferRelease(command);
+    wgpuCommandEncoderRelease(encoder);
 
-        wgpuDevicePoll(this->getRendererResource().device, true, nullptr);  // This is good!
-        wgpuQueueSubmit(this->getRendererResource().queue, 1, &command);
-        // static WGPUQueueWorkDoneCallbackInfo cbinfo{};
-        // cbinfo.nextInChain = nullptr;
-        // cbinfo.callback = [](WGPUQueueWorkDoneStatus status, void* userdata1, void* userdata2) {
-        //     Application* app = (Application*)userdata1;
-        //     if (status == WGPUQueueWorkDoneStatus_Success) {
-        //     }
-        // };
-        //
-        // cbinfo.userdata1 = this;
-
-        // wgpuQueueOnSubmittedWorkDone(this->getRendererResource().queue, cbinfo);
-        wgpuCommandBufferRelease(command);
-        wgpuCommandEncoderRelease(encoder);
-
-        wgpuTextureViewRelease(mCurrentTargetView);
+    wgpuTextureViewRelease(mCurrentTargetView);
 
 #ifndef __EMSCRIPTEN__
-        wgpuSurfacePresent(this->getRendererResource().surface);
+    wgpuSurfacePresent(this->getRendererResource().surface);
 #endif
-    }
 
 #if defined(WEBGPU_BACKEND_DAWN)
     wgpuDeviceTick(device);
 #elif defined(WEBGPU_BACKEND_WGPU)
     wgpuDevicePoll(device, false, nullptr);
 #endif
+    // std::cout << "Perf timer shows " << std::endl;
 }
 
 void Application::terminate() {
@@ -1252,7 +1244,6 @@ bool Application::initGui() {
     init_info.RenderTargetFormat = WGPUTextureFormat_BGRA8UnormSrgb;
     init_info.DepthStencilFormat = WGPUTextureFormat_Depth24PlusStencil8;
     ImGui_ImplWGPU_Init(&init_info);
-    std::cout << " failed to run1111" << std::endl;
     return true;
 }
 
@@ -1270,7 +1261,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
     if (ImGui::BeginTabBar("ObjectTabs")) {
         if (ImGui::BeginTabItem("Scene")) {
             ImGuiIO& io = ImGui::GetIO();
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", time * 1000.0f, 1.0 / time);
 
             ImGui::Checkbox("flip x", &flip_x);
             ImGui::Checkbox("flip y", &flip_y);
@@ -1299,35 +1290,20 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             if (ImGui::CollapsingHeader("Lights",
                                         ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
                                                                             // ImGui::Begin("Lighting");
-                ImGui::Text("Directional Light");
-                if (ImGui::ColorEdit3("Color", glm::value_ptr(mLightingUniforms.colors[0])) ||
-                    ImGui::DragFloat3("Direction", glm::value_ptr(mLightingUniforms.directions[0]), 0.1, -1.0, 1.0)) {
-                    wgpuQueueWriteBuffer(this->getRendererResource().queue, mDirectionalLightBuffer.getBuffer(), 0,
-                                         &mLightingUniforms, sizeof(LightingUniforms));
-                }
-                static glm::vec3 new_ligth_position = {};
-                ImGui::InputFloat3("create new light at:", glm::value_ptr(new_ligth_position));
+
                 ImGui::SliderFloat("frustum split factor", &middle_plane_length, 1.0, 100);
                 ImGui::SliderFloat("far split factor", &far_plane_length, 1.0, 200);
                 ImGui::SliderFloat("visualizer", &mUniforms.time, -1.0, 1.0);
-
-                ImGui::Checkbox("shoud update csm", &should_update_csm);
-
-                mShadowPass->lightPos = mLightingUniforms.directions[0];
-
-                ImGui::Text("    ");
-                ImGui::Text("Point Lights");
-
-                mLightManager->renderGUI();
             }
+            ImGui::Checkbox("shoud update csm", &should_update_csm);
             ImGui::Text("\nClip Plane");
             if (ImGui::DragFloat4("clip plane:", glm::value_ptr(mDefaultPlane))) {
                 wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
                                      glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
             }
-
             ImGui::EndTabItem();
         }
+
         if (ImGui::BeginTabItem("Objects")) {
             ImGui::BeginChild("ScrollableList", ImVec2(0, 200),
                               ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY);
@@ -1356,8 +1332,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                         std::cout << "rot:" << glm::to_string(rot);
                         std::cout << "\n------------------------------------------------\n";
                     }
-
-                    // mLineEngine->addLines(generateAABBLines(min, max));
                 }
 
                 ImGui::PopID();  // Pop the unique ID for this item
@@ -1375,10 +1349,26 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::EndTabItem();
         }
 
+        if (ImGui::BeginTabItem("Lights")) {
+            mShadowPass->lightPos = mLightingUniforms.directions[0];
+
+            ImGui::Text("Directional Light");
+            if (ImGui::ColorEdit3("Color", glm::value_ptr(mLightingUniforms.colors[0])) ||
+                ImGui::DragFloat3("Direction", glm::value_ptr(mLightingUniforms.directions[0]), 0.1, -1.0, 1.0)) {
+                wgpuQueueWriteBuffer(this->getRendererResource().queue, mDirectionalLightBuffer.getBuffer(), 0,
+                                     &mLightingUniforms, sizeof(LightingUniforms));
+            }
+
+            ImGui::Text("    ");
+            ImGui::Text("Environment Lights");
+
+            mLightManager->renderGUI();
+            ImGui::EndTabItem();
+        }
+
         if (ImGui::BeginTabItem("socket")) {
             if (ImGui::DragFloat3("position", glm::value_ptr(position_offset))) {
             }
-
             if (ImGui::DragFloat3("scale", glm::value_ptr(scale_offset))) {
             }
             if (ImGui::DragFloat4("quat", glm::value_ptr(rotation_offset))) {
@@ -1388,13 +1378,25 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
         if (ImGui::BeginTabItem("Physics")) {
             ImGui::Checkbox("Run Physics", &runPhysics);
-            // if (ImGui::Button("Create new Physically simulated shape")) {
-            // static uint32_t boxIndicator = std::numeric_limits<uint32_t>::max();
+            if (ImGui::Checkbox("Toggle Debug line Visibility", &show_physic_debugs)) {
+                for (const auto& collider : physics::PhysicSystem::mColliders) {
+                    mLineEngine->setVisibility(collider.getBoxId(), show_physic_debugs);
+                }
+            }
 
-            ImGui::Checkbox("show physics objects", &show_physic_objects);
+            if (ImGui::Checkbox("show physics objects", &show_physic_objects)) {
+                if (debugboxid < 1024) {
+                } else if (selectedPhysicModel != nullptr) {
+                    auto [pos, rot] = physics::getPositionAndRotationyId(selectedPhysicModel->mPhysicComponent->bodyId);
+                    debugboxid = mLineEngine->addLines(
+                        generateBox(),
+                        glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
+                            glm::scale(glm::mat4{1.0}, selectedPhysicModel->mTransform.getScale() * glm::vec3{2.0}),
+                        {0.2, 0.0, 8.0});
+                    mLineEngine->setVisibility(debugboxid, show_physic_objects);
+                }
+            }
 
-            // static glm::vec3 center{0.0};
-            // static glm::vec3 half_extent{0.0};
             static bool is_static = true;
             if (ImGui::DragFloat3("center", glm::value_ptr(debugbox.center), 0.01) ||
                 ImGui::DragFloat3("half extent", glm::value_ptr(debugbox.halfExtent), 0.01)) {
@@ -1408,7 +1410,8 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             }
             ImGui::Checkbox("is Dynamic?", &is_static);
             if (ImGui::Button("Create box")) {
-                physics::PhysicSystem::createCollider(this, debugbox.center, debugbox.halfExtent, is_static);
+                physics::PhysicSystem::createCollider(this, "new collider", debugbox.center, debugbox.halfExtent,
+                                                      is_static);
             }
 
             {
@@ -1444,10 +1447,56 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
             if (ImGui::CollapsingHeader("Colliders",
                                         ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
-                for (const auto& collider : physics::PhysicSystem::mColliders /*mWorld->rootContainer*/) {
+                for (auto& collider : physics::PhysicSystem::mColliders /*mWorld->rootContainer*/) {
                     ImGui::PushID((void*)&collider);
                     // Create a unique ID for each selectable item based on its unique item.id
-                    if (ImGui::Button(std::to_string(collider.getBoxId()).c_str())) {
+                    static int selectedId = 1025;
+                    if (ImGui::Button(std::format("{} #{}", collider.mName.c_str(), collider.getBoxId()).c_str())) {
+                        if (selectedId < 1024) {
+                            mLineEngine->updateLineColor(selectedId, {1.0, 0.0, 0.0});
+                        }
+                        selectedId = collider.getBoxId();
+                        mLineEngine->updateLineColor(selectedId, {0.1, 0.0, 0.9});
+                        std::cout << "Trying to update line group #" << selectedId << '\n';
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("X")) {
+                        collider.getBoxId();
+                        mLineEngine->removeLines(collider.getBoxId());
+                        physics::PhysicSystem::removeCollider(collider);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Modify")) {
+                        auto cld = collider;
+                        collider.getBoxId();
+                        mLineEngine->removeLines(collider.getBoxId());
+                        physics::PhysicSystem::removeCollider(collider);
+
+                        debugbox.center = cld.mCenter;
+                        debugbox.halfExtent = cld.mHalfExtent;
+
+                        if (debugbox.debugLinesId < 1024) {
+                            debugbox.update();
+                        } else {
+                            debugbox.create(mLineEngine, glm::mat4{1.0}, glm::vec3{1.0});
+                            debugbox.update();
+                            mEditor->gizmo.moveTo(debugbox.center);
+                            mEditor->mSelectedObject = &debugbox;
+                        }
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Clone")) {
+                        debugbox.center = collider.mCenter;
+                        debugbox.halfExtent = collider.mHalfExtent;
+
+                        if (debugbox.debugLinesId < 1024) {
+                            debugbox.update();
+                        } else {
+                            debugbox.create(mLineEngine, glm::mat4{1.0}, glm::vec3{1.0});
+                            debugbox.update();
+                            mEditor->gizmo.moveTo(debugbox.center);
+                            mEditor->mSelectedObject = &debugbox;
+                        }
                     }
                     ImGui::PopID();  // Pop the unique ID for this item
                 }
@@ -1455,26 +1504,28 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                 if (ImGui::Button("Create new collider")) {
                 }
             }
-            // }
             ImGui::EndTabItem();
         }
+
+        if (ImGui::BeginTabItem("Shadows")) {
+            // ImGui::Image((ImTextureID)(intptr_t)mShadowPass->getTextureView(0, 0), ImVec2(1920 / 4.0, 1022
+            // / 4.0)); ImGui::Image((ImTextureID)(intptr_t)mShadowPass->getShadowMapView(), ImVec2(1920 / 4.0, 1022
+            // / 4.0));
+            if (ImGui::Button("Button")) {
+                // worldToClip(mCamera.getProjection() * mCamera.getView(), glm::vec3{1.0, 0.0, 0.0});
+            }
+            ImGui::EndTabItem();
+        }
+
         ImGui::EndTabBar();
     }
 
-    ImGui::Begin("Add Line");
-
+    // ImGui::Begin("Add Line");
     // ImGui::Image((ImTextureID)(intptr_t)mWaterRenderPass->mWaterRefractionPass->mRenderTargetView,
     //              ImVec2(1920 / 4.0, 1022 / 4.0));
     // ImGui::Image((ImTextureID)(intptr_t)mWaterRenderPass->mWaterPass->mRenderTargetView,
     //              ImVec2(1920 / 4.0, 1022 / 4.0));
-
-    static glm::vec3 start = glm::vec3{0.0f};
-    static glm::vec3 end = glm::vec3{0.0f};
-
-    ImGui::InputFloat3("Start", glm::value_ptr(start));
-    ImGui::InputFloat3("End", glm::value_ptr(end));
-
-    ImGui::End();
+    // ImGui::End();
 
     // Draw the UI
     ImGui::EndFrame();

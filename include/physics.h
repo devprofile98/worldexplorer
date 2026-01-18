@@ -36,10 +36,13 @@ namespace physics {
 
 class BoxCollider {
     public:
-        BoxCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent, bool isStatic);
+        BoxCollider(Application* app, const std::string& name, const glm::vec3& center, const glm::vec3& halfExtent,
+                    bool isStatic);
         glm::vec3 mCenter;
         glm::vec3 mHalfExtent;
+        std::string mName;
         uint32_t getBoxId() const;
+        std::shared_ptr<PhysicsComponent> getPhysicsComponent();
         glm::mat4 getTransformation() const;
 
     private:
@@ -50,8 +53,9 @@ class BoxCollider {
 
 class PhysicSystem {
     public:
-        static uint32_t createCollider(Application* app, const glm::vec3& center, const glm::vec3& halfExtent,
-                                       bool isStatic);
+        static uint32_t createCollider(Application* app, const std::string& name, const glm::vec3& center,
+                                       const glm::vec3& halfExtent, bool isStatic);
+        static void removeCollider(BoxCollider& collider);
         static inline std::vector<BoxCollider> mColliders;
 
     private:

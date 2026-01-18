@@ -13,6 +13,14 @@
 
 using Vec = std::array<float, 3>;
 
+struct ColliderParams {
+        std::string name;
+        std::string type;
+        std::string shape;
+        glm::vec3 center;
+        glm::vec3 halfExtent;
+};
+
 struct SocketParams {
         std::string name;
         std::string bone;

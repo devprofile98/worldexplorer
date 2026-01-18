@@ -3,6 +3,7 @@
 
 #include <array>
 #include <fstream>
+#include <functional>
 #include <glm/fwd.hpp>
 #include <iostream>
 #include <optional>
@@ -25,6 +26,7 @@
 #include "webgpu/webgpu.h"
 
 using json = nlohmann::json;
+using AddColliderFunction = std::function<uint32_t(const std::string&, const glm::vec3&, const glm::vec3&, bool)>;
 
 TransformProperties calculateChildTransform(Model* parent, Model* child) {
     auto new_local_transform = glm::inverse(parent->getGlobalTransform()) * child->mTransform.mTransformMatrix;
@@ -111,8 +113,6 @@ void World::onNewModel(Model* loadedModel) {
                 if (model->mName == name) {
                     removeParent(model);
                     makeChild(loadedModel, model);
-                    std::cout << "@@@@@@@@@@@@@@@@ " << loadedModel->mName << " is the parent for " << model->mName
-                              << '\n';
                     goto stage2;
                 }
             }
@@ -283,20 +283,22 @@ struct BaseModelLoader : public IModel {
 
             // If model is instanced
             //
-            if (mModel->getName() == "coin") {
+            if (param.instanceTransformations.size() > 0) {
                 std::vector<glm::vec3> positions;
                 std::vector<glm::vec3> scales;
                 // std::vector<glm::vec3> rotations;
                 std::vector<float> rotations;
                 for (const auto& instance : param.instanceTransformations) {
-                    positions.push_back(instance.position);
-                    scales.push_back(instance.scale);
-                    rotations.push_back(0);
+                    positions.emplace_back(instance.position);
+                    scales.emplace_back(instance.scale);
+                    rotations.emplace_back(0);
                 }
                 // auto positions = std::vector<glm::vec3>{{-2.5, 1.154, -2.947}, {-2.6, 1.154, -2.947}};
 
                 auto* ins = new Instance{positions, glm::vec3{1.0, 0.0, 0.0},     rotations,
                                          scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
+                ins->parent = mModel;
+                ins->mApp = app;
                 ins->mPositions = positions;
                 ins->mScale = scales;
 
@@ -335,9 +337,21 @@ struct BaseModelLoader : public IModel {
         };
 };
 
+void parseColliders(AddColliderFunction fn, const json& colliders) {
+    for (auto& cld : colliders) {
+        bool active = cld["active"].get<bool>();
+        std::string type = cld["type"].get<std::string>();
+        std::string name = cld["name"].get<std::string>();
+        std::string shape = cld["shape"].get<std::string>();
+        std::array<float, 3> center = cld["center"].get<std::array<float, 3>>();
+        std::array<float, 3> h_extent = cld["half_extent"].get<std::array<float, 3>>();
+        if (active) {
+            fn(name, toGlm(center), toGlm(h_extent), type == "dynamic");
+        }
+    }
+}
+
 void parseLights(LightManager* manager, const json& lights) {
-    // light_manager->createPointLight({2.0, 2.0, 1.0, 1.0}, red, red, red, 1.0, 0.7, 1.8, "blue light 3");
-    std::cout << lights << '\n';
     for (auto& light_obj : lights) {
         std::string type = light_obj["type"].get<std::string>();
         std::string name = light_obj["name"].get<std::string>();
@@ -353,6 +367,15 @@ void parseLights(LightManager* manager, const json& lights) {
             manager->createSpotLight(glm::vec4{toGlm(position), 1.0}, glm::vec4{toGlm(direction), 1.0},
                                      glm::vec4{toGlm(color), 1.0}, inner_cutoff, outer_cutoff, linear, quadratic,
                                      name.c_str());
+        }
+        if (type == "point") {
+            std::cout << "One point light" << color[0] << " " << color[1] << " " << color[2] << std::endl;
+            float constant = light_obj["constant"].get<float>();
+            float linear = light_obj["linear"].get<float>();
+            float quadratic = light_obj["quadratic"].get<float>();
+            auto glm_color = glm::vec4{toGlm(color), 1.0};
+            manager->createPointLight(glm::vec4{toGlm(position), 1.0}, glm_color, glm_color, glm_color, constant,
+                                      linear, quadratic, name.c_str());
         }
     }
 }
@@ -474,5 +497,9 @@ void World::loadWorld() {
 
     auto* light_manager = app->mLightManager;
     parseLights(light_manager, res["lights"]);
+
+    auto f = std::bind(physics::PhysicSystem::createCollider, app, std::placeholders::_1, std::placeholders::_2,
+                       std::placeholders::_3, std::placeholders::_4);
+    parseColliders(f, res["colliders"]);
     app->mLightManager->uploadToGpu(app, app->mLightBuffer.getBuffer());
 }

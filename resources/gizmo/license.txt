@@ -1,0 +1,11 @@
+Model Information:
+* title:	Transform Gizmo
+* source:	https://sketchfab.com/3d-models/transform-gizmo-8d1edffdedda4898b3fb1c3c4c08113c
+* author:	hamdanbasri (https://sketchfab.com/hamdanbasri)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Transform Gizmo" (https://sketchfab.com/3d-models/transform-gizmo-8d1edffdedda4898b3fb1c3c4c08113c) by hamdanbasri (https://sketchfab.com/hamdanbasri) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

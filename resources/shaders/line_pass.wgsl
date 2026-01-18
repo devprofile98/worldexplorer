@@ -7,6 +7,7 @@ struct Line {
     p: vec4<f32>,
     color: vec3<f32>,
     tid: u32,
+    isActive: u32,
 };
 
 struct Transformation {
@@ -37,15 +38,21 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     var out: VertexOutput;
     out.color = vec4(lines[instance_index].color, 1.0);
 
-    let pointA = lines[instance_index].p.xyz;
-    let pointB = mix(lines[instance_index + 1u].p.xyz, pointA, lines[instance_index].p.w);
+    var pointA = lines[instance_index].p.xyz;
+    var pointB = mix(lines[instance_index + 1u].p.xyz, pointA, lines[instance_index].p.w); // simple trick to end the line based on 'w' component
 
     // Interpolate in 3D space first (correct for perspective)
     let point = mix(pointA, pointB, in.position.x);
     let line_transform = transformations[lines[instance_index].tid].trans;
     var center_clip = viewProjection.projectionMatrix * viewProjection.viewMatrix * line_transform * vec4f(point, 1.0);
+    if lines[instance_index].isActive == 0u || lines[instance_index + 1u].isActive == 0u {
+        //pointA = vec3f(0.0);
+        //pointB = vec3f(0.0);
+        out.color = vec4f(0.7, 0.6, 0.0, 0.0);
+    }
 
     // Project endpoints to clip space (for direction calculation)
+    // If line is disabled, then dont draw it or put zero instead of point
     let clipPosA = viewProjection.projectionMatrix * viewProjection.viewMatrix * line_transform * vec4f(pointA, 1.0);
     let clipPosB = viewProjection.projectionMatrix * viewProjection.viewMatrix * line_transform * vec4f(pointB, 1.0);
 
@@ -54,8 +61,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     let ndcB = clipPosB.xy / clipPosB.w;
 
     // Convert direction to pixel space for aspect-correct normalization
-    // Viewport uniform: e.g., vec2f(1920.0, 1080.0)
-    let viewport_size = vec2f(1920.0, 1080.0);  // Assume this uniform exists; add if needed
+    let viewport_size = vec2f(1920.0, 1080.0);
     let pixel_dir = (ndcB - ndcA) * (viewport_size / 2.0);
     let norm_pixel_dir = normalize(pixel_dir);
     let perp_pixel = vec2f(-norm_pixel_dir.y, norm_pixel_dir.x);

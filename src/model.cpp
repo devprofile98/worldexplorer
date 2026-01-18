@@ -67,6 +67,8 @@ void Drawable::configure(Application* app) {
         .create(app);
 }
 
+Transformable& Transformable::moveTo(const glm::vec3&) { return *this; }
+
 void Drawable::draw(Application* app, WGPURenderPassEncoder encoder) {
     (void)app;
     (void)encoder;
@@ -622,7 +624,7 @@ void BaseModel::setTransparent(bool value) {
 bool BaseModel::isTransparent() { return mIsTransparent; }
 
 void BaseModel::selected(bool selected) {
-    // mTransform.mDirty = true;
+    mTransform.mDirty = true;
     mTransform.mObjectInfo.isSelected = selected;
 }
 bool BaseModel::isSelected() const { return mTransform.mObjectInfo.isSelected; }
@@ -967,16 +969,17 @@ void Model::userInterface() {
             bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(instance->mScale[i]), 0.01);
 
             if (pos_changed || scale_changed) {
-                glm::mat4 t = glm::translate(glm::mat4{1.0}, instance->mPositions[i]);
-                t = glm::rotate(t, 0.f, {1.0, 0.0, 0.0});
-                t = glm::scale(t, instance->mScale[i]);
-                std::cout << "Changing here" << glm::to_string(instance->mPositions[i]) << '\n';
-
-                instance->mInstanceBuffer[i] = {t, t * glm::vec4{min, 1.0f}, t * glm::vec4{max, 1.0f}};
-
-                wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
-                                     mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
-                                     i * sizeof(InstanceData), &instance->mInstanceBuffer[i], sizeof(InstanceData));
+                // glm::mat4 t = glm::translate(glm::mat4{1.0}, instance->mPositions[i]);
+                // t = glm::rotate(t, 0.f, {1.0, 0.0, 0.0});
+                // t = glm::scale(t, instance->mScale[i]);
+                // std::cout << "Changing here" << glm::to_string(instance->mPositions[i]) << '\n';
+                //
+                // instance->mInstanceBuffer[i] = {t, t * glm::vec4{min, 1.0f}, t * glm::vec4{max, 1.0f}};
+                //
+                // wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
+                //                      mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
+                //                      i * sizeof(InstanceData), &instance->mInstanceBuffer[i], sizeof(InstanceData));
+                instance->createInstanceWrapper(i).moveTo(instance->mPositions[i]);
             }
 
             ImGui::PopID();  // Pop the unique ID for this item

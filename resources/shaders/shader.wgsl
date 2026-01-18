@@ -285,7 +285,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     ////////////// Calculations for point lights
 
-    for (var i = 0u; i < 5; i += 1u) {
+    for (var i = 0u; i < u32(lightCount); i += 1u) {
         let light = pointLight[i];
         if light.ftype == 3i {
             lo += calculatePointLight(light, N, V, in.worldPos, albedo, roughness, metallic, F0);
@@ -322,7 +322,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         //lo += (kD);
     }
 
-    let ambient = vec3(0.03) * albedo * ao;
+    let ambient = vec3(0.05) * albedo * ao;
 
     var color = ambient + lo;
 

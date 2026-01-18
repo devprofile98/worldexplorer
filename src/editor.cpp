@@ -9,14 +9,20 @@
 #include "application.h"
 #include "camera.h"
 #include "glm/ext/vector_float3.hpp"
+#include "glm/geometric.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "input_manager.h"
 #include "instance.h"
 #include "model.h"
 #include "model_registery.h"
 #include "physics.h"
+#include "point_light.h"
+#include "shapes.h"
 #include "utils.h"
 #include "world.h"
+
+static glm::vec3 starting_scale;
+static bool starting_touch = false;
 
 BaseModel* GizmoElement::testSelection(Camera& camera, size_t width, size_t height,
                                        std::pair<size_t, size_t> mouseCoord) {
@@ -36,14 +42,21 @@ void GizmoElement::onMouseClick(MouseEvent event) {
     auto click = std::get<Click>(event);
     auto app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(click.window));
 
-    if (app == nullptr || app->mWorld->actor != nullptr) {
+    if (app == nullptr || !app->mEditor->mEditorActive) {
         return;
     }
     if (click.click == GLFW_MOUSE_BUTTON_LEFT) {
         if (click.action == GLFW_PRESS) {
             if (mSelectedPart == center || mSelectedPart == x || mSelectedPart == y || mSelectedPart == z) {
                 mIsLocked = true;
+                mStartingCoordinate = {click.xPos, click.yPos};
+                starting_touch = true;
                 std::cout << "Gizmo is locked in event handlerln " << click.click << std::endl;
+
+                // Disable cursor when dragging gizmo
+                glfwSetInputMode(click.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                if (glfwRawMouseMotionSupported()) glfwSetInputMode(click.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+
                 return;
             }
 
@@ -58,6 +71,10 @@ void GizmoElement::onMouseClick(MouseEvent event) {
             }
         } else if (click.action == GLFW_RELEASE) {
             GizmoElement::mIsLocked = false;
+            starting_touch = false;
+            // Engabling mouse cursor when dragging is over
+            glfwSetInputMode(click.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            if (glfwRawMouseMotionSupported()) glfwSetInputMode(click.window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
         }
     }
 }
@@ -104,63 +121,147 @@ std::optional<glm::vec3> processGizmoMove(float scalar, const glm::vec3& pos, Ca
     return std::nullopt;
 }
 
+glm::vec3 calculateScale(const glm::mat4 viewProj, const glm::vec3& axis, const glm::vec2& screenMoveVector,
+                         float divisionFactor) {
+    auto projected_vec = worldToClip(viewProj, axis);
+    auto drag_vec = screenMoveVector;
+    drag_vec *= glm::vec2(1, -1);
+    drag_vec = glm::normalize(drag_vec);
+    auto drag_effect = glm::dot(drag_vec, glm::vec2(projected_vec));
+    auto drag_len = glm::length(screenMoveVector) / divisionFactor;
+    glm::vec3 d{drag_effect * drag_len};
+    // d *= GizmoElement::mKeyModifier == 1 ? glm::vec3{1.0} : axis;
+    d *= axis;
+    d += glm::vec3{1.0f};
+    return d;
+}
+
 void GizmoElement::onMouseMove(MouseEvent event) {
     auto move = std::get<Move>(event);
     auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(move.window));
 
-    // if (that != nullptr) {
-    //     DragState& drag_state = that->getCamera().getDrag();
-    //     if (drag_state.active) that->getCamera().processMouse(move.xPos, move.yPos);
-    // }
-
     auto [width, height] = that->getWindowSize();
-    auto intersected_model = GizmoElement::testSelection(that->getCamera(), width, height, {move.xPos, move.yPos});
+    auto intersected_gizmo = GizmoElement::testSelection(that->getCamera(), width, height, {move.xPos, move.yPos});
     static glm::vec3 first_click_pos;
 
     auto& editor_selected = that->mEditor->mSelectedObject;
-    // if (std::holds_alternative<BaseModel*>(editor_selected)) {
+
+    // If no Gizmo handle is selected, set the Intersected one as selected gizmo part
     if (!GizmoElement::mIsLocked) {
-        if (intersected_model != nullptr) {
+        if (intersected_gizmo != nullptr) {
             if (GizmoElement::mSelectedPart != nullptr) {
                 GizmoElement::mSelectedPart->selected(false);
             }
-            GizmoElement::mSelectedPart = intersected_model;
+            GizmoElement::mSelectedPart = intersected_gizmo;
             GizmoElement::mSelectedPart->selected(true);
-            // std::cout << std::format("the ray {} intersect with {}\n", "", intersected_model->getName());
         } else {
             if (GizmoElement::mSelectedPart != nullptr) {
                 GizmoElement::mSelectedPart->selected(false);
                 GizmoElement::mSelectedPart = nullptr;
             }
         }
-    } else if (GizmoElement::mSelectedPart != nullptr) {
-        if (std::holds_alternative<BaseModel*>(editor_selected)) {
-            BaseModel* selected_entity = std::get<BaseModel*>(editor_selected);
-            auto& pos = selected_entity->mTransform.getPosition();
-            auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
-            if (new_pos.has_value()) {
-                selected_entity->moveTo(new_pos.value());
-                auto [min, max] = selected_entity->getWorldSpaceAABB();
-                GizmoElement::moveTo((max + min) / glm::vec3{2.0});
+    } else if (GizmoElement::mSelectedPart != nullptr) {  // If gizmo handle is already selected, start modifying
+        if (GizmoElement::mMode == GizmoModeTranslation) {
+            glm::vec3 final_pos = glm::vec3(0.0);
+            if (std::holds_alternative<BaseModel*>(editor_selected)) {
+                BaseModel* selected_entity = std::get<BaseModel*>(editor_selected);
+                auto& pos = selected_entity->mTransform.getPosition();
+                auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
+                if (new_pos.has_value()) {
+                    selected_entity->moveTo(new_pos.value());
+                    auto [min, max] = selected_entity->getWorldSpaceAABB();
+                    final_pos = (max + min) / glm::vec3{2.0};
+                }
+
+            } else if (std::holds_alternative<physics::BoxCollider*>(editor_selected)) {
+                physics::BoxCollider* selected_entity = std::get<physics::BoxCollider*>(editor_selected);
+                auto& pos = selected_entity->mCenter;
+                auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
+                if (new_pos.has_value()) {
+                    selected_entity->mCenter = new_pos.value();
+                    final_pos = selected_entity->mCenter;
+                }
+            } else if (std::holds_alternative<DebugBox*>(editor_selected)) {
+                DebugBox* selected_entity = std::get<DebugBox*>(editor_selected);
+                auto& pos = selected_entity->center;
+                auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
+                if (new_pos.has_value()) {
+                    selected_entity->center = new_pos.value();
+                    final_pos = selected_entity->center;
+                    selected_entity->update();
+                }
+            } else if (std::holds_alternative<Light*>(editor_selected)) {
+                auto* selected_entity = std::get<Light*>(editor_selected);
+                auto& pos = selected_entity->mPosition;
+                auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
+                if (new_pos.has_value()) {
+                    selected_entity->mPosition = glm::vec4(new_pos.value(), 0.0);
+                    final_pos = selected_entity->mPosition;
+                    LightManager::getInstance()->update();
+                }
+            } else if (std::holds_alternative<SingleInstance>(editor_selected)) {
+                auto ins = std::get<SingleInstance>(editor_selected);
+                auto& pos = ins.instance->mPositions[ins.idx];
+                auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
+                if (new_pos.has_value()) {
+                    pos = glm::vec4(new_pos.value(), 0.0);
+                    ins.moveTo(pos);
+                    final_pos = pos;
+                }
             }
 
-        } else if (std::holds_alternative<physics::BoxCollider*>(editor_selected)) {
-            physics::BoxCollider* selected_entity = std::get<physics::BoxCollider*>(editor_selected);
-            auto& pos = selected_entity->mCenter;
-            auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
-            if (new_pos.has_value()) {
-                selected_entity->mCenter = new_pos.value();
-                GizmoElement::moveTo(selected_entity->mCenter);
-            }
-        } else if (std::holds_alternative<DebugBox*>(editor_selected)) {
-            std::cout << "Debug Box\n";
-            DebugBox* selected_entity = std::get<DebugBox*>(editor_selected);
-            auto& pos = selected_entity->center;
-            auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
-            if (new_pos.has_value()) {
-                selected_entity->center = new_pos.value();
-                GizmoElement::moveTo(selected_entity->center);
-                selected_entity->update();
+            GizmoElement::moveTo(final_pos);
+        } else if (GizmoElement::mMode == GizmoModeScale) {
+            if (std::holds_alternative<BaseModel*>(editor_selected)) {
+                BaseModel* selected_entity = std::get<BaseModel*>(editor_selected);
+                auto& start = GizmoElement::mStartingCoordinate;
+                if (starting_touch) {
+                    starting_touch = false;
+                    starting_scale = selected_entity->mTransform.mScale;
+                    return;
+                }
+                auto& cam = that->mCamera;
+                glm::mat4 view_proj = cam.getProjection() * cam.getView();
+                glm::vec2 drag_vec = glm::vec2(move.xPos, move.yPos) - start;
+                // If center handle is selected, we will apply the calculated scale factor by multiplication
+                // s * (xs,ys,zs)
+                if (mSelectedPart == GizmoElement::center) {
+                    auto [window_width, window_height] = that->getWindowSize();
+
+                    glm::vec3 scale{0.0};
+                    if (move.xPos >= start.x) {
+                        auto diff = abs((float)(move.xPos - start.x) / window_width);
+                        scale = glm::vec3{1.0f + diff};
+                    } else {
+                        auto diff = (float)(std::abs(move.xPos - start.x)) / window_width;
+                        scale = std::max(0.0f, (1.0f - diff)) * starting_scale;
+                        scale = glm::vec3{1.0};
+                    }
+                    selected_entity->scale(starting_scale * scale);
+                }  // Only the selected axis will be scaled
+                else if (mSelectedPart == GizmoElement::x) {
+                    glm::vec3 factor = calculateScale(view_proj, glm::vec3{1.0, 0.0, 0.0}, drag_vec, 100.0);
+                    auto axis_factor = starting_scale * factor;
+                    if (mKeyModifier == KeyboardKey_LSHIFT) {
+                        axis_factor = glm::vec3{glm::length(starting_scale * factor)};
+                    }
+                    selected_entity->scale(axis_factor);
+
+                } else if (mSelectedPart == GizmoElement::y) {
+                    glm::vec3 factor = calculateScale(view_proj, glm::vec3{0.0, 1.0, 0.0}, drag_vec, 100.0);
+                    auto axis_factor = starting_scale * factor;
+                    if (mKeyModifier == KeyboardKey_LSHIFT) {
+                        axis_factor = glm::vec3{glm::length(starting_scale * factor)};
+                    }
+                    selected_entity->scale(axis_factor);
+                } else if (mSelectedPart == GizmoElement::z) {
+                    glm::vec3 factor = calculateScale(view_proj, glm::vec3{0.0, 0.0, 1.0}, drag_vec, 100.0);
+                    auto axis_factor = starting_scale * factor;
+                    if (mKeyModifier == KeyboardKey_LSHIFT) {
+                        axis_factor = glm::vec3{glm::length(starting_scale * factor)};
+                    }
+                    selected_entity->scale(axis_factor);
+                }
             }
         }
     }
@@ -170,12 +271,10 @@ struct GizmoModel : public IModel {
         GizmoModel(Application* app) {
             mModel = new Model{};
 
-            mModel
-                ->load("gizmo", app, RESOURCE_DIR "/gizmo/gizmo_up.glb", app->getObjectBindGroupLayout())
-
+            mModel->load("gizmo", app, RESOURCE_DIR "/gizmo/newgiz/gizmo_up.glb", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
-                .scale(glm::vec3{0.1f});
-            mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
+                .scale(glm::vec3{0.01f});
+            mModel->rotate({-90.0f, 0.0, 0.0f}, 0.0f);
             mModel->uploadToGPU(app);
             mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
@@ -206,10 +305,10 @@ struct GizmoModelY : public IModel {
         GizmoModelY(Application* app) {
             mModel = new Model{};
 
-            mModel->load("gizmo_y", app, RESOURCE_DIR "/gizmo/gizmo_y.glb", app->getObjectBindGroupLayout())
+            mModel->load("gizmo_y", app, RESOURCE_DIR "/gizmo/newgiz/gizmo_y.glb", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
-                .scale(glm::vec3{0.1f});
-            mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
+                .scale(glm::vec3{0.01f});
+            mModel->rotate({-180.0f, 90.0, 0.0f}, 0.0f);
             mModel->uploadToGPU(app);
             mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
@@ -320,11 +419,11 @@ struct GizmoModelX : public IModel {
         GizmoModelX(Application* app) {
             mModel = new Model{};
 
-            mModel->load("gizmo_x", app, RESOURCE_DIR "/gizmo/gizmo_x.glb", app->getObjectBindGroupLayout())
+            mModel->load("gizmo_x", app, RESOURCE_DIR "/gizmo/newgiz/gizmo_x.glb", app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
                 //
-                .scale(glm::vec3{0.1f});
-            mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
+                .scale(glm::vec3{0.01f});
+            mModel->rotate({0.0f, 0.0, 90.0f}, 0.0f);
             mModel->uploadToGPU(app);
             mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
@@ -355,10 +454,13 @@ struct GizmoModelCenter : public IModel {
         GizmoModelCenter(Application* app) {
             mModel = new Model{};
 
-            mModel->load("gizmo_center", app, RESOURCE_DIR "/gizmo/gizmo_center.glb", app->getObjectBindGroupLayout())
+            mModel
+                ->load("gizmo_center", app, RESOURCE_DIR "/gizmo/newgiz/gizmo_center.glb",
+                       app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
-                .scale(glm::vec3{0.1f});
-            mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
+                .scale(glm::vec3{0.01f});
+            mModel->rotate({0.0f, 90.0, 0.0f}, 0.0f);
+            // mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
             mModel->uploadToGPU(app);
             mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
@@ -386,10 +488,10 @@ struct GizmoModelCenter : public IModel {
         };
 };
 
-REGISTER_MODEL("gizmo_center", GizmoModelCenter, Visibility_Editor, &GizmoElement::center);
 REGISTER_MODEL("gizmo", GizmoModel, Visibility_Editor, &GizmoElement::z);
 REGISTER_MODEL("gizmo_x", GizmoModelX, Visibility_Editor, &GizmoElement::x);
 REGISTER_MODEL("gizmo_y", GizmoModelY, Visibility_Editor, &GizmoElement::y);
+REGISTER_MODEL("gizmo_center", GizmoModelCenter, Visibility_Editor, &GizmoElement::center);
 // REGISTER_MODEL("bone", BoneModel, Visibility_Editor, &Editor::BoneIndicator);
 
 void Editor::showBoneAt(const glm::mat4& transformation) {
@@ -420,41 +522,63 @@ void Screen::onMouseMove(MouseEvent event) {
     auto that = reinterpret_cast<Application*>(glfwGetWindowUserPointer(move.window));
 
     mApp = that;
-    if (that->mWorld->actor != nullptr) {
+
+    if (mApp == nullptr || GizmoElement::mIsLocked || !mApp->mEditor->mEditorActive) {
         return;
     }
-    if (mApp != nullptr) {
-        DragState& drag_state = mApp->getCamera().getDrag();
-        if (drag_state.active) mApp->getCamera().processMouse(move.xPos, move.yPos);
-    }
 
-    auto [window_width, window_height] = that->getWindowSize();
+    auto& camera = that->getCamera();
+    auto& input = InputManager::instance();
+
+    DragState& drag_state = camera.getDrag();
+    if (drag_state.active) {
+        camera.processMouse(move.xPos, move.yPos);
+    }
+    double x = 0;
+    double y = 0;
+
+    auto [window_width, window_height] = mApp->getWindowSize();
     if (move.yPos <= 0) {
-        InputManager::instance().setCursorPosition(move.window, move.xPos, window_height - 1);
-        if (that != nullptr) that->getCamera().updateCursor(move.xPos, window_height - 1);
+        x = move.xPos;
+        y = window_height - 1;
+        input.setCursorPosition(move.window, move.xPos, window_height - 1);
+        camera.updateCursor(move.xPos, window_height - 1);
     } else if (move.yPos > window_height - 20) {
-        InputManager::instance().setCursorPosition(move.window, move.xPos, 1);
-        if (that != nullptr) that->getCamera().updateCursor(move.xPos, 1);
+        x = move.xPos;
+        y = 1;
+        input.setCursorPosition(move.window, move.xPos, 1);
+        camera.updateCursor(move.xPos, 1);
+    } else {
+        y = move.yPos;
+        x = move.xPos;
     }
     if (move.xPos <= 0) {
-        InputManager::instance().setCursorPosition(move.window, window_width - 1, move.yPos);
-        if (that != nullptr) that->getCamera().updateCursor(window_width - 1, move.yPos);
+        x = window_width - 1;
+        y = move.yPos;
+        input.setCursorPosition(move.window, window_width - 1, move.yPos);
+        camera.updateCursor(window_width - 1, move.yPos);
     } else if (move.xPos >= window_width - 1) {
-        InputManager::instance().setCursorPosition(move.window, 1, move.yPos);
-        if (that != nullptr) that->getCamera().updateCursor(1, move.yPos);
+        x = 1;
+        y = move.yPos;
+        input.setCursorPosition(move.window, 1, move.yPos);
+        camera.updateCursor(1, move.yPos);
+    } else {
+        y = move.yPos;
+        x = move.xPos;
     }
+    // input.setCursorPosition(move.window, x, y);
+    // camera.updateCursor(x, y);
 }
 
 void Screen::onMouseClick(MouseEvent event) {
     auto click = std::get<Click>(event);
     mApp = reinterpret_cast<Application*>(glfwGetWindowUserPointer(click.window));
 
-    if (mApp == nullptr || mApp->mWorld->actor != nullptr) {
+    if (mApp == nullptr || !mApp->mEditor->mEditorActive) {
         return;
     }
 
     DragState& drag_state = mApp->getCamera().getDrag();
-    // if (drag_state.active) mApp->getCamera().processMouse(click.xPos, click.yPos);
 
     if (click.click == GLFW_MOUSE_BUTTON_LEFT) {
         // calculating the NDC for x and y
@@ -481,6 +605,10 @@ void Screen::onMouseClick(MouseEvent event) {
                     mApp->mEditor->mSelectedObject = mApp->mSelectedModel;
                 } else if (std::holds_alternative<DebugBox*>(intersected_model)) {
                     mApp->mEditor->mSelectedObject = std::get<DebugBox*>(intersected_model);
+                } else if (std::holds_alternative<Light*>(intersected_model)) {
+                    mApp->mEditor->mSelectedObject = std::get<Light*>(intersected_model);
+                } else if (std::holds_alternative<SingleInstance>(intersected_model)) {
+                    mApp->mEditor->mSelectedObject = std::get<SingleInstance>(intersected_model);
                 }
                 auto& editor_selected = mApp->mEditor->mSelectedObject;
 
@@ -493,10 +621,16 @@ void Screen::onMouseClick(MouseEvent event) {
                     } else {
                         std::cout << "Couldnt find the gizmo model " << mApp->mSelectedModel->getName() << std::endl;
                     }
-                } else if (std::holds_alternative<physics::BoxCollider*>(editor_selected)) {
+                } else if (std::holds_alternative<Light*>(editor_selected)) {
+                    auto* light = std::get<Light*>(intersected_model);
+                    GizmoElement::moveTo(light->mPosition);
                 } else if (std::holds_alternative<DebugBox*>(editor_selected)) {
                     auto* box = std::get<DebugBox*>(intersected_model);
                     GizmoElement::moveTo(box->center);
+                } else if (std::holds_alternative<SingleInstance>(editor_selected)) {
+                    auto ins = std::get<SingleInstance>(intersected_model);
+                    std::cout << "Also here\n";
+                    GizmoElement::moveTo(ins.instance->mPositions[ins.idx]);
                 }
             }
         }
@@ -540,13 +674,35 @@ void Screen::onKey(KeyEvent event) {
     } else if (GLFW_KEY_KP_3 == key.key && key.action == GLFW_PRESS) {
     } else if (GLFW_KEY_ESCAPE == key.key && key.action == GLFW_PRESS) {
         std::cout << "escaped pressed!\n";
-        mApp->mWorld->togglePlayer();
-        if (mApp->mWorld->actor != nullptr) {
+        auto& is_active = mApp->mEditor->mEditorActive;
+        is_active = !is_active;
+
+        // Toggle debug lines visibility
+        for (const auto& collider : physics::PhysicSystem::mColliders) {
+            mApp->mLineEngine->setVisibility(collider.getBoxId(), is_active);
+        }
+
+        if (!is_active) {
             glfwSetInputMode(key.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             if (glfwRawMouseMotionSupported()) glfwSetInputMode(key.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
         } else {
             glfwSetInputMode(key.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
             if (glfwRawMouseMotionSupported()) glfwSetInputMode(key.window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+        }
+    } else if (GLFW_KEY_Q == key.key && key.action == GLFW_PRESS && mApp->mEditor->mEditorActive) {
+        std::cout << "Gizmo Scale Mode!\n";
+        GizmoElement::mMode = GizmoModeScale;
+    } else if (GLFW_KEY_R == key.key && key.action == GLFW_PRESS && mApp->mEditor->mEditorActive) {
+        std::cout << "Gizmo Rotation Mode!\n";
+        GizmoElement::mMode = GizmoModeRotation;
+    } else if (GLFW_KEY_G == key.key && key.action == GLFW_PRESS && mApp->mEditor->mEditorActive) {
+        std::cout << "Gizmo Translate Mode!\n";
+        GizmoElement::mMode = GizmoModeTranslation;
+    } else if (GLFW_KEY_LEFT_SHIFT == key.key && mApp->mEditor->mEditorActive) {
+        if (key.action == GLFW_PRESS) {
+            GizmoElement::mKeyModifier = KeyboardKey_LSHIFT;
+        } else {
+            GizmoElement::mKeyModifier = KeyboardKey_NONE;
         }
     }
 }

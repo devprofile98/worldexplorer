@@ -43,6 +43,7 @@ class LightManager {
 
         Light* get(size_t index);
         void uploadToGpu(Application* app, WGPUBuffer buffer);
+        void update();
 
         void renderGUI();
         void nextLight();
@@ -51,13 +52,15 @@ class LightManager {
         uint32_t boxId = std::numeric_limits<uint32_t>().max();
 
     private:
+        void updateCount();
         Application* mApp;
         inline static LightManager* mLightInstance = nullptr;
         LightManager(Application* app);
         Buffer mLightCountBuffer;
         std::vector<Light> mLights;
         std::vector<std::string> mLightsNames;
-        size_t mSelectedLightInGui;
+        size_t mSelectedLightInGui = 0;
+        size_t mLightCount = 0;
 };
 
 #endif  // TEST_WGPU_POINT_LIGHT
