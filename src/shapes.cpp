@@ -1,9 +1,11 @@
 #include "shapes.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <glm/fwd.hpp>
 #include <limits>
+#include <utility>
 #include <vector>
 
 #include "application.h"
@@ -83,15 +85,15 @@ static uint16_t cubeIndexData[] = {
 Cube::Cube(Application* app) : BaseModel() {
     mApp = app;
     mName = "Cube";
-    mMeshes[0]
+    mFlattenMeshes[0]
         .mVertexBuffer.setLabel("Shape vertex buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
         .setSize(sizeof(cubeVertexData))
         .setMappedAtCraetion()
         .create(mApp);
 
-    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mMeshes[0].mVertexBuffer.getBuffer(), 0, &cubeVertexData,
-                         sizeof(cubeVertexData));
+    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mFlattenMeshes[0].mVertexBuffer.getBuffer(), 0,
+                         &cubeVertexData, sizeof(cubeVertexData));
 
     mIndexDataBuffer.setLabel("Shape indices buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index)
@@ -193,8 +195,8 @@ void Cube::draw(Application* app, WGPURenderPassEncoder encoder) {
     wgpuQueueWriteBuffer(render_resource.queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
                          sizeof(ObjectInfo));
 
-    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mMeshes[0].mVertexBuffer.getBuffer(), 0,
-                                         wgpuBufferGetSize(mMeshes[0].mVertexBuffer.getBuffer()));
+    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mFlattenMeshes[0].mVertexBuffer.getBuffer(), 0,
+                                         wgpuBufferGetSize(mFlattenMeshes[0].mVertexBuffer.getBuffer()));
     wgpuRenderPassEncoderSetIndexBuffer(encoder, mIndexDataBuffer.getBuffer(), WGPUIndexFormat_Uint16, 0,
                                         wgpuBufferGetSize(mIndexDataBuffer.getBuffer()));
 
@@ -459,6 +461,15 @@ uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points, const glm::m
     // std::cout << "Line is " << mNextGroupId << " " << mLineGroups[id].segment.transformationId << std::endl;
     mGlobalDirty = true;
     return id;
+}
+
+LineGroup LineEngine::create(const std::vector<glm::vec4>& points, const glm::mat4& transformation,
+                             const glm::vec3& color) {
+    ::LineGroup group;
+    group.mId = addLines(std::move(points), std::move(transformation), std::move(color));
+    group.mInitialized = group.mId < 1024;
+    group.mLineEngine = this;
+    return group;
 }
 
 // Remove a group by handle

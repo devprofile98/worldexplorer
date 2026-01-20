@@ -59,12 +59,9 @@ struct alignas(16) Material {
         uint32_t useTexture;
         uint32_t isFoliage;
         uint32_t materialProps;
-
-        float roughness;  // Matches metallicness: f32 (4 bytes)
-
+        float roughness;
         uint32_t _padding[3];  // 3 * 4 bytes = 12 bytes
-
-        glm::vec3 uvMultiplier = glm::vec3{1.0};  // Matches uvMultiplier: vec3f (12 bytes)
+        glm::vec3 uvMultiplier = glm::vec3{1.0};
 
         inline bool hasFlag(MaterialProps checkFlag) {
             return (static_cast<uint32_t>(materialProps) & static_cast<uint32_t>(checkFlag)) != 0;
@@ -109,6 +106,7 @@ class Mesh {
         std::vector<WGPUBindGroupEntry> binding_data{2};
         WGPUBindGroup mMaterialBindGroup = {};
         Material mMaterial;
+        std::string mMaterialName;
 };
 
 #endif  //! WEBGPUTEST_MESH_H

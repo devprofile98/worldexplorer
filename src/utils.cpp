@@ -1002,10 +1002,12 @@ PerfTimer::~PerfTimer() {
 void DebugBox::create(LineEngine* lineEngine, const glm::mat4& transformation, const glm::vec3& color) {
     mLineEngine = lineEngine;
     auto box = generateBox();
-    debugLinesId = lineEngine->addLines(box, transformation, color);
+    // debugLinesId = lineEngine->addLines(box, transformation, color);
+    debuglines = new LineGroup{};
+    *debuglines = lineEngine->create(box, transformation, color);
 }
 
 void DebugBox::update() {
-    mLineEngine->updateLineTransformation(
-        debugLinesId, glm::translate(glm::mat4{1.0}, center) * glm::scale(glm::mat4{1.0}, halfExtent * glm::vec3{2.0}));
+    debuglines->updateTransformation(glm::translate(glm::mat4{1.0}, center) *
+                                     glm::scale(glm::mat4{1.0}, halfExtent * glm::vec3{2.0}));
 }

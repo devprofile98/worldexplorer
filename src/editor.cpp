@@ -678,8 +678,9 @@ void Screen::onKey(KeyEvent event) {
         is_active = !is_active;
 
         // Toggle debug lines visibility
-        for (const auto& collider : physics::PhysicSystem::mColliders) {
-            mApp->mLineEngine->setVisibility(collider.getBoxId(), is_active);
+        for (auto& collider : physics::PhysicSystem::mColliders) {
+            // mApp->mLineEngine->setVisibility(collider.getBoxId(), is_active);
+            collider.getDebugLines().updateVisibility(is_active);
         }
 
         if (!is_active) {

@@ -290,8 +290,8 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                         const glm::mat4& globalTransform) {
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
     std::map<size_t, std::vector<std::pair<size_t, float>>> vertex_weights;
-    mMeshes[mMeshNumber] = {};
-    size_t index_offset = mMeshes[mMeshNumber].mVertexData.size();
+    mFlattenMeshes[mMeshNumber] = {};
+    size_t index_offset = mFlattenMeshes[mMeshNumber].mVertexData.size();
 
     if (mesh->HasBones() && !anim->actions.empty()) {
         Action* action = anim->actions.begin()->second;
@@ -326,13 +326,8 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
         glm::vec4 pos(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z, 1.0f);
         pos = globalTransform * pos;
         glm::vec3 vector(pos.x, pos.y, pos.z);
-
         pos = yUpToZUp * pos;
-        // Adjust coordinate system (as in your original code)
-        // vertex.position.x = vector.x;
-        // vertex.position.z = vector.y;
-        // vertex.position.y = -vector.z;
-        vertex.position = glm::vec3(pos);
+        vertex.position = glm::vec3{std::move(pos)};
 
         glm::mat4 swap{1.0};  // identity matrix for default case
         if (mCoordinateSystem == CoordinateSystem::Z_UP) {
@@ -362,13 +357,9 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             // Transform normal
             glm::vec3 normal(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
             normal = normalMatrix * normal;
-            // vertex.normal.x = normal.x;
-            // vertex.normal.y = -normal.z;
-            // vertex.normal.z = normal.y;
             vertex.normal = rot3 * normal;
-
             auto temp = swap * glm::vec4{vertex.normal, 0.0};
-            vertex.normal = glm::vec3{temp};
+            vertex.normal = glm::vec3{std::move(temp)};
         }
 
         aiColor4D baseColor(1.0f, 0.0f, 1.0f, 1.0f);
@@ -384,9 +375,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 // Transform tangent
                 glm::vec3 tangent(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);
                 tangent = normalMatrix * tangent;
-                // vertex.tangent.x = tangent.x;
-                // vertex.tangent.y = -tangent.z;
-                // vertex.tangent.z = tangent.y;
                 vertex.tangent = rot3 * tangent;
                 vertex.tangent = glm::vec3{swap * glm::vec4{vertex.tangent, 0.0}};
                 vertex.tangent =
@@ -395,9 +383,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 // Transform bitangent
                 glm::vec3 bitangent(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z);
                 bitangent = normalMatrix * bitangent;
-                // vertex.biTangent.x = bitangent.x;
-                // vertex.biTangent.y = -bitangent.z;
-                // vertex.biTangent.z = bitangent.y;
                 vertex.biTangent = rot3 * bitangent;
                 vertex.biTangent = glm::vec3{swap * glm::vec4{vertex.biTangent, 0.0}};
                 vertex.biTangent = glm::cross(vertex.normal, vertex.tangent);
@@ -406,26 +391,24 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             vertex.uv = glm::vec2{0.0f, 0.0f};
         }
 
-        mMeshes[mMeshNumber].mVertexData.push_back(vertex);
+        mFlattenMeshes[mMeshNumber].mVertexData.push_back(vertex);
     }
 
     for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
         aiFace face = mesh->mFaces[i];
         for (uint32_t j = 0; j < face.mNumIndices; j++) {
-            mMeshes[mMeshNumber].mIndexData.push_back((uint32_t)face.mIndices[j] + index_offset);
+            mFlattenMeshes[mMeshNumber].mIndexData.push_back((uint32_t)face.mIndices[j] + index_offset);
         }
     }
 
     auto& render_resource = app->getRendererResource();
-    auto& mmesh = mMeshes[mMeshNumber];
+    auto& mmesh = mFlattenMeshes[mMeshNumber];
 
     auto load_texture = [&](aiTextureType type, MaterialProps flag, std::shared_ptr<Texture>* target) {
         for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
-            // Create the placeholder for each texture first, so we only need to update the content of them later
-            // and not to recreate bind groups
             mmesh.mMaterial.setFlag(flag, true);
+            mmesh.mMaterialName = material->GetName().C_Str();
 
-            // std::cout << "---- " << getName() << mmesh.mMaterial.materialProps << std::endl;
             aiString str;
             material->GetTexture(type, i, &str);
             std::string texture_path = RESOURCE_DIR;
@@ -456,8 +439,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
             mApp->mTextureRegistery->addToRegistery(texture_path, texture);
 
-            // Update material on main thread if needed (or use lock-free update)
-            // For now, assume thread-safe or defer to main thread
             *target = texture;
             mmesh.isTransparent = texture->isTransparent();
 
@@ -476,7 +457,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
     }
     if (mmesh.mSpecularTexture == nullptr) {
         load_texture(aiTextureType_DIFFUSE_ROUGHNESS, MaterialProps::HasRoughnessMap, &mmesh.mSpecularTexture);
-        // aiTextureType_SPECULAR
     }
     if (mmesh.mNormalMapTexture == nullptr) {
         load_texture(aiTextureType_HEIGHT, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
@@ -484,9 +464,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
     if (mmesh.mNormalMapTexture == nullptr) {
         load_texture(aiTextureType_NORMALS, MaterialProps::HasNormalMap, &mmesh.mNormalMapTexture);
     }
-    mMeshes[mMeshNumber].meshId = meshId;
-    mFlattenMeshes[meshId] = mMeshes[mMeshNumber];  // Directly maps to assimp mesh id, so the hirarchy tree could
-                                                    // use this without headache when drawing
+    mFlattenMeshes[mMeshNumber].meshId = meshId;
     mMeshNumber++;
 }
 
@@ -810,7 +788,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
     auto& render_resource = app->getRendererResource();
     WGPUBindGroup active_bind_group = nullptr;
 
-    for (auto& [mat_id, mesh] : mMeshes) {
+    for (auto& [mat_id, mesh] : mFlattenMeshes) {
         // if (!mesh.isTransparent) {
         active_bind_group = app->getBindingGroup().getBindGroup();
 
@@ -1011,7 +989,7 @@ void Model::userInterface() {
     if (ImGui::CollapsingHeader("Materials")) {  // DefaultOpen makes it open initially
         for (auto& [id, mesh] : mFlattenMeshes) {
             ImGui::PushID((void*)&mesh);
-
+            ImGui::Text("%s", mesh.mMaterialName.c_str());
             bool has_normal = mesh.mMaterial.hasFlag(MaterialProps::HasNormalMap);
             if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
                 mesh.mMaterial.setFlag(MaterialProps::HasNormalMap, has_normal);
@@ -1196,7 +1174,7 @@ std::pair<glm::vec3, glm::vec3> BaseModel::getWorldMin() {
 
 const std::string& BaseModel::getName() { return mName; }
 
-Texture* BaseModel::getDiffuseTexture() { return mMeshes[0].mTexture.get(); }
+Texture* BaseModel::getDiffuseTexture() { return mFlattenMeshes[0].mTexture.get(); }
 
 glm::mat4 BaseModel::getGlobalTransform() {
     auto* root = mParent;

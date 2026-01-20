@@ -39,15 +39,38 @@ class Plane : public Cube {
         std::map<int, Mesh> mMeshes;
 };
 
-struct alignas(16) Line {
-        glm::vec4 p1;
-        glm::vec4 p2;
-};
+// struct alignas(16) Line {
+//         glm::vec4 p1;
+//         glm::vec4 p2;
+// };
 
 struct LineEngine {
+        struct alignas(16) LineSegment {
+                glm::vec4 point;
+                glm::vec3 color;
+                uint32_t transformationId;
+                uint32_t isActive;
+        };
+
+        struct LineGroup {
+                glm::mat4 transformation;
+                glm::vec3 groupColor;
+                std::vector<LineSegment> segment;
+                uint32_t buffer_offset = 0;  // Starting index in the storage buffer
+                bool dirty = true;           // Needs write to buffer?
+        };
         void initialize(Application* app);
         void draw(Application* app, WGPURenderPassEncoder encoder);
         void executePass();
+        uint32_t addLines(const std::vector<glm::vec4>& points, const glm::mat4& transformation = glm::mat4{1.0},
+                          const glm::vec3& color = {0.0, 1.0, 0.0});
+        ::LineGroup create(const std::vector<glm::vec4>& points, const glm::mat4& transformation = glm::mat4{1.0},
+                           const glm::vec3& color = {0.0, 1.0, 0.0});
+        void removeLines(uint32_t id);
+        void setVisibility(uint32_t id, bool visibility);
+        void updateLines(uint32_t id, const std::vector<glm::vec4>& newPoints);
+        void updateLineTransformation(uint32_t id, const glm::mat4& trans);
+        void updateLineColor(uint32_t id, const glm::vec3& color);
 
         std::array<float, 12> mLineInstance = {0, -0.5, 1, -0.5, 1, 0.5, 0, -0.5, 1, 0.5, 0, 0.5};
         WGPURenderPipeline mRenderPipeline;
@@ -63,8 +86,6 @@ struct LineEngine {
         Buffer mCircleVertexBuffer = {};
         Buffer mCircleIndexBuffer = {};
 
-        // std::vector<glm::vec4> mLineList;
-
         std::vector<uint16_t> mCircleIndexData;
         std::vector<glm::vec3> mCircleVertexData;
 
@@ -73,29 +94,6 @@ struct LineEngine {
         Buffer mOffsetBuffer;
         Buffer mTransformationBuffer;
         NewRenderPass* mLineRenderingPass;
-
-        struct alignas(16) LineSegment {
-                glm::vec4 point;
-                glm::vec3 color;
-                uint32_t transformationId;
-                uint32_t isActive;
-        };
-
-        struct LineGroup {
-                glm::mat4 transformation;
-                glm::vec3 groupColor;
-                std::vector<LineSegment> segment;
-                uint32_t buffer_offset = 0;  // Starting index in the storage buffer
-                bool dirty = true;           // Needs write to buffer?
-        };
-
-        uint32_t addLines(const std::vector<glm::vec4>& points, const glm::mat4& transformation = glm::mat4{1.0},
-                          const glm::vec3& color = {0.0, 1.0, 0.0});
-        void removeLines(uint32_t id);
-        void setVisibility(uint32_t id, bool visibility);
-        void updateLines(uint32_t id, const std::vector<glm::vec4>& newPoints);
-        void updateLineTransformation(uint32_t id, const glm::mat4& trans);
-        void updateLineColor(uint32_t id, const glm::vec3& color);
 
         std::unordered_map<uint32_t, LineGroup> mLineGroups;
         uint32_t mNextGroupId = 0;   // For assigning handles

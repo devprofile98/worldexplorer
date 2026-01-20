@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "animation.h"
 #include "application.h"
 #include "glm/ext/vector_float3.hpp"
 #include "input_manager.h"
@@ -23,11 +24,12 @@ struct ColliderParams {
 
 struct SocketParams {
         std::string name;
-        std::string bone;
+        std::string anchor;
         glm::vec3 translate;
         glm::vec3 scale;
         glm::quat rotate;
         bool isValid;
+        AnchorType type;
 };
 
 struct PhysicsParams {

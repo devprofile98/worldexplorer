@@ -67,12 +67,19 @@ struct Animation {
         bool isEnded() const;
 };
 
+enum class AnchorType {
+    Model = 0,
+    Mesh,
+    Bone,
+};
+
 struct BoneSocket {
         Model* model;
-        std::string boneName;
+        std::string anchorName;
         glm::vec3 positionOffset;
         glm::vec3 scaleOffset;
         glm::quat rotationOffset;
+        AnchorType type;
 };
 
 #endif  //! WORLD_EXPLORER_ANIMATION_H

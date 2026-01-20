@@ -25,6 +25,7 @@
 #include "glm/ext/vector_float3.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtx/string_cast.hpp"
+#include "linegroup.h"
 
 class Application;
 
@@ -41,12 +42,14 @@ class BoxCollider {
         glm::vec3 mCenter;
         glm::vec3 mHalfExtent;
         std::string mName;
-        uint32_t getBoxId() const;
+        // uint32_t getBoxId() const;
+        LineGroup& getDebugLines();
         std::shared_ptr<PhysicsComponent> getPhysicsComponent();
         glm::mat4 getTransformation() const;
 
     private:
-        uint32_t mBoxId = std::numeric_limits<uint32_t>::max();
+        // uint32_t mBoxId = std::numeric_limits<uint32_t>::max();
+        LineGroup mDebugLines;
         std::shared_ptr<PhysicsComponent> mPhysicComponent;
         bool mIsStatic;
 };

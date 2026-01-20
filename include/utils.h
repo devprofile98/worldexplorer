@@ -23,6 +23,7 @@ namespace fs = std::filesystem;
 
 class Appliaction;  // forward declaration of the app class
 struct LineEngine;
+class LineGroup;
 
 void setDefault(WGPUDepthStencilState& depthStencilState);
 void setDefault(WGPUStencilFaceState& stencilFaceState);
@@ -36,7 +37,8 @@ void setDefault(WGPULimits& limits);
 struct DebugBox {
         glm::vec3 center{};
         glm::vec3 halfExtent{};
-        uint32_t debugLinesId = std::numeric_limits<uint32_t>().max();
+        // uint32_t debugLinesId = std::numeric_limits<uint32_t>().max();
+        LineGroup* debuglines = nullptr;
         void create(LineEngine* lineEngine, const glm::mat4& transformation, const glm::vec3& color);
         void update();
 

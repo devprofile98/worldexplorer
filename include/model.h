@@ -170,7 +170,7 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         BoneSocket* mSocket = nullptr;
 
         Buffer mIndexBuffer = {};
-        std::map<int, Mesh> mMeshes;
+        // std::map<int, Mesh> mMeshes;
         std::unordered_map<int, Mesh> mFlattenMeshes;
         int mMeshNumber = 0;
         size_t instances = 1;

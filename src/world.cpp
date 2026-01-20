@@ -149,10 +149,10 @@ load_socket:
                     }
                 }
                 if (target != nullptr) {
-                    std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@ " << param.bone << " Is the attaching bone for "
+                    std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@ " << param.anchor << " Is the attaching bone for "
                               << loadedModel->mName << "\n";
                     loadedModel->mSocket =
-                        new BoneSocket{target, param.bone, param.translate, param.scale, param.rotate};
+                        new BoneSocket{target, param.anchor, param.translate, param.scale, param.rotate, param.type};
                     goto end;
                 }
             }
@@ -166,9 +166,10 @@ load_socket:
         auto param = map.at(model->mName).socketParam;
         // auto loaded_model_param = map.at(loadedModel->mName).socketParam;
         if (param.name == loadedModel->mName) {
-            std::cout << "@@@@@@@@@@1@@@@@@@@@@@@@@@@ " << param.bone << " from " << loadedModel->mName
+            std::cout << "@@@@@@@@@@1@@@@@@@@@@@@@@@@ " << param.anchor << " from " << loadedModel->mName
                       << " Is the attaching bone for " << model->mName << "\n";
-            model->mSocket = new BoneSocket{loadedModel, param.bone, param.translate, param.scale, param.rotate};
+            model->mSocket =
+                new BoneSocket{loadedModel, param.anchor, param.translate, param.scale, param.rotate, param.type};
         }
         // if (map.contains(model->mName)) {
         // }
@@ -385,12 +386,20 @@ std::optional<SocketParams> parseSocketParam(const json& params) {
         return std::nullopt;
     }
     std::string name = params["model_name"].get<std::string>();
-    std::string bone_name = params["bone_name"].get<std::string>();
+    std::string anchor = "";  // anchor to model itself
+    AnchorType type = AnchorType::Model;
+    if (params.contains("bone_name")) {
+        anchor = params["bone_name"].get<std::string>();
+        type = AnchorType::Bone;
+    } else if (params.contains("mesh_name")) {
+        anchor = params["mesh_name"].get<std::string>();
+        type = AnchorType::Mesh;
+    }
 
     glm::vec3 translate = toGlm(params["offset"]["translate"].get<std::array<float, 3>>());
     glm::vec3 scale = toGlm(params["offset"]["scale"].get<std::array<float, 3>>());
     glm::vec3 rotate = toGlm(params["offset"]["rotate"].get<std::array<float, 3>>());
-    return SocketParams{name, bone_name, translate, scale, glm::quat{1.0, rotate}, true};
+    return SocketParams{name, anchor, translate, scale, glm::quat{1.0, rotate}, true, type};
 }
 
 std::vector<Transformation> parseinstanceinfo(const json& params) {

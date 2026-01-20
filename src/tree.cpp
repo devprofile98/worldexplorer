@@ -63,7 +63,7 @@ struct TreeModel : public IModel {
                                  100000 * sizeof(InstanceData), ins->mInstanceBuffer.data(),
                                  sizeof(InstanceData) * (ins->mInstanceBuffer.size() - 1));
 
-            std::cout << "(((((((((((((((( in mesh " << mModel->mMeshes.size() << std::endl;
+            std::cout << "(((((((((((((((( in mesh " << mModel->mFlattenMeshes.size() << std::endl;
 
             mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + mModel->getName()).c_str())
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
@@ -76,7 +76,7 @@ struct TreeModel : public IModel {
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
                                  &indirect, sizeof(DrawIndexedIndirectArgs));
 
-            for (auto& [mat_id, mesh] : mModel->mMeshes) {
+            for (auto& [mat_id, mesh] : mModel->mFlattenMeshes) {
                 mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())
                     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
                     .setSize(sizeof(DrawIndexedIndirectArgs))
@@ -274,7 +274,7 @@ struct GrassModel : public IModel {
                                  app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
                                  ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size() - 1));
 
-            std::cout << "(((((((((((((((( in mesh " << mModel->mMeshes.size() << std::endl;
+            std::cout << "(((((((((((((((( in mesh " << mModel->mFlattenMeshes.size() << std::endl;
 
             mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + mModel->getName()).c_str())
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
@@ -287,7 +287,7 @@ struct GrassModel : public IModel {
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
                                  &indirect, sizeof(DrawIndexedIndirectArgs));
 
-            for (auto& [mat_id, mesh] : mModel->mMeshes) {
+            for (auto& [mat_id, mesh] : mModel->mFlattenMeshes) {
                 mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())
                     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
                     .setSize(sizeof(DrawIndexedIndirectArgs))
@@ -397,7 +397,7 @@ struct SphereModel : public IModel {
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
                                  &indirect, sizeof(DrawIndexedIndirectArgs));
 
-            for (auto& [mat_id, mesh] : mModel->mMeshes) {
+            for (auto& [mat_id, mesh] : mModel->mFlattenMeshes) {
                 mesh.mIndirectDrawArgsBuffer.setLabel(("indirect_draw_args_mesh_ " + mModel->getName()).c_str())
                     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
                     .setSize(sizeof(DrawIndexedIndirectArgs))

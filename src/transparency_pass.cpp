@@ -192,7 +192,7 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
                          linkedListData.size() * sizeof(LinkedListElement));
 
     for (auto* model : models) {
-        for (auto& mesh_obj : model->mMeshes) {
+        for (auto& mesh_obj : model->mFlattenMeshes) {
             auto& mesh = mesh_obj.second;
             if (!mesh.isTransparent) {
                 continue;

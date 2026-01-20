@@ -312,7 +312,7 @@ BoxCollider::BoxCollider(Application* app, const std::string& name, const glm::v
                          const glm::vec3& halfExtent, bool isStatic)
     : mCenter(center), mHalfExtent(halfExtent), mName(name), mIsStatic(isStatic) {
     auto box = generateBox();
-    mBoxId = app->mLineEngine->addLines(
+    mDebugLines = app->mLineEngine->create(
         box, glm::translate(glm::mat4{1.0}, mCenter) * glm::scale(glm::mat4{1.0}, halfExtent * glm::vec3{2.0}),
         mIsStatic ? glm::vec3{0.0, 1.0, 0.0} : glm::vec3{1.0, 0.0, 0.0});
 
@@ -332,7 +332,8 @@ glm::mat4 BoxCollider::getTransformation() const {
            glm::scale(glm::mat4{1.0}, mHalfExtent * glm::vec3{2.0});
 }
 
-uint32_t BoxCollider::getBoxId() const { return mBoxId; }
+// uint32_t BoxCollider::getBoxId() const { return mBoxId; }
+LineGroup& BoxCollider::getDebugLines() { return mDebugLines; }
 
 std::shared_ptr<PhysicsComponent> BoxCollider::getPhysicsComponent() { return mPhysicComponent; }
 

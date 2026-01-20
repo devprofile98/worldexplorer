@@ -71,7 +71,6 @@ static bool show_physic_objects = false;
 static bool show_physic_debugs = true;
 static bool runPhysics = false;
 static Model* selectedPhysicModel = nullptr;
-static uint32_t debugboxid = std::numeric_limits<uint32_t>::max();
 
 bool flip_x = false;
 bool flip_y = false;
@@ -88,9 +87,10 @@ static auto rotation_offset = glm::quat{1.0, {0.0, -.1, 0.7}};
 WGPUTextureView getNextSurfaceTextureView(RendererResource& resources);
 WGPULimits GetRequiredLimits(WGPUAdapter adapter);
 bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height);
-// uint32_t boxId = std::numeric_limits<uint32_t>().max();
-uint32_t boxIdForAABB = std::numeric_limits<uint32_t>().max();
-uint32_t sphereId = std::numeric_limits<uint32_t>().max();
+
+static LineGroup debuglinegroup;
+static LineGroup spheredebuglines;
+static LineGroup aabbDebugLines;
 
 WGPUTextureFormat Application::getTextureFormat() { return mSurfaceFormat; }
 
@@ -631,6 +631,15 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
 
     mLineEngine = new LineEngine{};
     mLineEngine->initialize(this);
+    // create and hide debug lines
+    debuglinegroup = mLineEngine->create(generateBox(), glm::mat4{0.0}, {0.2, 0.0, 8.0}).updateVisibility(false);
+
+    spheredebuglines =
+        mLineEngine->create(generateSphere(), glm::mat4{0.0}, glm::vec3{0.5, 0.5, 0.0}).updateVisibility(false);
+
+    aabbDebugLines = mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.8, 0.5, 0.0}).updateVisibility(false);
+
+    debugbox.create(mLineEngine, glm::mat4{0.0}, glm::vec3{1.0});
 
     mCamera = Camera{{-0.0f, -0.0f, 0.0f}, glm::vec3{0.8f}, {1.0, 0.0, 0.0}, 0.0};
     mUniforms.setCamera(mCamera);
@@ -693,70 +702,64 @@ void Application::mainLoop() {
 
     if (mSelectedModel != nullptr) {
         auto [min, max] = mSelectedModel->getWorldSpaceAABB();
-        if (boxIdForAABB < 1024) {
-            mLineEngine->updateLines(boxIdForAABB, generateAABBLines(min, max));
-        } else {
-            boxIdForAABB = mLineEngine->addLines(generateAABBLines(min, max), glm::mat4{1.0}, {0.8, 0.5, 0.0});
-        }
+        aabbDebugLines.updateLines(generateAABBLines(min, max));
     }
 
     if (show_physic_objects) {
-        for (const auto& collider : physics::PhysicSystem::mColliders) {
+        for (auto& collider : physics::PhysicSystem::mColliders) {
             auto t = collider.getTransformation();
-            mLineEngine->updateLineTransformation(collider.getBoxId(), t);
+            collider.getDebugLines().updateTransformation(t);
         }
         if (selectedPhysicModel != nullptr) {
-            if (debugboxid < 1024) {
-                auto [pos, rot] = physics::getPositionAndRotationyId(selectedPhysicModel->mPhysicComponent->bodyId);
-                // glm::quat new_rot;
-                // new_rot.x = rot.GetX();
-                // new_rot.y = rot.GetY();
-                // new_rot.z = rot.GetZ();
-                // new_rot.w = rot.GetW();
-                mLineEngine->updateLineTransformation(
-                    debugboxid,
+            auto [pos, rot] = physics::getPositionAndRotationyId(selectedPhysicModel->mPhysicComponent->bodyId);
+            debuglinegroup
+                .updateTransformation(
                     glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
-                        glm::scale(glm::mat4{1.0}, selectedPhysicModel->mTransform.getScale() * glm::vec3{2.0}));
-            } else {
-                debugboxid =
-                    mLineEngine->addLines(generateBox(/*gham->mTransform.getPosition(), gham->mTransform.getScale()*/),
-                                          glm::mat4{1.0}, {0.2, 0.0, 8.0});
-            }
+                    glm::scale(glm::mat4{1.0}, selectedPhysicModel->mTransform.getScale() * glm::vec3{2.0}))
+                .updateVisibility(true);
         }
     }
-    if (!mEditor->mEditorActive && mWorld->actor != nullptr && mWorld->actor->mBehaviour) {
-        auto* m = mWorld->actor->mBehaviour->getWeapon();
+    // if (mWorld->actor && mWorld->actor->mBehaviour) {
+    for (auto& m : mWorld->rootContainer) {
+        // auto* m = mWorld->actor->mBehaviour->getWeapon();
+        // auto* m = model;
         if (m != nullptr && m->mSocket != nullptr) {
-            Model* pistol = m;
-            Model* human = m->mSocket->model;
+            // Model* base = m;
+            Model* base = m->mSocket->model;
 
             glm::mat4 offsetMat = glm::mat4(1.0f);
 
-            offsetMat = glm::scale(offsetMat, m->mSocket->scaleOffset);
-            offsetMat *= glm::mat4_cast(m->mSocket->rotationOffset);
             offsetMat = glm::translate(offsetMat, m->mSocket->positionOffset);
+            offsetMat *= glm::mat4_cast(m->mSocket->rotationOffset);
+            offsetMat = glm::scale(offsetMat, m->mSocket->scaleOffset);
 
-            auto bone_global = glm::mat4{};
-            if (human->anim->activeAction->calculatedTransform.contains(m->mSocket->boneName)) {
-                auto trans = human->anim->activeAction->calculatedTransform[m->mSocket->boneName];
-                //
-                auto [t, s, r] = decomposeTransformation(human->mTransform.mTransformMatrix * trans);
-                auto final_trans = glm::translate(glm::mat4{1.0}, t);
-                auto final_scale = glm::scale(glm::mat4{1.0}, glm::vec3{0.005});
-                auto final_rot = glm::mat4_cast(r);
+            auto socket_global = glm::mat4{1.0f};
 
-                bone_global = final_trans * final_rot * final_scale;
+            if (m->mSocket->type == AnchorType::Bone) {
+                if (base->anim->activeAction->calculatedTransform.contains(m->mSocket->anchorName)) {
+                    auto trans = base->anim->activeAction->calculatedTransform[m->mSocket->anchorName];
+
+                    auto [t, s, r] = decomposeTransformation(base->mTransform.mTransformMatrix * trans);
+                    auto final_trans = glm::translate(glm::mat4{1.0}, t);
+                    auto final_scale = glm::scale(glm::mat4{1.0}, glm::vec3{0.005});
+                    auto final_rot = glm::mat4_cast(r);
+
+                    socket_global = final_trans * final_rot * final_scale;
+                }
+            } else if (m->mSocket->type == AnchorType::Model) {
+                auto trans = base->mTransform.mTransformMatrix;
+                socket_global = trans;  // final_trans * final_rot * final_scale;
             }
-
-            auto new_trans = bone_global * offsetMat;
+            auto new_trans = socket_global * offsetMat;
 
             auto [t, s, r] = decomposeTransformation(new_trans);
 
-            pistol->moveTo(t);
-            pistol->scale(s);
-            pistol->rotate(normalize(r));
+            m->moveTo(t);
+            m->scale(s);
+            m->rotate(normalize(r));
         }
     }
+    // }
 
     {
         // PerfTimer timer{"tick"};
@@ -1340,7 +1343,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
             if (mSelectedModel) {
                 ImGui::Text("Model: %s, Meshes: %zu", mSelectedModel->getName().c_str(),
-                            mSelectedModel->mMeshes.size());
+                            mSelectedModel->mFlattenMeshes.size());
 
 #ifdef DEVELOPMENT_BUILD
                 mSelectedModel->userInterface();
@@ -1373,41 +1376,50 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             }
             if (ImGui::DragFloat4("quat", glm::value_ptr(rotation_offset))) {
             }
+
+            for (const auto& item : mWorld->rootContainer) {
+                if (item->mSocket != nullptr) {
+                    ImGui::PushID((void*)item);
+                    // Create a unique ID for each selectable item based on its unique item.id
+                    ImGui::Text("%s to %s Bone of: %s %d", item->getName().c_str(), item->mSocket->anchorName.c_str(),
+                                item->mSocket->model->getName().c_str(), static_cast<int>(item->mSocket->type));
+                    ImGui::DragFloat3("Pos offset", glm::value_ptr(item->mSocket->positionOffset));
+                    ImGui::DragFloat3("Rotation offset", glm::value_ptr(item->mSocket->rotationOffset));
+                    ImGui::DragFloat3("scale offset", glm::value_ptr(item->mSocket->scaleOffset));
+                    ImGui::NewLine();
+                    ImGui::NewLine();
+
+                    ImGui::PopID();  // Pop the unique ID for this item
+                }
+            }
+
             ImGui::EndTabItem();
         }
 
         if (ImGui::BeginTabItem("Physics")) {
             ImGui::Checkbox("Run Physics", &runPhysics);
             if (ImGui::Checkbox("Toggle Debug line Visibility", &show_physic_debugs)) {
-                for (const auto& collider : physics::PhysicSystem::mColliders) {
-                    mLineEngine->setVisibility(collider.getBoxId(), show_physic_debugs);
+                for (auto& collider : physics::PhysicSystem::mColliders) {
+                    // mLineEngine->setVisibility(collider.getBoxId(), show_physic_debugs);
+                    collider.getDebugLines().updateVisibility(show_physic_debugs);
                 }
             }
 
             if (ImGui::Checkbox("show physics objects", &show_physic_objects)) {
-                if (debugboxid < 1024) {
-                } else if (selectedPhysicModel != nullptr) {
-                    auto [pos, rot] = physics::getPositionAndRotationyId(selectedPhysicModel->mPhysicComponent->bodyId);
-                    debugboxid = mLineEngine->addLines(
-                        generateBox(),
-                        glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
-                            glm::scale(glm::mat4{1.0}, selectedPhysicModel->mTransform.getScale() * glm::vec3{2.0}),
-                        {0.2, 0.0, 8.0});
-                    mLineEngine->setVisibility(debugboxid, show_physic_objects);
+                if (selectedPhysicModel != nullptr) {
+                    debuglinegroup.updateVisibility(show_physic_objects);
                 }
             }
 
-            static bool is_static = true;
-            if (ImGui::DragFloat3("center", glm::value_ptr(debugbox.center), 0.01) ||
-                ImGui::DragFloat3("half extent", glm::value_ptr(debugbox.halfExtent), 0.01)) {
-                if (debugbox.debugLinesId < 1024) {
+            if (ImGui::DragFloat3("Center", glm::value_ptr(debugbox.center), 0.01) ||
+                ImGui::DragFloat3("Half extent", glm::value_ptr(debugbox.halfExtent), 0.01)) {
+                if (debugbox.debuglines != nullptr && debugbox.debuglines->isInitialized()) {
                     debugbox.update();
-                } else {
-                    debugbox.create(mLineEngine, glm::mat4{1.0}, glm::vec3{1.0});
-                    mEditor->gizmo.moveTo(debugbox.center);
                     mEditor->mSelectedObject = &debugbox;
+                    mEditor->gizmo.moveTo(debugbox.center);
                 }
             }
+            static bool is_static = true;
             ImGui::Checkbox("is Dynamic?", &is_static);
             if (ImGui::Button("Create box")) {
                 physics::PhysicSystem::createCollider(this, "new collider", debugbox.center, debugbox.halfExtent,
@@ -1415,19 +1427,16 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             }
 
             {
-                if (sphereId < 1024) {
-                    static glm::vec3 scale{0.0};
-                    static glm::vec3 translation{0.0};
-                    if (ImGui::DragFloat3("sphere center", glm::value_ptr(translation), 0.01) ||
-                        ImGui::DragFloat3("sphere scale ", glm::value_ptr(scale), 0.01)) {
-                        mLineEngine->updateLineTransformation(
-                            sphereId, glm::translate(glm::mat4{1.0}, translation) * glm::scale(glm::mat4{1.0}, scale));
-                    }
+                static glm::vec3 scale{0.0};
+                static glm::vec3 translation{0.0};
+                if (ImGui::DragFloat3("sphere center", glm::value_ptr(translation), 0.01) ||
+                    ImGui::DragFloat3("sphere scale ", glm::value_ptr(scale), 0.01)) {
+                    spheredebuglines.updateTransformation(glm::translate(glm::mat4{1.0}, translation) *
+                                                          glm::scale(glm::mat4{1.0}, scale));
                 }
             }
             if (ImGui::Button("Create sphere")) {
-                auto sphere = generateSphere();
-                sphereId = mLineEngine->addLines(std::move(sphere), glm::mat4{1.0}, glm::vec3{0.5, 0.5, 0.0});
+                spheredebuglines.updateVisibility(true);
             }
 
             if (ImGui::CollapsingHeader("Physic objects",
@@ -1447,41 +1456,38 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
             if (ImGui::CollapsingHeader("Colliders",
                                         ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
-                for (auto& collider : physics::PhysicSystem::mColliders /*mWorld->rootContainer*/) {
+                for (auto& collider : physics::PhysicSystem::mColliders) {
                     ImGui::PushID((void*)&collider);
-                    // Create a unique ID for each selectable item based on its unique item.id
-                    static int selectedId = 1025;
-                    if (ImGui::Button(std::format("{} #{}", collider.mName.c_str(), collider.getBoxId()).c_str())) {
-                        if (selectedId < 1024) {
-                            mLineEngine->updateLineColor(selectedId, {1.0, 0.0, 0.0});
+
+                    static LineGroup* selectedGroup = nullptr;
+                    if (ImGui::Button(
+                            std::format("{} #{}", collider.mName.c_str(), collider.getDebugLines().mId).c_str())) {
+                        if (selectedGroup != nullptr) {
+                            selectedGroup->updateColor({1.0, 0.0, 0.0});
                         }
-                        selectedId = collider.getBoxId();
-                        mLineEngine->updateLineColor(selectedId, {0.1, 0.0, 0.9});
-                        std::cout << "Trying to update line group #" << selectedId << '\n';
+                        selectedGroup = &collider.getDebugLines();
+                        selectedGroup->updateColor({0.1, 0.0, 0.9});
                     }
                     ImGui::SameLine();
                     if (ImGui::Button("X")) {
-                        collider.getBoxId();
-                        mLineEngine->removeLines(collider.getBoxId());
+                        // collider.getBoxId();
+                        collider.getDebugLines().remove();
                         physics::PhysicSystem::removeCollider(collider);
                     }
                     ImGui::SameLine();
                     if (ImGui::Button("Modify")) {
                         auto cld = collider;
-                        collider.getBoxId();
-                        mLineEngine->removeLines(collider.getBoxId());
+                        // collider.getBoxId();
+                        collider.getDebugLines().remove();
                         physics::PhysicSystem::removeCollider(collider);
 
                         debugbox.center = cld.mCenter;
                         debugbox.halfExtent = cld.mHalfExtent;
 
-                        if (debugbox.debugLinesId < 1024) {
+                        if (debugbox.debuglines != nullptr && debugbox.debuglines->isInitialized()) {
                             debugbox.update();
-                        } else {
-                            debugbox.create(mLineEngine, glm::mat4{1.0}, glm::vec3{1.0});
-                            debugbox.update();
-                            mEditor->gizmo.moveTo(debugbox.center);
                             mEditor->mSelectedObject = &debugbox;
+                            mEditor->gizmo.moveTo(debugbox.center);
                         }
                     }
                     ImGui::SameLine();
@@ -1489,19 +1495,13 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                         debugbox.center = collider.mCenter;
                         debugbox.halfExtent = collider.mHalfExtent;
 
-                        if (debugbox.debugLinesId < 1024) {
+                        if (debugbox.debuglines != nullptr && debugbox.debuglines->isInitialized()) {
                             debugbox.update();
-                        } else {
-                            debugbox.create(mLineEngine, glm::mat4{1.0}, glm::vec3{1.0});
-                            debugbox.update();
-                            mEditor->gizmo.moveTo(debugbox.center);
                             mEditor->mSelectedObject = &debugbox;
+                            mEditor->gizmo.moveTo(debugbox.center);
                         }
                     }
                     ImGui::PopID();  // Pop the unique ID for this item
-                }
-
-                if (ImGui::Button("Create new collider")) {
                 }
             }
             ImGui::EndTabItem();
