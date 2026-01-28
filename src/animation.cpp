@@ -18,18 +18,11 @@ glm::mat4 AiToGlm(const aiMatrix4x4& aiMat) {
 
 void printAnimationInfos(const std::string& name, const aiScene* scene) {
     if (scene->mAnimations != nullptr) {
-        // std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ There are animations " << name << " " << scene->mNumAnimations
-        // << std::endl;
         for (size_t i = 0; i < scene->mNumAnimations; i++) {
             const aiAnimation* anim = scene->mAnimations[i];
-            // std::cout << "@@@@@@@@@@@@@@@@@@@@@ " << anim->mName.C_Str() << " " << anim->mNumChannels << std::endl;
             for (size_t j = 0; j < anim->mNumChannels; j++) {
                 const aiNodeAnim* nodeAnim = anim->mChannels[j];
-                // std::cout << "--------------------------------" << nodeAnim->mNodeName.C_Str() << " "
-                //           << nodeAnim->mNumPositionKeys << " " << nodeAnim->mNumRotationKeys << " "
-                //           << nodeAnim->mNumScalingKeys << std::endl;
                 for (size_t k = 0; k < nodeAnim->mNumPositionKeys; k++) {
-                    // std::cout << std::format("at: {}\n", nodeAnim->mPositionKeys[k].mTime / anim->mTicksPerSecond);
                 }
             }
         }
@@ -238,6 +231,7 @@ bool Animation::initAnimation(const aiScene* scene, std::string name) {
         for (size_t a = 0; a < scene->mNumAnimations; ++a) {
             Action* action = new Action{};
             aiAnimation* anim = scene->mAnimations[a];
+            action->name = anim->mName.C_Str();
             action->mAnimationDuration = anim->mDuration / anim->mTicksPerSecond;
             for (size_t i = 0; i < anim->mNumChannels; ++i) {
                 aiNodeAnim* channel = anim->mChannels[i];

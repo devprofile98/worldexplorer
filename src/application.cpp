@@ -17,6 +17,7 @@
 #include "binding_group.h"
 #include "camera.h"
 #include "glm/detail/qualifier.hpp"
+#include "glm/gtc/quaternion.hpp"
 #include "glm/gtx/quaternion.hpp"
 #include "glm/matrix.hpp"
 #include "mesh.h"
@@ -740,15 +741,33 @@ void Application::mainLoop() {
                     auto trans = base->anim->activeAction->calculatedTransform[m->mSocket->anchorName];
 
                     auto [t, s, r] = decomposeTransformation(base->mTransform.mTransformMatrix * trans);
+                    // socket_global = base->mTransform.mTransformMatrix * trans;
                     auto final_trans = glm::translate(glm::mat4{1.0}, t);
-                    auto final_scale = glm::scale(glm::mat4{1.0}, glm::vec3{0.005});
+                    auto final_scale = glm::scale(glm::mat4{1.0}, s);
                     auto final_rot = glm::mat4_cast(r);
 
                     socket_global = final_trans * final_rot * final_scale;
                 }
             } else if (m->mSocket->type == AnchorType::Model) {
                 auto trans = base->mTransform.mTransformMatrix;
-                socket_global = trans;  // final_trans * final_rot * final_scale;
+                auto [t, s, r] = decomposeTransformation(trans);
+                // t = (t) + (r * m->mSocket->positionOffset);
+                // auto final_trans = glm::translate(glm::mat4{1.0}, t);
+                // auto final_scale = glm::scale(glm::mat4{1.0}, s);
+                // r = glm::normalize(r * m->mSocket->rotationOffset);
+                // s = s * m->mSocket->scaleOffset;
+                // auto final_rot = glm::mat4_cast(r);
+                // socket_global = final_trans * final_rot * final_scale;
+                // // socket_global = trans;  // final_trans * final_rot * final_scale;
+                // m->moveTo(t);
+                // m->scale(s);
+                // m->rotate(normalize(r));
+
+                auto final_trans = glm::translate(glm::mat4{1.0}, t);
+                auto final_scale = glm::scale(glm::mat4{1.0}, s);
+                auto final_rot = glm::mat4_cast(r);
+
+                socket_global = final_trans * final_rot * final_scale;
             }
             auto new_trans = socket_global * offsetMat;
 
@@ -1300,6 +1319,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             }
             ImGui::Checkbox("shoud update csm", &should_update_csm);
             ImGui::Text("\nClip Plane");
+
             if (ImGui::DragFloat4("clip plane:", glm::value_ptr(mDefaultPlane))) {
                 wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
                                      glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
@@ -1308,6 +1328,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
         }
 
         if (ImGui::BeginTabItem("Objects")) {
+            // ImGuiFileDialog::Instance()->OpenDialog("ChooseFile", "Choose Model", ".obj,.fbx,.gltf,.glb", ".");
             ImGui::BeginChild("ScrollableList", ImVec2(0, 200),
                               ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY);
 
@@ -1370,26 +1391,146 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
         }
 
         if (ImGui::BeginTabItem("socket")) {
-            if (ImGui::DragFloat3("position", glm::value_ptr(position_offset))) {
-            }
-            if (ImGui::DragFloat3("scale", glm::value_ptr(scale_offset))) {
-            }
-            if (ImGui::DragFloat4("quat", glm::value_ptr(rotation_offset))) {
-            }
+            static BaseModel* target_socket = nullptr;
 
             for (const auto& item : mWorld->rootContainer) {
                 if (item->mSocket != nullptr) {
                     ImGui::PushID((void*)item);
                     // Create a unique ID for each selectable item based on its unique item.id
-                    ImGui::Text("%s to %s Bone of: %s %d", item->getName().c_str(), item->mSocket->anchorName.c_str(),
-                                item->mSocket->model->getName().c_str(), static_cast<int>(item->mSocket->type));
-                    ImGui::DragFloat3("Pos offset", glm::value_ptr(item->mSocket->positionOffset));
-                    ImGui::DragFloat3("Rotation offset", glm::value_ptr(item->mSocket->rotationOffset));
-                    ImGui::DragFloat3("scale offset", glm::value_ptr(item->mSocket->scaleOffset));
-                    ImGui::NewLine();
-                    ImGui::NewLine();
+                    bool modified = false;
+                    static glm::vec3 euler_rot{0.0f};
+                    if (ImGui::Selectable(
+                            std::format("{} to {} Bone of: {} {}", item->getName().c_str(),
+                                        item->mSocket->anchorName.c_str(), item->mSocket->model->getName().c_str(),
+                                        static_cast<int>(item->mSocket->type))
+                                .c_str(),
+                            target_socket == item)) {
+                    }
+                    if (ImGui::BeginPopupContextItem()) {
+                        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.18f, 0.22f, 1.0f));
+                        if (ImGui::MenuItem("Modify")) {
+                            target_socket = item;
+                            euler_rot = glm::eulerAngles(item->mSocket->rotationOffset);
+                        };
+                        ImGui::PopStyleColor();
+                        ImGui::EndPopup();
+                    }
+
+                    if (target_socket == item) {
+                        float speed = ImGui::IsKeyPressed(ImGuiKey_LeftShift) ? 0.001 : 0.5;
+                        ImGui::DragFloat3("Pos offset", glm::value_ptr(item->mSocket->positionOffset), speed);
+                        modified |= ImGui::DragFloat3("Rotation offset", glm::value_ptr(euler_rot),
+                                                      ImGui::IsKeyPressed(ImGuiKey_LeftShift) ? 0.1 : 5.0);
+                        ImGui::DragFloat3("scale offset", glm::value_ptr(item->mSocket->scaleOffset), speed);
+                        ImGui::NewLine();
+                        if (modified) {
+                            item->mSocket->rotationOffset = glm::quat(glm::vec3{
+                                glm::radians(euler_rot.x), glm::radians(euler_rot.y), glm::radians(euler_rot.z)});
+                        }
+
+                        switch (static_cast<int>(item->mSocket->type)) {
+                            case 0:
+                                item->mSocket->anchorName = "";
+                                break;
+
+                            case 1:
+                                break;
+
+                            case 2: {
+                                auto* base_model = reinterpret_cast<Model*>(item->mSocket->model);
+
+                                auto& selected_name = item->mSocket->anchorName;
+                                if (ImGui::BeginCombo("Bone", selected_name.c_str())) {
+                                    for (auto& [key, value] : base_model->anim->activeAction->Bonemap) {
+                                        bool selected = (key == selected_name);
+                                        if (ImGui::Selectable(key.c_str(), selected)) {
+                                            selected_name = key;
+                                        }
+
+                                        if (selected) ImGui::SetItemDefaultFocus();
+                                    }
+                                    ImGui::EndCombo();
+                                }
+
+                                break;
+                            }
+                        }
+                    }
 
                     ImGui::PopID();  // Pop the unique ID for this item
+                }
+            }
+            ImGui::Separator();
+
+            static BaseModel* child = nullptr;
+            static BaseModel* base = nullptr;
+            if (mSelectedModel != nullptr) {
+                ImGui::TextColored(ImVec4{1.0, 0.0, 0.0, 1.0}, "%s is selected as child.",
+                                   mSelectedModel->getName().c_str());
+                ImGui::SameLine();
+                if (ImGui::Button("Ok##chid")) {
+                    child = mSelectedModel;
+                }
+                static int current_item = 0;
+                static std::string anchor_name = "";
+
+                if (child != nullptr) {
+                    ImGui::Text("Select %s as base.", mSelectedModel->getName().c_str());
+                    ImGui::SameLine();
+                    if (ImGui::Button("Ok##base")) {
+                        base = mSelectedModel;
+                    }
+
+                    if (child != nullptr && base != nullptr) {
+                        const char* items[] = {"Model", "Mesh", "Bone"};
+
+                        if (ImGui::Combo("Type", &current_item, items, IM_ARRAYSIZE(items))) {
+                            // This runs when selection changes
+                        }
+                        ImGui::Text("child=%s and base=%s for Bone: %s", child->getName().c_str(),
+                                    base->getName().c_str(), anchor_name.c_str());
+                        switch (current_item) {
+                            case 0:
+                                anchor_name = "";
+                                break;
+
+                            case 1:
+                                break;
+
+                            case 2: {
+                                auto* base_model = reinterpret_cast<Model*>(base);
+                                if (base_model->anim && base_model->anim->activeAction) {
+                                    static std::string selectedKey;
+
+                                    if (ImGui::BeginCombo("Bone", selectedKey.c_str())) {
+                                        for (auto& [key, value] : base_model->anim->activeAction->Bonemap) {
+                                            bool selected = (key == selectedKey);
+                                            if (ImGui::Selectable(key.c_str(), selected)) {
+                                                anchor_name = key;
+                                            }
+                                            selectedKey = key;
+
+                                            if (selected) ImGui::SetItemDefaultFocus();
+                                        }
+                                        ImGui::EndCombo();
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    if (ImGui::Button("Create Socket")) {
+                        // auto diff_pos = base->mTransform.getPosition() - child->mTransform.getPosition();
+                        child->mSocket = new BoneSocket{reinterpret_cast<Model*>(mSelectedModel),
+                                                        anchor_name,
+                                                        glm::vec3{0.0},
+                                                        glm::vec3{0.02},
+                                                        glm::vec3{0.0},
+                                                        static_cast<AnchorType>(current_item)};
+                        child = nullptr;
+                        base = nullptr;
+                    }
                 }
             }
 
@@ -1398,19 +1539,9 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
         if (ImGui::BeginTabItem("Physics")) {
             ImGui::Checkbox("Run Physics", &runPhysics);
-            if (ImGui::Checkbox("Toggle Debug line Visibility", &show_physic_debugs)) {
-                for (auto& collider : physics::PhysicSystem::mColliders) {
-                    // mLineEngine->setVisibility(collider.getBoxId(), show_physic_debugs);
-                    collider.getDebugLines().updateVisibility(show_physic_debugs);
-                }
-            }
 
-            if (ImGui::Checkbox("show physics objects", &show_physic_objects)) {
-                if (selectedPhysicModel != nullptr) {
-                    debuglinegroup.updateVisibility(show_physic_objects);
-                }
-            }
-
+            ImGui::NewLine();
+            ImGui::Separator();
             if (ImGui::DragFloat3("Center", glm::value_ptr(debugbox.center), 0.01) ||
                 ImGui::DragFloat3("Half extent", glm::value_ptr(debugbox.halfExtent), 0.01)) {
                 if (debugbox.debuglines != nullptr && debugbox.debuglines->isInitialized()) {
@@ -1439,8 +1570,17 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                 spheredebuglines.updateVisibility(true);
             }
 
-            if (ImGui::CollapsingHeader("Physic objects",
-                                        ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+            ImGui::NewLine();
+            ImGui::Separator();
+            if (ImGui::Checkbox("show physics objects", &show_physic_objects)) {
+                if (selectedPhysicModel != nullptr) {
+                    debuglinegroup.updateVisibility(show_physic_objects);
+                }
+            }
+
+            if (ImGui::BeginCombo("Physic objects", selectedPhysicModel == nullptr
+                                                        ? "Choose one##1"
+                                                        : selectedPhysicModel->getName().c_str())) {
                 for (const auto& item :
                      ModelRegistry::instance().getLoadedModel(Visibility_User) /*mWorld->rootContainer*/) {
                     if (item->mPhysicComponent != nullptr) {
@@ -1452,14 +1592,21 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                         ImGui::PopID();  // Pop the unique ID for this item
                     }
                 }
+                ImGui::EndCombo();
             }
 
-            if (ImGui::CollapsingHeader("Colliders",
-                                        ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+            ImGui::NewLine();
+            ImGui::Separator();
+            if (ImGui::Checkbox("Show Colliders Debug lines", &show_physic_debugs)) {
+                for (auto& collider : physics::PhysicSystem::mColliders) {
+                    collider.getDebugLines().updateVisibility(show_physic_debugs);
+                }
+            }
+            static LineGroup* selectedGroup = nullptr;
+            if (ImGui::BeginCombo("Colliders", "Choose one##2")) {
                 for (auto& collider : physics::PhysicSystem::mColliders) {
                     ImGui::PushID((void*)&collider);
 
-                    static LineGroup* selectedGroup = nullptr;
                     if (ImGui::Button(
                             std::format("{} #{}", collider.mName.c_str(), collider.getDebugLines().mId).c_str())) {
                         if (selectedGroup != nullptr) {
@@ -1468,42 +1615,71 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                         selectedGroup = &collider.getDebugLines();
                         selectedGroup->updateColor({0.1, 0.0, 0.9});
                     }
-                    ImGui::SameLine();
-                    if (ImGui::Button("X")) {
-                        // collider.getBoxId();
-                        collider.getDebugLines().remove();
-                        physics::PhysicSystem::removeCollider(collider);
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("Modify")) {
-                        auto cld = collider;
-                        // collider.getBoxId();
-                        collider.getDebugLines().remove();
-                        physics::PhysicSystem::removeCollider(collider);
 
-                        debugbox.center = cld.mCenter;
-                        debugbox.halfExtent = cld.mHalfExtent;
+                    if (ImGui::BeginPopupContextItem()) {
+                        if (ImGui::MenuItem("Remove")) {
+                            collider.getDebugLines().remove();
+                            physics::PhysicSystem::removeCollider(collider);
+                        };
+                        if (ImGui::MenuItem("Modify")) {
+                            auto cld = collider;
+                            collider.getDebugLines().remove();
+                            physics::PhysicSystem::removeCollider(collider);
 
-                        if (debugbox.debuglines != nullptr && debugbox.debuglines->isInitialized()) {
-                            debugbox.update();
-                            mEditor->mSelectedObject = &debugbox;
-                            mEditor->gizmo.moveTo(debugbox.center);
-                        }
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("Clone")) {
-                        debugbox.center = collider.mCenter;
-                        debugbox.halfExtent = collider.mHalfExtent;
+                            debugbox.center = cld.mCenter;
+                            debugbox.halfExtent = cld.mHalfExtent;
 
-                        if (debugbox.debuglines != nullptr && debugbox.debuglines->isInitialized()) {
-                            debugbox.update();
-                            mEditor->mSelectedObject = &debugbox;
-                            mEditor->gizmo.moveTo(debugbox.center);
-                        }
+                            if (debugbox.debuglines != nullptr && debugbox.debuglines->isInitialized()) {
+                                debugbox.update();
+                                mEditor->mSelectedObject = &debugbox;
+                                mEditor->gizmo.moveTo(debugbox.center);
+                            }
+                        };
+                        if (ImGui::MenuItem("Duplicate")) {
+                            debugbox.center = collider.mCenter;
+                            debugbox.halfExtent = collider.mHalfExtent;
+
+                            if (debugbox.debuglines != nullptr && debugbox.debuglines->isInitialized()) {
+                                debugbox.update();
+                                mEditor->mSelectedObject = &debugbox;
+                                mEditor->gizmo.moveTo(debugbox.center);
+                            }
+                        };
+                        ImGui::EndPopup();
                     }
                     ImGui::PopID();  // Pop the unique ID for this item
                 }
+                ImGui::EndCombo();
             }
+            ImGui::NewLine();
+            ImGui::Separator();
+
+            if (ImGui::Button("export colliders to json")) {
+                for (auto& collider : physics::PhysicSystem::mColliders) {
+                    std::cout << "{\n";
+                    std::cout << "\"active\": " << "true" << ",\n";
+                    std::cout << "\"name\": \"" << collider.mName << "\",\n";
+                    std::cout << "\"type\": \"static\",\n";
+                    std::cout << "\"shape\": \"box\",\n";
+                    std::cout << "\"center\":"
+                              << std::format("[{},{},{}]", collider.mCenter.x, collider.mCenter.y, collider.mCenter.z)
+                              << ",\n";
+                    std::cout << "\"half_extent\":"
+                              << std::format("[{},{},{}]", collider.mHalfExtent.x, collider.mHalfExtent.y,
+                                             collider.mHalfExtent.z)
+                              << "\n";
+                    std::cout << "},\n";
+                    // {
+                    //   "active": true,
+                    //   "name": "right_bottom_cabinet",
+                    //   "type": "static",
+                    //   "shape": "box",
+                    //   "center": [0.099, 4.517, -2.875],
+                    //   "half_extent": [0.26, 0.75, 0.39]
+                    // }
+                }
+            }
+
             ImGui::EndTabItem();
         }
 
@@ -1511,8 +1687,9 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             // ImGui::Image((ImTextureID)(intptr_t)mShadowPass->getTextureView(0, 0), ImVec2(1920 / 4.0, 1022
             // / 4.0)); ImGui::Image((ImTextureID)(intptr_t)mShadowPass->getShadowMapView(), ImVec2(1920 / 4.0, 1022
             // / 4.0));
-            if (ImGui::Button("Button")) {
+            if (ImGui::Button("Save scene")) {
                 // worldToClip(mCamera.getProjection() * mCamera.getView(), glm::vec3{1.0, 0.0, 0.0});
+                mWorld->exportScene();
             }
             ImGui::EndTabItem();
         }

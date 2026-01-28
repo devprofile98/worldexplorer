@@ -6,8 +6,10 @@
 #include "GLFW/glfw3.h"
 #include "animation.h"
 #include "application.h"
+#include "editor.h"
 #include "glm/ext/matrix_common.hpp"
 #include "glm/fwd.hpp"
+#include "glm/geometric.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "input_manager.h"
@@ -109,10 +111,11 @@ struct HumanBehaviour : public Behaviour {
             // Apply yaw rotation around the world Y-axis (since yaw is horizontal)
             glm::mat4 yawRotation = glm::rotate(glm::mat4(1.0f), glm::radians(yaw), glm::vec3(0.0f, 0.0f, 1.0f));
             front = glm::normalize(glm::vec3(yawRotation * glm::vec4(baseFront, 0.0f)));
+            // std::cout << glm::to_string(front) << std::endl;
 
             // Update model orientation
-            glm::mat4 initialRotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-            glm::mat4 totalRotation = yawRotation * initialRotation;  // Combine yaw and initial X rotation
+            // glm::mat4 initialRotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f,
+            // 0.0f)); glm::mat4 totalRotation = yawRotation * initialRotation;  // Combine yaw and initial X rotation
 
             // 1. +90° rotation around X (converts Y-up → Z-up orientation)
             JPH::Quat rot90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
@@ -176,6 +179,7 @@ struct HumanBehaviour : public Behaviour {
             glm::vec3 cam_pos = model->mTransform.getPosition() - camera_offset;
 
             if (model->mBehaviour) {
+                camera->mCameraUp = glm::vec3{0, 0, 1};
                 // Set the camera position
                 camera->setPosition(cam_pos);
                 // Set the camera to look at the actor's position

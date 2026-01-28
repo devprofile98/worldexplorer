@@ -49,6 +49,7 @@ class LightManager {
         void nextLight();
         Buffer& getCountBuffer();
         std::vector<Light>& getLights();
+        std::vector<std::string>& getLightsNames();
         uint32_t boxId = std::numeric_limits<uint32_t>().max();
 
     private:

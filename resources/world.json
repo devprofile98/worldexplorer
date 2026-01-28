@@ -1,441 +1,888 @@
 {
-  "objects": [
+  "actor": "human",
+  "cameras": [],
+  "colliders": [
     {
-      "id": "house",
-      "name": "house",
-      "enabled": true,
-      "path": "ourhome.gltf",
-      "animated": false,
-      "cs": "z",
-      "translate": [-0.483, 2.048, -3.309],
-      "scale": [0.101, 0.101, 0.101],
-      "rotate": [0.0, 0, 0],
-      "childrens": [],
-      "default_clip": "",
-      "socket": null,
-      "physics": null
+      "active": true,
+      "center": [
+        0.0,
+        0.0020000000949949026,
+        -3.305999994277954
+      ],
+      "half_extent": [
+        5.0,
+        2.4800000190734863,
+        0.029999999329447746
+      ],
+      "name": "floor_right",
+      "shape": "box",
+      "type": "static"
     },
     {
-      "id": "cube",
-      "name": "cube",
-      "enabled": true,
-      "path": "cube.gltf",
-      "animated": false,
-      "cs": "z",
-      "translate": [0.0, 0.0, -1.0],
-      "scale": [0.2, 0.2, 1.0],
-      "rotate": [45.0, 45.0, 0.0],
-      "childrens": [],
-      "default_clip": "",
-      "socket": null,
-      "physics": {
-        "enabled": true,
-        "type": "dynamic"
-      }
+      "active": true,
+      "center": [
+        0.41600000858306885,
+        4.479000091552734,
+        -3.305999994277954
+      ],
+      "half_extent": [
+        3.359999895095825,
+        1.9900000095367432,
+        0.029999999329447746
+      ],
+      "name": "floor_left",
+      "shape": "box",
+      "type": "static"
     },
     {
-      "id": "tree",
-      "name": "tree",
-      "enabled": true,
-      "path": "tree3.gltf",
-      "animated": false,
-      "cs": "z",
-      "translate": [-4.192, 5.513, -3.315],
-      "scale": [2.0, 2.0, 2.0],
-      "rotate": [0.0, 0.0, 0.0],
-      "childrens": [],
-      "default_clip": "",
-      "socket": null,
-      "physics": {
-        "enabled": true,
-        "type": "static"
-      }
+      "active": true,
+      "center": [
+        -4.061999797821045,
+        4.809000015258789,
+        -3.305999994277954
+      ],
+      "half_extent": [
+        1.1100000143051147,
+        1.9900000095367432,
+        0.029999999329447746
+      ],
+      "name": "floor_thin",
+      "shape": "box",
+      "type": "static"
     },
     {
-      "id": "cube1",
-      "name": "cube1",
-      "enabled": true,
-      "path": "cube.gltf",
-      "animated": false,
-      "cs": "z",
-      "translate": [2.0, 0.0, -1.0],
-      "scale": [0.2, 0.2, 0.4],
-      "rotate": [45.0, 5.0, 0.0],
-      "childrens": [],
-      "default_clip": "",
-      "socket": null,
-      "physics": {
-        "enabled": true,
-        "type": "dynamic"
-      }
+      "active": true,
+      "center": [
+        -0.20999999344348907,
+        2.069999933242798,
+        -3.6089999675750732
+      ],
+      "half_extent": [
+        4.869999885559082,
+        4.480000019073486,
+        0.029999999329447746
+      ],
+      "name": "basement_floor",
+      "shape": "box",
+      "type": "static"
     },
     {
-      "id": "cube2",
-      "name": "cube2",
-      "enabled": true,
-      "path": "cube.gltf",
-      "animated": false,
-      "cs": "z",
-      "translate": [-2.0, -1.0, -1.0],
-      "scale": [0.2, 0.2, 0.4],
-      "rotate": [0.0, 0.0, 0.0],
-      "childrens": [],
-      "default_clip": "",
-      "socket": null,
-      "physics": {
-        "enabled": true,
-        "type": "dynamic"
-      }
+      "active": true,
+      "center": [
+        -0.13500000536441803,
+        -1.225000023841858,
+        -1.687000036239624
+      ],
+      "half_extent": [
+        3.690000057220459,
+        0.029999999329447746,
+        1.600000023841858
+      ],
+      "name": "hall_backwall",
+      "shape": "box",
+      "type": "static"
     },
     {
-      "id": "smallcube",
-      "name": "smallcube",
-      "enabled": true,
-      "path": "cube.gltf",
-      "animated": false,
-      "cs": "z",
-      "translate": [0.1, 0.0, 0.2],
-      "scale": [0.05, 0.05, 0.05],
-      "rotate": [0.0, 0, 0],
-      "childrens": [],
-      "default_clip": "",
-      "socket": null,
-      "physics": {
-        "enabled": true,
-        "type": "dynamic"
-      }
+      "active": true,
+      "center": [
+        0.22599999606609344,
+        5.289000034332275,
+        -1.687000036239624
+      ],
+      "half_extent": [
+        2.5399999618530273,
+        0.029999999329447746,
+        1.600000023841858
+      ],
+      "name": "kitchen_wall",
+      "shape": "box",
+      "type": "static"
     },
     {
-      "id": "pistol",
-      "name": "pistol",
-      "enabled": true,
-      "path": "pistol/scene.gltf",
-      "animated": false,
-      "cs": "y",
-      "translate": [-1.215, 2.325, -3.107],
-      "scale": [0.009, 0.009, 0.009],
-      "rotate": [0.0, 335, 270],
-      "childrens": [],
-      "default_clip": "",
-      "socket": {
-        "model_name": "human",
-        "bone_name": "DEF-handR",
-        "offset": {
-          "translate": [5.0, 0.5, 0.7],
-          "scale": [0.9, 0.9, 0.9],
-          "rotate": [0.0, -0.1, 0.7]
-        }
-      },
-      "physics": null
+      "active": true,
+      "center": [
+        2.2790000438690186,
+        2.507999897003174,
+        -1.687000036239624
+      ],
+      "half_extent": [
+        1.2100000381469727,
+        0.029999999329447746,
+        1.600000023841858
+      ],
+      "name": "room_wall1",
+      "shape": "box",
+      "type": "static"
     },
     {
-      "id": "human",
-      "name": "human",
-      "enabled": true,
-      "path": "model2.gltf",
-      "animated": true,
-      "cs": "z",
-      "translate": [-1.377, 0.148, -3.252],
-      "scale": [0.1, 0.1, 0.1],
-      "rotate": [90.0, 0.0, 0.0],
-      "childrens": [""],
-      "default_clip": "Idle_Loop",
-      "socket": null,
-      "physics": null
+      "active": true,
+      "center": [
+        2.306999921798706,
+        0.14000000059604645,
+        -1.687000036239624
+      ],
+      "half_extent": [
+        1.149999976158142,
+        0.029999999329447746,
+        1.600000023841858
+      ],
+      "name": "room_wall2",
+      "shape": "box",
+      "type": "static"
     },
     {
-      "id": "robot",
-      "name": "robot",
-      "enabled": true,
-      "path": "dance2.gltf",
-      "animated": true,
-      "cs": "z",
-      "translate": [-1.2, 3.2, -3.262],
-      "scale": [0.1, 0.1, 0.1],
-      "rotate": [90.0, 0.0, 0.0],
-      "childrens": [],
-      "default_clip": "Object_4Action",
-      "socket": null,
-
-      "physics": null
+      "active": true,
+      "center": [
+        3.5290000438690186,
+        0.6110000014305115,
+        -1.687000036239624
+      ],
+      "half_extent": [
+        0.029999999329447746,
+        1.8300000429153442,
+        1.600000023841858
+      ],
+      "name": "room_wall3",
+      "shape": "box",
+      "type": "static"
     },
     {
-      "id": "tire",
-      "name": "tire",
-      "enabled": true,
-      "path": "tire.gltf",
-      "animated": true,
-      "cs": "y",
-      "translate": [0.7, 0.4, -3.247],
-      "scale": [0.1, 0.1, 0.1],
-      "rotate": [0.0, 0.0, 305.0],
-      "childrens": [],
-      "default_clip": "",
-      "socket": null,
-      "physics": null
+      "active": true,
+      "center": [
+        1.1260000467300415,
+        0.5989999771118164,
+        -1.687000036239624
+      ],
+      "half_extent": [
+        0.029999999329447746,
+        1.2100000381469727,
+        1.600000023841858
+      ],
+      "name": "room_wall4",
+      "shape": "box",
+      "type": "static"
     },
     {
-      "id": "ghamgham",
-      "name": "ghamgham",
-      "enabled": true,
-      "path": "ghamgham.gltf",
-      "animated": false,
-      "cs": "z",
-      "translate": [-2.5, 2.144, -3.247],
-      "scale": [0.1, 0.1, 0.1],
-      "rotate": [0.0, 0.0, 0.0],
-      "childrens": [],
-      "default_clip": "",
-      "socket": null,
-      "physics": {
-        "enabled": true,
-        "type": "dynamic"
-      }
+      "active": true,
+      "center": [
+        0.36800000071525574,
+        3.878000020980835,
+        -1.687000036239624
+      ],
+      "half_extent": [
+        0.029999999329447746,
+        1.409999966621399,
+        1.600000023841858
+      ],
+      "name": "room_wall5",
+      "shape": "box",
+      "type": "static"
     },
     {
-      "id": "coin",
-      "name": "coin",
-      "enabled": true,
-      "path": "coin.gltf",
-      "animated": true,
-      "cs": "z",
-      "translate": [-2.5, 1.144, -2.947],
-      "scale": [0.05, 0.05, 0.05],
-      "rotate": [0.0, 0.0, 0.0],
-      "childrens": [],
-      "default_clip": "CylinderAction.001",
-      "socket": null,
-      "physics": null,
-      "instance": [
-        {
-          "position": [-2.5, 1.144, -2.947],
-          "scale": [0.05, 0.05, 0.05],
-          "rotation": [0, 0, 0]
-        },
-        {
-          "position": [-2.5, 1.344, -2.947],
-          "scale": [0.05, 0.05, 0.05],
-          "rotation": [0, 0, 0]
-        },
-        {
-          "position": [-2.5, 1.544, -2.947],
-          "scale": [0.05, 0.05, 0.05],
-          "rotation": [0, 0, 0]
-        },
-        {
-          "position": [-2.5, 1.744, -2.947],
-          "scale": [0.05, 0.05, 0.05],
-          "rotation": [0, 0, 0]
-        },
-        {
-          "position": [-2.49, 2.184, -2.937],
-          "scale": [0.05, 0.05, 0.05],
-          "rotation": [0, 0, 0]
-        },
-        {
-          "position": [-2.96, 2.734, -2.377],
-          "scale": [0.04, 0.04, 0.04],
-          "rotation": [0, 0, 0]
-        },
-        {
-          "position": [0.05, 2.744, -2.367],
-          "scale": [0.04, 0.04, 0.04],
-          "rotation": [0, 0, 0]
-        },
-        {
-          "position": [0.06, 4.734, -2.357],
-          "scale": [0.04, 0.04, 0.04],
-          "rotation": [0, 0, 0]
-        }
-      ]
+      "active": true,
+      "center": [
+        2.7929999828338623,
+        3.878000020980835,
+        -1.687000036239624
+      ],
+      "half_extent": [
+        0.029999999329447746,
+        1.409999966621399,
+        1.600000023841858
+      ],
+      "name": "room_wall6",
+      "shape": "box",
+      "type": "static"
     },
     {
-      "id": "sword",
-      "name": "sword",
-      "enabled": true,
-      "path": "sword.gltf",
-      "animated": false,
-      "cs": "z",
-      "translate": [-2.5, 1.144, -3.147],
-      "scale": [0.002, 0.002, 0.002],
-      "rotate": [90.0, 0.0, 144.0],
-      "childrens": [],
-      "default_clip": "",
-      "socket": {
-        "model_name": "human",
-        "bone_name": "DEF-handR",
-        "offset": {
-          "translate": [0.25, 2.77, -3.34],
-          "scale": [0.3, 0.3, 0.3],
-          "rotate": [0.52, 0.3, 0.23]
-        }
-      },
-      "physics": null
+      "active": true,
+      "center": [
+        -3.7750000953674316,
+        1.2009999752044678,
+        -1.687000036239624
+      ],
+      "half_extent": [
+        0.029999999329447746,
+        2.380000114440918,
+        1.600000023841858
+      ],
+      "name": "room_wall7",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [
+        0.38100001215934753,
+        -0.6320000290870667,
+        -2.0769999027252197
+      ],
+      "half_extent": [
+        0.029999999329447746,
+        0.5400000214576721,
+        1.2100000381469727
+      ],
+      "name": "hall_wall8",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [
+        -0.3059999942779541,
+        2.7160000801086426,
+        -2.875
+      ],
+      "half_extent": [
+        0.6299999952316284,
+        0.25,
+        0.38999998569488525
+      ],
+      "name": "right_open",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [
+        0.0989999994635582,
+        4.517000198364258,
+        -2.875
+      ],
+      "half_extent": [
+        0.25999999046325684,
+        0.75,
+        0.38999998569488525
+      ],
+      "name": "right_bottom_cabinet",
+      "shape": "box",
+      "type": "static"
     }
   ],
   "lights": [
     {
-      "type": "spot",
+      "color": [
+        0.5519999861717224,
+        0.5519999861717224,
+        0.0
+      ],
+      "direction": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "inner_cutoff": 0.8370000123977661,
+      "linear": 0.07999999821186066,
       "name": "room lamp",
-      "color": [0.552, 0.552, 0.0],
-      "position": [1.91, 4.347, 0.238],
-      "direction": [0.0, 0.0, -1.0],
-      "inner_cutoff": 0.837,
-      "outer_cutoff": 0.709,
-      "linear": 0.08,
-      "quadratic": 0.04
+      "outer_cutoff": 0.7089999914169312,
+      "position": [
+        1.909999966621399,
+        4.3470001220703125,
+        0.23800000548362732
+      ],
+      "quadratic": 0.03999999910593033,
+      "type": "spot"
     },
     {
-      "type": "spot",
+      "color": [
+        0.9900000095367432,
+        0.1289999932050705,
+        0.1289999932050705
+      ],
+      "direction": [
+        0.0,
+        -0.20000000298023224,
+        -1.0
+      ],
+      "inner_cutoff": 0.9390000104904175,
+      "linear": 0.11999999731779099,
       "name": "hall lamp",
-      "color": [0.99, 0.129, 0.129],
-      "position": [-1.2, 3.4, -0.4],
-      "direction": [0.0, -0.2, -1.0],
-      "inner_cutoff": 0.939,
-      "outer_cutoff": 0.168,
-      "linear": 0.12,
-      "quadratic": 0.56
+      "outer_cutoff": 0.1679999977350235,
+      "position": [
+        -1.2000000476837158,
+        3.4000000953674316,
+        -0.4000000059604645
+      ],
+      "quadratic": 0.5600000023841858,
+      "type": "spot"
     },
     {
-      "type": "point",
-      "name": "env point red",
-      "color": [1.0, 0.0, 0.0],
-      "position": [-2.5, -5.833, 0.184, 1.0],
+      "color": [
+        1.0,
+        0.0,
+        0.0
+      ],
       "constant": 1.0,
       "linear": -3.0,
-      "quadratic": 1.8
+      "name": "env point red",
+      "position": [
+        -2.5,
+        -5.833000183105469,
+        0.18400000035762787
+      ],
+      "quadratic": 1.7999999523162842,
+      "type": "point"
     }
   ],
-  "colliders": [
+  "objects": [
     {
-      "active": true,
-      "name": "floor_right",
-      "type": "static",
-      "shape": "box",
-      "center": [0.0, 0.002, -3.306],
-      "half_extent": [5.0, 2.48, 0.03]
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "cube2",
+      "instance": null,
+      "name": "cube2",
+      "path": "cube.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      },
+      "rotate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.20000000298023224,
+        0.20000000298023224,
+        0.4000000059604645
+      ],
+      "socket": null,
+      "translate": [
+        -2.0,
+        -1.0,
+        -1.0
+      ]
     },
     {
-      "active": true,
-      "name": "floor_left",
-      "type": "static",
-      "shape": "box",
-      "center": [0.416, 4.479, -3.306],
-      "half_extent": [3.36, 1.99, 0.03]
+      "animated": true,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "CylinderAction.001",
+      "enabled": true,
+      "id": "coin",
+      "instance": [
+        {
+          "position": [
+            -2.5,
+            1.1440000534057617,
+            -2.947000026702881
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            0.05000000074505806,
+            0.05000000074505806,
+            0.05000000074505806
+          ]
+        },
+        {
+          "position": [
+            -2.5,
+            1.343999981880188,
+            -2.947000026702881
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            0.05000000074505806,
+            0.05000000074505806,
+            0.05000000074505806
+          ]
+        },
+        {
+          "position": [
+            -2.5,
+            1.5440000295639038,
+            -2.947000026702881
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            0.05000000074505806,
+            0.05000000074505806,
+            0.05000000074505806
+          ]
+        },
+        {
+          "position": [
+            -2.5,
+            1.74399995803833,
+            -2.947000026702881
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            0.05000000074505806,
+            0.05000000074505806,
+            0.05000000074505806
+          ]
+        },
+        {
+          "position": [
+            -2.490000009536743,
+            2.184000015258789,
+            -2.937000036239624
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            0.05000000074505806,
+            0.05000000074505806,
+            0.05000000074505806
+          ]
+        },
+        {
+          "position": [
+            -2.9600000381469727,
+            2.7339999675750732,
+            -2.377000093460083
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            0.03999999910593033,
+            0.03999999910593033,
+            0.03999999910593033
+          ]
+        },
+        {
+          "position": [
+            0.05000000074505806,
+            2.74399995803833,
+            -2.367000102996826
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            0.03999999910593033,
+            0.03999999910593033,
+            0.03999999910593033
+          ]
+        },
+        {
+          "position": [
+            0.05999999865889549,
+            4.734000205993652,
+            -2.3570001125335693
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            0.03999999910593033,
+            0.03999999910593033,
+            0.03999999910593033
+          ]
+        }
+      ],
+      "name": "coin",
+      "path": "coin.gltf",
+      "physics": null,
+      "rotate": [
+        0.0,
+        -0.0,
+        0.0
+      ],
+      "scale": [
+        0.05000000074505806,
+        0.05000000074505806,
+        0.05000000074505806
+      ],
+      "socket": null,
+      "translate": [
+        -2.5,
+        1.1440000534057617,
+        -2.947000026702881
+      ]
     },
     {
-      "active": true,
-      "name": "floor_thin",
-      "type": "static",
-      "shape": "box",
-      "center": [-4.062, 4.809, -3.306],
-      "half_extent": [1.11, 1.99, 0.03]
+      "animated": false,
+      "childrens": [],
+      "cs": "y",
+      "default_clip": "",
+      "enabled": true,
+      "id": "pistol",
+      "instance": null,
+      "name": "pistol",
+      "path": "pistol/scene.gltf",
+      "physics": null,
+      "rotate": [
+        -5.403791904449463,
+        -11.536962509155273,
+        70.3461685180664
+      ],
+      "scale": [
+        0.9000000357627869,
+        0.9000000953674316,
+        0.8999999761581421
+      ],
+      "socket": {
+        "mesh_name": "DEF-handR",
+        "model_name": "human",
+        "offset": {
+          "rotate": [
+            -0.09431399405002594,
+            -0.20135799050331116,
+            1.2277723550796509
+          ],
+          "scale": [
+            0.8999999761581421,
+            0.8999999761581421,
+            0.8999999761581421
+          ],
+          "translate": [
+            5.0,
+            0.5,
+            0.699999988079071
+          ]
+        }
+      },
+      "translate": [
+        5.0,
+        0.5,
+        0.699999988079071
+      ]
     },
     {
-      "active": true,
-      "name": "basement_floor",
-      "type": "static",
-      "shape": "box",
-      "center": [-0.21, 2.07, -3.609],
-      "half_extent": [4.87, 4.48, 0.03]
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "sword",
+      "instance": null,
+      "name": "sword",
+      "path": "sword.gltf",
+      "physics": null,
+      "rotate": [
+        -4.183485507965088,
+        30.80775260925293,
+        -47.11317825317383
+      ],
+      "scale": [
+        0.00299999862909317,
+        0.0029999990947544575,
+        0.00299999862909317
+      ],
+      "socket": {
+        "bone_name": "DEF-handR",
+        "model_name": "human",
+        "offset": {
+          "rotate": [
+            1.0393505096435547,
+            0.3691255450248718,
+            0.600383996963501
+          ],
+          "scale": [
+            0.029999999329447746,
+            0.029999999329447746,
+            0.029999999329447746
+          ],
+          "translate": [
+            -0.11999999731779099,
+            0.0,
+            -0.17000000178813934
+          ]
+        }
+      },
+      "translate": [
+        -1.3067190647125244,
+        0.10590167343616486,
+        -3.1917905807495117
+      ]
     },
     {
-      "active": true,
-      "name": "hall_backwall",
-      "type": "static",
-      "shape": "box",
-      "center": [-0.135, -1.225, -1.687],
-      "half_extent": [3.69, 0.03, 1.6]
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "ghamgham",
+      "instance": null,
+      "name": "ghamgham",
+      "path": "ghamgham.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      },
+      "rotate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.10000000149011612,
+        0.10000000149011612,
+        0.10000000149011612
+      ],
+      "socket": null,
+      "translate": [
+        -2.5,
+        2.1440000534057617,
+        -3.246999979019165
+      ]
     },
     {
-      "active": true,
-      "name": "kitchen_wall",
-      "type": "static",
-      "shape": "box",
-      "center": [0.226, 5.289, -1.687],
-      "half_extent": [2.54, 0.03, 1.6]
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "house",
+      "instance": null,
+      "name": "house",
+      "path": "ourhome.gltf",
+      "physics": null,
+      "rotate": [
+        0.0,
+        -0.0,
+        0.0
+      ],
+      "scale": [
+        0.10100000351667404,
+        0.10100000351667404,
+        0.10100000351667404
+      ],
+      "socket": null,
+      "translate": [
+        -0.4830000102519989,
+        2.0480000972747803,
+        -3.309000015258789
+      ]
     },
     {
-      "active": true,
-      "name": "room_wall1",
-      "type": "static",
-      "shape": "box",
-      "center": [2.279, 2.508, -1.687],
-      "half_extent": [1.21, 0.03, 1.6]
+      "animated": true,
+      "childrens": [],
+      "cs": "y",
+      "default_clip": "",
+      "enabled": true,
+      "id": "tire",
+      "instance": null,
+      "name": "tire",
+      "path": "tire.gltf",
+      "physics": null,
+      "rotate": [
+        0.0,
+        0.0,
+        -55.00000762939453
+      ],
+      "scale": [
+        0.10000000149011612,
+        0.10000000149011612,
+        0.10000000149011612
+      ],
+      "socket": null,
+      "translate": [
+        0.699999988079071,
+        0.4000000059604645,
+        -3.246999979019165
+      ]
     },
     {
-      "active": true,
-      "name": "room_wall2",
-      "type": "static",
-      "shape": "box",
-      "center": [2.307, 0.14, -1.687],
-      "half_extent": [1.15, 0.03, 1.6]
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "smallcube",
+      "instance": null,
+      "name": "smallcube",
+      "path": "cube.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      },
+      "rotate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.05000000074505806,
+        0.05000000074505806,
+        0.05000000074505806
+      ],
+      "socket": null,
+      "translate": [
+        0.10000000149011612,
+        0.0,
+        0.20000000298023224
+      ]
     },
     {
-      "active": true,
-      "name": "room_wall3",
-      "type": "static",
-      "shape": "box",
-      "center": [3.529, 0.611, -1.687],
-      "half_extent": [0.03, 1.83, 1.6]
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "tree",
+      "instance": null,
+      "name": "tree",
+      "path": "tree3.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      },
+      "rotate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        4.883678913116455,
+        4.883678913116455,
+        4.883678913116455
+      ],
+      "socket": null,
+      "translate": [
+        -4.327856540679932,
+        5.513000011444092,
+        -3.315000057220459
+      ]
     },
     {
-      "active": true,
-      "name": "room_wall4",
-      "type": "static",
-      "shape": "box",
-      "center": [1.126, 0.599, -1.687],
-      "half_extent": [0.03, 1.21, 1.6]
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "cube1",
+      "instance": null,
+      "name": "cube1",
+      "path": "cube.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      },
+      "rotate": [
+        45.10922622680664,
+        3.533287525177002,
+        3.540026903152466
+      ],
+      "scale": [
+        0.20000000298023224,
+        0.20000000298023224,
+        0.4000000059604645
+      ],
+      "socket": null,
+      "translate": [
+        2.0,
+        0.0,
+        -1.0
+      ]
     },
     {
-      "active": true,
-      "name": "room_wall5",
-      "type": "static",
-      "shape": "box",
-      "center": [0.368, 3.878, -1.687],
-      "half_extent": [0.03, 1.41, 1.6]
+      "animated": true,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "Object_4Action",
+      "enabled": true,
+      "id": "robot",
+      "instance": null,
+      "name": "robot",
+      "path": "dance2.gltf",
+      "physics": null,
+      "rotate": [
+        90.0,
+        -0.0,
+        0.0
+      ],
+      "scale": [
+        0.10000000149011612,
+        0.10000000149011612,
+        0.10000000149011612
+      ],
+      "socket": null,
+      "translate": [
+        -1.2000000476837158,
+        3.200000047683716,
+        -3.26200008392334
+      ]
     },
     {
-      "active": true,
-      "name": "room_wall6",
-      "type": "static",
-      "shape": "box",
-      "center": [2.793, 3.878, -1.687],
-      "half_extent": [0.03, 1.41, 1.6]
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "cube",
+      "instance": null,
+      "name": "cube",
+      "path": "cube.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      },
+      "rotate": [
+        54.735618591308594,
+        29.999990463256836,
+        35.264400482177734
+      ],
+      "scale": [
+        0.20000000298023224,
+        0.20000000298023224,
+        1.0
+      ],
+      "socket": null,
+      "translate": [
+        0.0,
+        0.0,
+        -1.0
+      ]
     },
     {
-      "active": true,
-      "name": "room_wall7",
-      "type": "static",
-      "shape": "box",
-      "center": [-3.775, 1.201, -1.687],
-      "half_extent": [0.03, 2.38, 1.6]
-    },
-    {
-      "active": true,
-      "name": "hall_wall8",
-      "type": "static",
-      "shape": "box",
-      "center": [0.381, -0.632, -2.077],
-      "half_extent": [0.03, 0.54, 1.21]
-    },
-    {
-      "active": true,
-      "name": "right_open",
-      "type": "static",
-      "shape": "box",
-      "center": [-0.306, 2.716, -2.875],
-      "half_extent": [0.63, 0.25, 0.39]
-    },
-    {
-      "active": true,
-      "name": "right_bottom_cabinet",
-      "type": "static",
-      "shape": "box",
-      "center": [0.099, 4.517, -2.875],
-      "half_extent": [0.26, 0.75, 0.39]
+      "animated": true,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "Idle_Loop",
+      "enabled": true,
+      "id": "human",
+      "instance": null,
+      "name": "human",
+      "path": "model2.gltf",
+      "physics": null,
+      "rotate": [
+        90.0,
+        -0.0,
+        135.30221557617188
+      ],
+      "scale": [
+        0.10000000149011612,
+        0.10000000149011612,
+        0.10000000149011612
+      ],
+      "socket": null,
+      "translate": [
+        -1.2999999523162842,
+        0.14000000059604645,
+        -3.2660000324249268
+      ]
     }
-  ],
-  "cameras": [],
-  "actor": "human"
+  ]
 }

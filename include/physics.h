@@ -42,13 +42,11 @@ class BoxCollider {
         glm::vec3 mCenter;
         glm::vec3 mHalfExtent;
         std::string mName;
-        // uint32_t getBoxId() const;
         LineGroup& getDebugLines();
         std::shared_ptr<PhysicsComponent> getPhysicsComponent();
         glm::mat4 getTransformation() const;
 
     private:
-        // uint32_t mBoxId = std::numeric_limits<uint32_t>::max();
         LineGroup mDebugLines;
         std::shared_ptr<PhysicsComponent> mPhysicComponent;
         bool mIsStatic;

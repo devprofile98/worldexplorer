@@ -79,6 +79,7 @@ struct World : public KeyboardListener, MouseMoveListener, MouseButtonListener, 
         void onMouseMove(MouseEvent event) override;
         void onMouseClick(MouseEvent event) override;
         void onMouseScroll(MouseEvent event) override;
+        void exportScene();
 
         std::vector<Model*> rootContainer;
         std::unordered_map<std::string, ObjectLoaderParam> map;

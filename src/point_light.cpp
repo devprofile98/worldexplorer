@@ -114,19 +114,52 @@ void LightManager::renderGUI() {
     auto* light = get(mSelectedLightInGui);
     bool changed = false;
 
-    changed |= ImGui::ColorEdit3(
-        std::format("{} color # {}", light->type == SPOT ? "Spot" : "Point", mSelectedLightInGui).c_str(),
-        glm::value_ptr(light->mAmbient));
+    // -------------------------- Start 2 Columns -----------------------------------
+    // -------------------------- First Column -----------------------------------
+    ImGui::Columns(2, nullptr, true);
 
-    changed |= ImGui::SliderFloat3("Position", glm::value_ptr(light->mPosition), -20.0f, 20.0f);
+    ImGui::BeginChild("Light manager list", ImVec2(0, 200),
+                      ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY);
 
-    if (light->type == SPOT) {
-        changed |= ImGui::SliderFloat3("sDirection", glm::value_ptr(light->mDirection), -1.0, 1.0f);
-        changed |= ImGui::SliderFloat("Inner Cutoff", &light->mInnerCutoff, 0, 2.0);
-        changed |= ImGui::SliderFloat("outer Cutoff", &light->mOuterCutoff, 0, 2.0);
+    for (size_t i = 0; i < getLights().size(); i++) {
+        auto* light = get(i);
+        ImGui::PushID(i);
+        if (ImGui::Selectable(mLightsNames[i].c_str(), light == &getLights()[mSelectedLightInGui])) {
+            mSelectedLightInGui = i;
+            update();
+        }
+        if (ImGui::BeginPopupContextItem()) {
+            if (ImGui::MenuItem("Delete")) {
+            };
+            if (ImGui::MenuItem("Duplicate")) {
+            };
+            ImGui::EndPopup();
+        }
+
+        ImGui::PopID();  // Pop the unique ID for this item
     }
-    changed |= ImGui::SliderFloat("Linear", &light->mLinear, -10.0f, 10.0f);
-    changed |= ImGui::SliderFloat("Quadratic", &light->mQuadratic, -10.0f, 10.0f);
+    ImGui::EndChild();  // End the scrollable list
+
+    // -------------------------- Second Column -----------------------------------
+    ImGui::NextColumn();
+    auto& light_name = mLightsNames[mSelectedLightInGui];
+    // changed |= ImGui::InputText("Name##env", (const char*)light_name.c_str(), light_name.size());
+    changed |= ImGui::ColorEdit3("Color##env", glm::value_ptr(light->mAmbient));
+    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+        changed |= ImGui::DragFloat3("Position##env", glm::value_ptr(light->mPosition), 1.0, -20.0f, 20.0f);
+
+        if (light->type == SPOT) {
+            changed |= ImGui::DragFloat3("sDirection##env", glm::value_ptr(light->mDirection), 1.0, -1.0, 1.0f);
+        }
+    }
+    if (ImGui::CollapsingHeader("Attenuation", ImGuiTreeNodeFlags_DefaultOpen)) {
+        changed |= ImGui::DragFloat("Linear##env", &light->mLinear, 1.0, -10.0f, 10.0f);
+        if (light->type == SPOT) {
+            changed |= ImGui::DragFloat("Inner Cutoff##env", &light->mInnerCutoff, 1.0, 0, 2.0);
+            changed |= ImGui::DragFloat("outer Cutoff##env", &light->mOuterCutoff, 1.0, 0, 2.0);
+        }
+        changed |= ImGui::DragFloat("Quadratic##env", &light->mQuadratic, 1.0, -10.0f, 10.0f);
+    }
     if (changed) {
         if (boxId < 1024) {
             glm::mat4 t{1.0};
@@ -140,21 +173,8 @@ void LightManager::renderGUI() {
         wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->mLightBuffer.getBuffer(),
                              sizeof(Light) * mSelectedLightInGui, light, sizeof(Light));
     }
-
-    ImGui::BeginChild("Light manager list", ImVec2(0, 200),
-                      ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY);
-
-    for (size_t i = 0; i < getLights().size(); i++) {
-        auto* light = get(i);
-        ImGui::PushID(i);
-        if (ImGui::Selectable(mLightsNames[i].c_str(), light == &getLights()[mSelectedLightInGui])) {
-            ImGui::Text("%s", glm::to_string(light->mPosition).c_str());
-            mSelectedLightInGui = i;
-            update();
-        }
-        ImGui::PopID();  // Pop the unique ID for this item
-    }
-    ImGui::EndChild();  // End the scrollable list
+    // -------------------------- Back to first Column -----------------------------------
+    ImGui::Columns(1);
 
     static char new_light_name[32]{0};
     static bool is_spot = false;
@@ -181,3 +201,5 @@ void LightManager::nextLight() {
 }
 
 std::vector<Light>& LightManager::getLights() { return mLights; }
+
+std::vector<std::string>& LightManager::getLightsNames() { return mLightsNames; }

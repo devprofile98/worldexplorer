@@ -45,6 +45,7 @@ struct Action {
         double mAnimationDuration = 0.0;
         bool loop = false;
         bool hasSkining = false;
+        std::string name;
 };
 
 struct Animation {

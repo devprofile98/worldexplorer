@@ -37,6 +37,7 @@ struct Animation;
 class Behaviour;
 struct BoneSocket;
 struct PhysicsComponent;
+struct Action;
 
 struct alignas(4) DrawIndexedIndirectArgs {
         uint32_t indexCount;
@@ -207,26 +208,25 @@ class Model : public BaseModel {
 
         // Getters
         void createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData);
-        // size_t getInstaceCount();
         WGPUBindGroup getObjectInfoBindGroup();
         void updateAnimation(float dt);
+        CoordinateSystem getCoordinateSystem() const;
 
         Buffer mIndirectDrawArgsBuffer;
         Buffer mSkiningTransformationBuffer;
         Buffer mGlobalMeshTransformationBuffer;
-
-        // std::unordered_map<std::string, aiNode*> mNodeCache;
-        // void buildNodeCache(aiNode* node);
 
         Behaviour* mBehaviour = nullptr;
         const aiScene* mScene;
         Assimp::Importer mImport;
 
         Animation* anim;
+        Action* mDefaultAction = nullptr;
         std::vector<glm::vec3> mBonePosition;
         std::vector<glm::mat4> mGlobalMeshTransformationData;
         WGPUBindGroupEntry mSkiningDataEntry;
         Application* mApp = nullptr;
+        std::string mPath = "";
 
 #ifdef DEVELOPMENT_BUILD
         // Common User-Interface to interact with Object in the Development state
@@ -235,7 +235,7 @@ class Model : public BaseModel {
 #endif  // DEVELOPMENT_BUILD
 
     private:
-        CoordinateSystem mCoordinateSystem = Y_UP;
+        CoordinateSystem mCoordinateSystem = Z_UP;
         Buffer offset_buffer = {};
         WGPUBindGroup mBindGroup = nullptr;
         WGPUBindGroup ggg = {};

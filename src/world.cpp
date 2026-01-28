@@ -5,8 +5,11 @@
 #include <fstream>
 #include <functional>
 #include <glm/fwd.hpp>
+#include <ios>
 #include <iostream>
 #include <optional>
+#include <ostream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -16,7 +19,9 @@
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
+#include "glm/gtc/quaternion.hpp"
 #include "glm/gtx/string_cast.hpp"
+#include "glm/trigonometric.hpp"
 #include "instance.h"
 #include "model.h"
 #include "model_registery.h"
@@ -28,9 +33,163 @@
 using json = nlohmann::json;
 using AddColliderFunction = std::function<uint32_t(const std::string&, const glm::vec3&, const glm::vec3&, bool)>;
 
+void to_json(json& j, const PhysicsComponent& p) { j = json{{"enabled", true}, {"type", "dynamic"}}; }
+
+void to_json(json& j, const Light& light, const std::string& name) {
+    j = json();
+    j["name"] = name;
+    j["color"] = json::array({light.mAmbient.x, light.mAmbient.y, light.mAmbient.z});
+    j["position"] = json::array({light.mPosition.x, light.mPosition.y, light.mPosition.z});
+    j["linear"] = light.mLinear;
+    j["quadratic"] = light.mQuadratic;
+
+    if (light.type == LightType::SPOT) {
+        j["type"] = "spot";
+        j["direction"] = json::array({light.mDirection.x, light.mDirection.y, light.mDirection.z});
+        j["inner_cutoff"] = light.mInnerCutoff;
+        j["outer_cutoff"] = light.mOuterCutoff;
+    } else if (light.type == LightType::POINT) {
+        j["type"] = "point";
+        j["constant"] = light.mConstant;
+    }
+}
+
+void to_json(json& j, const physics::BoxCollider& cld) {
+    j = json();
+    j["active"] = true;
+    j["name"] = cld.mName;
+    j["type"] = "static";
+    j["shape"] = "box";
+    j["center"] = json::array({cld.mCenter.x, cld.mCenter.y, cld.mCenter.z});
+    j["half_extent"] = json::array({cld.mHalfExtent.x, cld.mHalfExtent.y, cld.mHalfExtent.z});
+}
+
+void to_json(json& j, const Instance& ins) {
+    j = json::array();
+    std::cout << ins.mPositions.size() << " " << ins.mScale.size() << " " << ins.mRotation.size() << std::endl;
+    for (size_t i = 0; i < ins.mPositions.size(); ++i) {
+        json obj;
+        obj["position"] = json::array({ins.mPositions[i].x, ins.mPositions[i].y, ins.mPositions[i].z});
+        obj["scale"] = json::array({ins.mScale[i].x, ins.mScale[i].y, ins.mScale[i].z});
+        obj["rotation"] = json::array({0.0, 0.0, 0.0});
+        j.push_back(obj);
+    }
+}
+
+void to_json(json& j, const BoneSocket& p) {
+    j = json{{"model_name", p.model->getName()}};
+    switch (p.type) {
+        case AnchorType::Bone: {
+            j["bone_name"] = p.anchorName;
+            break;
+        }
+        case AnchorType::Mesh: {
+            j["mesh_name"] = p.anchorName;
+            break;
+        }
+        case AnchorType::Model:
+        default:
+            break;
+    }
+
+    const auto& t = p.positionOffset;
+    const auto& s = p.scaleOffset;
+    const auto& r = glm::eulerAngles(p.rotationOffset);
+    j["offset"] = {
+        {"translate", json::array({t.x, t.y, t.z})},
+        {"scale", json::array({s.x, s.y, s.z})},
+        {"rotate", json::array({r.x, r.y, r.z})},
+    };
+}
+
+std::string coordinateSystemToString(const CoordinateSystem& cs) {
+    switch (cs) {
+        case Z_UP:
+            return "z";
+        case Y_UP:
+            return "y";
+    }
+}
+
+void to_json(json& j, const Model& m) {
+    const auto& t = m.mTransform.mPosition;
+    const auto& s = m.mTransform.mScale;
+    const auto& r = glm::eulerAngles(m.mTransform.mOrientation);
+    std::string default_clip = m.mDefaultAction != nullptr ? m.mDefaultAction->name : "";
+
+    j = json{
+        {"id", m.mName},
+        {"name", m.mName},
+        {"path", m.mPath},
+        {"enabled", true},
+        {"animated", m.mTransform.mObjectInfo.isAnimated == 1},
+        {"cs", coordinateSystemToString(m.getCoordinateSystem())},
+        {"translate", json::array({t.x, t.y, t.z})},
+        {"scale", json::array({s.x, s.y, s.z})},
+        {"rotate", json::array({glm::degrees(r.x), glm::degrees(r.y), glm::degrees(r.z)})},
+        {"childrens", json::array({})},
+        {"default_clip", default_clip},
+    };
+    if (m.mSocket == nullptr) {
+        j["socket"] = nullptr;
+    } else {
+        j["socket"] = *m.mSocket;
+    }
+
+    if (m.mPhysicComponent == nullptr) {
+        j["physics"] = nullptr;
+    } else {
+        j["physics"] = *m.mPhysicComponent;
+    }
+
+    if (m.instance == nullptr) {
+        j["instance"] = nullptr;
+    } else {
+        j["instance"] = *m.instance;
+    }
+    // std::cout << "Model: " << j << std::endl;
+}
+
 TransformProperties calculateChildTransform(Model* parent, Model* child) {
     auto new_local_transform = glm::inverse(parent->getGlobalTransform()) * child->mTransform.mTransformMatrix;
     return decomposeTransformation(new_local_transform);
+}
+void World::exportScene() {
+    json objects = json::array();
+    for (const auto& model : rootContainer) {
+        json j = *model;
+        objects.push_back(j);
+    }
+
+    json colliders = json::array();
+    for (const auto& collider : physics::PhysicSystem::mColliders) {
+        json j;
+        to_json(j, collider);
+        colliders.push_back(j);
+    }
+
+    json jlights = json::array();
+    const auto& lights = app->mLightManager->getLights();
+    const auto& names = app->mLightManager->getLightsNames();
+    for (size_t l = 0; l < lights.size(); ++l) {
+        json j;
+        to_json(j, lights[l], names[l]);
+        jlights.push_back(j);
+    }
+
+    json scene;
+    scene["objects"] = objects;
+    scene["colliders"] = colliders;
+    scene["lights"] = jlights;
+    scene["cameras"] = json::array();
+    scene["actor"] = actor->getName();
+
+    auto scene_dump = scene.dump(2);
+    std::cout << scene_dump << std::endl;
+    std::ofstream out;
+    out.open("resources/world.json", std::ios::out);
+    out.write(scene_dump.c_str(), scene_dump.size());
+    // out << scene_dump;
 }
 
 Model* World::makeChild(Model* parent, Model* child) {
@@ -149,8 +308,8 @@ load_socket:
                     }
                 }
                 if (target != nullptr) {
-                    std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@ " << param.anchor << " Is the attaching bone for "
-                              << loadedModel->mName << "\n";
+                    // std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@ " << param.anchor << " Is the attaching bone for "
+                    //           << loadedModel->mName << "\n";
                     loadedModel->mSocket =
                         new BoneSocket{target, param.anchor, param.translate, param.scale, param.rotate, param.type};
                     goto end;
@@ -166,8 +325,8 @@ load_socket:
         auto param = map.at(model->mName).socketParam;
         // auto loaded_model_param = map.at(loadedModel->mName).socketParam;
         if (param.name == loadedModel->mName) {
-            std::cout << "@@@@@@@@@@1@@@@@@@@@@@@@@@@ " << param.anchor << " from " << loadedModel->mName
-                      << " Is the attaching bone for " << model->mName << "\n";
+            // std::cout << "@@@@@@@@@@1@@@@@@@@@@@@@@@@ " << param.anchor << " from " << loadedModel->mName
+            //           << " Is the attaching bone for " << model->mName << "\n";
             model->mSocket =
                 new BoneSocket{loadedModel, param.anchor, param.translate, param.scale, param.rotate, param.type};
         }
@@ -252,6 +411,7 @@ ObjectLoaderParam::ObjectLoaderParam(std::string name, std::string path, bool an
 struct BaseModelLoader : public IModel {
         BaseModelLoader(Application* app, ObjectLoaderParam param) {
             mModel = new Model{param.cs};
+            mModel->mPath = param.path;
             mModel->load(param.name, app, RESOURCE_DIR + std::string{"/"} + param.path, app->getObjectBindGroupLayout())
                 .moveTo(param.translate)
                 .scale(param.scale)
@@ -327,6 +487,7 @@ struct BaseModelLoader : public IModel {
                     action->loop = true;
                 }
                 getModel()->anim->playAction(param.defaultClip, true);
+                getModel()->mDefaultAction = getModel()->anim->activeAction;
             }
         }
 
@@ -399,7 +560,7 @@ std::optional<SocketParams> parseSocketParam(const json& params) {
     glm::vec3 translate = toGlm(params["offset"]["translate"].get<std::array<float, 3>>());
     glm::vec3 scale = toGlm(params["offset"]["scale"].get<std::array<float, 3>>());
     glm::vec3 rotate = toGlm(params["offset"]["rotate"].get<std::array<float, 3>>());
-    return SocketParams{name, anchor, translate, scale, glm::quat{1.0, rotate}, true, type};
+    return SocketParams{name, anchor, translate, scale, glm::quat(rotate), true, type};
 }
 
 std::vector<Transformation> parseinstanceinfo(const json& params) {

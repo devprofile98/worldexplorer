@@ -238,6 +238,8 @@ void Model::updateAnimation(float dt) {
     }
 }
 
+CoordinateSystem Model::getCoordinateSystem() const { return mCoordinateSystem; }
+
 glm::mat4 aiMatrix4x4ToGlm(const aiMatrix4x4& from) {
     glm::mat4 to;
     // Assimp is row-major, GLM is column-major, so transpose
@@ -830,8 +832,23 @@ void Model::userInterface() {
     if (ImGui::CollapsingHeader("Transformations",
                                 ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
         bool happend = false;
-        ImGui::Text("Position:");
-        if (ImGui::DragFloat3("Position", glm::value_ptr(mTransform.mPosition), drag_speed)) {
+        ImGui::Text("Coordinate sysmte is :");
+        ImGui::SameLine();
+        switch (getCoordinateSystem()) {
+            case Y_UP: {
+                ImGui::TextColored(ImVec4{0.0, 1.0, 0.0, 1.0}, "%s", "Y UP");
+                break;
+            }
+            case Z_UP: {
+                ImGui::TextColored(ImVec4{0.0, 0.0, 1.0, 1.0}, "%s", "Z UP");
+                break;
+            }
+            default:
+
+                break;
+        }
+        ImGui::Text("Path is : %s", mPath.c_str());
+        if (ImGui::DragFloat3("Position2", glm::value_ptr(mTransform.mPosition), 0.1)) {
             happend = true;
         }
 
@@ -852,15 +869,6 @@ void Model::userInterface() {
                 mTransform.mScale = glm::vec3{mTransform.mScale.z};
             }
             happend = true;
-        }
-
-        if (mSocket != nullptr) {
-            if (ImGui::DragFloat3("socket position", glm::value_ptr(mSocket->positionOffset), 0.01)) {
-            }
-            if (ImGui::DragFloat3("socket scale", glm::value_ptr(mSocket->scaleOffset), 0.01)) {
-            }
-            if (ImGui::DragFloat3("socket rot", glm::value_ptr(mSocket->rotationOffset), 0.01)) {
-            }
         }
 
         // if (ImGui::DragFloat4("Rotation", glm::value_ptr(mTransform.mOrientation), 0.1, 0.0f, 360.0f)) {
@@ -894,16 +902,30 @@ void Model::userInterface() {
         mTransform.mDirty = true;
     }
 
-    if (ImGui::CollapsingHeader("Available Actions:  (press to play)", ImGuiTreeNodeFlags_DefaultOpen)) {
-        for (auto& [name, action] : anim->actions) {
-            ImGui::PushID((void*)&action);
-            if (ImGui::Button(name.c_str())) {
-                mTransform.mObjectInfo.isAnimated = true;
-                mTransform.mDirty = true;
-                anim->playAction(name, true);
+    if (mTransform.mObjectInfo.isAnimated) {
+        if (ImGui::CollapsingHeader("Available Actions:  (press to play)", ImGuiTreeNodeFlags_DefaultOpen)) {
+            const std::string active_name =
+                anim->activeAction == nullptr ? "Select one##selected" : anim->activeAction->name.c_str();
+            if (ImGui::BeginCombo("Clips", active_name.c_str())) {
+                for (auto& [name, action] : anim->actions) {
+                    ImGui::PushID((void*)&action);
+                    bool selected = (name == active_name);
+                    if (ImGui::Selectable(name.c_str(), selected)) {
+                        mTransform.mObjectInfo.isAnimated = true;
+                        mTransform.mDirty = true;
+                        anim->playAction(name, true);
+                    }
+                    ImGui::PopID();  // Pop the unique ID for this item
+                }
+                ImGui::EndCombo();
             }
-            ImGui::PopID();  // Pop the unique ID for this item
+
+            ImGui::SameLine();
+            if (ImGui::Button("set as default")) {
+                mDefaultAction = anim->activeAction;
+            }
         }
+        ImGui::Text("Default action: %s", mDefaultAction == nullptr ? "None" : mDefaultAction->name.c_str());
     }
 
     if (ImGui::CollapsingHeader("Mesh transformations")) {

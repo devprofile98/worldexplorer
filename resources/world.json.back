@@ -1,0 +1,440 @@
+{
+  "objects": [
+    {
+      "id": "house",
+      "name": "house",
+      "enabled": true,
+      "path": "ourhome.gltf",
+      "animated": false,
+      "cs": "z",
+      "translate": [-0.483, 2.048, -3.309],
+      "scale": [0.101, 0.101, 0.101],
+      "rotate": [0.0, 0, 0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": null,
+      "physics": null
+    },
+    {
+      "id": "cube",
+      "name": "cube",
+      "enabled": true,
+      "path": "cube.gltf",
+      "animated": false,
+      "cs": "z",
+      "translate": [0.0, 0.0, -1.0],
+      "scale": [0.2, 0.2, 1.0],
+      "rotate": [45.0, 45.0, 0.0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": null,
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      }
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "path": "tree3.gltf",
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "tree",
+      "name": "tree",
+      "translate": [-4.191999912261963, 5.513000011444092, -3.315000057220459],
+      "scale": [2.0, 2.0, 2.0],
+      "rotate": [0.0, 0.0, 0.0],
+      "socket": null,
+      "physics": { "enabled": true, "type": "dynamic" }
+    },
+
+    {
+      "id": "cube1",
+      "name": "cube1",
+      "enabled": true,
+      "path": "cube.gltf",
+      "animated": false,
+      "cs": "z",
+      "translate": [2.0, 0.0, -1.0],
+      "scale": [0.2, 0.2, 0.4],
+      "rotate": [45.0, 5.0, 0.0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": null,
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      }
+    },
+    {
+      "id": "cube2",
+      "name": "cube2",
+      "enabled": true,
+      "path": "cube.gltf",
+      "animated": false,
+      "cs": "z",
+      "translate": [-2.0, -1.0, -1.0],
+      "scale": [0.2, 0.2, 0.4],
+      "rotate": [0.0, 0.0, 0.0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": null,
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      }
+    },
+    {
+      "id": "smallcube",
+      "name": "smallcube",
+      "enabled": true,
+      "path": "cube.gltf",
+      "animated": false,
+      "cs": "z",
+      "translate": [0.1, 0.0, 0.2],
+      "scale": [0.05, 0.05, 0.05],
+      "rotate": [0.0, 0, 0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": null,
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      }
+    },
+
+    {
+      "id": "pistol",
+      "name": "pistol",
+      "enabled": true,
+      "path": "pistol/scene.gltf",
+      "animated": false,
+      "cs": "y",
+      "translate": [-1.215, 2.325, -3.107],
+      "scale": [0.009, 0.009, 0.009],
+      "rotate": [0.0, 335, 270],
+      "childrens": [],
+      "default_clip": "",
+      "socket": {
+        "model_name": "human",
+        "mesh_name": "DEF-handR",
+        "offset": {
+          "translate": [5.0, 0.5, 0.7],
+          "scale": [0.9, 0.9, 0.9],
+          "rotate": [0.0, -0.1, 0.7]
+        }
+      },
+      "physics": null
+    },
+    {
+      "id": "human",
+      "name": "human",
+      "enabled": true,
+      "path": "model2.gltf",
+      "animated": true,
+      "cs": "z",
+      "translate": [-1.377, 0.148, -3.252],
+      "scale": [0.1, 0.1, 0.1],
+      "rotate": [90.0, 0.0, 0.0],
+      "childrens": [""],
+      "default_clip": "Idle_Loop",
+      "socket": null,
+      "physics": null
+    },
+    {
+      "id": "robot",
+      "name": "robot",
+      "enabled": true,
+      "path": "dance2.gltf",
+      "animated": true,
+      "cs": "z",
+      "translate": [-1.2, 3.2, -3.262],
+      "scale": [0.1, 0.1, 0.1],
+      "rotate": [90.0, 0.0, 0.0],
+      "childrens": [],
+      "default_clip": "Object_4Action",
+      "socket": null,
+
+      "physics": null
+    },
+    {
+      "id": "tire",
+      "name": "tire",
+      "enabled": true,
+      "path": "tire.gltf",
+      "animated": true,
+      "cs": "y",
+      "translate": [0.7, 0.4, -3.247],
+      "scale": [0.1, 0.1, 0.1],
+      "rotate": [0.0, 0.0, 305.0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": null,
+      "physics": null
+    },
+    {
+      "id": "ghamgham",
+      "name": "ghamgham",
+      "enabled": true,
+      "path": "ghamgham.gltf",
+      "animated": false,
+      "cs": "z",
+      "translate": [-2.5, 2.144, -3.247],
+      "scale": [0.1, 0.1, 0.1],
+      "rotate": [0.0, 0.0, 0.0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": null,
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      }
+    },
+    {
+      "id": "coin",
+      "name": "coin",
+      "enabled": true,
+      "path": "coin.gltf",
+      "animated": true,
+      "cs": "z",
+      "translate": [-2.5, 1.144, -2.947],
+      "scale": [0.05, 0.05, 0.05],
+      "rotate": [0.0, 0.0, 0.0],
+      "childrens": [],
+      "default_clip": "CylinderAction.001",
+      "socket": null,
+      "physics": null,
+      "instance": [
+        {
+          "position": [-2.5, 1.144, -2.947],
+          "scale": [0.05, 0.05, 0.05],
+          "rotation": [0, 0, 0]
+        },
+        {
+          "position": [-2.5, 1.344, -2.947],
+          "scale": [0.05, 0.05, 0.05],
+          "rotation": [0, 0, 0]
+        },
+        {
+          "position": [-2.5, 1.544, -2.947],
+          "scale": [0.05, 0.05, 0.05],
+          "rotation": [0, 0, 0]
+        },
+        {
+          "position": [-2.5, 1.744, -2.947],
+          "scale": [0.05, 0.05, 0.05],
+          "rotation": [0, 0, 0]
+        },
+        {
+          "position": [-2.49, 2.184, -2.937],
+          "scale": [0.05, 0.05, 0.05],
+          "rotation": [0, 0, 0]
+        },
+        {
+          "position": [-2.96, 2.734, -2.377],
+          "scale": [0.04, 0.04, 0.04],
+          "rotation": [0, 0, 0]
+        },
+        {
+          "position": [0.05, 2.744, -2.367],
+          "scale": [0.04, 0.04, 0.04],
+          "rotation": [0, 0, 0]
+        },
+        {
+          "position": [0.06, 4.734, -2.357],
+          "scale": [0.04, 0.04, 0.04],
+          "rotation": [0, 0, 0]
+        }
+      ]
+    },
+    {
+      "id": "sword",
+      "name": "sword",
+      "enabled": true,
+      "path": "sword.gltf",
+      "animated": false,
+      "cs": "z",
+      "translate": [-2.5, 1.144, -3.147],
+      "scale": [0.002, 0.002, 0.002],
+      "rotate": [90.0, 0.0, 144.0],
+      "childrens": [],
+      "default_clip": "",
+      "socket": {
+        "model_name": "human",
+        "bone_name": "DEF-handR",
+        "offset": {
+          "translate": [0.25, 2.77, -3.34],
+          "scale": [0.3, 0.3, 0.3],
+          "rotate": [0.52, 0.3, 0.23]
+        }
+      },
+      "physics": null
+    }
+  ],
+  "lights": [
+    {
+      "type": "spot",
+      "name": "room lamp",
+      "color": [0.552, 0.552, 0.0],
+      "position": [1.91, 4.347, 0.238],
+      "direction": [0.0, 0.0, -1.0],
+      "inner_cutoff": 0.837,
+      "outer_cutoff": 0.709,
+      "linear": 0.08,
+      "quadratic": 0.04
+    },
+    {
+      "type": "spot",
+      "name": "hall lamp",
+      "color": [0.99, 0.129, 0.129],
+      "position": [-1.2, 3.4, -0.4],
+      "direction": [0.0, -0.2, -1.0],
+      "inner_cutoff": 0.939,
+      "outer_cutoff": 0.168,
+      "linear": 0.12,
+      "quadratic": 0.56
+    },
+    {
+      "type": "point",
+      "name": "env point red",
+      "color": [1.0, 0.0, 0.0],
+      "position": [-2.5, -5.833, 0.184, 1.0],
+      "constant": 1.0,
+      "linear": -3.0,
+      "quadratic": 1.8
+    }
+  ],
+  "colliders": [
+    {
+      "active": true,
+      "name": "floor_right",
+      "type": "static",
+      "shape": "box",
+      "center": [0, 0.002, -3.306],
+      "half_extent": [5, 2.48, 0.03]
+    },
+    {
+      "active": true,
+      "name": "floor_left",
+      "type": "static",
+      "shape": "box",
+      "center": [0.416, 4.479, -3.306],
+      "half_extent": [3.36, 1.99, 0.03]
+    },
+    {
+      "active": true,
+      "name": "floor_thin",
+      "type": "static",
+      "shape": "box",
+      "center": [-4.062, 4.809, -3.306],
+      "half_extent": [1.11, 1.99, 0.03]
+    },
+    {
+      "active": true,
+      "name": "basement_floor",
+      "type": "static",
+      "shape": "box",
+      "center": [-0.21, 2.07, -3.609],
+      "half_extent": [4.87, 4.48, 0.03]
+    },
+    {
+      "active": true,
+      "name": "hall_backwall",
+      "type": "static",
+      "shape": "box",
+      "center": [-0.135, -1.225, -1.687],
+      "half_extent": [3.69, 0.03, 1.6]
+    },
+    {
+      "active": true,
+      "name": "kitchen_wall",
+      "type": "static",
+      "shape": "box",
+      "center": [0.226, 5.289, -1.687],
+      "half_extent": [2.54, 0.03, 1.6]
+    },
+    {
+      "active": true,
+      "name": "room_wall1",
+      "type": "static",
+      "shape": "box",
+      "center": [2.279, 2.508, -1.687],
+      "half_extent": [1.21, 0.03, 1.6]
+    },
+    {
+      "active": true,
+      "name": "room_wall2",
+      "type": "static",
+      "shape": "box",
+      "center": [2.307, 0.14, -1.687],
+      "half_extent": [1.15, 0.03, 1.6]
+    },
+    {
+      "active": true,
+      "name": "room_wall3",
+      "type": "static",
+      "shape": "box",
+      "center": [3.529, 0.611, -1.687],
+      "half_extent": [0.03, 1.83, 1.6]
+    },
+    {
+      "active": true,
+      "name": "room_wall4",
+      "type": "static",
+      "shape": "box",
+      "center": [1.126, 0.599, -1.687],
+      "half_extent": [0.03, 1.21, 1.6]
+    },
+    {
+      "active": true,
+      "name": "room_wall5",
+      "type": "static",
+      "shape": "box",
+      "center": [0.368, 3.878, -1.687],
+      "half_extent": [0.03, 1.41, 1.6]
+    },
+    {
+      "active": true,
+      "name": "room_wall6",
+      "type": "static",
+      "shape": "box",
+      "center": [2.793, 3.878, -1.687],
+      "half_extent": [0.03, 1.41, 1.6]
+    },
+    {
+      "active": true,
+      "name": "room_wall7",
+      "type": "static",
+      "shape": "box",
+      "center": [-3.775, 1.201, -1.687],
+      "half_extent": [0.03, 2.38, 1.6]
+    },
+    {
+      "active": true,
+      "name": "hall_wall8",
+      "type": "static",
+      "shape": "box",
+      "center": [0.381, -0.632, -2.077],
+      "half_extent": [0.03, 0.54, 1.21]
+    },
+    {
+      "active": true,
+      "name": "right_open",
+      "type": "static",
+      "shape": "box",
+      "center": [-0.306, 2.716, -2.875],
+      "half_extent": [0.63, 0.25, 0.39]
+    },
+    {
+      "active": true,
+      "name": "right_bottom_cabinet",
+      "type": "static",
+      "shape": "box",
+      "center": [0.099, 4.517, -2.875],
+      "half_extent": [0.26, 0.75, 0.39]
+    }
+  ],
+  "cameras": [],
+  "actor": "human"
+}

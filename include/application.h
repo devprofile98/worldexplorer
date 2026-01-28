@@ -11,7 +11,6 @@
 #include "camera.h"
 // #include "editor.h"
 #include "gpu_buffer.h"
-#include "model.h"
 #include "terrain_pass.h"
 #include "texture.h"
 #include "utils.h"
@@ -26,7 +25,7 @@ class LightManager;
 class DepthPrePass;
 class TransparencyPass;
 class Texture;
-class LineEngine;
+struct LineEngine;
 class SkyBox;
 class Pipeline;
 class CompositionPass;
