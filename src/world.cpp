@@ -454,7 +454,6 @@ struct BaseModelLoader : public IModel {
                     scales.emplace_back(instance.scale);
                     rotations.emplace_back(0);
                 }
-                // auto positions = std::vector<glm::vec3>{{-2.5, 1.154, -2.947}, {-2.6, 1.154, -2.947}};
 
                 auto* ins = new Instance{positions, glm::vec3{1.0, 0.0, 0.0},     rotations,
                                          scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
@@ -463,12 +462,15 @@ struct BaseModelLoader : public IModel {
                 ins->mPositions = positions;
                 ins->mScale = scales;
 
-                wgpuQueueWriteBuffer(app->getRendererResource().queue,
-                                     app->mInstanceManager->getInstancingBuffer().getBuffer(), 0 * sizeof(InstanceData),
-                                     ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
-
-                mModel->mTransform.mObjectInfo.instanceOffsetId = 0;
                 mModel->setInstanced(ins);
+
+                mModel->instance->mOffsetID = app->mInstanceManager->getNewId();
+                mModel->mTransform.mObjectInfo.instanceOffsetId = mModel->instance->mOffsetID;
+
+                wgpuQueueWriteBuffer(app->getRendererResource().queue,
+                                     app->mInstanceManager->getInstancingBuffer().getBuffer(),
+                                     (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
+                                     ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
 
                 std::cout << "(((((((((((((((( in mesh " << mModel->mFlattenMeshes.size() << std::endl;
 

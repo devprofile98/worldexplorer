@@ -2,6 +2,8 @@
 
 #include <strings.h>
 
+#include <atomic>
+
 #include "application.h"
 #include "glm/ext/quaternion_transform.hpp"
 #include "glm/trigonometric.hpp"
@@ -18,6 +20,11 @@ InstanceManager::InstanceManager(Application* app, size_t bufferSize, size_t max
 }
 
 Buffer& InstanceManager::getInstancingBuffer() { return mOffsetBuffer; }
+static std::atomic<size_t> mUsedIds{0};
+size_t InstanceManager::getNewId() {
+    std::cout << "Instance offset id is at " << mUsedIds.load(std::memory_order_seq_cst) << std::endl;
+    return mUsedIds.fetch_add(1, std::memory_order_seq_cst);
+}
 
 Instance::Instance(std::vector<glm::vec3> positions, glm::vec3 rotationAxis, std::vector<float> degree,
                    std::vector<glm::vec3> scales, const glm::vec4&& minAABB, const glm::vec4&& maxAABB) {
@@ -36,8 +43,8 @@ Instance::Instance(std::vector<glm::vec3> positions, glm::vec3 rotationAxis, std
 
 uint16_t Instance::duplicateLastInstance(const glm::vec3& posOffset, const glm::vec3& min, const glm::vec3& max) {
     size_t new_idx = mPositions.size();
-    auto new_pos = mPositions.back() + posOffset;
-    auto new_scale = mScale.back();
+    auto new_pos = new_idx == 0 ? glm::vec3{0.0} : mPositions.back() + posOffset;
+    auto new_scale = new_idx == 0 ? glm::vec3{1.0} : mScale.back();
 
     mPositions.push_back(new_pos);
     mScale.push_back(new_scale);
@@ -45,13 +52,10 @@ uint16_t Instance::duplicateLastInstance(const glm::vec3& posOffset, const glm::
     glm::mat4 t = glm::translate(glm::mat4{1.0}, new_pos);
     t = glm::rotate(t, 0.f, {1.0, 0.0, 0.0});
     t = glm::scale(t, new_scale);
-    std::cout << "ADding here" << '\n';
+    std::cout << "Adding here\n";
 
     mInstanceBuffer.push_back({t, t * glm::vec4{min, 1.0f}, t * glm::vec4{max, 1.0f}});
 
-    // wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
-    // mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
-    //                      new_idx * sizeof(InstanceData), &instance->mInstanceBuffer[new_idx], sizeof(InstanceData));
     return new_idx;
 }
 
@@ -83,7 +87,6 @@ SingleInstance Instance::createInstanceWrapper(size_t index) { return SingleInst
 SingleInstance::SingleInstance(size_t idx, Instance* ins) : idx(idx), instance(ins) {}
 
 Transformable& SingleInstance::moveTo(const glm::vec3& to) {
-    // auto& ins = instance->mInstanceBuffer[idx];
     auto& ins_pos = instance->mPositions[idx];
     ins_pos = to;
 
@@ -96,6 +99,8 @@ Transformable& SingleInstance::moveTo(const glm::vec3& to) {
 
     auto& queue = instance->mApp->getRendererResource().queue;
     wgpuQueueWriteBuffer(queue, instance->mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
-                         idx * sizeof(InstanceData), &instance->mInstanceBuffer[idx], sizeof(InstanceData));
+                         // idx * sizeof(InstanceData),
+                         ((InstanceManager::MAX_INSTANCE_COUNT * instance->mOffsetID) + idx) * sizeof(InstanceData),
+                         &instance->mInstanceBuffer[idx], sizeof(InstanceData));
     return *this;
 }

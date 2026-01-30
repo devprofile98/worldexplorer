@@ -962,37 +962,63 @@ void Model::userInterface() {
 
     if (ImGui::CollapsingHeader("Instances")) {
         size_t instances_count = instance != nullptr ? instance->mPositions.size() : 0;
-        for (size_t i = 0; i < instances_count; ++i) {
-            ImGui::PushID((void*)&instance->mPositions[i]);
-            ImGui::LabelText("Label", "instance #%ld", i);
-            bool pos_changed = ImGui::DragFloat3("pos", glm::value_ptr(instance->mPositions[i]), 0.01);
-            bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(instance->mScale[i]), 0.01);
+        int instances_id = instance != nullptr ? instance->mOffsetID : -1;
+        ImGui::LabelText("Instance Id", "id #%d", instances_id);
+        if (instance != nullptr) {
+            for (size_t i = 0; i < instances_count; ++i) {
+                ImGui::PushID((void*)&instance->mPositions[i]);
+                ImGui::LabelText("Label", "instance #%ld", i);
+                bool pos_changed = ImGui::DragFloat3("pos", glm::value_ptr(instance->mPositions[i]), 0.01);
+                bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(instance->mScale[i]), 0.01);
 
-            if (pos_changed || scale_changed) {
-                // glm::mat4 t = glm::translate(glm::mat4{1.0}, instance->mPositions[i]);
-                // t = glm::rotate(t, 0.f, {1.0, 0.0, 0.0});
-                // t = glm::scale(t, instance->mScale[i]);
-                // std::cout << "Changing here" << glm::to_string(instance->mPositions[i]) << '\n';
-                //
-                // instance->mInstanceBuffer[i] = {t, t * glm::vec4{min, 1.0f}, t * glm::vec4{max, 1.0f}};
-                //
-                // wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
-                //                      mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
-                //                      i * sizeof(InstanceData), &instance->mInstanceBuffer[i], sizeof(InstanceData));
-                instance->createInstanceWrapper(i).moveTo(instance->mPositions[i]);
+                if (pos_changed || scale_changed) {
+                    instance->createInstanceWrapper(i).moveTo(instance->mPositions[i]);
+                }
+
+                ImGui::PopID();  // Pop the unique ID for this item
             }
 
-            ImGui::PopID();  // Pop the unique ID for this item
-        }
-        // ImGui::LabelText("Label", "Add new instance");
-        if (ImGui::Button("New instance")) {
-            size_t new_idx = instance->duplicateLastInstance(glm::vec3{.01}, min, max);
-            wgpuQueueWriteBuffer(
-                mApp->getRendererResource().queue, mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
-                new_idx * sizeof(InstanceData), &instance->mInstanceBuffer[new_idx], sizeof(InstanceData));
-        }
-        if (ImGui::Button("Export instances info")) {
-            instance->dumpJson();
+            if (ImGui::Button("New instance")) {
+                size_t new_idx = instance->duplicateLastInstance(glm::vec3{.01}, min, max);
+                wgpuQueueWriteBuffer(
+                    mApp->getRendererResource().queue, mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
+                    ((InstanceManager::MAX_INSTANCE_COUNT * instance->mOffsetID) + new_idx) * sizeof(InstanceData),
+                    // (instance->mOffsetID + new_idx) * sizeof(InstanceData),
+                    &instance->mInstanceBuffer[new_idx], sizeof(InstanceData));
+            }
+            if (ImGui::Button("Export instances info")) {
+                instance->dumpJson();
+            }
+        } else {
+            ImGui::TextColored(ImVec4(1.0, 0.0, 0.0, 1.0), "No Instance!");
+            ImGui::SameLine();
+            if (ImGui::Button("Enable Instancing")) {
+                auto* ins =
+                    new Instance{{}, glm::vec3{1.0, 0.0, 0.0}, {}, {}, glm::vec4{min, 1.0f}, glm::vec4{max, 1.0f}};
+                ins->parent = this;
+                ins->mApp = mApp;
+                ins->mPositions = {};
+                ins->mScale = {};
+
+                ins->mOffsetID = mApp->mInstanceManager->getNewId();
+                mTransform.mObjectInfo.instanceOffsetId = ins->mOffsetID;
+                mTransform.mDirty = true;
+                setInstanced(ins);
+
+                wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
+                                     mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
+                                     (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
+                                     ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
+
+                std::cout << "(((((((((((((((( in mesh " << mFlattenMeshes.size() << std::endl;
+
+                mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + getName()).c_str())
+                    .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+                              WGPUBufferUsage_CopyDst)
+                    .setSize(sizeof(DrawIndexedIndirectArgs))
+                    .setMappedAtCraetion()
+                    .create(mApp);
+            }
         }
     }
 

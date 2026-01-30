@@ -405,9 +405,17 @@ struct BoneModel : public IModel {
                                      &indirect, sizeof(DrawIndexedIndirectArgs));
             }
 
-            mModel->mTransform.mObjectInfo.instanceOffsetId = 0;
+            // this needs to be elevated above the buffer update call for instance manager insatnce buffer
+            //
             mModel->setInstanced(ins);
 
+            mModel->instance->mOffsetID = app->mInstanceManager->getNewId();
+            mModel->mTransform.mObjectInfo.instanceOffsetId = mModel->instance->mOffsetID;
+
+            // wgpuQueueWriteBuffer(app->getRendererResource().queue,
+            //                      app->mInstanceManager->getInstancingBuffer().getBuffer(),
+            //                      (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
+            //                      ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
             std::cout << "--------------------Barrier reached ----------------- for tree"
                       << mModel->instance->getInstanceCount() << '\n';
         };

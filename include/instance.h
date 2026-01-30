@@ -2,6 +2,7 @@
 #ifndef WEBGPUTEST_INSTANCE_H
 #define WEBGPUTEST_INSTANCE_H
 
+#include <atomic>
 #include <cstdint>
 #include <vector>
 
@@ -26,6 +27,8 @@ class InstanceManager {
         size_t mBufferSize = 0;
         // Getter
         Buffer& getInstancingBuffer();
+        size_t getNewId();
+        static inline size_t MAX_INSTANCE_COUNT = 100'000;
 
     private:
         Buffer mOffsetBuffer;
