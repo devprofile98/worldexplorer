@@ -314,7 +314,7 @@ BoxCollider::BoxCollider(Application* app, const std::string& name, const glm::v
     auto box = generateBox();
     mDebugLines = app->mLineEngine->create(
         box, glm::translate(glm::mat4{1.0}, mCenter) * glm::scale(glm::mat4{1.0}, halfExtent * glm::vec3{2.0}),
-        mIsStatic ? glm::vec3{0.0, 1.0, 0.0} : glm::vec3{1.0, 0.0, 0.0});
+        mIsStatic ? glm::vec3{0.0, 1.0, 0.0} : glm::vec3{1.0, 0.209, 0.0784});
 
     glm::quat qu;
     qu.w = 1.0;

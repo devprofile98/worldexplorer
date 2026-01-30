@@ -30,7 +30,7 @@ class SkyBox;
 class Pipeline;
 class CompositionPass;
 class WaterPass;
-class World;
+struct World;
 template <typename K, typename V>
 class Registry;  // Forward declaration
 template <typename W>

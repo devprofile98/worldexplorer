@@ -412,7 +412,7 @@ struct BaseModelLoader : public IModel {
         BaseModelLoader(Application* app, ObjectLoaderParam param) {
             mModel = new Model{param.cs};
             mModel->mPath = param.path;
-            mModel->load(param.name, app, RESOURCE_DIR + std::string{"/"} + param.path, app->getObjectBindGroupLayout())
+            mModel->load(param.name, app, param.path, app->getObjectBindGroupLayout())
                 .moveTo(param.translate)
                 .scale(param.scale)
                 .rotate(param.rotate, 0.0);
@@ -585,6 +585,30 @@ std::optional<PhysicsParams> parsePhysics(const json& params) {
     return PhysicsParams{type};
 }
 
+void World::loadModel(const ObjectLoaderParam& param) {
+    ModelRegistry::instance().registerModel(param.name, [param](Application* app) -> LoadModelResult {
+        BaseModelLoader model = BaseModelLoader{app, param};
+        model.onLoad(app, nullptr);
+
+        if (param.isPhysicEnabled) {
+            glm::vec3 euler_radians = glm::radians(param.rotate);
+            glm::quat qu = glm::normalize(glm::quat(euler_radians));
+            qu.z *= -1;
+            qu = glm::normalize(qu);
+            model.getModel()->rotate(qu);
+            // CRITICAL to sync the physical world with the renderer world
+
+            auto [min, max] = model.getModel()->getPhysicsAABB();
+            auto center = (min + max) * 0.5f;
+            auto half_extent = (max - min) * 0.5f;
+            model.getModel()->mPhysicComponent = physics::createAndAddBody(
+                half_extent, center, qu, param.physicsParams.type == "dynamic" ? true : false, 0.5, 0.0f, 0.0f, 1.f);
+        }
+
+        return {model.getModel(), Visibility_User};
+    });
+}
+
 void World::loadWorld() {
     std::ifstream world_file(RESOURCE_DIR "/world.json");
 
@@ -638,30 +662,8 @@ void World::loadWorld() {
             param.physicsParams = *physics_props;
         }
 
-        ModelRegistry::instance().registerModel(name, [param](Application* app) -> LoadModelResult {
-            BaseModelLoader model = BaseModelLoader{app, param};
-            model.onLoad(app, nullptr);
-
-            if (param.isDefaultActor) {
-            }
-            if (param.isPhysicEnabled) {
-                glm::vec3 euler_radians = glm::radians(param.rotate);
-                glm::quat qu = glm::normalize(glm::quat(euler_radians));
-                qu.z *= -1;
-                qu = glm::normalize(qu);
-                model.getModel()->rotate(qu);
-                // CRITICAL to sync the physical world with the renderer world
-
-                auto [min, max] = model.getModel()->getPhysicsAABB();
-                auto center = (min + max) * 0.5f;
-                auto half_extent = (max - min) * 0.5f;
-                model.getModel()->mPhysicComponent = physics::createAndAddBody(
-                    half_extent, center, qu, param.physicsParams.type == "dynamic" ? true : false, 0.5, 0.0f, 0.0f,
-                    1.f);
-            }
-
-            return {model.getModel(), Visibility_User};
-        });
+        param.path = RESOURCE_DIR + std::string{"/"} + param.path;
+        loadModel(param);
         map.emplace(name, param);
     }
 

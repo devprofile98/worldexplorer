@@ -74,6 +74,7 @@ struct World : public KeyboardListener, MouseMoveListener, MouseButtonListener, 
 
         void togglePlayer();
         void loadWorld();
+        void loadModel(const ObjectLoaderParam& param);
 
         void onKey(KeyEvent event) override;
         void onMouseMove(MouseEvent event) override;

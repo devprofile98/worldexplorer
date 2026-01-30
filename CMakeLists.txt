@@ -114,6 +114,7 @@ add_executable(
     src/shader.cpp
     src/window.cpp
     src/physics.cpp
+    src/linegroup.cpp
 
     src/editor.cpp
     src/input_manager.cpp
@@ -121,6 +122,9 @@ add_executable(
     src/world.cpp
 
     src/tree.cpp
+
+    # Game files and logics
+    src/character.cpp
 
     ${TRACY_SOURCES}
     
@@ -231,6 +235,7 @@ endif()
 
 if (NOT EMSCRIPTEN)
     add_subdirectory(extern/glfw)
+    add_subdirectory(extern/nfd)
 else()
 # Emscripten has built-in support for GLFW but requires the `-sUSE_GLFW=3` link option:
     add_library(glfw INTERFACE)

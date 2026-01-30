@@ -143,8 +143,6 @@ glm::mat4 Camera::getProjection() const { return mProjectionMatrix; };
 void Camera::setProjection(glm::mat4 mat) { mProjectionMatrix = mat; };
 
 glm::mat4 Camera::getView() {
-    std::cout << glm::to_string(mCameraUp) << " " << glm::to_string(mCameraFront) << " " << glm::to_string(mCameraPos)
-              << std::endl;
     mViewMatrix = glm::lookAt(mCameraPos, mCameraPos + mCameraFront, mCameraUp);
     return mViewMatrix;
 };

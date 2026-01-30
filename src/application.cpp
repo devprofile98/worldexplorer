@@ -11,6 +11,7 @@
 #include <iostream>
 #include <limits>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "animation.h"
@@ -35,6 +36,8 @@
 #include <imgui_impl_wgpu.h>
 #include <webgpu/webgpu.h>
 #include <webgpu/wgpu.h>
+
+#include <nfd.hpp>
 
 #include "GLFW/glfw3.h"
 #include "composition_pass.h"
@@ -66,6 +69,9 @@
 #include "webgpu/webgpu.h"
 #include "wgpu_utils.h"
 #include "window.h"
+
+nfdu8char_t* outPath;
+nfdopendialogu8args_t args = {0};
 
 static bool cull_frustum = false;
 static bool show_physic_objects = false;
@@ -647,6 +653,21 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
 
     mWorld->loadWorld();
     last_frame_time = glfwGetTime();
+
+    //
+    //
+    //
+
+    NFD_Init();
+
+    static nfdu8filteritem_t filters[2] = {{"Source code", "c,cpp,cc"}, {"Headers", "h,hpp"}};
+    args.filterList = filters;
+    args.filterCount = 2;
+
+    //
+    //
+    //
+
     return true;
 }
 
@@ -1289,11 +1310,9 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::Checkbox("flip y", &flip_y);
             ImGui::Checkbox("flip z", &flip_z);
 
-            if (ImGui::CollapsingHeader("Camera",
-                                        ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
-                                                                            //
-                if (ImGui::SliderFloat("z-near", &mCamera.mZnear, 0.0, 180.0f) ||
-                    ImGui::SliderFloat("z-far", &mCamera.mZfar, 0.0, 1000.0f) ||
+            if (ImGui::CollapsingHeader("Cameras", ImGuiTreeNodeFlags_DefaultOpen)) {
+                if (ImGui::DragFloat("z-near", &mCamera.mZnear, 1.0, 0.0, 180.0f) ||
+                    ImGui::DragFloat("z-far", &mCamera.mZfar, 1.0, 0.0, 1000.0f) ||
                     ImGui::DragFloat("FOV", &mCamera.mFov, 0.1, 0.0, 1000.0f)) {
                     mCamera.update(mUniforms, mWindow->mWindowSize.x, mWindow->mWindowSize.y);
                 }
@@ -1309,10 +1328,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             }
 
             // static glm::vec3 pointlightshadow = glm::vec3{5.6f, -2.1f, 6.0f};
-            if (ImGui::CollapsingHeader("Lights",
-                                        ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
-                                                                            // ImGui::Begin("Lighting");
-
+            if (ImGui::CollapsingHeader("Sun", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::SliderFloat("frustum split factor", &middle_plane_length, 1.0, 100);
                 ImGui::SliderFloat("far split factor", &far_plane_length, 1.0, 200);
                 ImGui::SliderFloat("visualizer", &mUniforms.time, -1.0, 1.0);
@@ -1320,6 +1336,85 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::Checkbox("shoud update csm", &should_update_csm);
             ImGui::Text("\nClip Plane");
 
+            if (ImGui::CollapsingHeader("Skybox", ImGuiTreeNodeFlags_DefaultOpen)) {
+                static bool open_popup = false;
+                static nfdu8char_t* output;
+                static const nfdpathset_t* paths;
+                if (ImGui::Button("Open file")) {
+                    nfdresult_t result = NFD_OpenDialogMultipleU8(&paths, nullptr, 0, nullptr);
+                    if (result == NFD_OKAY) {
+                        puts("Success!");
+                        open_popup = true;
+
+                    } else if (result == NFD_CANCEL) {
+                        puts("User pressed cancel.");
+                    } else {
+                        printf("Error: %s\n", NFD_GetError());
+                    }
+                }
+                if (open_popup) {
+                    ImGui::OpenPopup("Import Settings");
+
+                    if (ImGui::BeginPopupModal("Import Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                        ImGui::TextWrapped("Importing:\n%s", output);
+                        ImGui::Separator();
+
+                        static bool isAnimated = true;
+                        static int coordinate_system = 0;
+                        static CoordinateSystem cs = Z_UP;
+
+                        ImGui::Checkbox("Is Animated", &isAnimated);
+                        if (ImGui::Combo("Coordinate System", &coordinate_system, "Z UP\0Y UP\0")) {
+                            switch (coordinate_system) {
+                                case 0:
+                                    cs = Z_UP;
+                                    break;
+                                case 1:
+                                    cs = Y_UP;
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+
+                        ImGui::Separator();
+                        if (ImGui::Button("Import")) {
+                            nfdpathsetsize_t listcount = 0;
+                            NFD_PathSet_GetCount(paths, &listcount);
+                            for (size_t i = 0; i < listcount; ++i) {
+                                NFD_PathSet_GetPath(paths, i, &output);
+                                std::cout << output << std::endl;
+                                // ObjectLoaderParam param{name,  path,   is_animated, cs,           translate,
+                                //                         scale, rotate, childs,      default_clip, socket_param};
+
+                                mWorld->loadModel(ObjectLoaderParam{"ahmad",
+                                                                    output,
+                                                                    isAnimated,
+                                                                    cs,
+                                                                    std::array<float, 3>{0.0, 0.0, 0.0},
+                                                                    std::array<float, 3>{1.0, 1.0, 1.0},
+                                                                    std::array<float, 3>{1.0, 1.0, 1.0},
+                                                                    {},
+                                                                    "",
+                                                                    {}});
+                            }
+
+                            ImGui::CloseCurrentPopup();
+                            open_popup = false;  // openImportPopup = false;
+                            NFD_PathSet_Free(paths);
+                        }
+
+                        ImGui::SameLine();
+                        if (ImGui::Button("Cancel")) {
+                            ImGui::CloseCurrentPopup();
+                            open_popup = false;
+                            NFD_PathSet_Free(paths);
+                        }
+
+                        ImGui::EndPopup();
+                    }
+                }
+            }
             if (ImGui::DragFloat4("clip plane:", glm::value_ptr(mDefaultPlane))) {
                 wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
                                      glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
@@ -1328,7 +1423,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
         }
 
         if (ImGui::BeginTabItem("Objects")) {
-            // ImGuiFileDialog::Instance()->OpenDialog("ChooseFile", "Choose Model", ".obj,.fbx,.gltf,.glb", ".");
             ImGui::BeginChild("ScrollableList", ImVec2(0, 200),
                               ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY);
 
@@ -1669,14 +1763,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                                              collider.mHalfExtent.z)
                               << "\n";
                     std::cout << "},\n";
-                    // {
-                    //   "active": true,
-                    //   "name": "right_bottom_cabinet",
-                    //   "type": "static",
-                    //   "shape": "box",
-                    //   "center": [0.099, 4.517, -2.875],
-                    //   "half_extent": [0.26, 0.75, 0.39]
-                    // }
                 }
             }
 
@@ -1684,11 +1770,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
         }
 
         if (ImGui::BeginTabItem("Shadows")) {
-            // ImGui::Image((ImTextureID)(intptr_t)mShadowPass->getTextureView(0, 0), ImVec2(1920 / 4.0, 1022
-            // / 4.0)); ImGui::Image((ImTextureID)(intptr_t)mShadowPass->getShadowMapView(), ImVec2(1920 / 4.0, 1022
-            // / 4.0));
             if (ImGui::Button("Save scene")) {
-                // worldToClip(mCamera.getProjection() * mCamera.getView(), glm::vec3{1.0, 0.0, 0.0});
                 mWorld->exportScene();
             }
             ImGui::EndTabItem();
@@ -1696,13 +1778,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
         ImGui::EndTabBar();
     }
-
-    // ImGui::Begin("Add Line");
-    // ImGui::Image((ImTextureID)(intptr_t)mWaterRenderPass->mWaterRefractionPass->mRenderTargetView,
-    //              ImVec2(1920 / 4.0, 1022 / 4.0));
-    // ImGui::Image((ImTextureID)(intptr_t)mWaterRenderPass->mWaterPass->mRenderTargetView,
-    //              ImVec2(1920 / 4.0, 1022 / 4.0));
-    // ImGui::End();
 
     // Draw the UI
     ImGui::EndFrame();
