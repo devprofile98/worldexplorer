@@ -20,11 +20,12 @@ TransparencyPass::TransparencyPass(Application* app) : mApp(app) {
     // 3 - a storage buffer for linkedlist
     // 4 - the depth texture from the opaque pass
 
+    auto* rc = &mApp->getRendererResource();
     mUniformBuffer.setLabel("Transparency Uniform buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setSize(sizeof(CameraInfo))
         .setMappedAtCraetion()
-        .create(app);
+        .create(rc);
 
     // head struct consists of: 1- number of added elems, 2- array<head index, size of screen in pixel>
     size_t head_size = (1920 * 1080) * sizeof(uint32_t) + sizeof(uint32_t);
@@ -32,7 +33,7 @@ TransparencyPass::TransparencyPass(Application* app) : mApp(app) {
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setSize(head_size)
         .setMappedAtCraetion()
-        .create(app);
+        .create(rc);
 
     // the struct consists of : 1 - color:vec4, 2- depth (f32), 3- next: u32
     size_t linkedlist_size = (1920 * 1080 * 4) * sizeof(LinkedListElement);
@@ -40,7 +41,7 @@ TransparencyPass::TransparencyPass(Application* app) : mApp(app) {
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setSize(linkedlist_size)
         .setMappedAtCraetion()
-        .create(app);
+        .create(rc);
 }
 
 void TransparencyPass::initializePass() {
@@ -89,14 +90,14 @@ void TransparencyPass::initializePass() {
     mBindingGroup.addBuffer(7, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                             sizeof(glm::vec4) * 10000);
 
-    auto bind_group_layout = mBindingGroup.createLayout(mApp, "shadow pass pipeline");
+    auto bind_group_layout = mBindingGroup.createLayout(mApp->getRendererResource(), "shadow pass pipeline");
 
     mRenderPipeline = new Pipeline{mApp, {bind_group_layout}, "Transparencty pass layout"};
 
     WGPUVertexBufferLayout d = mRenderPipeline->getDefaultVertexBufferLayout();
 
     WGPUColorTargetState color_state;
-    mRenderPipeline->setShader(RESOURCE_DIR "/oit.wgsl")
+    mRenderPipeline->setShader(RESOURCE_DIR "/oit.wgsl", mApp->getRendererResource())
         .setVertexBufferLayout(d)
         .setVertexState()
         .setPrimitiveState()
@@ -105,7 +106,7 @@ void TransparencyPass::initializePass() {
         .setFragmentState()
         .setColorTargetState(color_state);
 
-    mRenderPipeline->setMultiSampleState().createPipeline(mApp);
+    mRenderPipeline->setMultiSampleState().createPipeline(mApp->getRendererResource());
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
     mBindingData[0].size = sizeof(CameraInfo);
@@ -202,7 +203,7 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
                 .setLabel("object info for oit")
                 .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
                 .setMappedAtCraetion()
-                .create(mApp);
+                .create(&mApp->getRendererResource());
 
             mBindingData[0].buffer = mApp->getUniformBuffer().getBuffer();
             mBindingData[3].textureView = opaqueDepthTextureView;
@@ -218,13 +219,12 @@ void TransparencyPass::render(std::vector<BaseModel*> models, WGPURenderPassEnco
 
             wgpuQueueWriteBuffer(mApp->getRendererResource().queue, object_info_buffer.getBuffer(), 0,
                                  &model->mTransform.getLocalTransform(), sizeof(glm::mat4));
-            auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
+            auto bindgroup = mBindingGroup.createNew(mApp->getRendererResource(), mBindingData);
             wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                                  wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
 
             wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
 
-            /*size_t instances = (model->getName() == "tree") ? 900 : 1;*/
             size_t instances = 1;
             wgpuRenderPassEncoderDraw(encoder, mesh.mVertexData.size(), instances, 0, 0);
 

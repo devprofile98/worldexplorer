@@ -4,17 +4,15 @@
 
 #include <atomic>
 
-#include "application.h"
-#include "glm/ext/quaternion_transform.hpp"
-#include "glm/trigonometric.hpp"
+#include "rendererResource.h"
 
-InstanceManager::InstanceManager(Application* app, size_t bufferSize, size_t maxInstancePerModel) {
+InstanceManager::InstanceManager(RendererResource* rc, size_t bufferSize, size_t maxInstancePerModel) {
     (void)maxInstancePerModel;
     mOffsetBuffer.setSize(bufferSize)
         .setLabel("Instancing Shader Storage Buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setMappedAtCraetion()
-        .create(app);
+        .create(rc);
 
     mBufferSize = bufferSize;
 }
@@ -33,13 +31,9 @@ Instance::Instance(std::vector<glm::vec3> positions, glm::vec3 rotationAxis, std
         auto rotate = glm::rotate(glm::mat4{1.0f}, degree[i], rotationAxis);
         auto scale = glm::scale(glm::mat4{1.0f}, scales[i]);
         auto model_matrix = trans * rotate * scale;
-        // model_matrix = glm::rotate(model_matrix, glm::radians(180.0f), glm::vec3{1.0, 0.0, 0.0});
         mInstanceBuffer.emplace_back(model_matrix, model_matrix * minAABB, model_matrix * maxAABB);
     }
 }
-
-// uint16_t Instance::addNewInstance(const glm::vec3& positoin, const glm::vec3& scale, const glm::quat& rot) { return
-// 0; }
 
 uint16_t Instance::duplicateLastInstance(const glm::vec3& posOffset, const glm::vec3& min, const glm::vec3& max) {
     size_t new_idx = mPositions.size();
@@ -70,12 +64,6 @@ void Instance::dumpJson() {
         std::cout << "},\n";
     }
     std::cout << "]\n";
-    // "instance": [
-    //   {
-    //     "position": [-2.5, 1.144, -2.947],
-    //     "scale": [0.05, 0.05, 0.05],
-    //     "rotation": [0.0, 0.0, 0.0]
-    //   },
 }
 
 size_t Instance::getInstanceCount() { return mInstanceBuffer.size(); }
@@ -97,10 +85,9 @@ Transformable& SingleInstance::moveTo(const glm::vec3& to) {
     instance->mInstanceBuffer[idx] = {t, t * glm::vec4{instance->parent->min, 1.0f},
                                       t * glm::vec4{instance->parent->max, 1.0f}};
 
-    auto& queue = instance->mApp->getRendererResource().queue;
-    wgpuQueueWriteBuffer(queue, instance->mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
-                         // idx * sizeof(InstanceData),
-                         ((InstanceManager::MAX_INSTANCE_COUNT * instance->mOffsetID) + idx) * sizeof(InstanceData),
-                         &instance->mInstanceBuffer[idx], sizeof(InstanceData));
+    instance->mManager->getInstancingBuffer().queueWrite(
+        ((InstanceManager::MAX_INSTANCE_COUNT * instance->mOffsetID) + idx) * sizeof(InstanceData),
+        &instance->mInstanceBuffer[idx], sizeof(InstanceData));
+
     return *this;
 }

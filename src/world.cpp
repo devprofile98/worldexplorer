@@ -423,24 +423,29 @@ struct BaseModelLoader : public IModel {
                 mModel->mSkiningTransformationBuffer.setLabel("default skining data transform for human")
                     .setSize(100 * sizeof(glm::mat4))
                     .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
-                    .create(app);
+                    .create(&app->getRendererResource());
 
                 std::vector<glm::mat4> bones;
                 for (int i = 0; i < 100; i++) {
                     bones.emplace_back(glm::mat4{1.0});
                 }
-                wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mSkiningTransformationBuffer.getBuffer(),
-                                     0, bones.data(), sizeof(glm::mat4) * bones.size());
+                mModel->mSkiningTransformationBuffer.queueWrite(0, bones.data(), sizeof(glm::mat4) * bones.size());
+                // wgpuQueueWriteBuffer(app->getRendererResource().queue,
+                // mModel->mSkiningTransformationBuffer.getBuffer(),
+                //                      0, bones.data(), sizeof(glm::mat4) * bones.size());
             }
             // if mesh in node animated
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
                 .setSize(20 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
-                .create(app);
+                .create(&app->getRendererResource());
 
             auto& databuffer = mModel->mGlobalMeshTransformationData;
-            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
-                                 0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+            mModel->mGlobalMeshTransformationBuffer.queueWrite(0, databuffer.data(),
+                                                               sizeof(glm::mat4) * databuffer.size());
+            // wgpuQueueWriteBuffer(app->getRendererResource().queue,
+            // mModel->mGlobalMeshTransformationBuffer.getBuffer(),
+            //                      0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
 
             // If model is instanced
             //
@@ -458,7 +463,8 @@ struct BaseModelLoader : public IModel {
                 auto* ins = new Instance{positions, glm::vec3{1.0, 0.0, 0.0},     rotations,
                                          scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
                 ins->parent = mModel;
-                ins->mApp = app;
+                // ins->mApp = app;
+                ins->mManager = app->mInstanceManager;
                 ins->mPositions = positions;
                 ins->mScale = scales;
 
@@ -467,10 +473,9 @@ struct BaseModelLoader : public IModel {
                 mModel->instance->mOffsetID = app->mInstanceManager->getNewId();
                 mModel->mTransform.mObjectInfo.instanceOffsetId = mModel->instance->mOffsetID;
 
-                wgpuQueueWriteBuffer(app->getRendererResource().queue,
-                                     app->mInstanceManager->getInstancingBuffer().getBuffer(),
-                                     (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
-                                     ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
+                ins->mManager->getInstancingBuffer().queueWrite(
+                    (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
+                    ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
 
                 std::cout << "(((((((((((((((( in mesh " << mModel->mFlattenMeshes.size() << std::endl;
 
@@ -479,7 +484,7 @@ struct BaseModelLoader : public IModel {
                               WGPUBufferUsage_CopyDst)
                     .setSize(sizeof(DrawIndexedIndirectArgs))
                     .setMappedAtCraetion()
-                    .create(app);
+                    .create(&app->getRendererResource());
             }
 
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());

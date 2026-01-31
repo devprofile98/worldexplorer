@@ -5,6 +5,7 @@
 
 #include "../webgpu/webgpu.h"
 #include "../webgpu/wgpu.h"
+#include "rendererResource.h"
 #include "utils.h"
 
 class Application;
@@ -14,10 +15,10 @@ class Pipeline {
     public:
         Pipeline(Application* app, std::vector<WGPUBindGroupLayout> bindGroupLayout, std::string name);
 
-        Pipeline& defaultConfiguration(Application* app, WGPUTextureFormat surfaceTexture,
+        Pipeline& defaultConfiguration(const RendererResource& resource, WGPUTextureFormat surfaceTexture,
                                        WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus,
                                        const char* shaderPath = "./resources/shaders/shader.wgsl");
-        Pipeline& createPipeline(Application* app);
+        Pipeline& createPipeline(const RendererResource& resource);
 
         // Getters
         WGPUPipelineLayout getPipelineLayout();
@@ -26,7 +27,7 @@ class Pipeline {
         WGPURenderPipelineDescriptor* getDescriptorPtr();
         WGPUVertexBufferLayout getDefaultVertexBufferLayout();
         // Setter
-        Pipeline& setShader(const std::filesystem::path& path);
+        Pipeline& setShader(const std::filesystem::path& path, const RendererResource& resource);
         Pipeline& setVertexBufferLayout(WGPUVertexBufferLayout layout);
         Pipeline& setVertexState(size_t bufferCount = 1, const char* entryPoint = "vs_main",
                                  std::vector<WGPUConstantEntry> constants = {});
@@ -38,7 +39,7 @@ class Pipeline {
         Pipeline& setDepthStencilState(WGPUDepthStencilState state);
         Pipeline& setBlendState();
         Pipeline& setBlendState(WGPUBlendState blendState);
-        Pipeline& setColorTargetState(WGPUTextureFormat format = WGPUTextureFormat_Undefined);
+        Pipeline& setColorTargetState(WGPUTextureFormat format);
         Pipeline& setColorTargetState(WGPUColorTargetState colorTargetState);
         Pipeline& setFragmentState();
         Pipeline& setFragmentState(WGPUFragmentState* fragmentState);

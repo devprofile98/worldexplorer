@@ -1,6 +1,8 @@
 #include "gpu_buffer.h"
 
-#include "application.h"
+#include <cstdint>
+
+// #include "application.h"
 #include "rendererResource.h"
 
 Buffer::Buffer() : mBufferDescriptor({}) {}
@@ -27,10 +29,14 @@ Buffer& Buffer::setSize(uint64_t size) {
     return *this;
 }
 
-WGPUBuffer Buffer::create(Application* app) {
-    mBuffer = wgpuDeviceCreateBuffer(app->getRendererResource().device, &mBufferDescriptor);
-    mResources = &app->getRendererResource();
+WGPUBuffer Buffer::create(RendererResource* resource) {
+    mBuffer = wgpuDeviceCreateBuffer(resource->device, &mBufferDescriptor);
+    mResources = resource;
     return mBuffer;
 }
 
 WGPUBuffer Buffer::getBuffer() { return mBuffer; }
+
+void Buffer::queueWrite(uint64_t startOffset, const void* data, size_t writeSize) {
+    wgpuQueueWriteBuffer(mResources->queue, mBuffer, startOffset, data, writeSize);
+}

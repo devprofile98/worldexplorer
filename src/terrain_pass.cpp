@@ -23,7 +23,8 @@ TerrainPass::TerrainPass(Application* app, const std::string& name) : RenderPass
         .addTexture(2, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
         .addTexture(3, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D);
 
-    mTextureBindgroupLayout = mTexturesBindgroup.createLayout(app, "Terrain Texture layout bidngroup");
+    mTextureBindgroupLayout =
+        mTexturesBindgroup.createLayout(mApp->getRendererResource(), "Terrain Texture layout bidngroup");
 
     mGrass =
         new Texture{mApp->getRendererResource().device,
@@ -61,6 +62,7 @@ TerrainPass::TerrainPass(Application* app, const std::string& name) : RenderPass
 
 void TerrainPass::createRenderPass(WGPUTextureFormat textureFormat) {
     auto* layouts = mApp->getBindGroupLayouts();
+    auto& resource = mApp->getRendererResource();
     mRenderPipeline =
         new Pipeline{mApp,
                      {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4], layouts[5], mTextureBindgroupLayout},
@@ -86,14 +88,14 @@ void TerrainPass::createRenderPass(WGPUTextureFormat textureFormat) {
     mBindingData[3].binding = 3;
     mBindingData[3].textureView = mTempTextures[3]->getTextureViewArray();
 
-    mTexturesBindgroup.create(mApp, mBindingData);
+    mTexturesBindgroup.create(resource, mBindingData);
 
-    mRenderPipeline->defaultConfiguration(mApp, textureFormat);
-    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/terrain.wgsl");
+    mRenderPipeline->defaultConfiguration(resource, textureFormat);
+    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/terrain.wgsl", resource);
     setDefaultActiveStencil2(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_Back);
-    mRenderPipeline->createPipeline(mApp);
+    mRenderPipeline->createPipeline(resource);
 
     terrain.generate(200, 8, terrainData).uploadToGpu(mApp);
     std::cout << "Generate is " << terrainData.size() << '\n';
@@ -140,20 +142,20 @@ OutlinePass::OutlinePass(Application* app, const std::string& name) : RenderPass
                                       BindGroupEntryVisibility::FRAGMENT, TextureSampleType::DEPTH,
                                       TextureViewDimension::VIEW_2D);
 
-    mLayerThree = mDepthTextureBindgroup.createLayout(app, "layer three bidngroup");
+    mLayerThree = mDepthTextureBindgroup.createLayout(mApp->getRendererResource(), "layer three bidngroup");
 }
 
 void OutlinePass::createRenderPass(WGPUTextureFormat textureFormat) {
-    mDepthTextureBindgroup.create(mApp, mOutlineSpecificBindingData);
+    mDepthTextureBindgroup.create(mApp->getRendererResource(), mOutlineSpecificBindingData);
     auto* layouts = mApp->getBindGroupLayouts();
     mRenderPipeline =
         new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], mLayerThree, layouts[3], layouts[5]}, "Outline Pass"};
-    mRenderPipeline->defaultConfiguration(mApp, textureFormat);
-    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/outline.wgsl");
+    mRenderPipeline->defaultConfiguration(mApp->getRendererResource(), textureFormat);
+    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/outline.wgsl", mApp->getRendererResource());
     setDefaultUseStencil(mRenderPipeline->getDepthStencilState());
     /*setDefaultActiveStencil(mRenderPipeline->getDepthStencilState());*/
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
-    mRenderPipeline->createPipeline(mApp);
+    mRenderPipeline->createPipeline(mApp->getRendererResource());
 }
 
 void OutlinePass::createSomeBinding() {
@@ -162,7 +164,7 @@ void OutlinePass::createSomeBinding() {
     mOutlineSpecificBindingData[0].binding = 0;
     mOutlineSpecificBindingData[0].textureView = mTextureView;
 
-    mDepthTextureBindgroup.create(mApp, mOutlineSpecificBindingData);
+    mDepthTextureBindgroup.create(mApp->getRendererResource(), mOutlineSpecificBindingData);
 }
 
 Pipeline* OutlinePass::create(WGPUTextureFormat textureFormat, WGPUTextureView textureview) {
@@ -182,7 +184,7 @@ ViewPort3DPass::ViewPort3DPass(Application* app, const std::string& name) : Rend
                                    BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
                                    sizeof(int32_t));
 
-    mLayerThree = mLayerThreeBindgroup.createLayout(app, "layer three bidngroup");
+    mLayerThree = mLayerThreeBindgroup.createLayout(app->getRendererResource(), "layer three bidngroup");
     mRenderPipeline = nullptr;
 }
 
@@ -197,12 +199,12 @@ void ViewPort3DPass::initTargets() {
 void ViewPort3DPass::createRenderPass(WGPUTextureFormat textureFormat) {
     auto* layouts = mApp->getBindGroupLayouts();
     mRenderPipeline = new Pipeline{mApp, {layouts[0], layouts[1], layouts[2] /*, mLayerThree*/}, "3D ViewPort Pass"};
-    mRenderPipeline->defaultConfiguration(mApp, textureFormat);
-    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/editor.wgsl");
+    mRenderPipeline->defaultConfiguration(mApp->getRendererResource(), textureFormat);
+    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/editor.wgsl", mApp->getRendererResource());
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     setDefault(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->getDepthStencilState().format = WGPUTextureFormat_Depth24PlusStencil8;
-    mRenderPipeline->createPipeline(mApp);
+    mRenderPipeline->createPipeline(mApp->getRendererResource());
     initTargets();
 }
 

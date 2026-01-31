@@ -70,7 +70,7 @@ void CompositionPass::initializePass() {
     mBindingGroup.addBuffer(0, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::STORAGE, head_size);
     mBindingGroup.addBuffer(1, BindGroupEntryVisibility::FRAGMENT, BufferBindingType::STORAGE, linkedlist_size);
 
-    auto bind_group_layout = mBindingGroup.createLayout(mApp, "composition pass pipeline");
+    auto bind_group_layout = mBindingGroup.createLayout(mApp->getRendererResource(), "composition pass pipeline");
     mRenderPipeline = new Pipeline{mApp, {bind_group_layout}, "Composition layout"};
 
     /*WGPUVertexBufferLayout d = mRenderPipeline->getDefaultVertexBufferLayout();*/
@@ -82,16 +82,16 @@ void CompositionPass::initializePass() {
     blend_state.alpha = {};
 
     /*WGPUColorTargetState color_state;*/
-    mRenderPipeline->setShader(RESOURCE_DIR "/composition.wgsl")
+    mRenderPipeline->setShader(RESOURCE_DIR "/composition.wgsl", mApp->getRendererResource())
         .setVertexBufferLayout(d)
         .setVertexState(0, "vs_main", {})
         .setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_None)
         .setDepthStencilState()
         .setBlendState(blend_state)
-        .setColorTargetState()
+        .setColorTargetState(mApp->getTextureFormat())
         .setFragmentState();
 
-    mRenderPipeline->setMultiSampleState().createPipeline(mApp);
+    mRenderPipeline->setMultiSampleState().createPipeline(mApp->getRendererResource());
 
     mBindingData[0].nextInChain = nullptr;
     mBindingData[0].binding = 0;
@@ -124,7 +124,7 @@ void CompositionPass::render(std::vector<BaseModel*> models, WGPURenderPassEncod
     mBindingData[0].buffer = mHeadsBuffer;
     mBindingData[1].buffer = mLinkedlistBuffer;
 
-    auto bindgroup = mBindingGroup.createNew(mApp, mBindingData);
+    auto bindgroup = mBindingGroup.createNew(mApp->getRendererResource(), mBindingData);
     wgpuRenderPassEncoderSetBindGroup(encoder, 0, bindgroup, 0, nullptr);
     wgpuRenderPassEncoderDraw(encoder, 6, 1, 0, 0);
     wgpuBindGroupRelease(bindgroup);

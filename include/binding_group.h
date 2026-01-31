@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "../webgpu/webgpu.h"
+#include "rendererResource.h"
 
 class Application;
 
@@ -32,9 +33,9 @@ class BindingGroup {
         WGPUBindGroupDescriptor& getDescriptor();
 
         std::vector<WGPUBindGroupLayoutEntry> mEntries{};
-        WGPUBindGroupLayout createLayout(Application* app, const char* label);
-        void create(Application* app, std::vector<WGPUBindGroupEntry>& bindingData);
-        WGPUBindGroup createNew(Application* app, std::vector<WGPUBindGroupEntry>& bindingData);
+        WGPUBindGroupLayout createLayout(const RendererResource& resource, const char* label);
+        void create(const RendererResource& resource, std::vector<WGPUBindGroupEntry>& bindingData);
+        WGPUBindGroup createNew(const RendererResource& resource, std::vector<WGPUBindGroupEntry>& bindingData);
 
     private:
         WGPUBindGroup mBindGroup;

@@ -50,13 +50,14 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat) { (void)textu
 
 void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascadeNumber) {
     constexpr uint32_t screen = 2048;
+    auto& rc = mApp->getRendererResource();
     mNumOfCascades = cascadeNumber;
     mRenderTarget =
-        new Texture{mApp->getRendererResource().device, static_cast<uint32_t>(screen), static_cast<uint32_t>(screen),
-                    TextureDimension::TEX_2D, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};
+        new Texture{rc.device, static_cast<uint32_t>(screen), static_cast<uint32_t>(screen), TextureDimension::TEX_2D,
+                    WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};
     mRenderTarget->createView();
 
-    mShadowDepthTexture = new Texture{mApp->getRendererResource().device,
+    mShadowDepthTexture = new Texture{rc.device,
                                       static_cast<uint32_t>(screen),
                                       static_cast<uint32_t>(screen),
                                       TextureDimension::TEX_2D,
@@ -77,7 +78,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
             .addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                        mApp->mInstanceManager->mBufferSize)
             .addSampler(2, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering)
-            .createLayout(mApp, "shadow pass pipeline");
+            .createLayout(rc, "shadow pass pipeline");
 
     auto texture_bind_group_layout =
         mTextureBindingGroup
@@ -85,7 +86,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
             .addTexture(1, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
             .addTexture(2, BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
                         TextureViewDimension::VIEW_2D)
-            .createLayout(mApp, "shadow pass pipeline");
+            .createLayout(rc, "shadow pass pipeline");
 
     mVisibleBindingGroup.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                                    sizeof(uint32_t) * 100'000 * 5);
@@ -103,7 +104,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     bind_group_layout_descriptor1.entryCount = 1;
     bind_group_layout_descriptor1.entries = &ot;
 
-    auto layout = wgpuDeviceCreateBindGroupLayout(mApp->getRendererResource().device, &bind_group_layout_descriptor1);
+    auto layout = wgpuDeviceCreateBindGroupLayout(rc.device, &bind_group_layout_descriptor1);
 
     mRenderPipeline = new Pipeline{mApp,
                                    {bind_group_layout, texture_bind_group_layout, mApp->getBindGroupLayouts()[5],
@@ -140,7 +141,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setSize(sizeof(Scene) * mNumOfCascades)
         .setMappedAtCraetion()
-        .create(mApp);
+        .create(&rc);
     // mBindingData.push_back(entry);
     mBindingData[0] = {};
     mBindingData[0].nextInChain = nullptr;
@@ -158,14 +159,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
 
     BindingGroup test;
     test.addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, sizeof(uint32_t));
-    test.createLayout(mApp, "test layout");
-
-    // WGPUBindGroupLayoutEntry object_transformation = {};
-    // setDefault(object_transformation);
-    // object_transformation.binding = 0;
-    // object_transformation.visibility = WGPUShaderStage_Vertex;
-    // object_transformation.buffer.type = WGPUBufferBindingType_Uniform;
-    // object_transformation.buffer.minBindingSize = sizeof(uint32_t);
+    test.createLayout(mApp->getRendererResource(), "test layout");
 
     for (size_t f = 0; f < mNumOfCascades; ++f) {
         Buffer buf;
@@ -173,9 +167,9 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
             .setSize(sizeof(uint32_t))
             .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
             .setMappedAtCraetion(false)
-            .create(mApp);
+            .create(&rc);
 
-        wgpuQueueWriteBuffer(mApp->getRendererResource().queue, buf.getBuffer(), 0, &f, sizeof(uint32_t));
+        wgpuQueueWriteBuffer(rc.queue, buf.getBuffer(), 0, &f, sizeof(uint32_t));
         mFrustuIndexBuffer.push_back(buf);
 
         WGPUBindGroupEntry mBindGroupEntry = {};
@@ -192,20 +186,14 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
         desc.label = {"translation bind group", WGPU_STRLEN};
         desc.layout = layout;
 
-        mSceneIndicesBindGroup.emplace_back(wgpuDeviceCreateBindGroup(mApp->getRendererResource().device, &desc));
+        mSceneIndicesBindGroup.emplace_back(wgpuDeviceCreateBindGroup(rc.device, &desc));
     }
-
-    // mBindingData[2].nextInChain = nullptr;
-    // mBindingData[2].binding = 2;
-    // mBindingData[2].buffer = mFrustuIndexBuffer[0].getBuffer();
-    // mBindingData[2].offset = 0;
-    // mBindingData[2].size = sizeof(float);
 
     mBindingData[2] = {};
     mBindingData[2].binding = 2;
     mBindingData[2].sampler = mApp->getDefaultSampler();
 
-    mBindingGroup.create(mApp, mBindingData);
+    mBindingGroup.create(rc, mBindingData);
 
     mTextureBindingData[0] = {};
     mTextureBindingData[0].nextInChain = nullptr;
@@ -217,7 +205,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     mTextureBindingData[1].binding = 1;
     mTextureBindingData[1].textureView = nullptr;
 
-    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/shadow.wgsl")
+    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/shadow.wgsl", rc)
         .setVertexBufferLayout(d)
         .setVertexState()
         .setPrimitiveState()
@@ -226,7 +214,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
         .setColorTargetState(textureFormat)
         .setFragmentState();
 
-    mRenderPipeline->setMultiSampleState().createPipeline(mApp);
+    mRenderPipeline->setMultiSampleState().createPipeline(rc);
 }
 
 glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corners, const glm::mat4& lightView,
@@ -449,7 +437,7 @@ void DepthPrePass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline
         // ->defaultConfiguration(mApp, textureFormat, WGPUTextureFormat_Depth24Plus,
         //                        )
-        ->setShader(RESOURCE_DIR "/shaders/depth_prepass.wgsl")
+        ->setShader(RESOURCE_DIR "/shaders/depth_prepass.wgsl", mApp->getRendererResource())
         .setVertexBufferLayout(d)
         .setVertexState()
         .setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_Front)
@@ -465,9 +453,9 @@ void DepthPrePass::createRenderPass(WGPUTextureFormat textureFormat) {
     mFragmentState.targetCount = 0;
     mFragmentState.targets = nullptr;
 
-    mRenderPipeline->setColorTargetState(WGPUTextureFormat_Undefined).setFragmentState(&mFragmentState);
+    mRenderPipeline->setColorTargetState(mApp->getTextureFormat()).setFragmentState(&mFragmentState);
 
-    mRenderPipeline->setMultiSampleState().createPipeline(mApp);
+    mRenderPipeline->setMultiSampleState().createPipeline(mApp->getRendererResource());
 }
 
 WGPURenderPassDescriptor& DepthPrePass::getRenderDesc(WGPUTextureView texture) {

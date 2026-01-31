@@ -132,6 +132,7 @@ void Application::initializePipeline() {
     mDefaultNormalMap->setBufferData(texture_data);
     mDefaultNormalMap->uploadToGPU(this->getRendererResource().queue);
 
+    auto resource = getRendererResource();
     // Initializing Default bindgroups
     WGPUBindGroupLayout bind_group_layout =
         mBindingGroup
@@ -147,7 +148,7 @@ void Application::initializePipeline() {
             .addSampler(8, BindGroupEntryVisibility::FRAGMENT, SampleType::Compare)
             .addBuffer(9, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                        mInstanceManager->mBufferSize)
-            .createLayout(this, "binding group layout");
+            .createLayout(resource, "binding group layout");
 
     /* Default textures for the render pass, if a model doenst have textures, these will be used */
     WGPUBindGroupLayout texture_bind_group_layout =
@@ -156,7 +157,7 @@ void Application::initializePipeline() {
             .addTexture(1, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
             .addTexture(2, BindGroupEntryVisibility::VERTEX_FRAGMENT, TextureSampleType::FLAOT,
                         TextureViewDimension::VIEW_2D)
-            .createLayout(this, "default texture bindgroup layout");
+            .createLayout(resource, "default texture bindgroup layout");
 
     /* Default camera index buffer
      * Each render pass could have its own camear index to use a different camera in shader
@@ -164,18 +165,18 @@ void Application::initializePipeline() {
     WGPUBindGroupLayout camera_bind_group_layout =
         mDefaultCameraIndexBindgroup
             .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t))
-            .createLayout(this, "default camera index bindgroup layout");
+            .createLayout(resource, "default camera index bindgroup layout");
 
     WGPUBindGroupLayout clipplane_bind_group_layout =
         mDefaultClipPlaneBG
             .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(glm::vec4))
-            .createLayout(this, "default clip plane bindgroup layout");
+            .createLayout(resource, "default clip plane bindgroup layout");
 
     WGPUBindGroupLayout visible_bind_group_layout =
         mDefaultVisibleBuffer
             .addBuffer(0, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                        sizeof(uint32_t) * 13000)
-            .createLayout(this, "default visible index layout");
+            .createLayout(resource, "default visible index layout");
 
     /* Default Object Detail bindgroup*/
     BindingGroup object_information;
@@ -184,14 +185,14 @@ void Application::initializePipeline() {
             .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(ObjectInfo))
             .addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4))
             .addBuffer(2, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY, 20 * sizeof(glm::mat4))
-            .createLayout(this, "Object Tranformation Matrix uniform");
+            .createLayout(resource, "Object Tranformation Matrix uniform");
 
     BindingGroup default_mesh_information;
     WGPUBindGroupLayout default_mesh_mat_layout =
         default_mesh_information
             .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Material))
             .addBuffer(1, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t))
-            .createLayout(this, "mesh material Matrix uniform");
+            .createLayout(resource, "mesh material Matrix uniform");
 
     mBindGroupLayouts = {bind_group_layout,        obj_transform_layout,        texture_bind_group_layout,
                          camera_bind_group_layout, clipplane_bind_group_layout, visible_bind_group_layout,
@@ -202,18 +203,18 @@ void Application::initializePipeline() {
                               mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
                              "standard pipeline"};
 
-    mPipeline->defaultConfiguration(this, mSurfaceFormat);
+    mPipeline->defaultConfiguration(resource, mSurfaceFormat);
     setDefaultActiveStencil(mPipeline->getDepthStencilState());
     mPipeline->setDepthStencilState(mPipeline->getDepthStencilState());
-    mPipeline->createPipeline(this);
+    mPipeline->createPipeline(resource);
 
     mStenctilEnabledPipeline =
         new Pipeline{this,
                      {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
                       mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
                      "Draw outline pipe"};
-    mStenctilEnabledPipeline->defaultConfiguration(this, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8)
-        .createPipeline(this);
+    mStenctilEnabledPipeline->defaultConfiguration(resource, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8)
+        .createPipeline(resource);
 
     mDefaultTextureBindingData[0] = {};
     mDefaultTextureBindingData[0].nextInChain = nullptr;
@@ -234,11 +235,12 @@ void Application::initializePipeline() {
         .setMappedAtCraetion()
         .setSize(sizeof(uint32_t))
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-        .create(this);
+        .create(mRendererResource);
 
     static uint32_t cidx = 0;
-    wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultCameraIndex.getBuffer(), 0, &cidx,
-                         sizeof(uint32_t));
+    mDefaultCameraIndex.queueWrite(0, &cidx, sizeof(uint32_t));
+    // wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultCameraIndex.getBuffer(), 0, &cidx,
+    //                      sizeof(uint32_t));
 
     mDefaultCameraIndexBindingData[0] = {};
     mDefaultCameraIndexBindingData[0].nextInChain = nullptr;
@@ -251,11 +253,12 @@ void Application::initializePipeline() {
         .setLabel("default cilp plane buffer")
         .setSize(sizeof(glm::vec4))
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-        .create(this);
+        .create(mRendererResource);
 
+    mDefaultClipPlaneBuf.queueWrite(0, glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
     // glm::vec4 default_clip_plane{0.0, 0.0, 1.0, 100};
-    wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
-                         glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
+    // wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
+    //                      glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
 
     WGPUSamplerDescriptor samplerDesc = {};
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
@@ -337,7 +340,7 @@ void Application::initializePipeline() {
         .setSize(sizeof(uint32_t))
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setMappedAtCraetion(false)
-        .create(this);
+        .create(mRendererResource);
 
     mBindingData[5] = {};
     mBindingData[5].nextInChain = nullptr;
@@ -390,11 +393,12 @@ void Application::initializePipeline() {
     mDefaultVisibleBGData[0].size = sizeof(uint32_t) * 100'000 * 5;
 
     /* Creating actual bindgroups */
-    mBindingGroup.create(this, mBindingData);
-    mDefaultTextureBindingGroup.create(this, mDefaultTextureBindingData);
-    mDefaultCameraIndexBindgroup.create(this, mDefaultCameraIndexBindingData);
-    mDefaultClipPlaneBG.create(this, mDefaultClipPlaneBGData);
-    mDefaultVisibleBuffer.create(this, mDefaultVisibleBGData);
+    // auto& resource = getRendererResource();
+    mBindingGroup.create(resource, mBindingData);
+    mDefaultTextureBindingGroup.create(resource, mDefaultTextureBindingData);
+    mDefaultCameraIndexBindgroup.create(resource, mDefaultCameraIndexBindingData);
+    mDefaultClipPlaneBG.create(resource, mDefaultClipPlaneBGData);
+    mDefaultVisibleBuffer.create(resource, mDefaultVisibleBGData);
 
     mSkybox = new SkyBox{this, RESOURCE_DIR "/skybox"};
 }
@@ -403,42 +407,44 @@ void Application::initializePipeline() {
 void Application::initializeBuffers() {
     // initialize The instancing buffer
     mLightManager = LightManager::init(this);
-    mInstanceManager = new InstanceManager{this, sizeof(InstanceData) * 100000 * 10, 100000};
+    mInstanceManager = new InstanceManager{mRendererResource, sizeof(InstanceData) * 100000 * 10, 100000};
 
     mUniformBuffer.setLabel("MVP matrices matrix")
         .setSize(sizeof(CameraInfo) * 10)
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setMappedAtCraetion()
-        .create(this);
+        .create(mRendererResource);
 
     mUniforms.time = 1.0f;
     mUniforms.color = {0.0f, 1.0f, 0.4f, 1.0f};
-    // setupCamera(mUniforms);
-    wgpuQueueWriteBuffer(this->getRendererResource().queue, mUniformBuffer.getBuffer(), 0, &mUniforms,
-                         sizeof(CameraInfo) * 1);
+    mUniformBuffer.queueWrite(0, &mUniforms, sizeof(CameraInfo));
+    // wgpuQueueWriteBuffer(this->getRendererResource().queue, mUniformBuffer.getBuffer(), 0, &mUniforms,
+    //                      sizeof(CameraInfo) * 1);
 
     mDirectionalLightBuffer.setLabel("Directional light buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setSize(sizeof(LightingUniforms))
         .setMappedAtCraetion()
-        .create(this);
+        .create(mRendererResource);
 
     mLightSpaceTransformation.setLabel("Light space transform buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setSize(sizeof(Scene) * 5)
         .setMappedAtCraetion()
-        .create(this);
+        .create(mRendererResource);
 
     mLightingUniforms.directions = {glm::vec4{-0.7, 1.0, 1.0, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
     mLightingUniforms.colors = {glm::vec4{0.99, 1.0, 0.88, 1.0}, glm::vec4{0.6, 0.9, 1.0, 1.0}};
-    wgpuQueueWriteBuffer(this->getRendererResource().queue, mDirectionalLightBuffer.getBuffer(), 0, &mLightingUniforms,
-                         sizeof(LightingUniforms));
+    mDirectionalLightBuffer.queueWrite(0, &mLightingUniforms, sizeof(LightingUniforms));
+    // wgpuQueueWriteBuffer(this->getRendererResource().queue, mDirectionalLightBuffer.getBuffer(), 0,
+    // &mLightingUniforms,
+    //                      sizeof(LightingUniforms));
 
     mLightBuffer.setLabel("Lights Buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setSize(sizeof(Light) * 10)
         .setMappedAtCraetion(false)
-        .create(this);
+        .create(mRendererResource);
 
     mLightManager->uploadToGpu(this, mLightBuffer.getBuffer());
 
@@ -448,21 +454,22 @@ void Application::initializeBuffers() {
         .setSize(100 * sizeof(glm::mat4))
         .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
         .setMappedAtCraetion(false)
-        .create(this);
+        .create(mRendererResource);
 
     static std::vector<glm::mat4> bones;
     bones.reserve(100);
     for (int i = 0; i < 100; i++) {
         bones.emplace_back(glm::mat4{1.0});
     }
-    wgpuQueueWriteBuffer(getRendererResource().queue, mDefaultBoneFinalTransformData.getBuffer(), 0, bones.data(),
-                         sizeof(glm::mat4) * bones.size());
+    mDefaultBoneFinalTransformData.queueWrite(0, bones.data(), sizeof(glm::mat4) * bones.size());
+    // wgpuQueueWriteBuffer(getRendererResource().queue, mDefaultBoneFinalTransformData.getBuffer(), 0, bones.data(),
+    //                      sizeof(glm::mat4) * bones.size());
 
     mDefaultMeshGlobalTransformData.setLabel("default global mesh transform")
         .setSize(20 * sizeof(glm::mat4))
         .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
         .setMappedAtCraetion(false)
-        .create(this);
+        .create(mRendererResource);
 }
 
 void Application::onResize() {
@@ -830,8 +837,9 @@ void Application::mainLoop() {
     // Dispaching Compute shaders to cull everything that is outside the frustum
     // -------------------------------------------------------------------------
     auto fp = create2FrustumPlanes(corners);
-    wgpuQueueWriteBuffer(this->getRendererResource().queue, getFrustumPlaneBuffer().getBuffer(), 0, fp.data(),
-                         sizeof(FrustumPlanesUniform));
+    getFrustumPlaneBuffer().queueWrite(0, fp.data(), sizeof(FrustumPlanesUniform));
+    // wgpuQueueWriteBuffer(this->getRendererResource().queue, getFrustumPlaneBuffer().getBuffer(), 0, fp.data(),
+    //                      sizeof(FrustumPlanesUniform));
 
     if (cull_frustum) {
         // runFrustumCullingTask(this, encoder);
@@ -849,11 +857,12 @@ void Application::mainLoop() {
         // });
 
         uint32_t cascades_count = all_scenes.size();
-        wgpuQueueWriteBuffer(this->getRendererResource().queue, mTimeBuffer.getBuffer(), 0, &cascades_count,
-                             sizeof(uint32_t));
-
-        wgpuQueueWriteBuffer(this->getRendererResource().queue, mLightSpaceTransformation.getBuffer(), 0,
-                             all_scenes.data(), sizeof(Scene) * all_scenes.size());
+        mTimeBuffer.queueWrite(0, &cascades_count, sizeof(uint32_t));
+        // wgpuQueueWriteBuffer(this->getRendererResource().queue, mTimeBuffer.getBuffer(), 0, &cascades_count,
+        //                      sizeof(uint32_t));
+        mLightSpaceTransformation.queueWrite(0, all_scenes.data(), sizeof(Scene) * all_scenes.size());
+        // wgpuQueueWriteBuffer(this->getRendererResource().queue, mLightSpaceTransformation.getBuffer(), 0,
+        //                      all_scenes.data(), sizeof(Scene) * all_scenes.size());
     }
 
     {
@@ -864,8 +873,9 @@ void Application::mainLoop() {
     //
     //-------------- End of shadow pass
     mUniforms.setCamera(mCamera);
-    wgpuQueueWriteBuffer(this->getRendererResource().queue, mUniformBuffer.getBuffer(), 0, &mUniforms,
-                         sizeof(CameraInfo));
+    mUniformBuffer.queueWrite(0, &mUniforms, sizeof(CameraInfo));
+    // wgpuQueueWriteBuffer(this->getRendererResource().queue, mUniformBuffer.getBuffer(), 0, &mUniforms,
+    //                      sizeof(CameraInfo));
 
     // mWaterRenderPass->drawWater();
     for (const auto& model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
@@ -1416,8 +1426,9 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                 }
             }
             if (ImGui::DragFloat4("clip plane:", glm::value_ptr(mDefaultPlane))) {
-                wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
-                                     glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
+                mDefaultClipPlaneBuf.queueWrite(0, glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
+                // wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
+                //                      glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
             }
             ImGui::EndTabItem();
         }
@@ -1473,8 +1484,9 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::Text("Directional Light");
             if (ImGui::ColorEdit3("Color", glm::value_ptr(mLightingUniforms.colors[0])) ||
                 ImGui::DragFloat3("Direction", glm::value_ptr(mLightingUniforms.directions[0]), 0.1, -1.0, 1.0)) {
-                wgpuQueueWriteBuffer(this->getRendererResource().queue, mDirectionalLightBuffer.getBuffer(), 0,
-                                     &mLightingUniforms, sizeof(LightingUniforms));
+                mDirectionalLightBuffer.queueWrite(0, &mLightingUniforms, sizeof(LightingUniforms));
+                // wgpuQueueWriteBuffer(this->getRendererResource().queue, mDirectionalLightBuffer.getBuffer(), 0,
+                //                      &mLightingUniforms, sizeof(LightingUniforms));
             }
 
             ImGui::Text("    ");

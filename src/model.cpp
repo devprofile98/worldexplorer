@@ -64,7 +64,7 @@ void Drawable::configure(Application* app) {
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setSize(sizeof(ObjectInfo))
         .setMappedAtCraetion()
-        .create(app);
+        .create(&app->getRendererResource());
 }
 
 Transformable& Transformable::moveTo(const glm::vec3&) { return *this; }
@@ -572,7 +572,7 @@ Model& Model::uploadToGPU(Application* app) {
             .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
             .setSize((mesh.mVertexData.size() + 1) * sizeof(VertexAttributes))
             .setMappedAtCraetion()
-            .create(app);
+            .create(&mApp->getRendererResource());
 
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mVertexBuffer.getBuffer(), 0,
                              mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
@@ -581,7 +581,7 @@ Model& Model::uploadToGPU(Application* app) {
             .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex | WGPUBufferUsage_Index)
             .setSize((mesh.mIndexData.size()) * sizeof(uint32_t))
             .setMappedAtCraetion()
-            .create(app);
+            .create(&mApp->getRendererResource());
 
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndexBuffer.getBuffer(), 0, mesh.mIndexData.data(),
                              mesh.mIndexData.size() * sizeof(uint32_t));
@@ -670,7 +670,7 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
             .setSize(sizeof(Material))
             .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
             .setMappedAtCraetion(false)
-            .create(app);
+            .create(&mApp->getRendererResource());
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial,
                              sizeof(Material));
 
@@ -686,7 +686,7 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
             .setSize(sizeof(uint32_t))
             .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
             .setMappedAtCraetion(false)
-            .create(app);
+            .create(&mApp->getRendererResource());
 
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMeshMapIdx.getBuffer(), 0, &mesh.meshId,
                              sizeof(uint32_t));
@@ -996,7 +996,8 @@ void Model::userInterface() {
                 auto* ins =
                     new Instance{{}, glm::vec3{1.0, 0.0, 0.0}, {}, {}, glm::vec4{min, 1.0f}, glm::vec4{max, 1.0f}};
                 ins->parent = this;
-                ins->mApp = mApp;
+                // ins->mApp = mApp;
+                ins->mManager = mApp->mInstanceManager;
                 ins->mPositions = {};
                 ins->mScale = {};
 
@@ -1005,10 +1006,14 @@ void Model::userInterface() {
                 mTransform.mDirty = true;
                 setInstanced(ins);
 
-                wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
-                                     mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
-                                     (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
-                                     ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
+                ins->mManager->getInstancingBuffer().queueWrite(
+                    (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
+                    ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
+                // wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
+                //                      mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
+                //                      (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
+                //                      ins->mInstanceBuffer.data(), sizeof(InstanceData) *
+                //                      (ins->mInstanceBuffer.size()));
 
                 std::cout << "(((((((((((((((( in mesh " << mFlattenMeshes.size() << std::endl;
 
@@ -1017,7 +1022,7 @@ void Model::userInterface() {
                               WGPUBufferUsage_CopyDst)
                     .setSize(sizeof(DrawIndexedIndirectArgs))
                     .setMappedAtCraetion()
-                    .create(mApp);
+                    .create(&mApp->getRendererResource());
             }
         }
     }

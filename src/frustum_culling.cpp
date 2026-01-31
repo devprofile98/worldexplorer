@@ -66,7 +66,6 @@ BindingGroup mBindingGroup;
 BindingGroup mObjectInfoBindgroup;
 void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     data_size_bytes = input_values.size() * sizeof(uint32_t);
-    auto& resources = app->getRendererResource();
 
     const char* shader_code = R"(
 
@@ -145,32 +144,34 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
         }
     )";
 
+    auto& resources = app->getRendererResource();
     // create neccesarry buffers
     inputBuffer.setLabel("input buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setSize(data_size_bytes)
         .setMappedAtCraetion()
-        .create(app);
+        .create(&resources);
 
-    wgpuQueueWriteBuffer(resources.queue, inputBuffer.getBuffer(), 0, input_values.data(), data_size_bytes);
+    inputBuffer.queueWrite(0, input_values.data(), data_size_bytes);
+    // wgpuQueueWriteBuffer(resources.queue, inputBuffer.getBuffer(), 0, input_values.data(), data_size_bytes);
     // one buffer for input, one for output
     app->mVisibleIndexBuffer.setLabel("visible index buffer")
         .setUsage(WGPUBufferUsage_CopySrc | WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect)
         .setSize(sizeof(uint32_t) * 100000 * 5)
         .setMappedAtCraetion()
-        .create(app);
+        .create(&resources);
 
     outputBuffer.setLabel("output result buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead)
         .setSize(data_size_bytes)
         .setMappedAtCraetion()
-        .create(app);
+        .create(&resources);
 
     frustumPlanesBuffer.setLabel("frustum planes buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setSize(sizeof(FrustumPlanesUniform))
         .setMappedAtCraetion()
-        .create(app);
+        .create(&resources);
 
     // create the compute pass, bind group and pipeline
     WGPUShaderSourceWGSL shader_wgsl_desc = {};
@@ -182,18 +183,19 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
     shader_module_desc.label = {"Simple Compute Shader Module", WGPU_STRLEN};
     WGPUShaderModule shader_module = wgpuDeviceCreateShaderModule(resources.device, &shader_module_desc);
 
+    auto& resource = app->getRendererResource();
     WGPUBindGroupLayout bind_group_layout =
         mBindingGroup.addBuffer(0, BindGroupEntryVisibility::COMPUTE, BufferBindingType::STORAGE_READONLY, 0)
             .addBuffer(1, BindGroupEntryVisibility::COMPUTE, BufferBindingType::STORAGE, 0)
             .addBuffer(2, BindGroupEntryVisibility::COMPUTE, BufferBindingType::STORAGE_READONLY, 0)
             .addBuffer(3, BindGroupEntryVisibility::COMPUTE, BufferBindingType::UNIFORM, 0)
             .addBuffer(4, BindGroupEntryVisibility::COMPUTE, BufferBindingType::UNIFORM, sizeof(CameraInfo) * 10)
-            .createLayout(app, "Compute bind group layout");
+            .createLayout(resource, "Compute bind group layout");
 
     objectinfo_bg_layout =
         mObjectInfoBindgroup.addBuffer(0, BindGroupEntryVisibility::COMPUTE, BufferBindingType::UNIFORM, 0)
             .addBuffer(1, BindGroupEntryVisibility::COMPUTE, BufferBindingType::STORAGE, 0)
-            .createLayout(app, "Compute Bind Group For Object info");
+            .createLayout(resource, "Compute Bind Group For Object info");
 
     // 5. Create Pipeline Layout
     WGPUBindGroupLayout bind_group_layouts[] = {bind_group_layout, objectinfo_bg_layout};

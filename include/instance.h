@@ -11,7 +11,7 @@
 #include "gpu_buffer.h"
 #include "model.h"
 
-class Application;
+// class Application;
 class Instance;
 
 struct alignas(16) InstanceData {
@@ -22,7 +22,7 @@ struct alignas(16) InstanceData {
 
 class InstanceManager {
     public:
-        explicit InstanceManager(Application* app, size_t bufferSize, size_t maxInstancePerModel);
+        explicit InstanceManager(RendererResource* rc, size_t bufferSize, size_t maxInstancePerModel);
 
         size_t mBufferSize = 0;
         // Getter
@@ -61,7 +61,8 @@ class Instance {
         std::vector<InstanceData> mInstanceBuffer;
         uint16_t mOffsetID = 0;
         BaseModel* parent = nullptr;
-        Application* mApp = nullptr;
+        // Application* mApp = nullptr;
+        InstanceManager* mManager = nullptr;
 };
 
 #endif  // WEBGPUTEST_INSTANCE_H

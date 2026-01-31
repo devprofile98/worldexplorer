@@ -2,7 +2,6 @@
 
 #include <webgpu/webgpu.h>
 
-#include "application.h"
 #include "rendererResource.h"
 #include "shader.h"
 #include "wgpu_utils.h"
@@ -42,20 +41,18 @@ WGPURenderPassDescriptor createRenderPassDescriptor(WGPUTextureView colorAttachm
 Pipeline::Pipeline(Application* app, std::vector<WGPUBindGroupLayout> bindGroupLayout, std::string name)
     : mApp(app), mPipelineName(name), mDescriptor({}), mBindGroupLayouts(bindGroupLayout) {}
 
-Pipeline& Pipeline::createPipeline(Application* app) {
+Pipeline& Pipeline::createPipeline(const RendererResource& resource) {
     WGPUPipelineLayoutDescriptor pipeline_layout_descriptor = {};
     pipeline_layout_descriptor.label = createStringView(mPipelineName);
     pipeline_layout_descriptor.nextInChain = nullptr;
     pipeline_layout_descriptor.bindGroupLayoutCount = mBindGroupLayouts.size();
     pipeline_layout_descriptor.bindGroupLayouts = mBindGroupLayouts.data();
 
-    mPipelineLayout = wgpuDeviceCreatePipelineLayout(app->getRendererResource().device, &pipeline_layout_descriptor);
+    mPipelineLayout = wgpuDeviceCreatePipelineLayout(resource.device, &pipeline_layout_descriptor);
 
     mDescriptor.layout = mPipelineLayout;
     mDescriptor.label = createStringView(mPipelineName);
-    // std::cout << "****************************" << mPipelineName << mBindGroupLayouts.size() << " "
-    //           << mDescriptor.depthStencil->depthCompare << std::endl;
-    mPipeline = wgpuDeviceCreateRenderPipeline(app->getRendererResource().device, &mDescriptor);
+    mPipeline = wgpuDeviceCreateRenderPipeline(resource.device, &mDescriptor);
     return *this;
 }
 
@@ -71,7 +68,7 @@ WGPUVertexBufferLayout Pipeline::getDefaultVertexBufferLayout() {
         .configure(sizeof(VertexAttributes), VertexStepMode::VERTEX);
 }
 
-Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat surfaceTexture,
+Pipeline& Pipeline::defaultConfiguration(const RendererResource& resource, WGPUTextureFormat surfaceTexture,
                                          WGPUTextureFormat depthTexture, const char* shaderPath
 
 ) {
@@ -79,7 +76,7 @@ Pipeline& Pipeline::defaultConfiguration(Application* app, WGPUTextureFormat sur
 
     std::cout << "Defalt confiiguraton for " << shaderPath << std::endl;
 
-    mShaderModule = loadShader(shaderPath, app->getRendererResource().device);
+    mShaderModule = loadShader(shaderPath, resource.device);
     // 1 - vertex state
     mlVertexBufferLayout = getDefaultVertexBufferLayout();
     mDescriptor.nextInChain = nullptr;
@@ -156,8 +153,8 @@ WGPUPipelineLayout Pipeline::getPipelineLayout() { return mPipelineLayout; }
 WGPURenderPipelineDescriptor Pipeline::getDescriptor() { return mDescriptor; }
 WGPURenderPipelineDescriptor* Pipeline::getDescriptorPtr() { return &mDescriptor; }
 
-Pipeline& Pipeline::setShader(const std::filesystem::path& path) {
-    mShaderModule = loadShader(path, mApp->getRendererResource().device);
+Pipeline& Pipeline::setShader(const std::filesystem::path& path, const RendererResource& resource) {
+    mShaderModule = loadShader(path, resource.device);
     mDescriptor.vertex.module = mShaderModule;
     mFragmentState.module = mShaderModule;
     return *this;
@@ -237,14 +234,13 @@ Pipeline& Pipeline::setBlendState(WGPUBlendState blendState) {
 }
 
 Pipeline& Pipeline::setColorTargetState(WGPUTextureFormat format) {
-    mColorTargetState.format = format == WGPUTextureFormat_Undefined ? mApp->getTextureFormat() : format;
+    mColorTargetState.format = format;
     mColorTargetState.blend = &mBlendState;
     mColorTargetState.writeMask = WGPUColorWriteMask_All;
     return *this;
 }
 
 Pipeline& Pipeline::setColorTargetState(WGPUColorTargetState colorTargetState) {
-    /*mColorTargetState = colorTargetState;*/
     (void)colorTargetState;
     mFragmentState.targetCount = 0;
     mFragmentState.targets = nullptr;
@@ -275,12 +271,6 @@ Pipeline& Pipeline::setMultiSampleState(/*WGPUMultisampleState multiSampleState*
 }
 
 Pipeline& Pipeline::setFragmentState(WGPUFragmentState* fragmentState) {
-    // mFragmentState.module = mShaderModule;
-    // mFragmentState.entryPoint = "fs_main";
-    // mFragmentState.constants = nullptr;
-    // mFragmentState.constantCount = 0;
-    // mFragmentState.targetCount = 1;
-    // mFragmentState.targets = &mColorTargetState;
     mDescriptor.fragment = fragmentState;
 
     mDescriptor.multisample.count = 1;

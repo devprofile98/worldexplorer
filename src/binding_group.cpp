@@ -2,7 +2,8 @@
 
 #include <webgpu/webgpu.h>
 
-#include "application.h"
+#include <iostream>
+
 #include "rendererResource.h"
 #include "wgpu_utils.h"
 
@@ -157,14 +158,14 @@ BindingGroup& BindingGroup::addSampler(uint32_t bindingNumber, BindGroupEntryVis
     return *this;
 }
 
-WGPUBindGroupLayout BindingGroup::createLayout(Application* app, const char* label) {
+WGPUBindGroupLayout BindingGroup::createLayout(const RendererResource& resource, const char* label) {
     mBindGroupLayoutDesc = {};
     mBindGroupLayoutDesc.nextInChain = nullptr;
     mBindGroupLayoutDesc.label = {label, WGPU_STRLEN};
     mBindGroupLayoutDesc.entryCount = this->getEntryCount();
     mBindGroupLayoutDesc.entries = this->getEntryData();
 
-    mBindGroupLayout = wgpuDeviceCreateBindGroupLayout(app->getRendererResource().device, &mBindGroupLayoutDesc);
+    mBindGroupLayout = wgpuDeviceCreateBindGroupLayout(resource.device, &mBindGroupLayoutDesc);
 
     return mBindGroupLayout;
 }
@@ -175,24 +176,24 @@ WGPUBindGroupLayoutEntry* BindingGroup::getEntryData() { return mEntries.data();
 
 WGPUBindGroup& BindingGroup::getBindGroup() { return mBindGroup; }
 
-void BindingGroup::create(Application* app, std::vector<WGPUBindGroupEntry>& bindingData) {
+void BindingGroup::create(const RendererResource& resource, std::vector<WGPUBindGroupEntry>& bindingData) {
     std::cout << "Passed here " << mBindGroupLayoutDesc.entryCount << " " << bindingData.size() << "\n ";
     mBindGroupDesc = {};
     mBindGroupDesc.nextInChain = nullptr;
     mBindGroupDesc.layout = mBindGroupLayout;
     mBindGroupDesc.entryCount = mBindGroupLayoutDesc.entryCount;
     mBindGroupDesc.entries = bindingData.data();
-    mBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mBindGroupDesc);
+    mBindGroup = wgpuDeviceCreateBindGroup(resource.device, &mBindGroupDesc);
 };
 
-WGPUBindGroup BindingGroup::createNew(Application* app, std::vector<WGPUBindGroupEntry>& bindingData) {
+WGPUBindGroup BindingGroup::createNew(const RendererResource& resource, std::vector<WGPUBindGroupEntry>& bindingData) {
     mBindGroupDesc = {};
     mBindGroupDesc.nextInChain = nullptr;
     mBindGroupDesc.layout = mBindGroupLayout;
     mBindGroupDesc.entryCount = mBindGroupLayoutDesc.entryCount;
     mBindGroupDesc.entries = bindingData.data();
 
-    return wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mBindGroupDesc);
+    return wgpuDeviceCreateBindGroup(resource.device, &mBindGroupDesc);
 }
 
 WGPUBindGroupDescriptor& BindingGroup::getDescriptor() { return mBindGroupDesc; }

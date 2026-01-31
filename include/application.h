@@ -9,14 +9,11 @@
 
 #include "binding_group.h"
 #include "camera.h"
-// #include "editor.h"
 #include "gpu_buffer.h"
 #include "terrain_pass.h"
 #include "texture.h"
 #include "utils.h"
-// #include "water_pass.h"
 #include "webgpu/webgpu.h"
-// #include "window.h"
 
 // Forward Declarations
 class ShadowPass;

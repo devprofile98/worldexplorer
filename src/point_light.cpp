@@ -24,7 +24,7 @@ LightManager::LightManager(Application* app) {
         .setSize(sizeof(uint32_t))
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setMappedAtCraetion()
-        .create(mApp);
+        .create(&mApp->getRendererResource());
 }
 
 LightManager* LightManager::init(Application* app) {

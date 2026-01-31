@@ -85,24 +85,25 @@ static uint16_t cubeIndexData[] = {
 Cube::Cube(Application* app) : BaseModel() {
     mApp = app;
     mName = "Cube";
+    auto& rc = mApp->getRendererResource();
     mFlattenMeshes[0]
         .mVertexBuffer.setLabel("Shape vertex buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
         .setSize(sizeof(cubeVertexData))
         .setMappedAtCraetion()
-        .create(mApp);
-
-    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mFlattenMeshes[0].mVertexBuffer.getBuffer(), 0,
-                         &cubeVertexData, sizeof(cubeVertexData));
+        .create(&rc);
+    mFlattenMeshes[0].mVertexBuffer.queueWrite(0, &cubeVertexData, sizeof(cubeVertexData));
+    // wgpuQueueWriteBuffer(rc.queue, mFlattenMeshes[0].mVertexBuffer.getBuffer(), 0, &cubeVertexData,
+    //                      sizeof(cubeVertexData));
 
     mIndexDataBuffer.setLabel("Shape indices buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index)
         .setSize(sizeof(cubeIndexData))
         .setMappedAtCraetion()
-        .create(mApp);
+        .create(&rc);
 
-    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mIndexDataBuffer.getBuffer(), 0, &cubeIndexData,
-                         sizeof(cubeIndexData));
+    mIndexDataBuffer.queueWrite(0, &cubeIndexData, sizeof(cubeIndexData));
+    // wgpuQueueWriteBuffer(rc.queue, mIndexDataBuffer.getBuffer(), 0, &cubeIndexData, sizeof(cubeIndexData));
     Drawable::configure(app);
 
     for (size_t i = 0; i < getVertexCount(); i++) {
@@ -120,14 +121,14 @@ Cube::Cube(Application* app) : BaseModel() {
         .setLabel("offset buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
         .setMappedAtCraetion()
-        .create(app);
+        .create(&rc);
 
     std::array<glm::vec4, 10> dddata = {};
     for (size_t i = 0; i < 10; i++) {
         dddata[i] = glm::vec4{0.0, i * 2, 0.0, 0.0};
     }
-    wgpuQueueWriteBuffer(app->getRendererResource().queue, offset_buffer.getBuffer(), 0, &dddata,
-                         sizeof(glm::vec4) * 10);
+    offset_buffer.queueWrite(0, &dddata, sizeof(glm::vec4) * 10);
+    // wgpuQueueWriteBuffer(rc.queue, offset_buffer.getBuffer(), 0, &dddata, sizeof(glm::vec4) * 10);
 }
 
 Plane::Plane(Application* app) : Cube(app) { mTransform.mScale = {0.0, 1.0, 1.0}; }
@@ -146,22 +147,6 @@ void Cube::userInterface() {
 #endif  // DEVELOPMENT_BUILD
 
 WGPUBindGroupDescriptor createBindGroup(Application* app, WGPUBuffer buffer, size_t bufferSize = sizeof(ObjectInfo)) {
-    // static WGPUBindGroupEntry mBindGroupEntry = {};
-    // mBindGroupEntry.nextInChain = nullptr;
-    // mBindGroupEntry.binding = 0;
-    // mBindGroupEntry.buffer = buffer;
-    // mBindGroupEntry.offset = 0;
-    // mBindGroupEntry.size = bufferSize;
-    //
-    // WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
-    // mTrasBindGroupDesc.nextInChain = nullptr;
-    // mTrasBindGroupDesc.entries = &mBindGroupEntry;
-    // mTrasBindGroupDesc.entryCount = 1;
-    // mTrasBindGroupDesc.label = {"translation bind group", WGPU_STRLEN};
-    // mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
-    //
-    // return mTrasBindGroupDesc;
-
     static std::array<WGPUBindGroupEntry, 2> mBindGroupEntry = {};
     mBindGroupEntry[0].nextInChain = nullptr;
     mBindGroupEntry[0].binding = 0;
@@ -251,11 +236,8 @@ void LineEngine::initCirclePipeline() {
 }
 
 void LineEngine::initialize(Application* app) {
-    // create render pass
-    // create bindgroups
-    // create pipeline
-
     mApp = app;
+    auto& resource = app->getRendererResource();
 
     mLineRenderingPass = new NewRenderPass{"Line Rendering render pass"};
     mLineRenderingPass->setColorAttachment(
@@ -275,8 +257,8 @@ void LineEngine::initialize(Application* app) {
                                sizeof(CameraInfo));
     initCirclePipeline();
 
-    auto layout = mBindGroup.createLayout(app, "line rendering bindgroup");
-    auto camera_layout = mCameraBindGroup.createLayout(app, "camera for line rendering bindgroup");
+    auto layout = mBindGroup.createLayout(resource, "line rendering bindgroup");
+    auto camera_layout = mCameraBindGroup.createLayout(resource, "camera for line rendering bindgroup");
 
     mVertexBufferLayout.addAttribute(0, 0, WGPUVertexFormat_Float32x2)
         .configure(sizeof(glm::vec2), VertexStepMode::VERTEX);
@@ -286,45 +268,44 @@ void LineEngine::initialize(Application* app) {
     mCirclePipeline = new Pipeline{app, {layout, camera_layout}, "Line joint Circle Drawing pipeline"};
 
     mPipeline->setVertexBufferLayout(mVertexBufferLayout.getLayout())
-        .setShader(RESOURCE_DIR "/shaders/line_pass.wgsl")
+        .setShader(RESOURCE_DIR "/shaders/line_pass.wgsl", resource)
         .setVertexState()
         .setBlendState()
         .setPrimitiveState()
         .setColorTargetState(WGPUTextureFormat_BGRA8UnormSrgb)
         .setDepthStencilState(true, 0xFF, 0xFF, WGPUTextureFormat_Depth24PlusStencil8)
         .setFragmentState()
-        .createPipeline(app);
+        .createPipeline(resource);
 
     mCirclePipeline->setVertexBufferLayout(mCircleBufferLayout.getLayout())
-        .setShader(RESOURCE_DIR "/shaders/line_circle_pass.wgsl")
+        .setShader(RESOURCE_DIR "/shaders/line_circle_pass.wgsl", resource)
         .setVertexState()
         .setBlendState()
         .setPrimitiveState()
         .setColorTargetState(WGPUTextureFormat_BGRA8UnormSrgb)
         .setDepthStencilState(true, 0xFF, 0xFF, WGPUTextureFormat_Depth24PlusStencil8)
         .setFragmentState()
-        .createPipeline(app);
+        .createPipeline(resource);
 
     mOffsetBuffer.setSize(mMaxPoints * sizeof(LineSegment))
         .setLabel("Instancing Shader Storage Buffer for lines")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setMappedAtCraetion(false)  // No need to map initially
-        .create(app);
+        .create(&resource);
 
     mTransformationBuffer.setSize(mMaxPoints * sizeof(glm::mat4))
         .setLabel("Transformation storage for lines")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setMappedAtCraetion(false)  // No need to map initially
-        .create(app);
+        .create(&resource);
 
     mVertexBuffer.setSize(sizeof(mLineInstance))
         .setLabel("Single Line Instance Vertex Buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
         .setMappedAtCraetion()
-        .create(app);
+        .create(&resource);
 
-    wgpuQueueWriteBuffer(app->getRendererResource().queue, mVertexBuffer.getBuffer(), 0, mLineInstance.data(),
-                         sizeof(mLineInstance));
+    wgpuQueueWriteBuffer(resource.queue, mVertexBuffer.getBuffer(), 0, mLineInstance.data(), sizeof(mLineInstance));
 
     mCircleIndexData = generateCircleIndexBuffer();
     mCircleVertexData = generateCircleVertices();
@@ -333,18 +314,18 @@ void LineEngine::initialize(Application* app) {
         .setLabel("Single Circle Instance Vertex Buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex)
         .setMappedAtCraetion()
-        .create(app);
+        .create(&resource);
 
-    wgpuQueueWriteBuffer(app->getRendererResource().queue, mCircleVertexBuffer.getBuffer(), 0, mCircleVertexData.data(),
+    wgpuQueueWriteBuffer(resource.queue, mCircleVertexBuffer.getBuffer(), 0, mCircleVertexData.data(),
                          mCircleVertexData.size() * sizeof(glm::vec3));
 
     mCircleIndexBuffer.setSize(mCircleIndexData.size() * sizeof(uint16_t))
         .setLabel("Single Circle Index Buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index)
         .setMappedAtCraetion()
-        .create(app);
+        .create(&resource);
 
-    wgpuQueueWriteBuffer(app->getRendererResource().queue, mCircleIndexBuffer.getBuffer(), 0, mCircleIndexData.data(),
+    wgpuQueueWriteBuffer(resource.queue, mCircleIndexBuffer.getBuffer(), 0, mCircleIndexData.data(),
                          mCircleIndexData.size() * sizeof(uint16_t));
 
     mBindingData.push_back({});
@@ -370,8 +351,8 @@ void LineEngine::initialize(Application* app) {
     mCameraBindingData[0].offset = 0;
     mCameraBindingData[0].size = sizeof(CameraInfo);
 
-    mBindGroup.create(app, mBindingData);
-    mCameraBindGroup.create(app, mCameraBindingData);
+    mBindGroup.create(resource, mBindingData);
+    mCameraBindGroup.create(resource, mCameraBindingData);
 }
 
 void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {

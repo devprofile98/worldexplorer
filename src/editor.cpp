@@ -19,7 +19,7 @@
 #include "point_light.h"
 #include "shapes.h"
 #include "utils.h"
-#include "world.h"
+// #include "world.h"
 
 static glm::vec3 starting_scale;
 static bool starting_touch = false;
@@ -283,7 +283,7 @@ struct GizmoModel : public IModel {
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
                 .setSize(20 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
-                .create(app);
+                .create(&app->getRendererResource());
 
             auto& databuffer = mModel->mGlobalMeshTransformationData;
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
@@ -317,7 +317,7 @@ struct GizmoModelY : public IModel {
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
                 .setSize(20 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
-                .create(app);
+                .create(&app->getRendererResource());
 
             auto& databuffer = mModel->mGlobalMeshTransformationData;
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
@@ -385,7 +385,7 @@ struct BoneModel : public IModel {
                           WGPUBufferUsage_CopyDst)
                 .setSize(sizeof(DrawIndexedIndirectArgs))
                 .setMappedAtCraetion()
-                .create(app);
+                .create(&app->getRendererResource());
 
             auto indirect = DrawIndexedIndirectArgs{0, 0, 0, 0, 0};
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mIndirectDrawArgsBuffer.getBuffer(), 0,
@@ -396,7 +396,7 @@ struct BoneModel : public IModel {
                     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst)
                     .setSize(sizeof(DrawIndexedIndirectArgs))
                     .setMappedAtCraetion()
-                    .create(app);
+                    .create(&app->getRendererResource());
 
                 std::cout << ")))))))))))) For " << mModel->getName() << &mesh << " Index count is "
                           << static_cast<uint32_t>(mesh.mIndexData.size()) << std::endl;
@@ -440,7 +440,7 @@ struct GizmoModelX : public IModel {
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
                 .setSize(20 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
-                .create(app);
+                .create(&app->getRendererResource());
 
             auto& databuffer = mModel->mGlobalMeshTransformationData;
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
@@ -477,7 +477,7 @@ struct GizmoModelCenter : public IModel {
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
                 .setSize(20 * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
-                .create(app);
+                .create(&app->getRendererResource());
 
             auto& databuffer = mModel->mGlobalMeshTransformationData;
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
