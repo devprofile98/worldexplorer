@@ -647,19 +647,22 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
 
         mesh.binding_data[0].nextInChain = nullptr;
         mesh.binding_data[0].binding = 0;
-        mesh.binding_data[0].textureView =
-            mesh.mTexture != nullptr ? mesh.mTexture->getTextureView() : app->mDefaultDiffuse->getTextureView();
+        mesh.binding_data[0].textureView = mesh.mTexture != nullptr && mesh.mTexture->isValid()
+                                               ? mesh.mTexture->getTextureView()
+                                               : app->mDefaultDiffuse->getTextureView();
 
         mesh.binding_data[1].nextInChain = nullptr;
         mesh.binding_data[1].binding = 1;
-        mesh.binding_data[1].textureView = mesh.mSpecularTexture != nullptr
+        mesh.binding_data[1].textureView = mesh.mSpecularTexture != nullptr && mesh.mSpecularTexture->isValid()
                                                ? mesh.mSpecularTexture->getTextureView()
                                                : app->mDefaultMetallicRoughness->getTextureView();
 
         mesh.binding_data[2].nextInChain = nullptr;
         mesh.binding_data[2].binding = 2;
-        mesh.binding_data[2].textureView = mesh.mNormalMapTexture != nullptr ? mesh.mNormalMapTexture->getTextureView()
-                                                                             : app->mDefaultNormalMap->getTextureView();
+        mesh.binding_data[2].textureView = mesh.mNormalMapTexture != nullptr && mesh.mNormalMapTexture->isValid()
+                                               ? mesh.mNormalMapTexture->getTextureView()
+                                               : app->mDefaultNormalMap->getTextureView();
+
         auto& desc = app->mDefaultTextureBindingGroup.getDescriptor();
         desc.entries = mesh.binding_data.data();
         desc.entryCount = mesh.binding_data.size();
@@ -816,6 +819,25 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
     }
 }
 
+std::shared_ptr<Texture> ShowTextureRegisteryCombo(Application* app, Model* model, Mesh& mesh) {
+    std::shared_ptr<Texture> res = nullptr;
+    ImGui::OpenPopup("Texture list");
+    if (ImGui::BeginPopupModal("Texture Registery", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (ImGui::BeginCombo("Textures", "test")) {
+            for (const auto [name, texture] : app->mTextureRegistery->list()) {
+                ImGui::PushID((void*)texture.get());
+                if (ImGui::Selectable(name.c_str(), false)) {
+                    res = texture;
+                }
+                ImGui::PopID();  // Pop the unique ID for this item
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::EndPopup();
+    }
+    return res;
+}
+
 #ifdef DEVELOPMENT_BUILD
 void Model::userInterface() {
     ImGuiIO& io = ImGui::GetIO();
@@ -929,35 +951,85 @@ void Model::userInterface() {
     }
 
     if (ImGui::CollapsingHeader("Mesh transformations")) {
-        for (auto& [name, node] : mNodeNameMap) {
-            ImGui::PushID((void*)node);
-            // if (ImGui::Button(name.c_str())) {
-            //
-            // }
-            ImGui::Text("%s->%s", name.c_str(), node->mParent != nullptr ? node->mParent->mName.c_str() : "world");
-            auto [pos, sc, rot] = decomposeTransformation(node->mLocalTransform);
-            bool pos_changed = ImGui::DragFloat3("post", glm::value_ptr(pos));
-            bool rot_changed = ImGui::DragFloat3("rot", glm::value_ptr(rot));
-            bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(sc));
-            // if (pos_changed || rot_changed || scale_changed) {
-            //     auto new_global =
-            //         glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4(1.0f), sc);
-            //     glm::mat4 parent_global =
-            //         (node->mParent != nullptr) ? node->mParent->getGlobalTransform() : glm::mat4(1.0f);
-            //     glm::mat4 newLocal = glm::inverse(parent_global) * new_global;
-            //     node->mLocalTransform = newLocal;
-            //
-            //     populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData,
-            //     mFlattenMeshes,
-            //                                              {});
-            //
-            //     auto& databuffer = mGlobalMeshTransformationData;
-            //     wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mGlobalMeshTransformationBuffer.getBuffer(),
-            //     0,
-            //                          databuffer.data(), sizeof(glm::mat4) * databuffer.size());
-            // }
-            ImGui::PopID();  // Pop the unique ID for this item
+        for (auto& [name, mesh] : mFlattenMeshes) {
+            ImGui::Separator();
+            if (mesh.mTexture != nullptr && mesh.mTexture->isValid()) {
+                ImGui::TextColored(ImVec4(0.0, 1.0, 0.0, 1.0), "Texture for Diffuse");
+            } else {
+                ImGui::TextColored(ImVec4(1.0, 0.0, 0.0, 1.0), "No Texture for Diffuse");
+                if (ImGui::BeginCombo("Textures##Diffuse", "test##diffuse")) {
+                    for (const auto [name, texture] : mApp->mTextureRegistery->list()) {
+                        ImGui::PushID((void*)texture.get());
+                        if (ImGui::Selectable(name.c_str(), false)) {
+                            mesh.mTexture = texture;
+                            createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
+                        }
+                        ImGui::PopID();  // Pop the unique ID for this item
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+            if (mesh.mNormalMapTexture != nullptr && mesh.mNormalMapTexture->isValid()) {
+                ImGui::TextColored(ImVec4(0.0, 1.0, 0.0, 1.0), "Normal for Diffuse");
+            } else {
+                ImGui::TextColored(ImVec4(1.0, 0.0, 0.0, 1.0), "No Nromal for Diffuse");
+                if (ImGui::BeginCombo("Textures##Normal", "test##Normal")) {
+                    for (const auto [name, texture] : mApp->mTextureRegistery->list()) {
+                        ImGui::PushID((void*)texture.get());
+                        if (ImGui::Selectable(name.c_str(), false)) {
+                            mesh.mNormalMapTexture = texture;
+                            createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
+                        }
+                        ImGui::PopID();  // Pop the unique ID for this item
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+            if (mesh.mSpecularTexture != nullptr && mesh.mSpecularTexture->isValid()) {
+                ImGui::TextColored(ImVec4(0.0, 1.0, 0.0, 1.0), "Specular for Diffuse");
+            } else {
+                ImGui::TextColored(ImVec4(1.0, 0.0, 0.0, 1.0), "No Specular for Diffuse");
+                if (ImGui::BeginCombo("Textures##specular", "test##specular")) {
+                    for (const auto [name, texture] : mApp->mTextureRegistery->list()) {
+                        ImGui::PushID((void*)texture.get());
+                        if (ImGui::Selectable(name.c_str(), false)) {
+                            mesh.mSpecularTexture = texture;
+                            createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
+                        }
+                        ImGui::PopID();  // Pop the unique ID for this item
+                    }
+                    ImGui::EndCombo();
+                }
+            }
         }
+        // for (auto& [name, node] : mNodeNameMap) {
+        //     ImGui::PushID((void*)node);
+        //
+        //     ImGui::Text("%s->%s", name.c_str(), node->mParent != nullptr ? node->mParent->mName.c_str() :
+        //     "world"); auto [pos, sc, rot] = decomposeTransformation(node->mLocalTransform); bool pos_changed =
+        //     ImGui::DragFloat3("post", glm::value_ptr(pos)); bool rot_changed = ImGui::DragFloat3("rot",
+        //     glm::value_ptr(rot)); bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(sc));
+        //     // if (pos_changed || rot_changed || scale_changed) {
+        //     //     auto new_global =
+        //     //         glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4(1.0f),
+        //     sc);
+        //     //     glm::mat4 parent_global =
+        //     //         (node->mParent != nullptr) ? node->mParent->getGlobalTransform() : glm::mat4(1.0f);
+        //     //     glm::mat4 newLocal = glm::inverse(parent_global) * new_global;
+        //     //     node->mLocalTransform = newLocal;
+        //     //
+        //     //     populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData,
+        //     //     mFlattenMeshes,
+        //     //                                              {});
+        //     //
+        //     //     auto& databuffer = mGlobalMeshTransformationData;
+        //     //     wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
+        //     mGlobalMeshTransformationBuffer.getBuffer(),
+        //     //     0,
+        //     //                          databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+        //     // }
+        //     ImGui::PopID();  // Pop the unique ID for this item
+        // }
     }
 
     if (ImGui::CollapsingHeader("Instances")) {
@@ -1011,8 +1083,8 @@ void Model::userInterface() {
                     ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
                 // wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
                 //                      mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
-                //                      (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
-                //                      ins->mInstanceBuffer.data(), sizeof(InstanceData) *
+                //                      (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) *
+                //                      sizeof(InstanceData), ins->mInstanceBuffer.data(), sizeof(InstanceData) *
                 //                      (ins->mInstanceBuffer.size()));
 
                 std::cout << "(((((((((((((((( in mesh " << mFlattenMeshes.size() << std::endl;
@@ -1072,17 +1144,17 @@ void Model::userInterface() {
                                                 // if (!mFlattenMeshes.empty()) {
         for (auto& [id, mesh] : mFlattenMeshes) {
             if (ImGui::TreeNode(std::format("Textures {}##texture_{}", id, id).c_str())) {
-                if (mesh.mTexture) {
+                if (mesh.mTexture != nullptr && mesh.mTexture->isValid()) {
                     ImGui::Text("Diffuse/Albedo");
                     ImGui::Image((ImTextureID)(intptr_t)mesh.mTexture->getTextureView(),
                                  ImVec2(1920 / 4.0, 1022 / 4.0));
                 }
-                if (mesh.mSpecularTexture) {
+                if (mesh.mSpecularTexture != nullptr && mesh.mSpecularTexture->isValid()) {
                     ImGui::Text("Specular");
                     ImGui::Image((ImTextureID)(intptr_t)mesh.mSpecularTexture->getTextureView(),
                                  ImVec2(1920 / 4.0, 1022 / 4.0));
                 }
-                if (mesh.mNormalMapTexture) {
+                if (mesh.mNormalMapTexture != nullptr && mesh.mNormalMapTexture->isValid()) {
                     ImGui::Text("Normal Map");
                     ImGui::Image((ImTextureID)(intptr_t)mesh.mNormalMapTexture->getTextureView(),
                                  ImVec2(1920 / 4.0, 1022 / 4.0));

@@ -608,8 +608,9 @@ void World::loadModel(const ObjectLoaderParam& param) {
             auto [min, max] = model.getModel()->getPhysicsAABB();
             auto center = (min + max) * 0.5f;
             auto half_extent = (max - min) * 0.5f;
-            model.getModel()->mPhysicComponent = physics::createAndAddBody(
-                half_extent, center, qu, param.physicsParams.type == "dynamic" ? true : false, 0.5, 0.0f, 0.0f, 1.f);
+            model.getModel()->mPhysicComponent =
+                physics::createAndAddBody(half_extent, center, qu, param.physicsParams.type == "dynamic" ? true : false,
+                                          0.5, 0.0f, 0.0f, 1.f, false, model.getModel());
         }
 
         return {model.getModel(), Visibility_User};
@@ -678,7 +679,7 @@ void World::loadWorld() {
     parseLights(light_manager, res["lights"]);
 
     auto f = std::bind(physics::PhysicSystem::createCollider, app, std::placeholders::_1, std::placeholders::_2,
-                       std::placeholders::_3, std::placeholders::_4);
+                       std::placeholders::_3, std::placeholders::_4, false, nullptr);
     parseColliders(f, res["colliders"]);
     app->mLightManager->uploadToGpu(app, app->mLightBuffer.getBuffer());
 }

@@ -171,8 +171,12 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
                  uint32_t extent, size_t mipLevels) {
     int width, height, channels;
     auto ret = stbi_info(path.string().c_str(), &width, &height, &channels);
-    std::cout << "texture outputs are like this " << ret << " " << width << " " << height << " " << channels
-              << std::endl;
+
+    if (ret == 0) {
+        std::cout << "Failure to load texture at" << path << std::endl;
+        mIsTextureAlive = false;
+        return;
+    }
 
     mDescriptor = {};
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
@@ -306,8 +310,10 @@ void generateMipMaps(WGPUTexelCopyBufferLayout& source, WGPUTexelCopyTextureInfo
         previous_level_pixels = std::move(pixels);
     }
 }
+bool Texture::isValid() const { return mIsTextureAlive; }
 
 void Texture::uploadToGPU(WGPUQueue deviceQueue) {
+    if (!mIsTextureAlive) return;
     for (uint32_t layer = 0; layer < mDescriptor.size.depthOrArrayLayers; ++layer) {
         WGPUTexelCopyTextureInfo destination;
         destination.texture = mTexture;

@@ -75,7 +75,7 @@ nfdopendialogu8args_t args = {0};
 
 static bool cull_frustum = false;
 static bool show_physic_objects = false;
-static bool show_physic_debugs = true;
+static bool show_physic_debugs = false;
 static bool runPhysics = false;
 static Model* selectedPhysicModel = nullptr;
 
@@ -1656,11 +1656,13 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                     mEditor->gizmo.moveTo(debugbox.center);
                 }
             }
-            static bool is_static = true;
+            static bool is_static = false;
+            static bool is_sensor = false;
             ImGui::Checkbox("is Dynamic?", &is_static);
+            ImGui::Checkbox("is Sensor?", &is_sensor);
             if (ImGui::Button("Create box")) {
                 physics::PhysicSystem::createCollider(this, "new collider", debugbox.center, debugbox.halfExtent,
-                                                      is_static);
+                                                      is_static, is_sensor, nullptr);
             }
 
             {

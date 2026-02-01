@@ -1,4 +1,5 @@
 ### World Explorer
+
 <div style="display: flex; justify-content: center; gap: 20px;">
   <img src="https://github.com/devprofile98/worldexplorer/blob/main/resources/images/pbr-terrain-night3.png" alt="water reflection and refraction" width="805"/>
 </div>
@@ -12,7 +13,6 @@
   <img src="https://github.com/devprofile98/worldexplorer/blob/main/resources/images/pbr-wip-handgun.png" alt="PBR" width="400"/>
 </div>
 
-
 ### 🎯 Project Goals
 
 - [x] PBR.
@@ -21,11 +21,12 @@
 - [x] Full Featured Water Object.
 - [x] Lights (Directional and Point).
 - [x] Scene Graph.
-- [ ] Node and Skeletal Animations.
+- [x] Node and Skeletal Animations.
+- [x] Physics ( static / dynamic / sensors ).
 - [ ] Screen Space Reflection.
 - [ ] Ambient Occlusion.
 - [ ] Bloom.
 - [ ] Particle system.
 - [ ] Lod Meshes.
-- [ ] Async Resource Loader.
+- [x] Async Resource Loader.
 - [ ] Volumetric Clouds and Fogs.

@@ -68,31 +68,6 @@ class MyContactListener : public ContactListener {
         }
 };
 
-// class MyCharacterContactListener : public CharacterContactListener {
-//     public:
-//         MyCharacterContactListener(PhysicsSystem* physics_system) : CharacterContactListener() {}
-//
-//         void OnContactAdded(const CharacterVirtual* character, const BodyID& body_id, const SubShapeID& sub_shape_id,
-//                             RVec3Arg contact_position, Vec3Arg contact_normal,
-//                             CharacterContactSettings& settings) override {
-//             // Log collision with a dynamic body
-//             const BodyLockInterface& lock_interface = mPhysicsSystem->GetBodyLockInterfaceNoLock();
-//             {
-//                 BodyLockRead lock(lock_interface, body_id);
-//                 if (lock.Succeeded()) {
-//                     const Body& body = lock.GetBody();
-//                     if (body.IsDynamic()) {
-//                         std::cout << "CharacterVirtual collided with dynamic body ID: "
-//                                   << body_id.GetIndexAndSequenceNumber() << "\n";
-//                     }
-//                 }
-//             }
-//             // Allow the contact to proceed (e.g., apply friction or push)
-//             settings.mCanPushCharacter = true;
-//             settings.mCanReceiveImpulses = true;
-//         }
-// };
-
 // physics_system->SetContactListener(new MyContactListener());
 
 // Broad phase layer interface (decides which broadphase layers objects belong to)
@@ -178,13 +153,16 @@ CharacterVirtual* createCharacter() {
     settings->mPenetrationRecoverySpeed = 1.0f;
     settings->mPredictiveContactDistance = 0.1f;
     // settings->mSupportingVolume = Plane(Vec3::sAxisY(), -0.3f);  // plane below feet
+    // settings.mcontactliste
 
     JPH::Quat rotate90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
     // Create the character
-    return new CharacterVirtual(settings, RVec3(-1.3, -3.0, 0.14),  // initial position
-                                rotate90X,                          // initial rotation
-                                0,                                  // user data (optional)
-                                &physicsSystem);
+    auto* character = new CharacterVirtual(settings, RVec3(-1.3, -3.0, 0.14),  // initial position
+                                           rotate90X,                          // initial rotation
+                                           0,                                  // user data (optional)
+                                           &physicsSystem);
+
+    return character;
 }
 
 void updateCharacter(CharacterVirtual* physicalCharacter, float dt, Vec3 movement) {
@@ -206,7 +184,7 @@ void updateCharacter(CharacterVirtual* physicalCharacter, float dt, Vec3 movemen
 
 PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const glm::quat& rotation,
                                    bool active, float friction, float restitution, float linearDamping,
-                                   float gravityFactor) {
+                                   float gravityFactor, bool isSensor, void* userData) {
     BodyInterface& bodyInterface = physicsSystem.GetBodyInterface();
 
     BodyCreationSettings boxSettings(new BoxShape(Vec3(shape.x, shape.z, shape.y), 0.01),  // 2x2x2 meter box
@@ -219,6 +197,8 @@ PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 cente
     boxSettings.mFriction = friction;
     boxSettings.mRestitution = restitution;
     boxSettings.mLinearDamping = linearDamping;
+    boxSettings.mUserData = reinterpret_cast<uint64_t>(userData);
+    boxSettings.mIsSensor = isSensor;
     boxSettings.mGravityFactor = gravityFactor;  // full gravity
                                                  //
     return new PhysicsComponent{bodyInterface.CreateAndAddBody(boxSettings, EActivation::Activate)};
@@ -309,12 +289,12 @@ void setPosition(BodyID id, const glm::vec3& pos) {
 void JoltLoop(float dt) { physicsSystem.Update(dt, 1, temp_allocator, job_system); }
 
 BoxCollider::BoxCollider(Application* app, const std::string& name, const glm::vec3& center,
-                         const glm::vec3& halfExtent, bool isStatic)
+                         const glm::vec3& halfExtent, bool isStatic, bool isSensor, void* userData)
     : mCenter(center), mHalfExtent(halfExtent), mName(name), mIsStatic(isStatic) {
     auto box = generateBox();
     mDebugLines = app->mLineEngine->create(
         box, glm::translate(glm::mat4{1.0}, mCenter) * glm::scale(glm::mat4{1.0}, halfExtent * glm::vec3{2.0}),
-        mIsStatic ? glm::vec3{0.0, 1.0, 0.0} : glm::vec3{1.0, 0.209, 0.0784});
+        mIsStatic ? (isSensor ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0}) : glm::vec3{1.0, 0.209, 0.0784});
 
     glm::quat qu;
     qu.w = 1.0;
@@ -322,7 +302,7 @@ BoxCollider::BoxCollider(Application* app, const std::string& name, const glm::v
     qu.y = 0.0;
     qu.z = 0.0;
     mPhysicComponent = std::shared_ptr<PhysicsComponent>{
-        physics::createAndAddBody(halfExtent, center, glm::normalize(qu), isStatic, 0.5, 0.0f, 0.0f, 1.f)};
+        physics::createAndAddBody(halfExtent, center, glm::normalize(qu), isStatic, 0.5, 0.0f, 0.0f, 1.f, isSensor)};
 }
 
 glm::mat4 BoxCollider::getTransformation() const {
@@ -338,8 +318,8 @@ LineGroup& BoxCollider::getDebugLines() { return mDebugLines; }
 std::shared_ptr<PhysicsComponent> BoxCollider::getPhysicsComponent() { return mPhysicComponent; }
 
 uint32_t PhysicSystem::createCollider(Application* app, const std::string& name, const glm::vec3& center,
-                                      const glm::vec3& halfExtent, bool isStatic) {
-    mColliders.emplace_back(app, name, center, halfExtent, isStatic);
+                                      const glm::vec3& halfExtent, bool isStatic, bool isSensor, void* userData) {
+    mColliders.emplace_back(app, name, center, halfExtent, isStatic, isSensor, userData);
     return mColliders.size() - 1;
 }
 

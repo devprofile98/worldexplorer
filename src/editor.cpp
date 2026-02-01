@@ -19,7 +19,6 @@
 #include "point_light.h"
 #include "shapes.h"
 #include "utils.h"
-// #include "world.h"
 
 static glm::vec3 starting_scale;
 static bool starting_touch = false;
@@ -688,7 +687,7 @@ void Screen::onKey(KeyEvent event) {
         // Toggle debug lines visibility
         for (auto& collider : physics::PhysicSystem::mColliders) {
             // mApp->mLineEngine->setVisibility(collider.getBoxId(), is_active);
-            collider.getDebugLines().updateVisibility(is_active);
+            // collider.getDebugLines().updateVisibility(is_active);
         }
 
         if (!is_active) {

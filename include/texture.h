@@ -49,6 +49,7 @@ class Texture {
         void writeBaseTexture(const std::filesystem::path& path, uint32_t extent = 1);
         void uploadToGPU(WGPUQueue deviceQueue);
         bool isTransparent();
+        bool isValid() const;
 
         // Remove the texture from the VRAM
         void Destroy();
@@ -103,6 +104,7 @@ class Registery {
             }
             return nullptr;
         }
+        std::unordered_map<K, std::shared_ptr<V>> list() const { return mRegistery; }
 
         TextureLoader mLoader;
 

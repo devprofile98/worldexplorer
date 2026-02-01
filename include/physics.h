@@ -38,7 +38,7 @@ namespace physics {
 class BoxCollider {
     public:
         BoxCollider(Application* app, const std::string& name, const glm::vec3& center, const glm::vec3& halfExtent,
-                    bool isStatic);
+                    bool isStatic, bool isSensor, void* userData);
         glm::vec3 mCenter;
         glm::vec3 mHalfExtent;
         std::string mName;
@@ -50,12 +50,14 @@ class BoxCollider {
         LineGroup mDebugLines;
         std::shared_ptr<PhysicsComponent> mPhysicComponent;
         bool mIsStatic;
+        bool mIsSensor;
+        void* mUserData;
 };
 
 class PhysicSystem {
     public:
         static uint32_t createCollider(Application* app, const std::string& name, const glm::vec3& center,
-                                       const glm::vec3& halfExtent, bool isStatic);
+                                       const glm::vec3& halfExtent, bool isStatic, bool isSensor, void* userData);
         static void removeCollider(BoxCollider& collider);
         static inline std::vector<BoxCollider> mColliders;
 
@@ -68,7 +70,7 @@ void JoltLoop(float dt);
 std::pair<glm::vec3, glm::quat> getPositionAndRotationyId(JPH::BodyID id);
 PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const glm::quat& rotation,
                                    bool active, float friction, float restitution, float linearDamping,
-                                   float gravityFactor);
+                                   float gravityFactor, bool isSensor = false, void* userData = nullptr);
 JPH::BodyInterface& getBodyInterface();
 void setRotation(JPH::BodyID id, const glm::quat& rot);
 void setPosition(JPH::BodyID id, const glm::vec3& pos);

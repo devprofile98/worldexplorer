@@ -36,6 +36,37 @@ enum CharacterState {
     Aiming,
 };
 
+class MyCharacterContactListener : public JPH::CharacterContactListener {
+    public:
+        void OnContactAdded(const JPH::CharacterVirtual* inCharacter, const JPH::BodyID& inBodyID2,
+                            const JPH::SubShapeID& inSubShapeID2, JPH::Vec3Arg inContactPosition,
+                            JPH::Vec3Arg inContactNormal, JPH::CharacterContactSettings& ioSettings) override {
+            // Called when character starts touching another body
+            const JPH::BodyLockRead lock(physics::getPhysicsSystem()->GetBodyLockInterface(), inBodyID2);
+            if (!lock.Succeeded()) return;
+
+            const JPH::Body& body = lock.GetBody();
+            uint64_t userData = body.GetUserData();
+            Model* model = reinterpret_cast<Model*>(userData);
+
+            auto name = model == nullptr ? "No Name" : model->getName();
+            printf("Character touched body %u %lu %s\n", inBodyID2.GetIndex(), userData, name.c_str());
+        }
+
+        void OnContactPersisted(const JPH::CharacterVirtual* inCharacter, const JPH::BodyID& inBodyID2,
+                                const JPH::SubShapeID& inSubShapeID2, JPH::Vec3Arg inContactPosition,
+                                JPH::Vec3Arg inContactNormal, JPH::CharacterContactSettings& ioSettings) override {
+            // Called every frame while touching
+            // printf("Character persisted body %u\n", inBodyID2.GetIndex());
+        }
+
+        void OnContactRemoved(const JPH::CharacterVirtual* inCharacter, const JPH::BodyID& inBodyID2,
+                              const JPH::SubShapeID& inSubShapeID2) override {
+            printf("R Character removed contact with body %u\n", inBodyID2.GetIndex());
+            // Called when contact ends
+        }
+};
+
 struct HumanBehaviour : public Behaviour {
         std::string name;
         glm::vec3 front;  // Character's forward direction
@@ -87,6 +118,10 @@ struct HumanBehaviour : public Behaviour {
         void onModelLoad(Model* model) override {
             std::cout << "Character Human just created\n";
             physicalCharacter = physics::createCharacter();
+
+            static auto listener = new MyCharacterContactListener{};
+            // character->SetContactListener(listener.get());
+            physicalCharacter->SetListener(listener);
         }
 
         void sayHello() override { std::cout << "Hello from " << name << '\n'; }
