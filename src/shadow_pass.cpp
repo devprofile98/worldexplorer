@@ -353,8 +353,14 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
     mBindingData[0].buffer = mSceneUniformBuffer.getBuffer();
     mBindingData[2].buffer = mFrustuIndexBuffer[which].getBuffer();
     for (auto& model : models) {
+        if (!model->getVisible()) {
+            return;
+        }
         for (auto& [mat_id, mesh] : model->mFlattenMeshes) {
             ZoneScopedN("inner loop loop");
+            if (!mesh.getVisible()) {
+                continue;
+            }
             wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                                  wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
             wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,

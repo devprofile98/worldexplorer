@@ -90,6 +90,9 @@ struct alignas(16) VertexAttributes {
 
 class Mesh {
     public:
+        void setVisible(bool visibility = true);
+        bool getVisible() const;
+
         unsigned int meshId;
         std::vector<VertexAttributes> mVertexData;
         std::vector<uint32_t> mIndexData;
@@ -107,6 +110,8 @@ class Mesh {
         WGPUBindGroup mMaterialBindGroup = {};
         Material mMaterial;
         std::string mMaterialName;
+        std::string mName;
+        bool mIsVisible = true;
 };
 
 #endif  //! WEBGPUTEST_MESH_H

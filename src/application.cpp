@@ -433,7 +433,7 @@ void Application::initializeBuffers() {
         .setMappedAtCraetion()
         .create(mRendererResource);
 
-    mLightingUniforms.directions = {glm::vec4{-0.7, 1.0, 1.0, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
+    mLightingUniforms.directions = {glm::vec4{0.5, 1.0, 1.0, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
     mLightingUniforms.colors = {glm::vec4{0.99, 1.0, 0.88, 1.0}, glm::vec4{0.6, 0.9, 1.0, 1.0}};
     mDirectionalLightBuffer.queueWrite(0, &mLightingUniforms, sizeof(LightingUniforms));
     // wgpuQueueWriteBuffer(this->getRendererResource().queue, mDirectionalLightBuffer.getBuffer(), 0,
@@ -708,24 +708,10 @@ void Application::mainLoop() {
         physics::JoltLoop(delta_time);
     } else {
         for (const auto& cube : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            // if (cube->mName == "cube" || cube->mName == "smallcube" || cube->mName == "cube2") {
-            // auto rot = glm::normalize(cube->mTransform.mOrientation);
-            // if (flip_x) {
-            //     rot.x *= -1;
-            // }
-            // if (flip_y) {
-            //     rot.y *= -1;
-            // }
-            // if (flip_z) {
-            //     rot.z *= -1;
-            // }
-            // rot = glm::normalize(rot);
-            // physics::setRotation(cube->mPhysicComponent->bodyId, rot);
             if (cube->mPhysicComponent != nullptr) {
                 physics::setRotation(cube->mPhysicComponent->bodyId, glm::normalize(cube->mTransform.mOrientation));
                 physics::setPosition(cube->mPhysicComponent->bodyId, cube->mTransform.getPosition());
             }
-            // }
         }
     }
 
@@ -1689,8 +1675,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             if (ImGui::BeginCombo("Physic objects", selectedPhysicModel == nullptr
                                                         ? "Choose one##1"
                                                         : selectedPhysicModel->getName().c_str())) {
-                for (const auto& item :
-                     ModelRegistry::instance().getLoadedModel(Visibility_User) /*mWorld->rootContainer*/) {
+                for (const auto& item : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
                     if (item->mPhysicComponent != nullptr) {
                         ImGui::PushID((void*)item);
                         // Create a unique ID for each selectable item based on its unique item.id

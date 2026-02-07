@@ -452,16 +452,16 @@ struct BaseModelLoader : public IModel {
             if (param.instanceTransformations.size() > 0) {
                 std::vector<glm::vec3> positions;
                 std::vector<glm::vec3> scales;
-                // std::vector<glm::vec3> rotations;
-                std::vector<float> rotations;
+                std::vector<glm::vec3> rotations;
+                // std::vector<float> rotations;
                 for (const auto& instance : param.instanceTransformations) {
                     positions.emplace_back(instance.position);
                     scales.emplace_back(instance.scale);
-                    rotations.emplace_back(0);
+                    rotations.emplace_back(instance.rotation);
                 }
 
-                auto* ins = new Instance{positions, glm::vec3{1.0, 0.0, 0.0},     rotations,
-                                         scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
+                auto* ins = new Instance{positions, rotations, scales, glm::vec4{mModel->min, 1.0f},
+                                         glm::vec4{mModel->max, 1.0f}};
                 ins->parent = mModel;
                 // ins->mApp = app;
                 ins->mManager = app->mInstanceManager;
@@ -670,6 +670,7 @@ void World::loadWorld() {
             param.physicsParams = *physics_props;
         }
 
+        // Add resource type and allow loading of arbitrary model
         param.path = RESOURCE_DIR + std::string{"/"} + param.path;
         loadModel(param);
         map.emplace(name, param);

@@ -40,11 +40,12 @@ struct SingleInstance : public Transformable {
         size_t idx;
         Instance* instance;  // this should be valid always
         Transformable& moveTo(const glm::vec3& to) override;
+        Transformable& rotate(const glm::vec3& to) override;
 };
 
 class Instance {
     public:
-        explicit Instance(std::vector<glm::vec3> positions, glm::vec3 rotationAxis, std::vector<float> degree,
+        explicit Instance(std::vector<glm::vec3> positions, std::vector<glm::vec3> rotation,
                           std::vector<glm::vec3> scales, const glm::vec4&& minAABB, const glm::vec4&& maxAABB);
 
         // Getter

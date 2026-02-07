@@ -356,28 +356,24 @@ struct BoneModel : public IModel {
             *indicator_bone = this->mModel;
 
             std::vector<glm::vec3> positions;
-            std::vector<float> degrees;
+            std::vector<glm::vec3> rotations;
             std::vector<glm::vec3> scales;
             positions.reserve(5);
-            degrees.reserve(5);
+            rotations.reserve(5);
             scales.reserve(5);
 
             for (size_t i = 0; i < 5; i++) {
                 positions.emplace_back(glm::vec3{i, i, i});
-                degrees.emplace_back(glm::radians(0.0));
+                rotations.emplace_back(glm::vec3{0.0, 0.0, 0.0});
                 scales.emplace_back(glm::vec3{0.9f});
             }
 
-            // std::cout << mModel->getName() << positions[0];
-            // positions[1] = mModel->mTransform.getPosition();
-            auto* ins = new Instance{positions, glm::vec3{0.0, 0.0, 1.0},     degrees,
-                                     scales,    glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
+            auto* ins =
+                new Instance{positions, rotations, scales, glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
 
             wgpuQueueWriteBuffer(app->getRendererResource().queue,
                                  app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
                                  ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size() - 1));
-
-            // std::cout << "(((((((((((((((( in mesh " << mModel->mMeshes.size() << std::endl;
 
             mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for bone indicator "))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |

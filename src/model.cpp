@@ -68,6 +68,7 @@ void Drawable::configure(Application* app) {
 }
 
 Transformable& Transformable::moveTo(const glm::vec3&) { return *this; }
+Transformable& Transformable::rotate(const glm::vec3&) { return *this; }
 
 void Drawable::draw(Application* app, WGPURenderPassEncoder encoder) {
     (void)app;
@@ -395,6 +396,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
         mFlattenMeshes[mMeshNumber].mVertexData.push_back(vertex);
     }
+    mFlattenMeshes[mMeshNumber].mName = mesh->mName.C_Str();
 
     for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
         aiFace face = mesh->mFaces[i];
@@ -514,6 +516,8 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
 }
 
 void BaseModel::setInstanced(Instance* instance) { this->instance = instance; }
+void BaseModel::setVisible(bool visibility) { mIsVisible = visibility; }
+bool BaseModel::getVisible() const { return mIsVisible; }
 
 void BaseModel::addChildren(BaseModel* child) {
     auto new_local_transform = glm::inverse(getGlobalTransform()) * child->mTransform.mTransformMatrix;
@@ -645,23 +649,26 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
         //     continue;
         // }
 
+        auto diffuse_texture_valid = mesh.mTexture != nullptr && mesh.mTexture->isValid();
         mesh.binding_data[0].nextInChain = nullptr;
         mesh.binding_data[0].binding = 0;
-        mesh.binding_data[0].textureView = mesh.mTexture != nullptr && mesh.mTexture->isValid()
-                                               ? mesh.mTexture->getTextureView()
-                                               : app->mDefaultDiffuse->getTextureView();
+        mesh.binding_data[0].textureView =
+            diffuse_texture_valid ? mesh.mTexture->getTextureView() : app->mDefaultDiffuse->getTextureView();
+        mesh.mMaterial.setFlag(MaterialProps::HasDiffuseMap, diffuse_texture_valid);
 
+        auto specular_map_valid = mesh.mSpecularTexture != nullptr && mesh.mSpecularTexture->isValid();
         mesh.binding_data[1].nextInChain = nullptr;
         mesh.binding_data[1].binding = 1;
-        mesh.binding_data[1].textureView = mesh.mSpecularTexture != nullptr && mesh.mSpecularTexture->isValid()
-                                               ? mesh.mSpecularTexture->getTextureView()
-                                               : app->mDefaultMetallicRoughness->getTextureView();
+        mesh.binding_data[1].textureView = specular_map_valid ? mesh.mSpecularTexture->getTextureView()
+                                                              : app->mDefaultMetallicRoughness->getTextureView();
+        mesh.mMaterial.setFlag(MaterialProps::HasRoughnessMap, specular_map_valid);
 
+        auto normal_map_valid = mesh.mNormalMapTexture != nullptr && mesh.mNormalMapTexture->isValid();
         mesh.binding_data[2].nextInChain = nullptr;
         mesh.binding_data[2].binding = 2;
-        mesh.binding_data[2].textureView = mesh.mNormalMapTexture != nullptr && mesh.mNormalMapTexture->isValid()
-                                               ? mesh.mNormalMapTexture->getTextureView()
-                                               : app->mDefaultNormalMap->getTextureView();
+        mesh.binding_data[2].textureView =
+            normal_map_valid ? mesh.mNormalMapTexture->getTextureView() : app->mDefaultNormalMap->getTextureView();
+        mesh.mMaterial.setFlag(MaterialProps::HasNormalMap, normal_map_valid);
 
         auto& desc = app->mDefaultTextureBindingGroup.getDescriptor();
         desc.entries = mesh.binding_data.data();
@@ -726,6 +733,9 @@ void Model::update(Application* app, float dt, float physicSimulating) {
     if (mPhysicComponent != nullptr && physicSimulating) {
         auto [new_pos, rotation] = physics::getPositionAndRotationyId(mPhysicComponent->bodyId);
         moveTo(new_pos);
+        glm::quat flipX = glm::angleAxis(glm::pi<float>(), glm::vec3(1, 0, 0));
+        glm::quat flipY = glm::angleAxis(glm::pi<float>(), glm::vec3(0, 1, 0));
+        rotation = flipY * flipX * rotation * glm::inverse(flipX * flipY);
         rotate(glm::normalize(rotation));
     }
 
@@ -741,8 +751,15 @@ void Model::update(Application* app, float dt, float physicSimulating) {
 }
 
 void Model::internalDraw(Application* app, WGPURenderPassEncoder encoder, Node* node) {
+    if (!getVisible()) {
+        return;
+    }
+
     for (auto& mid : node->mMeshIndices) {
         auto& mesh = mFlattenMeshes[mid];
+        if (!mesh.getVisible()) {
+            continue;
+        }
         WGPUBindGroup active_bind_group = nullptr;
         // if (!mesh.isTransparent) {
         active_bind_group = app->getBindingGroup().getBindGroup();
@@ -792,9 +809,14 @@ void Model::drawHirarchy(Application* app, WGPURenderPassEncoder encoder) { draw
 void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
     auto& render_resource = app->getRendererResource();
     WGPUBindGroup active_bind_group = nullptr;
+    if (!getVisible()) {
+        return;
+    }
 
     for (auto& [mat_id, mesh] : mFlattenMeshes) {
-        // if (!mesh.isTransparent) {
+        if (!mesh.getVisible()) {
+            continue;
+        }
         active_bind_group = app->getBindingGroup().getBindGroup();
 
         wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
@@ -819,23 +841,38 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
     }
 }
 
-std::shared_ptr<Texture> ShowTextureRegisteryCombo(Application* app, Model* model, Mesh& mesh) {
-    std::shared_ptr<Texture> res = nullptr;
-    ImGui::OpenPopup("Texture list");
-    if (ImGui::BeginPopupModal("Texture Registery", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        if (ImGui::BeginCombo("Textures", "test")) {
-            for (const auto [name, texture] : app->mTextureRegistery->list()) {
-                ImGui::PushID((void*)texture.get());
-                if (ImGui::Selectable(name.c_str(), false)) {
-                    res = texture;
-                }
-                ImGui::PopID();  // Pop the unique ID for this item
-            }
-            ImGui::EndCombo();
-        }
-        ImGui::EndPopup();
+std::shared_ptr<Texture> DrawTexturePicker(const char* label, Model* model, std::shared_ptr<Texture>& slot,
+                                           Registery<std::string, Texture>* registry, Application* app) {
+    if (slot && slot->isValid()) {
+        ImGui::TextColored(ImVec4(0, 1, 0, 1), "%s", label);
+        return nullptr;
     }
-    return res;
+
+    ImGui::TextColored(ImVec4(1, 0, 0, 1), "No %s", label);
+
+    if (ImGui::BeginCombo(label, "Select")) {
+        if (ImGui::BeginTable("##tex_table", 2, ImGuiTableFlags_SizingStretchProp)) {
+            for (const auto& [name, texture] : registry->list()) {
+                if (texture == nullptr || !texture->isValid()) continue;
+                ImGui::PushID(texture.get());
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                if (ImGui::Selectable(name.c_str(), false)) {
+                    ImGui::PopID();
+                    ImGui::EndTable();
+                    ImGui::EndCombo();
+                    return texture;
+                }
+
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Image((ImTextureID)(intptr_t)texture->getTextureView(), ImVec2(20.0, 20.0));
+                ImGui::PopID();
+            }
+            ImGui::EndTable();
+        }
+        ImGui::EndCombo();
+    }
+    return nullptr;
 }
 
 #ifdef DEVELOPMENT_BUILD
@@ -866,9 +903,9 @@ void Model::userInterface() {
                 break;
             }
             default:
-
                 break;
         }
+
         ImGui::Text("Path is : %s", mPath.c_str());
         if (ImGui::DragFloat3("Position2", glm::value_ptr(mTransform.mPosition), 0.1)) {
             happend = true;
@@ -893,23 +930,24 @@ void Model::userInterface() {
             happend = true;
         }
 
-        // if (ImGui::DragFloat4("Rotation", glm::value_ptr(mTransform.mOrientation), 0.1, 0.0f, 360.0f)) {
-        //     glm::vec3 euler_radians =
-        //         glm::eulerAngles(mTransform.mOrientation);  // glm::radians(mTransform.mEulerRotation);
-        //
-        //     if (mTransform.mEulerRotation.x < 0) mTransform.mEulerRotation.x += 360.0f;
-        //     if (mTransform.mEulerRotation.y < 0) mTransform.mEulerRotation.y += 360.0f;
-        //     if (mTransform.mEulerRotation.z < 0) mTransform.mEulerRotation.z += 360.0f;
-        //     if (mTransform.mEulerRotation.x > 360.0) mTransform.mEulerRotation.x -= 360.0f;
-        //     if (mTransform.mEulerRotation.y > 360.0) mTransform.mEulerRotation.y -= 360.0f;
-        //     if (mTransform.mEulerRotation.z > 360.0) mTransform.mEulerRotation.z -= 360.0f;
-        //
-        //     // mTransform.mOrientation = glm::quat(euler_radians);
-        //
-        //     // mTransform.mOrientation = glm::normalize(mTransform.mOrientation);
-        //     // mTransform.mRotationMatrix = glm::toMat4(mTransform.mOrientation);
-        //     // happend = true;
-        // }
+        if (ImGui::DragFloat3("Rotation", glm::value_ptr(mTransform.mEulerRotation), 0.1, -360.0f, 360.0f)) {
+            glm::vec3 euler_radians =
+                // glm::eulerAngles(glm::normalize(mTransform.mOrientation));
+                glm::radians(mTransform.mEulerRotation);
+
+            if (mTransform.mEulerRotation.x < 0) mTransform.mEulerRotation.x += 360.0f;
+            if (mTransform.mEulerRotation.y < 0) mTransform.mEulerRotation.y += 360.0f;
+            if (mTransform.mEulerRotation.z < 0) mTransform.mEulerRotation.z += 360.0f;
+            if (mTransform.mEulerRotation.x > 360.0) mTransform.mEulerRotation.x -= 360.0f;
+            if (mTransform.mEulerRotation.y > 360.0) mTransform.mEulerRotation.y -= 360.0f;
+            if (mTransform.mEulerRotation.z > 360.0) mTransform.mEulerRotation.z -= 360.0f;
+
+            mTransform.mOrientation = glm::normalize(glm::quat(euler_radians));
+            // mTransform.mOrientation.z *= -1;
+            mTransform.mOrientation = glm::normalize(mTransform.mOrientation);
+            mTransform.mRotationMatrix = glm::toMat4(mTransform.mOrientation);
+            happend = true;
+        }
 
         if (happend) {
             moveTo(mTransform.mPosition);
@@ -951,56 +989,35 @@ void Model::userInterface() {
     }
 
     if (ImGui::CollapsingHeader("Mesh transformations")) {
-        for (auto& [name, mesh] : mFlattenMeshes) {
+        for (auto& [id, mesh] : mFlattenMeshes) {
+            ImGui::PushID(id);  // or &mesh
+            ImGui::Text("%s", mesh.mName.c_str());
             ImGui::Separator();
-            if (mesh.mTexture != nullptr && mesh.mTexture->isValid()) {
-                ImGui::TextColored(ImVec4(0.0, 1.0, 0.0, 1.0), "Texture for Diffuse");
-            } else {
-                ImGui::TextColored(ImVec4(1.0, 0.0, 0.0, 1.0), "No Texture for Diffuse");
-                if (ImGui::BeginCombo("Textures##Diffuse", "test##diffuse")) {
-                    for (const auto [name, texture] : mApp->mTextureRegistery->list()) {
-                        ImGui::PushID((void*)texture.get());
-                        if (ImGui::Selectable(name.c_str(), false)) {
-                            mesh.mTexture = texture;
-                            createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
-                        }
-                        ImGui::PopID();  // Pop the unique ID for this item
-                    }
-                    ImGui::EndCombo();
-                }
+            auto vis = mesh.getVisible();
+            if (ImGui::Checkbox("is Visible", &vis)) {
+                mesh.setVisible(vis);
             }
-            if (mesh.mNormalMapTexture != nullptr && mesh.mNormalMapTexture->isValid()) {
-                ImGui::TextColored(ImVec4(0.0, 1.0, 0.0, 1.0), "Normal for Diffuse");
-            } else {
-                ImGui::TextColored(ImVec4(1.0, 0.0, 0.0, 1.0), "No Nromal for Diffuse");
-                if (ImGui::BeginCombo("Textures##Normal", "test##Normal")) {
-                    for (const auto [name, texture] : mApp->mTextureRegistery->list()) {
-                        ImGui::PushID((void*)texture.get());
-                        if (ImGui::Selectable(name.c_str(), false)) {
-                            mesh.mNormalMapTexture = texture;
-                            createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
-                        }
-                        ImGui::PopID();  // Pop the unique ID for this item
-                    }
-                    ImGui::EndCombo();
-                }
+
+            auto diff_tex = DrawTexturePicker("Diffuse Texture", this, mesh.mTexture, mApp->mTextureRegistery, mApp);
+            auto norm_tex =
+                DrawTexturePicker("Normal Texture", this, mesh.mNormalMapTexture, mApp->mTextureRegistery, mApp);
+            auto spec_tex =
+                DrawTexturePicker("Specular Texture", this, mesh.mSpecularTexture, mApp->mTextureRegistery, mApp);
+            //
+            if (diff_tex != nullptr) {
+                mesh.mTexture = diff_tex;
+                createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
             }
-            if (mesh.mSpecularTexture != nullptr && mesh.mSpecularTexture->isValid()) {
-                ImGui::TextColored(ImVec4(0.0, 1.0, 0.0, 1.0), "Specular for Diffuse");
-            } else {
-                ImGui::TextColored(ImVec4(1.0, 0.0, 0.0, 1.0), "No Specular for Diffuse");
-                if (ImGui::BeginCombo("Textures##specular", "test##specular")) {
-                    for (const auto [name, texture] : mApp->mTextureRegistery->list()) {
-                        ImGui::PushID((void*)texture.get());
-                        if (ImGui::Selectable(name.c_str(), false)) {
-                            mesh.mSpecularTexture = texture;
-                            createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
-                        }
-                        ImGui::PopID();  // Pop the unique ID for this item
-                    }
-                    ImGui::EndCombo();
-                }
+            if (norm_tex != nullptr) {
+                mesh.mNormalMapTexture = norm_tex;
+                createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
             }
+            if (spec_tex != nullptr) {
+                mesh.mSpecularTexture = spec_tex;
+                createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
+            }
+
+            ImGui::PopID();
         }
         // for (auto& [name, node] : mNodeNameMap) {
         //     ImGui::PushID((void*)node);
@@ -1042,9 +1059,12 @@ void Model::userInterface() {
                 ImGui::LabelText("Label", "instance #%ld", i);
                 bool pos_changed = ImGui::DragFloat3("pos", glm::value_ptr(instance->mPositions[i]), 0.01);
                 bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(instance->mScale[i]), 0.01);
+                bool rot_changed = ImGui::DragFloat3("rot", glm::value_ptr(instance->mRotation[i]), 1.0);
 
                 if (pos_changed || scale_changed) {
                     instance->createInstanceWrapper(i).moveTo(instance->mPositions[i]);
+                } else if (rot_changed) {
+                    instance->createInstanceWrapper(i).rotate(instance->mRotation[i]);
                 }
 
                 ImGui::PopID();  // Pop the unique ID for this item
@@ -1065,8 +1085,11 @@ void Model::userInterface() {
             ImGui::TextColored(ImVec4(1.0, 0.0, 0.0, 1.0), "No Instance!");
             ImGui::SameLine();
             if (ImGui::Button("Enable Instancing")) {
-                auto* ins =
-                    new Instance{{}, glm::vec3{1.0, 0.0, 0.0}, {}, {}, glm::vec4{min, 1.0f}, glm::vec4{max, 1.0f}};
+                auto* ins = new Instance{{mTransform.getPosition()},
+                                         {mTransform.getEulerRotation()},
+                                         {mTransform.getScale()},
+                                         glm::vec4{min, 1.0f},
+                                         glm::vec4{max, 1.0f}};
                 ins->parent = this;
                 // ins->mApp = mApp;
                 ins->mManager = mApp->mInstanceManager;
@@ -1112,32 +1135,127 @@ void Model::userInterface() {
     // }
 
     if (ImGui::CollapsingHeader("Materials")) {  // DefaultOpen makes it open initially
-        for (auto& [id, mesh] : mFlattenMeshes) {
-            ImGui::PushID((void*)&mesh);
-            ImGui::Text("%s", mesh.mMaterialName.c_str());
-            bool has_normal = mesh.mMaterial.hasFlag(MaterialProps::HasNormalMap);
-            if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
-                mesh.mMaterial.setFlag(MaterialProps::HasNormalMap, has_normal);
-                mTransform.mDirty = true;
-            }
-            bool has_specular = mesh.mMaterial.hasFlag(MaterialProps::HasRoughnessMap);
-            if (ImGui::Checkbox("Has Specular Map", &has_specular)) {
-                mesh.mMaterial.setFlag(MaterialProps::HasRoughnessMap, has_specular);
-                mTransform.mDirty = true;
-            }
-            bool has_diffuse = mesh.mMaterial.hasFlag(MaterialProps::HasDiffuseMap);
-            if (ImGui::Checkbox("Has Diffuse Map", &has_diffuse)) {
-                mesh.mMaterial.setFlag(MaterialProps::HasDiffuseMap, has_diffuse);
-                mTransform.mDirty = true;
-            }
-            if (ImGui::SliderFloat("Diffuse Value", &mesh.mMaterial.roughness, 0.0f, 1.0f)) {
-                mTransform.mDirty = true;
-            }
+        static bool open_texture_popup = false;
+        static Model* selected_model = nullptr;
+        static Mesh* selected_mesh = nullptr;
+        static std::shared_ptr<Texture> slot = nullptr;
+        static int texture_type = 0;
+        //
+        if (open_texture_popup) {
+            ImGui::OpenPopup("Select texture");
+            if (ImGui::BeginPopupModal("Select texture", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::Text("Selecting for %s ", getName().c_str());
+                if (ImGui::BeginTable("##tex_table", 2, ImGuiTableFlags_SizingStretchProp)) {
+                    for (const auto& [name, texture] : mApp->mTextureRegistery->list()) {
+                        ImGui::PushID(texture.get());
+                        ImGui::TableNextRow();
+                        ImGui::TableSetColumnIndex(0);
+                        if (ImGui::Selectable(name.c_str(), false)) {
+                            slot = texture;
+                            switch (texture_type) {
+                                case 1:
+                                    selected_mesh->mNormalMapTexture = texture;
+                                    break;
+                                case 2:
+                                    selected_mesh->mSpecularTexture = texture;
+                                    break;
+                                case 3:
+                                    selected_mesh->mTexture = texture;
+                                    break;
+                                default:
+                                    break;
+                            }
+                            selected_model->createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
 
-            if (ImGui::DragFloat3("Uv Values", glm::value_ptr(mesh.mMaterial.uvMultiplier), drag_speed, 100.0f)) {
-                mTransform.mDirty = true;
+                            open_texture_popup = false;
+                            selected_mesh = nullptr;
+                            texture_type = 0;
+                            selected_model = nullptr;
+                        }
+                        ImGui::TableSetColumnIndex(1);
+                        ImGui::Image((ImTextureID)(intptr_t)texture->getTextureView(), ImVec2(20.0, 20.0));
+                        ImGui::PopID();
+                    }
+                    ImGui::EndTable();
+                }
+                if (ImGui::Button("close")) {
+                    open_texture_popup = false;
+                    selected_mesh = nullptr;
+                    texture_type = 0;
+                    selected_model = nullptr;
+                }
+                ImGui::EndPopup();
             }
-            ImGui::PopID();  // Pop the unique ID for this item
+        }
+        if (ImGui::BeginTable("##tex_table", 2, ImGuiTableFlags_SizingStretchProp)) {
+            for (auto& [id, mesh] : mFlattenMeshes) {
+                ImGui::PushID((void*)&mesh);
+                ImGui::Separator();
+                ImGui::TableNextRow();
+                ImGui::Text("%s", mesh.mMaterialName.c_str());
+                ImGui::TableSetColumnIndex(0);
+                bool has_normal = mesh.mMaterial.hasFlag(MaterialProps::HasNormalMap);
+
+                auto has_normal_tex = mesh.mNormalMapTexture && mesh.mNormalMapTexture->isValid();
+                auto has_diffuse_tex = mesh.mTexture && mesh.mTexture->isValid();
+                auto has_spec_tex = mesh.mSpecularTexture && mesh.mSpecularTexture->isValid();
+
+                if (has_normal_tex) {
+                    ImGui::Image((ImTextureID)(intptr_t)mesh.mNormalMapTexture->getTextureView(), ImVec2(20.0, 20.0));
+                } else {
+                    if (ImGui::Button("+##normal", ImVec2(20, 20))) {
+                        open_texture_popup = true;
+                        selected_mesh = &mesh;
+                        texture_type = 1;
+                        selected_model = this;
+                    }
+                }
+                if (has_spec_tex) {
+                    ImGui::Image((ImTextureID)(intptr_t)mesh.mSpecularTexture->getTextureView(), ImVec2(20.0, 20.0));
+                } else {
+                    if (ImGui::Button("+##spec", ImVec2(20, 20))) {
+                        open_texture_popup = true;
+                        selected_mesh = &mesh;
+                        texture_type = 2;
+                        selected_model = this;
+                    }
+                }
+                if (has_diffuse_tex) {
+                    ImGui::Image((ImTextureID)(intptr_t)mesh.mTexture->getTextureView(), ImVec2(20.0, 20.0));
+                } else {
+                    if (ImGui::Button("+##diffuse", ImVec2(20, 20))) {
+                        open_texture_popup = true;
+                        selected_mesh = &mesh;
+                        texture_type = 3;
+                        selected_model = this;
+                    }
+                }
+                ImGui::TableSetColumnIndex(1);
+
+                if (ImGui::Checkbox("Has Normal Map", &has_normal)) {
+                    mesh.mMaterial.setFlag(MaterialProps::HasNormalMap, has_normal);
+                    mTransform.mDirty = true;
+                }
+                bool has_specular = mesh.mMaterial.hasFlag(MaterialProps::HasRoughnessMap);
+                if (ImGui::Checkbox("Has Specular Map", &has_specular)) {
+                    mesh.mMaterial.setFlag(MaterialProps::HasRoughnessMap, has_specular);
+                    mTransform.mDirty = true;
+                }
+                bool has_diffuse = mesh.mMaterial.hasFlag(MaterialProps::HasDiffuseMap);
+                if (ImGui::Checkbox("Has Diffuse Map", &has_diffuse)) {
+                    mesh.mMaterial.setFlag(MaterialProps::HasDiffuseMap, has_diffuse);
+                    mTransform.mDirty = true;
+                }
+                if (ImGui::SliderFloat("Diffuse Value", &mesh.mMaterial.roughness, 0.0f, 1.0f)) {
+                    mTransform.mDirty = true;
+                }
+
+                if (ImGui::DragFloat3("Uv Values", glm::value_ptr(mesh.mMaterial.uvMultiplier), drag_speed, 100.0f)) {
+                    mTransform.mDirty = true;
+                }
+                ImGui::PopID();  // Pop the unique ID for this item
+            }
+            ImGui::EndTable();
         }
     }
     if (ImGui::CollapsingHeader("Textures")) {  // DefaultOpen makes it open initially
@@ -1193,8 +1311,9 @@ BaseModel& BaseModel::rotate(const glm::quat& rot) {
 }
 
 glm::vec3& Transform::getPosition() { return mPosition; }
-
 glm::vec3& Transform::getScale() { return mScale; }
+glm::vec3& Transform::getEulerRotation() { return mEulerRotation; }
+glm::quat& Transform::getOrientation() { return mOrientation; }
 
 glm::mat4& Transform::getLocalTransform() {
     mTransformMatrix = mTranslationMatrix * mRotationMatrix * mScaleMatrix;

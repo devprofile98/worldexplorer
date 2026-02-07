@@ -78,6 +78,8 @@ class Transform {
     public:
         glm::vec3& getPosition();
         glm::vec3& getScale();
+        glm::vec3& getEulerRotation();
+        glm::quat& getOrientation();
         glm::mat4& getLocalTransform();
 
         ObjectInfo mObjectInfo;
@@ -128,6 +130,7 @@ struct AABB {
 
 struct Transformable {
         virtual Transformable& moveTo(const glm::vec3& to);
+        virtual Transformable& rotate(const glm::vec3& to);
 };
 
 class BaseModel : public Drawable, public AABB, public DebugUI {
@@ -146,6 +149,8 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         bool isTransparent();
         Texture* getDiffuseTexture();
         void setInstanced(Instance* instance);
+        void setVisible(bool visibility = true);
+        bool getVisible() const;
         void selected(bool selected = false);
         bool isSelected() const;
         std::pair<glm::vec3, glm::vec3> getWorldMin();
@@ -171,7 +176,6 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         BoneSocket* mSocket = nullptr;
 
         Buffer mIndexBuffer = {};
-        // std::map<int, Mesh> mMeshes;
         std::unordered_map<int, Mesh> mFlattenMeshes;
         int mMeshNumber = 0;
         size_t instances = 1;
@@ -181,6 +185,7 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
 
     private:
         bool mIsTransparent = false;
+        bool mIsVisible = true;
 };
 
 enum CoordinateSystem {

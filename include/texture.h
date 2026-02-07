@@ -111,4 +111,5 @@ class Registery {
     private:
         std::unordered_map<K, std::shared_ptr<V>> mRegistery;
 };
+
 #endif  // WEBGPUTEST_TEXTURE_H
