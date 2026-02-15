@@ -443,17 +443,12 @@ struct BaseModelLoader : public IModel {
             auto& databuffer = mModel->mGlobalMeshTransformationData;
             mModel->mGlobalMeshTransformationBuffer.queueWrite(0, databuffer.data(),
                                                                sizeof(glm::mat4) * databuffer.size());
-            // wgpuQueueWriteBuffer(app->getRendererResource().queue,
-            // mModel->mGlobalMeshTransformationBuffer.getBuffer(),
-            //                      0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
 
             // If model is instanced
-            //
             if (param.instanceTransformations.size() > 0) {
                 std::vector<glm::vec3> positions;
                 std::vector<glm::vec3> scales;
                 std::vector<glm::vec3> rotations;
-                // std::vector<float> rotations;
                 for (const auto& instance : param.instanceTransformations) {
                     positions.emplace_back(instance.position);
                     scales.emplace_back(instance.scale);
@@ -463,7 +458,6 @@ struct BaseModelLoader : public IModel {
                 auto* ins = new Instance{positions, rotations, scales, glm::vec4{mModel->min, 1.0f},
                                          glm::vec4{mModel->max, 1.0f}};
                 ins->parent = mModel;
-                // ins->mApp = app;
                 ins->mManager = app->mInstanceManager;
                 ins->mPositions = positions;
                 ins->mScale = scales;
@@ -608,9 +602,9 @@ void World::loadModel(const ObjectLoaderParam& param) {
             auto [min, max] = model.getModel()->getPhysicsAABB();
             auto center = (min + max) * 0.5f;
             auto half_extent = (max - min) * 0.5f;
-            model.getModel()->mPhysicComponent =
+            model.getModel()->mPhysicComponent = new PhysicsComponent{
                 physics::createAndAddBody(half_extent, center, qu, param.physicsParams.type == "dynamic" ? true : false,
-                                          0.5, 0.0f, 0.0f, 1.f, false, model.getModel());
+                                          0.5, 0.0f, 0.0f, 1.f, false, model.getModel())};
         }
 
         return {model.getModel(), Visibility_User};

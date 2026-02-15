@@ -36,6 +36,8 @@ enum CharacterState {
     Aiming,
 };
 
+static Model* contactmodel = nullptr;
+
 class MyCharacterContactListener : public JPH::CharacterContactListener {
     public:
         void OnContactAdded(const JPH::CharacterVirtual* inCharacter, const JPH::BodyID& inBodyID2,
@@ -50,7 +52,18 @@ class MyCharacterContactListener : public JPH::CharacterContactListener {
             Model* model = reinterpret_cast<Model*>(userData);
 
             auto name = model == nullptr ? "No Name" : model->getName();
-            printf("Character touched body %u %lu %s\n", inBodyID2.GetIndex(), userData, name.c_str());
+            // printf("Character touched body %u %lu %s\n", inBodyID2.GetIndex(), userData, name.c_str());
+            if (model != nullptr) {
+                contactmodel = model;
+                // model->mPhysicComponent->onContactAdded(character);
+                //
+                // auto& bodyInterface = physics::getPhysicsSystem()->GetBodyInterface();
+                //
+                // JPH::Vec3 currentVel = body.GetLinearVelocity();
+                // JPH::Vec3 newVel = currentVel + JPH::Vec3(0.0f, 5.0f, 0.0f);  // add upward speed
+                //
+                // bodyInterface.SetLinearVelocity(inBodyID2, newVel);
+            }
         }
 
         void OnContactPersisted(const JPH::CharacterVirtual* inCharacter, const JPH::BodyID& inBodyID2,
@@ -62,9 +75,20 @@ class MyCharacterContactListener : public JPH::CharacterContactListener {
 
         void OnContactRemoved(const JPH::CharacterVirtual* inCharacter, const JPH::BodyID& inBodyID2,
                               const JPH::SubShapeID& inSubShapeID2) override {
-            printf("R Character removed contact with body %u\n", inBodyID2.GetIndex());
-            // Called when contact ends
+            const JPH::BodyLockRead lock(physics::getPhysicsSystem()->GetBodyLockInterface(), inBodyID2);
+            if (!lock.Succeeded()) return;
+
+            const JPH::Body& body = lock.GetBody();
+            uint64_t userData = body.GetUserData();
+            Model* model = reinterpret_cast<Model*>(userData);
+
+            // auto name = model == nullptr ? "No Name" : model->getName();
+            // printf("Character touched body %u %lu %s\n", inBodyID2.GetIndex(), userData, name.c_str());
+            if (model != nullptr) {
+                model->mPhysicComponent->onContactRemoved(character);
+            }
         }
+        Model* character = nullptr;
 };
 
 struct HumanBehaviour : public Behaviour {
@@ -98,7 +122,7 @@ struct HumanBehaviour : public Behaviour {
               targetDistance(0.3),
               targetOffset(0.0, 0.0, 0.2),
               yaw(90.0f),
-              speed(30.0f),
+              speed(3.0f),
               isMoving(false),
               isAiming(false),
               isShooting(false),
@@ -120,7 +144,7 @@ struct HumanBehaviour : public Behaviour {
             physicalCharacter = physics::createCharacter();
 
             static auto listener = new MyCharacterContactListener{};
-            // character->SetContactListener(listener.get());
+            listener->character = model;
             physicalCharacter->SetListener(listener);
         }
 
@@ -324,7 +348,8 @@ struct HumanBehaviour : public Behaviour {
                     }
                     case Running: {
                         if (!isInJump) {
-                            clip_name = "Jog_Fwd_Loop";
+                            // clip_name = "Jog_Fwd_Loop";
+                            clip_name = "Walk_Loop";
                             loop = true;
                         }
                         break;
@@ -380,6 +405,10 @@ struct HumanBehaviour : public Behaviour {
 
             physicalCharacter->SetLinearVelocity(jolt_movement);
             physics::updateCharacter(physicalCharacter, dt, {});
+            if (contactmodel != nullptr) {
+                contactmodel->mPhysicComponent->onContactAdded(contactmodel);
+                contactmodel = nullptr;
+            }
 
             JPH::RVec3 new_position = physicalCharacter->GetPosition();
             JPH::Quat new_rotation = physicalCharacter->GetRotation();
@@ -391,13 +420,6 @@ struct HumanBehaviour : public Behaviour {
             desired_rotation.z = new_rotation.GetZ();
             desired_rotation.w = new_rotation.GetW();
             model->rotate(desired_rotation);
-
-            // if (model->mTransform.mPosition.z < groundLevel) {
-            //     model->mTransform.mPosition.z = groundLevel;
-            //     velocity.z = 0;
-            //     state = Idle;
-            //     isInJump = false;
-            // }
 
             if (transitoin.active) {
                 transitoin.timeLeft -= dt;
@@ -411,8 +433,40 @@ struct HumanBehaviour : public Behaviour {
                 }
             }
         }
-        //
+
         glm::vec3 getForward() override { return glm::normalize(glm::cross(front, up)); }
 };
 
 HumanBehaviour humanbehaviour{"human"};
+
+class CubePhysics : public PhysicsComponent {
+    public:
+        CubePhysics(JPH::BodyID id) : PhysicsComponent(id) {}
+        void onContactAdded(Model* other) override {
+            auto& bodyInterface = physics::getPhysicsSystem()->GetBodyInterface();
+
+            JPH::Vec3 currentVel = bodyInterface.GetLinearVelocity(bodyId);
+            JPH::Vec3 newVel = currentVel + JPH::Vec3(0.0f, 5.0f, 0.0f);  // add upward speed
+
+            bodyInterface.SetLinearVelocity(bodyId, newVel);
+
+            std::cout << "Cube contacted by " << other->getName() << '\n';
+        }
+
+        void onContactRemoved(Model* other) override {
+            std::cout << "Cube contact Removed from " << other->getName() << '\n';
+        }
+};
+
+struct CubeBehaviour : public Behaviour {
+        CubeBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
+
+        void onModelLoad(Model* model) override {
+            auto* cube_phy = new CubePhysics{model->mPhysicComponent->bodyId};
+            delete model->mPhysicComponent;
+            model->mPhysicComponent = cube_phy;
+            std::cout << "Cube model loooaded " << (model->mPhysicComponent == nullptr) << std::endl;
+        }
+};
+
+CubeBehaviour cubebehaviour{"cube"};

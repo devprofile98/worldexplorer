@@ -28,8 +28,13 @@
 #include "linegroup.h"
 
 class Application;
+class Model;
 
 struct PhysicsComponent {
+        PhysicsComponent(JPH::BodyID id);
+        virtual ~PhysicsComponent() = default;
+        virtual void onContactAdded(Model* other);
+        virtual void onContactRemoved(Model* other);
         JPH::BodyID bodyId;
 };
 
@@ -68,9 +73,9 @@ class PhysicSystem {
 void prepareJolt();
 void JoltLoop(float dt);
 std::pair<glm::vec3, glm::quat> getPositionAndRotationyId(JPH::BodyID id);
-PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const glm::quat& rotation,
-                                   bool active, float friction, float restitution, float linearDamping,
-                                   float gravityFactor, bool isSensor = false, void* userData = nullptr);
+JPH::BodyID createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const glm::quat& rotation, bool active,
+                             float friction, float restitution, float linearDamping, float gravityFactor,
+                             bool isSensor = false, void* userData = nullptr);
 JPH::BodyInterface& getBodyInterface();
 void setRotation(JPH::BodyID id, const glm::quat& rot);
 void setPosition(JPH::BodyID id, const glm::vec3& pos);

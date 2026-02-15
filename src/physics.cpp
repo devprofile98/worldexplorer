@@ -42,6 +42,11 @@
 #include "shapes.h"
 #include "utils.h"
 
+void PhysicsComponent::onContactAdded(Model* other) {}
+void PhysicsComponent::onContactRemoved(Model* other) {}
+
+PhysicsComponent::PhysicsComponent(JPH::BodyID id) : bodyId(id) {}
+
 namespace physics {
 using namespace JPH;
 
@@ -63,7 +68,7 @@ class MyContactListener : public ContactListener {
             // Log or adjust impulses for cube-character collisions
             // if (body1.IsDynamic() && body2.IsDynamic() /* USERDATA_CHARACTER*/) {
             // settings.mCombinedFriction = 0.5f;  // Example: Adjust friction
-            std::cout << "Happening!\n";
+            // std::cout << "Happening!\n";
             // }
         }
 };
@@ -152,8 +157,6 @@ CharacterVirtual* createCharacter() {
     settings->mCharacterPadding = 0.02f;                 // avoids tunneling
     settings->mPenetrationRecoverySpeed = 1.0f;
     settings->mPredictiveContactDistance = 0.1f;
-    // settings->mSupportingVolume = Plane(Vec3::sAxisY(), -0.3f);  // plane below feet
-    // settings.mcontactliste
 
     JPH::Quat rotate90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
     // Create the character
@@ -182,16 +185,15 @@ void updateCharacter(CharacterVirtual* physicalCharacter, float dt, Vec3 movemen
     );
 }
 
-PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const glm::quat& rotation,
-                                   bool active, float friction, float restitution, float linearDamping,
-                                   float gravityFactor, bool isSensor, void* userData) {
+BodyID createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const glm::quat& rotation, bool active,
+                        float friction, float restitution, float linearDamping, float gravityFactor, bool isSensor,
+                        void* userData) {
     BodyInterface& bodyInterface = physicsSystem.GetBodyInterface();
 
-    BodyCreationSettings boxSettings(new BoxShape(Vec3(shape.x, shape.z, shape.y), 0.01),  // 2x2x2 meter box
-                                     RVec3(centerPos.x, centerPos.z, centerPos.y),         // start 10 meters up
-                                     {rotation.x, rotation.z, rotation.y, rotation.w},
-                                     active ? EMotionType::Dynamic : EMotionType::Static,
-                                     active ? Layers::MOVING : Layers::NON_MOVING);
+    BodyCreationSettings boxSettings(
+        new BoxShape(Vec3(shape.x, shape.z, shape.y), 0.01), RVec3(centerPos.x, centerPos.z, centerPos.y),
+        {rotation.x, rotation.z, rotation.y, rotation.w}, active ? EMotionType::Dynamic : EMotionType::Static,
+        active ? Layers::MOVING : Layers::NON_MOVING);
     boxSettings.mAllowSleeping = false;
 
     boxSettings.mFriction = friction;
@@ -199,9 +201,9 @@ PhysicsComponent* createAndAddBody(const glm::vec3& shape, const glm::vec3 cente
     boxSettings.mLinearDamping = linearDamping;
     boxSettings.mUserData = reinterpret_cast<uint64_t>(userData);
     boxSettings.mIsSensor = isSensor;
-    boxSettings.mGravityFactor = gravityFactor;  // full gravity
-                                                 //
-    return new PhysicsComponent{bodyInterface.CreateAndAddBody(boxSettings, EActivation::Activate)};
+    boxSettings.mGravityFactor = gravityFactor;
+
+    return bodyInterface.CreateAndAddBody(boxSettings, EActivation::Activate);
 }
 
 BodyInterface& getBodyInterface() { return physicsSystem.GetBodyInterface(); }
@@ -225,33 +227,6 @@ void prepareJolt() {
     temp_allocator = new TempAllocatorImpl(10 * 1024 * 1024);
     job_system = new JobSystemThreadPool{cMaxPhysicsJobs, cMaxPhysicsBarriers, (int)thread::hardware_concurrency() - 1};
 
-    BodyInterface& bodyInterface = physicsSystem.GetBodyInterface();
-
-    // 3. Create static floor (layer 0 = non-moving)
-    {
-        BodyCreationSettings floorSettings(new BoxShape(Vec3(5.0f, 0.2f, 5.0f)),  // huge flat box
-                                           RVec3(0, -3.46, 1.910),                // position
-                                           Quat::sIdentity(),                     // rotation
-                                           EMotionType::Static, Layers::MOVING);
-
-        floorSettings.mFriction = 1.0f;
-        floorSettings.mRestitution = 0.1f;  // no bounce
-
-        // bodyInterface.CreateAndAddBody(floorSettings, EActivation::DontActivate);
-    }
-
-    // {
-    //     BodyCreationSettings boxSettings(new BoxShape(Vec3(0.2f, 0.2f, 0.2f)),  // 2x2x2 meter box
-    //                                      RVec3(0, 10.0f, 0),                    // start 10 meters up
-    //                                      Quat::sIdentity(), EMotionType::Dynamic, Layers::MOVING);
-    //
-    //     boxSettings.mFriction = 0.5f;
-    //     boxSettings.mRestitution = 0.0f;
-    //     boxSettings.mLinearDamping = 0.0f;
-    //     boxSettings.mGravityFactor = 0.1f;  // full gravity
-    //
-    //     boxBodyID = bodyInterface.CreateAndAddBody(boxSettings, EActivation::Activate);
-    // }
     getPhysicsSystem()->SetContactListener(new MyContactListener());
 }
 std::pair<glm::vec3, glm::quat> getPositionAndRotationyId(BodyID id) {
@@ -301,8 +276,8 @@ BoxCollider::BoxCollider(Application* app, const std::string& name, const glm::v
     qu.x = 0.0;
     qu.y = 0.0;
     qu.z = 0.0;
-    mPhysicComponent = std::shared_ptr<PhysicsComponent>{
-        physics::createAndAddBody(halfExtent, center, glm::normalize(qu), isStatic, 0.5, 0.0f, 0.0f, 1.f, isSensor)};
+    mPhysicComponent = std::make_shared<PhysicsComponent>(
+        physics::createAndAddBody(halfExtent, center, glm::normalize(qu), isStatic, 0.5, 0.0f, 0.0f, 1.f, isSensor));
 }
 
 glm::mat4 BoxCollider::getTransformation() const {
@@ -312,7 +287,6 @@ glm::mat4 BoxCollider::getTransformation() const {
            glm::scale(glm::mat4{1.0}, mHalfExtent * glm::vec3{2.0});
 }
 
-// uint32_t BoxCollider::getBoxId() const { return mBoxId; }
 LineGroup& BoxCollider::getDebugLines() { return mDebugLines; }
 
 std::shared_ptr<PhysicsComponent> BoxCollider::getPhysicsComponent() { return mPhysicComponent; }

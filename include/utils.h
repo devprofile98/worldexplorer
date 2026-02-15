@@ -16,7 +16,6 @@
 #include "instance.h"
 #include "model.h"
 #include "model_registery.h"
-#include "physics.h"
 #include "point_light.h"
 
 namespace fs = std::filesystem;
@@ -24,6 +23,9 @@ namespace fs = std::filesystem;
 class Appliaction;  // forward declaration of the app class
 struct LineEngine;
 class LineGroup;
+namespace physics {
+class BoxCollider;
+}
 
 void setDefault(WGPUDepthStencilState& depthStencilState);
 void setDefault(WGPUStencilFaceState& stencilFaceState);
@@ -37,7 +39,6 @@ void setDefault(WGPULimits& limits);
 struct DebugBox {
         glm::vec3 center{};
         glm::vec3 halfExtent{};
-        // uint32_t debugLinesId = std::numeric_limits<uint32_t>().max();
         LineGroup* debuglines = nullptr;
         void create(LineEngine* lineEngine, const glm::mat4& transformation, const glm::vec3& color);
         void update();
@@ -51,7 +52,7 @@ struct TransformProperties {
         glm::vec3 scale;
         glm::quat rotation;
 };
-// TransformProperties calculateChildTransform(Model* parent, Model* child);
+
 TransformProperties decomposeTransformation(const glm::mat4& transformation);
 
 struct Terrain {

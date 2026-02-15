@@ -96,9 +96,9 @@ struct LineEngine {
         NewRenderPass* mLineRenderingPass;
 
         std::unordered_map<uint32_t, LineGroup> mLineGroups;
-        uint32_t mNextGroupId = 0;   // For assigning handles
-        bool mGlobalDirty = false;   // Needs offset recalculation and potential buffer resize?
-        uint32_t mMaxPoints = 1024;  // Initial capacity; grow as needed
+        uint32_t mNextGroupId = 0;        // For assigning handles
+        bool mGlobalDirty = false;        // Needs offset recalculation and potential buffer resize?
+        uint32_t mMaxPoints = 10 * 1024;  // Initial capacity; grow as needed
 
     private:
         Application* mApp;

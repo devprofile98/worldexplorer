@@ -1282,6 +1282,37 @@ void Model::userInterface() {
         }
         // }
     }
+    static bool open_physics_popup = false;
+    static glm::vec3 box_center = {};
+    static glm::vec3 box_half_ex = {};
+
+    if (open_physics_popup) {
+        ImGui::OpenPopup("Select texture");
+        if (ImGui::BeginPopupModal("Create Physics", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            static bool is_dynamic = false;
+            ImGui::DragFloat3("center", glm::value_ptr(box_center));
+            ImGui::DragFloat3("half extent", glm::value_ptr(box_half_ex));
+            ImGui::Checkbox("Dynamic", &is_dynamic);
+
+            if (ImGui::Button("Cancel")) {
+                open_physics_popup = false;
+            }
+            ImGui::SameLine();
+            ImGui::Button("Create");
+
+            ImGui::EndPopup();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Physics")) {
+        if (mPhysicComponent == nullptr) {
+            if (ImGui::Button("Add physics")) {
+                open_physics_popup = true;
+            }
+        } else {
+            ImGui::Text("Has physics already!");
+        }
+    }
     // }
 }
 #endif  // DEVELOPMENT_BUILD

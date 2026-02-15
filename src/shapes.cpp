@@ -13,6 +13,7 @@
 #include "glm/ext/scalar_constants.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/trigonometric.hpp"
+#include "linegroup.h"
 #include "mesh.h"
 #include "pipeline.h"
 #include "utils.h"
@@ -432,14 +433,12 @@ uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points, const glm::m
     }
 
     uint32_t id = mNextGroupId++;
-    // std::vector<LineSegment> segments;
     mLineGroups[id] = {transformation, color, {}, 0, true};
     auto& segments = mLineGroups[id].segment;
     for (const auto& p : points) {
         segments.emplace_back(LineSegment{p, color, id, true});
         std::cout << segments.size() << " " << id << std::endl;
     }
-    // std::cout << "Line is " << mNextGroupId << " " << mLineGroups[id].segment.transformationId << std::endl;
     mGlobalDirty = true;
     return id;
 }
