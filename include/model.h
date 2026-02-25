@@ -133,6 +133,11 @@ struct Transformable {
         virtual Transformable& rotate(const glm::vec3& to);
 };
 
+enum CoordinateSystem {
+    Y_UP = 0,
+    Z_UP = 1,
+};
+
 class BaseModel : public Drawable, public AABB, public DebugUI {
     public:
         BaseModel()
@@ -140,6 +145,7 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
                          glm::mat4{1.0}, glm::mat4{1.0}, glm::vec3{0.0, 0.0, 1.0}) {};
 
         std::string mName;
+        std::string mPath = "";
         const std::string& getName();
 
         /*Buffer getVertexBuffer();*/
@@ -160,6 +166,8 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         void addChildren(BaseModel* child);
         glm::mat4 getGlobalTransform();
         void updateHirarchy();
+        CoordinateSystem getCoordinateSystem() const;
+        void setCoordinateSystem(const CoordinateSystem& cs);
 
         BaseModel& moveBy(const glm::vec3& m);
         BaseModel& moveTo(const glm::vec3& m);
@@ -182,15 +190,12 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         Instance* instance = nullptr;
         std::vector<BaseModel*> mChildrens{};
         PhysicsComponent* mPhysicComponent = nullptr;
+        Behaviour* mBehaviour = nullptr;
 
     private:
         bool mIsTransparent = false;
         bool mIsVisible = true;
-};
-
-enum CoordinateSystem {
-    Y_UP = 0,
-    Z_UP = 1,
+        CoordinateSystem mCoordinateSystem = Z_UP;
 };
 
 class Model : public BaseModel {
@@ -200,8 +205,9 @@ class Model : public BaseModel {
         void processMesh(Application* app, aiMesh* mesh, const aiScene* scene, unsigned int meshId,
                          const glm::mat4& globalTransform);
         void processNode(Application* app, aiNode* node, const aiScene* scene, const glm::mat4& parentTransform);
-        Model& load(std::string name, Application* app, const std::filesystem::path& path, WGPUBindGroupLayout layout);
-        Model& uploadToGPU(Application* app);
+        virtual Model& load(std::string name, Application* app, const std::filesystem::path& path,
+                            WGPUBindGroupLayout layout);
+        virtual Model& uploadToGPU(Application* app);
         void draw(Application* app, WGPURenderPassEncoder encoder) override;
         void drawHirarchy(Application* app, WGPURenderPassEncoder encoder) override;
         void drawGraph(Application* app, WGPURenderPassEncoder encoder, Node* node);
@@ -209,29 +215,28 @@ class Model : public BaseModel {
 
         Model& setFoliage();
         Model& useTexture(bool use = true);
-        void update(Application* app, float dt, float physicSimulating = true);
+        virtual void update(Application* app, float dt, float physicSimulating = true);
 
         // Getters
         void createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData);
         WGPUBindGroup getObjectInfoBindGroup();
         void updateAnimation(float dt);
-        CoordinateSystem getCoordinateSystem() const;
+
+        Animation* getAnimation();
+        Action* getDefaultAction();
+        void setDefaultAction(Action* defaultAction);
 
         Buffer mIndirectDrawArgsBuffer;
         Buffer mSkiningTransformationBuffer;
         Buffer mGlobalMeshTransformationBuffer;
 
-        Behaviour* mBehaviour = nullptr;
         const aiScene* mScene;
         Assimp::Importer mImport;
 
-        Animation* anim;
-        Action* mDefaultAction = nullptr;
         std::vector<glm::vec3> mBonePosition;
         std::vector<glm::mat4> mGlobalMeshTransformationData;
         WGPUBindGroupEntry mSkiningDataEntry;
         Application* mApp = nullptr;
-        std::string mPath = "";
 
 #ifdef DEVELOPMENT_BUILD
         // Common User-Interface to interact with Object in the Development state
@@ -240,7 +245,8 @@ class Model : public BaseModel {
 #endif  // DEVELOPMENT_BUILD
 
     private:
-        CoordinateSystem mCoordinateSystem = Z_UP;
+        Animation* anim;
+        Action* mDefaultAction = nullptr;
         Buffer offset_buffer = {};
         WGPUBindGroup mBindGroup = nullptr;
         WGPUBindGroup ggg = {};

@@ -139,19 +139,19 @@ struct HumanBehaviour : public Behaviour {
             ModelRegistry::instance().registerBehaviour(name, this);
         }
 
-        void onModelLoad(Model* model) override {
+        void onModelLoad(BaseModel* model) override {
             std::cout << "Character Human just created\n";
             physicalCharacter = physics::createCharacter();
 
             static auto listener = new MyCharacterContactListener{};
-            listener->character = model;
+            listener->character = static_cast<Model*>(model);
             physicalCharacter->SetListener(listener);
         }
 
         void sayHello() override { std::cout << "Hello from " << name << '\n'; }
 
         // Handle mouse movement for rotation
-        void handleMouseMove(Model* model, MouseEvent event) override {
+        void handleMouseMove(BaseModel* model, MouseEvent event) override {
             // Sensitivity for mouse movement
             if (physicalCharacter == nullptr) return;
             auto mouse = std::get<Move>(event);
@@ -190,9 +190,9 @@ struct HumanBehaviour : public Behaviour {
             physicalCharacter->SetRotation(finalRot);
         }
 
-        Model* getWeapon() override { return weapon; }
+        BaseModel* getWeapon() override { return weapon; }
 
-        void handleMouseClick(Model* model, MouseEvent event) override {
+        void handleMouseClick(BaseModel* model, MouseEvent event) override {
             auto mouse = std::get<Click>(event);
             if (mouse.click == GLFW_MOUSE_BUTTON_RIGHT) {
                 if (mouse.action == GLFW_PRESS) {
@@ -218,13 +218,13 @@ struct HumanBehaviour : public Behaviour {
                 isShooting = true;
             }
         }
-        void handleMouseScroll(Model* model, MouseEvent event) override {
+        void handleMouseScroll(BaseModel* model, MouseEvent event) override {
             auto scroll = std::get<Scroll>(event);
             cameraOffset += scroll.yOffset < 0 ? 0.1 : -0.1;
             targetDistance += scroll.yOffset < 0 ? 0.1 : -0.1;
         }
 
-        void handleAttachedCamera(Model* model, Camera* camera) override {
+        void handleAttachedCamera(BaseModel* model, Camera* camera) override {
             auto forward = getForward();
 
             // Compute the offset direction (modify as needed based on your coordinate system)
@@ -247,7 +247,7 @@ struct HumanBehaviour : public Behaviour {
         }
 
         // Handle keyboard input for movement
-        void handleKey(Model* model, KeyEvent event, float dt) override {
+        void handleKey(BaseModel* model, KeyEvent event, float dt) override {
             auto space_value = InputManager::keys[GLFW_KEY_SPACE];
             if (space_value) {
                 state = Jumping;
@@ -323,10 +323,10 @@ struct HumanBehaviour : public Behaviour {
             static std::string last_clip;
             std::string clip_name;
             bool loop;
-            model->anim->isEnded();
+            model->getAnimation()->isEnded();
             if (isAiming) {
                 if (isShooting && weapon != nullptr) {
-                    if (!model->anim->isEnded()) {
+                    if (!model->getAnimation()->isEnded()) {
                         clip_name = attackAction;
                         loop = false;
                     } else {
@@ -367,16 +367,16 @@ struct HumanBehaviour : public Behaviour {
                 }
             }
             if (last_clip != clip_name) {
-                model->anim->playAction(clip_name, loop);
+                model->getAnimation()->playAction(clip_name, loop);
                 last_clip = clip_name;
             }
         }
 
-        void update(Model* model, float dt) override {
+        void update(BaseModel* model, float dt) override {
             if (physicalCharacter == nullptr) return;
             auto movement = processInput();
 
-            decideCurrentAnimation(model, dt);
+            decideCurrentAnimation(static_cast<Model*>(model), dt);
 
             auto move_amount = movement * speed * dt;
 
@@ -461,7 +461,7 @@ class CubePhysics : public PhysicsComponent {
 struct CubeBehaviour : public Behaviour {
         CubeBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
 
-        void onModelLoad(Model* model) override {
+        void onModelLoad(BaseModel* model) override {
             auto* cube_phy = new CubePhysics{model->mPhysicComponent->bodyId};
             delete model->mPhysicComponent;
             model->mPhysicComponent = cube_phy;

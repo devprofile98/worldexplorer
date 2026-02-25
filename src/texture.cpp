@@ -154,7 +154,7 @@ void Texture::writeBaseTexture(const std::filesystem::path& path, uint32_t exten
     mBufferData[0].reserve(image_byte_size);
     mBufferData[0].resize(image_byte_size);
 
-    mHasAlphaChannel = (channels == 4);
+    // mHasAlphaChannel = (channels == 4);
     // Copy pixel data into mBufferData
     for (size_t i = 0, j = 0; i < (size_t)width * height * channels; i += channels, j += 4) {
         mBufferData[0][j] = pixel_data[i];          // Red
@@ -162,6 +162,9 @@ void Texture::writeBaseTexture(const std::filesystem::path& path, uint32_t exten
         mBufferData[0][j + 2] = pixel_data[i + 2];  // Blue
         mBufferData[0][j + 3] =
             (channels == 4) ? pixel_data[i + 3] : 255.0;  // Alpha (default to 255 if no alpha channel)
+        if (mBufferData[0][j + 3] < 255.0) {
+            mHasAlphaChannel = true;
+        }
     }
 
     stbi_image_free(pixel_data);
@@ -233,7 +236,7 @@ Texture::Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths
         mBufferData[k].reserve(image_byte_size);
         mBufferData[k].resize(image_byte_size);
 
-        mHasAlphaChannel = (channels == 4);
+        // mHasAlphaChannel = (channels == 4);
         // Copy pixel data into mBufferData
         for (size_t i = 0, j = 0; i < (size_t)width * height * channels; i += channels, j += 4) {
             // std::cout << image_byte_size << " " << i << " " << j << '\n';
@@ -242,6 +245,9 @@ Texture::Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths
             mBufferData[k][j + 2] = pixel_data[i + 2];  // Blue
             mBufferData[k][j + 3] =
                 mHasAlphaChannel ? pixel_data[i + 3] : 255.0;  // Alpha (default to 255 if no alpha channel)
+            if (mBufferData[k][j + 3] < 255.0) {
+                mHasAlphaChannel = true;
+            }
         }
 
         stbi_image_free(pixel_data);

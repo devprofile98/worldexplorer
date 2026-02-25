@@ -128,7 +128,8 @@ glm::mat4 Node::getGlobalTransform() const {
 
 Buffer& Drawable::getUniformBuffer() { return mUniformBuffer; }
 
-Model::Model(CoordinateSystem cs) : BaseModel(), mCoordinateSystem(cs) {
+Model::Model(CoordinateSystem cs) : BaseModel() {
+    BaseModel::setCoordinateSystem(cs);
     mTransform.mScaleMatrix = glm::scale(mTransform.mScaleMatrix, mTransform.mScale);
     mTransform.mTransformMatrix = mTransform.mRotationMatrix * mTransform.mTranslationMatrix * mTransform.mScaleMatrix;
     mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
@@ -239,7 +240,12 @@ void Model::updateAnimation(float dt) {
     }
 }
 
-CoordinateSystem Model::getCoordinateSystem() const { return mCoordinateSystem; }
+Animation* Model::getAnimation() { return anim; }
+Action* Model::getDefaultAction() { return mDefaultAction; }
+void Model::setDefaultAction(Action* defaultAction) { mDefaultAction = defaultAction; }
+
+CoordinateSystem BaseModel::getCoordinateSystem() const { return mCoordinateSystem; }
+void BaseModel::setCoordinateSystem(const CoordinateSystem& cs) { mCoordinateSystem = cs; }
 
 glm::mat4 aiMatrix4x4ToGlm(const aiMatrix4x4& from) {
     glm::mat4 to;
@@ -333,7 +339,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
         vertex.position = glm::vec3{std::move(pos)};
 
         glm::mat4 swap{1.0};  // identity matrix for default case
-        if (mCoordinateSystem == CoordinateSystem::Z_UP) {
+        if (getCoordinateSystem() == CoordinateSystem::Z_UP) {
             swap = {{1, 0, 0, 0}, {0, 0, -1, 0}, {0, 1, 0, 0}, {0, 0, 0, 1}};
         }
         auto temp = swap * glm::vec4{vertex.position, 1.0};
@@ -419,8 +425,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             texture_path += "/";
             texture_path += str.C_Str();
 
-            std::cout << "Loading " << texture_path << " As " << getName() << std::endl;
-
             size_t pos = 0;
             while ((pos = texture_path.find("%20", pos)) != std::string::npos) {
                 texture_path.replace(pos, 3, " ");  // replace 3 chars ("%20") with 1 space
@@ -431,6 +435,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
             if (cached != nullptr) {
                 *target = cached;
                 mmesh.isTransparent = (*target)->isTransparent();
+                setTransparent(mmesh.isTransparent);
                 continue;
             }
 
@@ -445,14 +450,13 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
             *target = texture;
             mmesh.isTransparent = texture->isTransparent();
+            setTransparent(mmesh.isTransparent);
 
             if (texture->createView() == nullptr) {
                 std::cout << std::format("Failed to create view for {} at {}\n", mName, texture_path);
             } else {
                 std::cout << std::format("Successfully loaded texture {} at {}\n", mName, texture_path);
             }
-            // mmesh.isTransparent = (*target)->isTransparent();
-            // }).detach();
         }
     };
 
@@ -494,10 +498,8 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     }
     mScene = scene;
 
-    // if (getName() != "house") {
     mTransform.mObjectInfo.isAnimated = anim->initAnimation(mScene, getName());
     updateAnimation(0);
-    // }
 
     mRootNode = Node::buildNodeTree(scene->mRootNode, nullptr, mNodeNameMap);
 
@@ -761,7 +763,9 @@ void Model::internalDraw(Application* app, WGPURenderPassEncoder encoder, Node* 
             continue;
         }
         WGPUBindGroup active_bind_group = nullptr;
-        // if (!mesh.isTransparent) {
+        if (isTransparent()) {
+            std::cout << getName() << "'s Mesh is transparent\n";
+        }
         active_bind_group = app->getBindingGroup().getBindGroup();
 
         wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
@@ -782,6 +786,7 @@ void Model::internalDraw(Application* app, WGPURenderPassEncoder encoder, Node* 
             // wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mIndirectDrawArgsBuffer.getBuffer(), 0);
             wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), instance->getInstanceCount(), 0, 0, 0);
         } else {
+            // std::cout << getName() << " " << mesh.mIndexData.size() << std::endl;
             wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
         }
     }
@@ -791,7 +796,6 @@ void Model::drawGraph(Application* app, WGPURenderPassEncoder encoder, Node* nod
     if (node == nullptr) {
         return;
     }
-    // std::cout << "DDDDDDrawing child " << node->mName << node->mChildrens.size() << std::endl;
 
     // Draw the node itself
     internalDraw(app, encoder, node);
@@ -799,7 +803,6 @@ void Model::drawGraph(Application* app, WGPURenderPassEncoder encoder, Node* nod
     // Draw its childs
     for (auto* child : node->mChildrens) {
         // Drawing functionality
-        // std::cout << "Drawing child " << child->mName << child->mChildrens.size() << std::endl;
         drawGraph(app, encoder, child);
     }
 }
@@ -1006,14 +1009,20 @@ void Model::userInterface() {
             //
             if (diff_tex != nullptr) {
                 mesh.mTexture = diff_tex;
+                mesh.isTransparent = diff_tex->isTransparent();
+                setTransparent(diff_tex->isTransparent());
                 createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
             }
             if (norm_tex != nullptr) {
                 mesh.mNormalMapTexture = norm_tex;
+                mesh.isTransparent = norm_tex->isTransparent();
+                setTransparent(norm_tex->isTransparent());
                 createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
             }
             if (spec_tex != nullptr) {
                 mesh.mSpecularTexture = spec_tex;
+                mesh.isTransparent = spec_tex->isTransparent();
+                setTransparent(spec_tex->isTransparent());
                 createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
             }
 

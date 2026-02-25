@@ -46,6 +46,7 @@ struct ObjectLoaderParam {
         SocketParams socketParam;
         PhysicsParams physicsParams;
         std::vector<Transformation> instanceTransformations;
+        int type;
         std::string name;
         std::string path;
         bool animated;
@@ -58,17 +59,17 @@ struct ObjectLoaderParam {
         bool isDefaultActor = false;
         bool isPhysicEnabled = false;
 
-        ObjectLoaderParam(std::string name, std::string path, bool animated, CoordinateSystem cs, Vec translate,
-                          Vec scale, Vec rotate, std::vector<std::string> childrens, std::string defaultClip,
-                          SocketParams socketParam);
+        ObjectLoaderParam(int type, std::string name, std::string path, bool animated, CoordinateSystem cs,
+                          Vec translate, Vec scale, Vec rotate, std::vector<std::string> childrens,
+                          std::string defaultClip, SocketParams socketParam);
 };
 
 struct World : public KeyboardListener, MouseMoveListener, MouseButtonListener, MouseScrollListener {
         World(Application* core);
-        Model* makeChild(Model* parent, Model* child);
-        void removeParent(Model* child);
+        Model* makeChild(BaseModel* parent, BaseModel* child);
+        void removeParent(BaseModel* child);
         void onNewModel(Model* model);
-        Model* actor = nullptr;
+        BaseModel* actor = nullptr;
         std::string actorName = "";
         float delta = 0.16;
 
@@ -82,7 +83,7 @@ struct World : public KeyboardListener, MouseMoveListener, MouseButtonListener, 
         void onMouseScroll(MouseEvent event) override;
         void exportScene();
 
-        std::vector<Model*> rootContainer;
+        std::vector<BaseModel*> rootContainer;
         std::unordered_map<std::string, ObjectLoaderParam> map;
 
         Application* app;

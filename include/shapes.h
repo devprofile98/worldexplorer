@@ -16,28 +16,28 @@
 class Application;
 class NewRenderPass;
 
-class Cube : public BaseModel {
-    public:
-        Cube(Application* app);
-        virtual void draw(Application* app, WGPURenderPassEncoder encoder) override;
-        void userInterface() override;
-        size_t getVertexCount() const override;
-
-    private:
-        // vertex indices
-        Buffer mIndexDataBuffer = {};
-        Buffer offset_buffer = {};
-        // ? material
-        Application* mApp;
-};
-
-class Plane : public Cube {
-    public:
-        Plane(Application* app);
-
-    private:
-        std::map<int, Mesh> mMeshes;
-};
+// class Cube : public BaseModel {
+//     public:
+//         Cube(Application* app);
+//         virtual void draw(Application* app, WGPURenderPassEncoder encoder) override;
+//         void userInterface() override;
+//         size_t getVertexCount() const override;
+//
+//     private:
+//         // vertex indices
+//         Buffer mIndexDataBuffer = {};
+//         Buffer offset_buffer = {};
+//         // ? material
+//         Application* mApp;
+// };
+//
+// class Plane : public Cube {
+//     public:
+//         Plane(Application* app);
+//
+//     private:
+//         std::map<int, Mesh> mMeshes;
+// };
 
 // struct alignas(16) Line {
 //         glm::vec4 p1;

@@ -12,7 +12,8 @@
 
 #include "input_manager.h"
 
-class Model;  // Forward declaration
+class Model;      // Forward declaration
+class BaseModel;  // Forward declaration
 class Application;
 class Camera;
 
@@ -21,15 +22,15 @@ class Camera;
 class Behaviour {
     public:
         virtual void sayHello();
-        virtual void handleKey(Model* model, KeyEvent event, float dt);
-        virtual void handleMouseMove(Model* model, MouseEvent event);
-        virtual void handleMouseClick(Model* model, MouseEvent event);
-        virtual void handleMouseScroll(Model* model, MouseEvent event);
-        virtual void handleAttachedCamera(Model* model, Camera* camera);
-        virtual void update(Model* model, float dt);
+        virtual void handleKey(BaseModel* model, KeyEvent event, float dt);
+        virtual void handleMouseMove(BaseModel* model, MouseEvent event);
+        virtual void handleMouseClick(BaseModel* model, MouseEvent event);
+        virtual void handleMouseScroll(BaseModel* model, MouseEvent event);
+        virtual void handleAttachedCamera(BaseModel* model, Camera* camera);
+        virtual void update(BaseModel* model, float dt);
         virtual glm::vec3 getForward();
-        virtual Model* getWeapon();
-        virtual void onModelLoad(Model* model);
+        virtual BaseModel* getWeapon();
+        virtual void onModelLoad(BaseModel* model);
 
         std::string name;
         Application* app;

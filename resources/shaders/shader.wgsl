@@ -332,7 +332,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //color = pow(color, vec3(1.2));
 
 
-    return vec4f(color, 1.0);
+    return vec4f(color, frag_ambient.a);
     //return vec4f(lo, 1.0);
     //return vec4f(vec3f(handedness * 255.0, 0.0, 0.0), 1.0);
     //let animated = f32(in.materialProps >> 6);

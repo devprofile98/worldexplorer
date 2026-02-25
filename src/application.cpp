@@ -26,6 +26,7 @@
 #include "renderpass.h"
 #include "shapes.h"
 #include "skybox.h"
+#include "terrain.h"
 #include "world.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -87,9 +88,199 @@ static float middle_plane_length = 15.0f;
 static float far_plane_length = 20.5f;
 bool should_update_csm = true;
 
-static auto position_offset = glm::vec3{5, 0.5, 0.7};
-static auto scale_offset = glm::vec3{0.9};
-static auto rotation_offset = glm::quat{1.0, {0.0, -.1, 0.7}};
+void loadModelFromFilesystem(World* world) {
+    static bool open_popup = false;
+    static nfdu8char_t* output;
+    static const nfdpathset_t* paths;
+    static char model_name[100];
+    if (ImGui::Button("add Model")) {
+        nfdresult_t result = NFD_OpenDialogMultipleU8(&paths, nullptr, 0, nullptr);
+        if (result == NFD_OKAY) {
+            puts("Success!");
+            open_popup = true;
+
+        } else if (result == NFD_CANCEL) {
+            puts("User pressed cancel.");
+        } else {
+            printf("Error: %s\n", NFD_GetError());
+        }
+    }
+    if (open_popup) {
+        ImGui::OpenPopup("Import Settings");
+
+        if (ImGui::BeginPopupModal("Import Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextWrapped("Importing:\n%s", output);
+            ImGui::Separator();
+
+            static bool isAnimated = true;
+            static int coordinate_system = 0;
+            static CoordinateSystem cs = Z_UP;
+
+            ImGui::InputText("Name", model_name, 100);
+            ImGui::Checkbox("Is Animated", &isAnimated);
+            if (ImGui::Combo("Coordinate System", &coordinate_system, "Z UP\0Y UP\0")) {
+                switch (coordinate_system) {
+                    case 0:
+                        cs = Z_UP;
+                        break;
+                    case 1:
+                        cs = Y_UP;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            ImGui::Separator();
+            if (ImGui::Button("Import")) {
+                nfdpathsetsize_t listcount = 0;
+                NFD_PathSet_GetCount(paths, &listcount);
+                for (size_t i = 0; i < listcount; ++i) {
+                    NFD_PathSet_GetPath(paths, i, &output);
+                    std::cout << output << std::endl;
+
+                    world->loadModel(ObjectLoaderParam{0,
+                                                       model_name,
+                                                       output,
+                                                       isAnimated,
+                                                       cs,
+                                                       std::array<float, 3>{0.0, 0.0, 0.0},
+                                                       std::array<float, 3>{1.0, 1.0, 1.0},
+                                                       std::array<float, 3>{1.0, 1.0, 1.0},
+                                                       {},
+                                                       "",
+                                                       {}});
+                }
+
+                ImGui::CloseCurrentPopup();
+                open_popup = false;  // openImportPopup = false;
+                NFD_PathSet_Free(paths);
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel")) {
+                ImGui::CloseCurrentPopup();
+                open_popup = false;
+                NFD_PathSet_Free(paths);
+            }
+
+            ImGui::EndPopup();
+        }
+    }
+}
+
+namespace {
+
+void loaderCallback(TextureLoader::LoadRequest* request) {
+    // Heavy work: read file + generate mipmaps on CPU
+    request->baseTexture->writeBaseTexture(request->path);
+    request->baseTexture->uploadToGPU(request->queue);
+    request->promise.set_value(request->baseTexture);
+}
+}  // namespace
+
+void loadTextureFromFilesystem(Application* app) {
+    static bool open_popup = false;
+    static nfdu8char_t* output;
+    static const nfdpathset_t* paths;
+    static char model_name[100];
+    if (ImGui::Button("Add Texture")) {
+        nfdresult_t result = NFD_OpenDialogMultipleU8(&paths, nullptr, 0, nullptr);
+        if (result == NFD_OKAY) {
+            nfdpathsetsize_t listcount = 0;
+            NFD_PathSet_GetCount(paths, &listcount);
+            for (size_t i = 0; i < listcount; ++i) {
+                NFD_PathSet_GetPath(paths, i, &output);
+
+                auto cached = app->mTextureRegistery->get(output);
+                if (cached != nullptr) {
+                    return;
+                }
+
+                auto texture = std::make_shared<Texture>(app->getRendererResource().device, output);  // reads file here
+
+                // queue async load
+                auto future = app->mTextureRegistery->mLoader.loadAsync(output, app->getRendererResource().queue,
+                                                                        texture, loaderCallback);
+
+                app->mTextureRegistery->addToRegistery(output, texture);
+
+                if (texture->createView() == nullptr) {
+                    std::cout << std::format("Failed to create view for at {}\n", output);
+                } else {
+                    std::cout << std::format("Successfully loaded texture at {}\n", output);
+                }
+            }
+
+        } else if (result == NFD_CANCEL) {
+            std::cout << "User pressed cancel.\n";
+        } else {
+            std::cout << "Error: " << NFD_GetError() << std::endl;
+        }
+    }
+
+    // if (open_popup) {
+    //     ImGui::OpenPopup("Import Settings");
+    //
+    //     if (ImGui::BeginPopupModal("Import Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    //         ImGui::TextWrapped("Importing:\n%s", output);
+    //         ImGui::Separator();
+    //
+    //         static bool isAnimated = true;
+    //         static int coordinate_system = 0;
+    //         static CoordinateSystem cs = Z_UP;
+    //
+    //         ImGui::InputText("Name", model_name, 100);
+    //         ImGui::Checkbox("Is Animated", &isAnimated);
+    //         if (ImGui::Combo("Coordinate System", &coordinate_system, "Z UP\0Y UP\0")) {
+    //             switch (coordinate_system) {
+    //                 case 0:
+    //                     cs = Z_UP;
+    //                     break;
+    //                 case 1:
+    //                     cs = Y_UP;
+    //                     break;
+    //                 default:
+    //                     break;
+    //             }
+    //         }
+    //
+    //         ImGui::Separator();
+    //         if (ImGui::Button("Import")) {
+    //             nfdpathsetsize_t listcount = 0;
+    //             NFD_PathSet_GetCount(paths, &listcount);
+    //             for (size_t i = 0; i < listcount; ++i) {
+    //                 NFD_PathSet_GetPath(paths, i, &output);
+    //                 std::cout << output << std::endl;
+    //
+    //                 world->loadModel(ObjectLoaderParam{model_name,
+    //                                                    output,
+    //                                                    isAnimated,
+    //                                                    cs,
+    //                                                    std::array<float, 3>{0.0, 0.0, 0.0},
+    //                                                    std::array<float, 3>{1.0, 1.0, 1.0},
+    //                                                    std::array<float, 3>{1.0, 1.0, 1.0},
+    //                                                    {},
+    //                                                    "",
+    //                                                    {}});
+    //             }
+    //
+    //             ImGui::CloseCurrentPopup();
+    //             open_popup = false;  // openImportPopup = false;
+    //             NFD_PathSet_Free(paths);
+    //         }
+    //
+    //         ImGui::SameLine();
+    //         if (ImGui::Button("Cancel")) {
+    //             ImGui::CloseCurrentPopup();
+    //             open_popup = false;
+    //             NFD_PathSet_Free(paths);
+    //         }
+    //
+    //         ImGui::EndPopup();
+    //     }
+    // }
+}
 
 WGPUTextureView getNextSurfaceTextureView(RendererResource& resources);
 WGPULimits GetRequiredLimits(WGPUAdapter adapter);
@@ -625,6 +816,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     initializeBuffers();
     initializePipeline();
 
+    // TerrainModel tmodel;
+
     physics::prepareJolt();
 
     mWorld = new World{this};
@@ -751,8 +944,8 @@ void Application::mainLoop() {
             auto socket_global = glm::mat4{1.0f};
 
             if (m->mSocket->type == AnchorType::Bone) {
-                if (base->anim->activeAction->calculatedTransform.contains(m->mSocket->anchorName)) {
-                    auto trans = base->anim->activeAction->calculatedTransform[m->mSocket->anchorName];
+                if (base->getAnimation()->getActiveAction()->calculatedTransform.contains(m->mSocket->anchorName)) {
+                    auto trans = base->getAnimation()->getActiveAction()->calculatedTransform[m->mSocket->anchorName];
 
                     auto [t, s, r] = decomposeTransformation(base->mTransform.mTransformMatrix * trans);
                     // socket_global = base->mTransform.mTransformMatrix * trans;
@@ -955,14 +1148,35 @@ void Application::mainLoop() {
         // {
         ZoneScopedNC("Color Pass", 0xFF);
         wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
+        std::vector<Model*> opaques;
+        std::vector<Model*> transparents;
         for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-            // if (!model->isTransparent()) {
-            // if (model->getName() != "ghamgham" && model->getName() != "human") {
-            // model->draw(this, render_pass_encoder);
-            // } else {
+            if (model->isTransparent()) {
+                transparents.push_back(model);
+            } else {
+                opaques.push_back(model);
+            }
+        }
+        for (const auto& model : opaques) {
             model->drawHirarchy(this, render_pass_encoder);
-            // }
-            // }
+        }
+
+        // sorting transparent models
+        glm::vec3 camera_pos = mCamera.getPos();  // adjust to your camera API
+
+        // Sort transparent models back to front (farthest first)
+        std::sort(transparents.begin(), transparents.end(), [&](const Model* a, const Model* b) {
+            glm::vec3 pos_a = a->mTransform.mPosition;
+            glm::vec3 pos_b = b->mTransform.mPosition;
+
+            float dist_a = glm::length2(pos_a - camera_pos);  // length2 = squared distance, faster
+            float dist_b = glm::length2(pos_b - camera_pos);
+
+            return dist_a > dist_b;  // farthest first
+        });
+
+        for (const auto& model : transparents) {
+            model->drawHirarchy(this, render_pass_encoder);
         }
     }
 
@@ -1333,83 +1547,11 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::Text("\nClip Plane");
 
             if (ImGui::CollapsingHeader("Skybox", ImGuiTreeNodeFlags_DefaultOpen)) {
-                static bool open_popup = false;
-                static nfdu8char_t* output;
-                static const nfdpathset_t* paths;
-                if (ImGui::Button("Open file")) {
-                    nfdresult_t result = NFD_OpenDialogMultipleU8(&paths, nullptr, 0, nullptr);
-                    if (result == NFD_OKAY) {
-                        puts("Success!");
-                        open_popup = true;
+            }
 
-                    } else if (result == NFD_CANCEL) {
-                        puts("User pressed cancel.");
-                    } else {
-                        printf("Error: %s\n", NFD_GetError());
-                    }
-                }
-                if (open_popup) {
-                    ImGui::OpenPopup("Import Settings");
-
-                    if (ImGui::BeginPopupModal("Import Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-                        ImGui::TextWrapped("Importing:\n%s", output);
-                        ImGui::Separator();
-
-                        static bool isAnimated = true;
-                        static int coordinate_system = 0;
-                        static CoordinateSystem cs = Z_UP;
-
-                        ImGui::Checkbox("Is Animated", &isAnimated);
-                        if (ImGui::Combo("Coordinate System", &coordinate_system, "Z UP\0Y UP\0")) {
-                            switch (coordinate_system) {
-                                case 0:
-                                    cs = Z_UP;
-                                    break;
-                                case 1:
-                                    cs = Y_UP;
-                                    break;
-                                default:
-                                    break;
-                            }
-                        }
-
-                        ImGui::Separator();
-                        if (ImGui::Button("Import")) {
-                            nfdpathsetsize_t listcount = 0;
-                            NFD_PathSet_GetCount(paths, &listcount);
-                            for (size_t i = 0; i < listcount; ++i) {
-                                NFD_PathSet_GetPath(paths, i, &output);
-                                std::cout << output << std::endl;
-                                // ObjectLoaderParam param{name,  path,   is_animated, cs,           translate,
-                                //                         scale, rotate, childs,      default_clip, socket_param};
-
-                                mWorld->loadModel(ObjectLoaderParam{"ahmad",
-                                                                    output,
-                                                                    isAnimated,
-                                                                    cs,
-                                                                    std::array<float, 3>{0.0, 0.0, 0.0},
-                                                                    std::array<float, 3>{1.0, 1.0, 1.0},
-                                                                    std::array<float, 3>{1.0, 1.0, 1.0},
-                                                                    {},
-                                                                    "",
-                                                                    {}});
-                            }
-
-                            ImGui::CloseCurrentPopup();
-                            open_popup = false;  // openImportPopup = false;
-                            NFD_PathSet_Free(paths);
-                        }
-
-                        ImGui::SameLine();
-                        if (ImGui::Button("Cancel")) {
-                            ImGui::CloseCurrentPopup();
-                            open_popup = false;
-                            NFD_PathSet_Free(paths);
-                        }
-
-                        ImGui::EndPopup();
-                    }
-                }
+            if (ImGui::CollapsingHeader("Add Resources", ImGuiTreeNodeFlags_DefaultOpen)) {
+                loadModelFromFilesystem(mWorld);
+                loadTextureFromFilesystem(this);
             }
             if (ImGui::DragFloat4("clip plane:", glm::value_ptr(mDefaultPlane))) {
                 mDefaultClipPlaneBuf.queueWrite(0, glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
@@ -1423,8 +1565,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::BeginChild("ScrollableList", ImVec2(0, 200),
                               ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY);
 
-            for (const auto& item :
-                 ModelRegistry::instance().getLoadedModel(Visibility_User) /*mWorld->rootContainer*/) {
+            for (const auto& item : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
                 // Create a unique ID for each selectable item based on its unique item.id
                 ImGui::PushID((void*)item);
 
@@ -1533,7 +1674,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
                                 auto& selected_name = item->mSocket->anchorName;
                                 if (ImGui::BeginCombo("Bone", selected_name.c_str())) {
-                                    for (auto& [key, value] : base_model->anim->activeAction->Bonemap) {
+                                    for (auto& [key, value] : base_model->getAnimation()->getActiveAction()->Bonemap) {
                                         bool selected = (key == selected_name);
                                         if (ImGui::Selectable(key.c_str(), selected)) {
                                             selected_name = key;
@@ -1591,11 +1732,12 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
                             case 2: {
                                 auto* base_model = reinterpret_cast<Model*>(base);
-                                if (base_model->anim && base_model->anim->activeAction) {
+                                if (base_model->getAnimation() && base_model->getAnimation()->getActiveAction()) {
                                     static std::string selectedKey;
 
                                     if (ImGui::BeginCombo("Bone", selectedKey.c_str())) {
-                                        for (auto& [key, value] : base_model->anim->activeAction->Bonemap) {
+                                        for (auto& [key, value] :
+                                             base_model->getAnimation()->getActiveAction()->Bonemap) {
                                             bool selected = (key == selectedKey);
                                             if (ImGui::Selectable(key.c_str(), selected)) {
                                                 anchor_name = key;

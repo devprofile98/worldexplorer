@@ -111,11 +111,12 @@ std::string coordinateSystemToString(const CoordinateSystem& cs) {
     }
 }
 
-void to_json(json& j, const Model& m) {
+void to_json(json& j, const BaseModel& m) {
     const auto& t = m.mTransform.mPosition;
     const auto& s = m.mTransform.mScale;
     const auto& r = glm::eulerAngles(m.mTransform.mOrientation);
-    std::string default_clip = m.mDefaultAction != nullptr ? m.mDefaultAction->name : "";
+    // std::string default_clip = m.mDefaultAction != nullptr ? m.mDefaultAction->name : "";
+    std::string default_clip = "";
 
     j = json{
         {"id", m.mName},
@@ -150,7 +151,7 @@ void to_json(json& j, const Model& m) {
     // std::cout << "Model: " << j << std::endl;
 }
 
-TransformProperties calculateChildTransform(Model* parent, Model* child) {
+TransformProperties calculateChildTransform(BaseModel* parent, BaseModel* child) {
     auto new_local_transform = glm::inverse(parent->getGlobalTransform()) * child->mTransform.mTransformMatrix;
     return decomposeTransformation(new_local_transform);
 }
@@ -182,17 +183,17 @@ void World::exportScene() {
     scene["colliders"] = colliders;
     scene["lights"] = jlights;
     scene["cameras"] = json::array();
-    scene["actor"] = actor->getName();
+    scene["actor"] = actor != nullptr ? actor->getName() : "";
 
     auto scene_dump = scene.dump(2);
     std::cout << scene_dump << std::endl;
     std::ofstream out;
-    out.open("resources/world.json", std::ios::out);
-    out.write(scene_dump.c_str(), scene_dump.size());
-    // out << scene_dump;
+    // out.open("resources/world.json", std::ios::out);
+    // out.write(scene_dump.c_str(), scene_dump.size());
+    out << scene_dump;
 }
 
-Model* World::makeChild(Model* parent, Model* child) {
+Model* World::makeChild(BaseModel* parent, BaseModel* child) {
     // remove from the last parent
     removeParent(child);
 
@@ -217,7 +218,7 @@ World::World(Application* app) : app(app) {
     input_manager.mMouseScrollListeners.push_back(this);
 }
 
-void World::removeParent(Model* child) {
+void World::removeParent(BaseModel* child) {
     /* In this case, the model should be in the rootContainer of the world, we should remove it from here*/
     if (child->mParent == nullptr) {
         auto& vec = rootContainer;
@@ -263,6 +264,18 @@ void World::onNewModel(Model* loadedModel) {
     if (actorName == loadedModel->mName) {
         actor = loadedModel;
     }
+
+    if (map.contains(loadedModel->mName)) {
+        auto params = map.at(loadedModel->mName);
+        if (params.type == 1) {
+            for (auto* model : rootContainer) {
+                std::cout << model->getName() << " is of type 2 " << std::endl;
+                model->moveTo(params.translate);
+                model->scale(params.scale);
+                std::cout << glm::to_string(params.scale) << std::endl;
+            }
+        }
+    }
     // traverse the world to check if the parent and which are its childs
     // There are 2 questions for the newly loaded model:
     // 1 - Is any of the loaded models your child in term of parent/child relations?
@@ -299,7 +312,7 @@ load_socket:
     {
         if (map.contains(loadedModel->mName)) {
             auto param = map.at(loadedModel->mName).socketParam;
-            Model* target = nullptr;
+            BaseModel* target = nullptr;
             if (param.isValid) {
                 for (auto* suspect : rootContainer) {
                     if (suspect->mName == param.name) {
@@ -310,8 +323,12 @@ load_socket:
                 if (target != nullptr) {
                     // std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@ " << param.anchor << " Is the attaching bone for "
                     //           << loadedModel->mName << "\n";
-                    loadedModel->mSocket =
-                        new BoneSocket{target, param.anchor, param.translate, param.scale, param.rotate, param.type};
+                    loadedModel->mSocket = new BoneSocket{/*TODO*/ static_cast<Model*>(target),
+                                                          param.anchor,
+                                                          param.translate,
+                                                          param.scale,
+                                                          param.rotate,
+                                                          param.type};
                     goto end;
                 }
             }
@@ -393,10 +410,11 @@ void World::onMouseScroll(MouseEvent event) {
 
 glm::vec3 toGlm(std::array<float, 3> arr) { return glm::vec3{arr[0], arr[1], arr[2]}; }
 
-ObjectLoaderParam::ObjectLoaderParam(std::string name, std::string path, bool animated, CoordinateSystem cs,
+ObjectLoaderParam::ObjectLoaderParam(int type, std::string name, std::string path, bool animated, CoordinateSystem cs,
                                      Vec translate, Vec scale, Vec rotate, std::vector<std::string> childrens,
                                      std::string defaultClip, SocketParams socketParam)
     : socketParam(socketParam),
+      type(type),
       name(name),
       path(path),
       animated(animated),
@@ -430,9 +448,6 @@ struct BaseModelLoader : public IModel {
                     bones.emplace_back(glm::mat4{1.0});
                 }
                 mModel->mSkiningTransformationBuffer.queueWrite(0, bones.data(), sizeof(glm::mat4) * bones.size());
-                // wgpuQueueWriteBuffer(app->getRendererResource().queue,
-                // mModel->mSkiningTransformationBuffer.getBuffer(),
-                //                      0, bones.data(), sizeof(glm::mat4) * bones.size());
             }
             // if mesh in node animated
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
@@ -471,8 +486,6 @@ struct BaseModelLoader : public IModel {
                     (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
                     ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
 
-                std::cout << "(((((((((((((((( in mesh " << mModel->mFlattenMeshes.size() << std::endl;
-
                 mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + mModel->getName()).c_str())
                     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
                               WGPUBufferUsage_CopyDst)
@@ -483,12 +496,13 @@ struct BaseModelLoader : public IModel {
 
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
 
-            if (getModel()->mTransform.mObjectInfo.isAnimated) {
-                for (auto [name, action] : getModel()->anim->actions) {
+            if (mModel->mTransform.mObjectInfo.isAnimated) {
+                for (auto [name, action] : mModel->getAnimation()->actions) {
                     action->loop = true;
                 }
-                getModel()->anim->playAction(param.defaultClip, true);
-                getModel()->mDefaultAction = getModel()->anim->activeAction;
+                mModel->getAnimation()->playAction(param.defaultClip, true);
+                // mModel->mDefaultAction = mModel->anim->activeAction;
+                mModel->setDefaultAction(mModel->getAnimation()->getActiveAction());
             }
         }
 
@@ -496,7 +510,6 @@ struct BaseModelLoader : public IModel {
         void onLoad(Application* app, void* params) override {
             (void)params;
             (void)app;
-            // getModel()->mBehaviour->app = app;
         };
 };
 
@@ -623,6 +636,7 @@ void World::loadWorld() {
     for (const auto& object : res["objects"]) {
         std::cout << "Object " << object["name"] << " at " << object["path"] << "\n";
 
+        int type = object["type"].get<int>();
         std::string name = object["name"].get<std::string>();
         std::string path = object["path"].get<std::string>();
         bool is_enabled = object["enabled"].get<bool>();
@@ -653,8 +667,8 @@ void World::loadWorld() {
         } else {
         }
 
-        ObjectLoaderParam param{name,  path,   is_animated, cs,           translate,
-                                scale, rotate, childs,      default_clip, socket_param};
+        ObjectLoaderParam param{type,  name,   path,   is_animated,  cs,          translate,
+                                scale, rotate, childs, default_clip, socket_param};
 
         param.instanceTransformations = instance_info;
 
@@ -665,8 +679,15 @@ void World::loadWorld() {
         }
 
         // Add resource type and allow loading of arbitrary model
-        param.path = RESOURCE_DIR + std::string{"/"} + param.path;
-        loadModel(param);
+        if (param.path.starts_with("rc://")) {
+            param.path.replace(0, 5, "");
+            std::cout << "path read is " << param.path << std::endl;
+            param.path = RESOURCE_DIR + std::string{"/"} + param.path;
+        }
+        // param.path = RESOURCE_DIR + std::string{"/"} + param.path;
+        if (type == 0) {
+            loadModel(param);
+        }
         map.emplace(name, param);
     }
 

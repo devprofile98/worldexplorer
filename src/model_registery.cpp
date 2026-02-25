@@ -8,16 +8,16 @@
 #include "world.h"
 
 void Behaviour::sayHello() { std::cout << "hello from " << name << '\n'; }
-void Behaviour::handleKey(Model* model, KeyEvent event, float dt) {}
-void Behaviour::handleMouseMove(Model* model, MouseEvent event) {}
-void Behaviour::handleMouseClick(Model* model, MouseEvent event) {}
-void Behaviour::handleMouseScroll(Model* model, MouseEvent event) {}
-void Behaviour::handleAttachedCamera(Model* model, Camera* camera) {}
-void Behaviour::update(Model* model, float dt) {}
-void Behaviour::onModelLoad(Model* model) {}
+void Behaviour::handleKey(BaseModel* model, KeyEvent event, float dt) {}
+void Behaviour::handleMouseMove(BaseModel* model, MouseEvent event) {}
+void Behaviour::handleMouseClick(BaseModel* model, MouseEvent event) {}
+void Behaviour::handleMouseScroll(BaseModel* model, MouseEvent event) {}
+void Behaviour::handleAttachedCamera(BaseModel* model, Camera* camera) {}
+void Behaviour::update(BaseModel* model, float dt) {}
+void Behaviour::onModelLoad(BaseModel* model) {}
 
 glm::vec3 Behaviour::getForward() { return glm::vec3{0.0}; }
-Model* Behaviour::getWeapon() { return nullptr; }
+BaseModel* Behaviour::getWeapon() { return nullptr; }
 
 ModelRegistry& ModelRegistry::instance() {
     static ModelRegistry inst;

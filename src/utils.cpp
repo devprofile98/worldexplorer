@@ -457,21 +457,6 @@ Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::ve
         }
     }
 
-    // calculate normals Using Cross product of 2 side of the triangle
-
-    // for (size_t t = 0; t < indices.size(); t += 3) {
-    //     auto a = vertices[indices[t]].position;
-    //     auto b = vertices[indices[t + 1]].position;
-    //     auto c = vertices[indices[t + 2]].position;
-    //
-    //     auto ba = glm::vec3{b.x - a.x, b.y - a.y, b.z - a.z};
-    //     auto ca = glm::vec3{c.x - a.x, c.y - a.y, c.z - a.z};
-    //     auto normal = glm::cross(ba, ca);
-    //     vertices[indices[t]].normal = normal;
-    //     vertices[indices[t + 1]].normal = normal;
-    //     vertices[indices[t + 2]].normal = normal;
-    // }
-
     // calculate normal using centeral derivative
     auto gridSpacing_x = 1;
     auto gridSpacing_z = 1;
@@ -736,13 +721,13 @@ IntersectionRes testIntersection(Camera& camera, size_t width, size_t height, st
                 auto [_, obj_in_world_min, obj_in_world_max] = ins->mInstanceBuffer[i];
                 bool does_intersect = intersection(ray_origin, worldray, obj_in_world_min, obj_in_world_max);
                 auto is_inside = isInside(ray_origin, obj_in_world_min, obj_in_world_max);
-                if (does_intersect && !is_inside) {
+                if (does_intersect && !is_inside && obj->getVisible()) {
                     std::cout << "Instance object is intersecting with the ray!\n";
                     hits.emplace_back(ins->createInstanceWrapper(i), glm::vec3(ins->mPositions[i]));
                 }
             }
         }
-        if (does_intersect && !is_inside) {
+        if (does_intersect && !is_inside && obj->getVisible()) {
             hits.emplace_back(obj, obj->mTransform.mPosition);
         }
     }

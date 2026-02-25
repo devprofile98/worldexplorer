@@ -121,10 +121,11 @@ add_executable(
     src/animation.cpp
     src/world.cpp
 
-    src/tree.cpp
+    # src/tree.cpp
 
     # Game files and logics
     src/character.cpp
+    src/terrain.cpp
 
     ${TRACY_SOURCES}
     

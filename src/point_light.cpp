@@ -84,7 +84,7 @@ void LightManager::updateCount() {
                          sizeof(uint32_t));
 }
 
-Light* LightManager::get(size_t index) { return &mLights[index]; }
+Light* LightManager::get(size_t index) { return mLights.size() > 0 ? &mLights[index] : nullptr; }
 
 void LightManager::uploadToGpu(Application* app, WGPUBuffer buffer) {
     updateCount();
@@ -112,6 +112,8 @@ void LightManager::update() {
 
 void LightManager::renderGUI() {
     auto* light = get(mSelectedLightInGui);
+    if (light) {
+    }
     bool changed = false;
 
     // -------------------------- Start 2 Columns -----------------------------------
@@ -142,38 +144,39 @@ void LightManager::renderGUI() {
 
     // -------------------------- Second Column -----------------------------------
     ImGui::NextColumn();
-    auto& light_name = mLightsNames[mSelectedLightInGui];
-    // changed |= ImGui::InputText("Name##env", (const char*)light_name.c_str(), light_name.size());
-    changed |= ImGui::ColorEdit3("Color##env", glm::value_ptr(light->mAmbient));
-    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-        changed |= ImGui::DragFloat3("Position##env", glm::value_ptr(light->mPosition), 1.0, -20.0f, 20.0f);
 
-        if (light->type == SPOT) {
-            changed |= ImGui::DragFloat3("sDirection##env", glm::value_ptr(light->mDirection), 1.0, -1.0, 1.0f);
-        }
-    }
-    if (ImGui::CollapsingHeader("Attenuation", ImGuiTreeNodeFlags_DefaultOpen)) {
-        changed |= ImGui::DragFloat("Linear##env", &light->mLinear, 1.0, -10.0f, 10.0f);
-        if (light->type == SPOT) {
-            changed |= ImGui::DragFloat("Inner Cutoff##env", &light->mInnerCutoff, 1.0, 0, 2.0);
-            changed |= ImGui::DragFloat("outer Cutoff##env", &light->mOuterCutoff, 1.0, 0, 2.0);
-        }
-        changed |= ImGui::DragFloat("Quadratic##env", &light->mQuadratic, 1.0, -10.0f, 10.0f);
-    }
-    if (changed) {
-        if (boxId < 1024) {
-            glm::mat4 t{1.0};
-            t = glm::translate(t, glm::vec3(light->mPosition));
-            glm::quat rot = rotationBetweenVectors(glm::vec3{0.0, 0.0, 1.0}, light->mDirection);
+    if (light != nullptr) {
+        changed |= ImGui::ColorEdit3("Color##env", glm::value_ptr(light->mAmbient));
+        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+            changed |= ImGui::DragFloat3("Position##env", glm::value_ptr(light->mPosition), 1.0, -20.0f, 20.0f);
 
-            mApp->mLineEngine->updateLineTransformation(boxId, t * glm::toMat4(rot));
-        } else {
-            boxId = mApp->mLineEngine->addLines(generateCone());
+            if (light->type == SPOT) {
+                changed |= ImGui::DragFloat3("sDirection##env", glm::value_ptr(light->mDirection), 1.0, -1.0, 1.0f);
+            }
         }
-        wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->mLightBuffer.getBuffer(),
-                             sizeof(Light) * mSelectedLightInGui, light, sizeof(Light));
+        if (ImGui::CollapsingHeader("Attenuation", ImGuiTreeNodeFlags_DefaultOpen)) {
+            changed |= ImGui::DragFloat("Linear##env", &light->mLinear, 1.0, -10.0f, 10.0f);
+            if (light->type == SPOT) {
+                changed |= ImGui::DragFloat("Inner Cutoff##env", &light->mInnerCutoff, 1.0, 0, 2.0);
+                changed |= ImGui::DragFloat("outer Cutoff##env", &light->mOuterCutoff, 1.0, 0, 2.0);
+            }
+            changed |= ImGui::DragFloat("Quadratic##env", &light->mQuadratic, 1.0, -10.0f, 10.0f);
+        }
+        if (changed) {
+            if (boxId < 1024) {
+                glm::mat4 t{1.0};
+                t = glm::translate(t, glm::vec3(light->mPosition));
+                glm::quat rot = rotationBetweenVectors(glm::vec3{0.0, 0.0, 1.0}, light->mDirection);
+
+                mApp->mLineEngine->updateLineTransformation(boxId, t * glm::toMat4(rot));
+            } else {
+                boxId = mApp->mLineEngine->addLines(generateCone());
+            }
+            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->mLightBuffer.getBuffer(),
+                                 sizeof(Light) * mSelectedLightInGui, light, sizeof(Light));
+        }
+        // -------------------------- Back to first Column -----------------------------------
     }
-    // -------------------------- Back to first Column -----------------------------------
     ImGui::Columns(1);
 
     static char new_light_name[32]{0};

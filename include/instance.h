@@ -51,7 +51,6 @@ class Instance {
         // Getter
         size_t getInstanceCount();
         uint16_t getInstanceID();
-        // uint16_t addNewInstance(const glm::vec3& positoin, const glm::vec3& scale, const glm::quat& rot);
         uint16_t duplicateLastInstance(const glm::vec3& posOffset, const glm::vec3& min, const glm::vec3& max);
         void dumpJson();
         SingleInstance createInstanceWrapper(size_t index);
@@ -62,7 +61,6 @@ class Instance {
         std::vector<InstanceData> mInstanceBuffer;
         uint16_t mOffsetID = 0;
         BaseModel* parent = nullptr;
-        // Application* mApp = nullptr;
         InstanceManager* mManager = nullptr;
 };
 

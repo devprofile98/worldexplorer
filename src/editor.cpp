@@ -158,13 +158,16 @@ void GizmoElement::onMouseMove(MouseEvent event) {
                 GizmoElement::mSelectedPart->selected(false);
                 GizmoElement::mSelectedPart = nullptr;
             }
+            // std::cout << "we are in mouse move\n";
         }
     } else if (GizmoElement::mSelectedPart != nullptr) {  // If gizmo handle is already selected, start modifying
+        std::cout << "we are in mouse move " << GizmoElement::mMode << std::endl;
         if (GizmoElement::mMode == GizmoModeTranslation) {
             glm::vec3 final_pos = glm::vec3(0.0);
             if (std::holds_alternative<BaseModel*>(editor_selected)) {
                 BaseModel* selected_entity = std::get<BaseModel*>(editor_selected);
                 auto& pos = selected_entity->mTransform.getPosition();
+                std::cout << "We are moving " << selected_entity->getName() << std::endl;
                 auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
                 if (new_pos.has_value()) {
                     selected_entity->moveTo(new_pos.value());
@@ -263,6 +266,8 @@ void GizmoElement::onMouseMove(MouseEvent event) {
                 }
             }
         }
+    } else {
+        std::cout << "last else\n";
     }
 }
 
