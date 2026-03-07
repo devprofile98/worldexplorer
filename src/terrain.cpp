@@ -2,12 +2,18 @@
 #include "terrain.h"
 
 #include "application.h"
+#include "glm/fwd.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "model.h"
+#include "shapes.h"
 #include "terrain_pass.h"
+#include "utils.h"
+
+// #define WIREFRAME_ENABLED
 
 TerrainModel::TerrainModel(Application* app) : Model(CoordinateSystem::Z_UP) {
     BaseModel::mName = "terrain";
+    BaseModel::setType(ModelTypes::CODE);
     mApp = app;
 }
 
@@ -54,7 +60,7 @@ Model& TerrainModel::load(std::string name, Application* app, const std::filesys
     Drawable::configure(app);
 
     mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
-        .setSize(20 * sizeof(glm::mat4))
+        .setSize(sizeof(glm::mat4))
         .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
         .create(&app->getRendererResource());
 
@@ -68,19 +74,29 @@ Model& TerrainModel::load(std::string name, Application* app, const std::filesys
     std::vector<glm::vec3> out;
     terrain.generate(200, 8, out);
     mesh.mVertexData = std::move(terrain.vertices);
+    mesh.mName = "plane";
     for (auto index : terrain.indices) {
         mesh.mIndexData.push_back(index);
     }
+
+#ifdef WIREFRAME_ENABLED
+    auto mesh_wireframe_lines = generateFromMesh(mesh.mIndexData, mesh.mVertexData);
+    wireFrame = app->mLineEngine->create(mesh_wireframe_lines, mTransform.mTransformMatrix, glm::vec3{1.0, 0.0, 0.0});
+#endif
+
     return *this;
 }
 
 void TerrainModel::update(Application* app, float dt, float physicSimulating) {
     if (mTransform.mDirty) {
+#ifdef WIREFRAME_ENABLED
+        wireFrame.updateTransformation(mTransform.mTransformMatrix);
+#endif
         wgpuQueueWriteBuffer(app->getRendererResource().queue, Drawable::getUniformBuffer().getBuffer(), 0,
                              &mTransform.mObjectInfo, sizeof(ObjectInfo));
         for (auto& [id, mesh] : mFlattenMeshes) {
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial,
-                                 sizeof(Material));
+                                 sizeof(ShaderMaterial));
         }
         mTransform.mDirty = false;
     }
@@ -108,6 +124,7 @@ USER_REGISTER_MODEL("terrain", TTerrain);
 
 Cube::Cube(Application* app) : Model(CoordinateSystem::Z_UP) {
     BaseModel::mName = "cube22";
+    BaseModel::setType(ModelTypes::CODE);
     mApp = app;
 }
 
@@ -151,7 +168,7 @@ Model& Cube::load(std::string name, Application* app, const std::filesystem::pat
     Drawable::configure(app);
 
     mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
-        .setSize(20 * sizeof(glm::mat4))
+        .setSize(sizeof(glm::mat4))
         .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
         .create(&app->getRendererResource());
 
@@ -210,16 +227,24 @@ Model& Cube::load(std::string name, Application* app, const std::filesystem::pat
         20, 21, 22, 20, 22, 23,  // Bottom
     };
 
+#ifdef WIREFRAME_ENABLED
+    auto mesh_wireframe_lines = generateFromMesh(mesh.mIndexData, mesh.mVertexData);
+    wireFrame = app->mLineEngine->create(mesh_wireframe_lines, mTransform.mTransformMatrix, glm::vec3{1.0, 0.0, 0.0});
+#endif
+
     return *this;
 }
 
 void Cube::update(Application* app, float dt, float physicSimulating) {
     if (mTransform.mDirty) {
+#ifdef WIREFRAME_ENABLED
+        wireFrame.updateTransformation(mTransform.mTransformMatrix);
+#endif
         wgpuQueueWriteBuffer(app->getRendererResource().queue, Drawable::getUniformBuffer().getBuffer(), 0,
                              &mTransform.mObjectInfo, sizeof(ObjectInfo));
         for (auto& [id, mesh] : mFlattenMeshes) {
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial,
-                                 sizeof(Material));
+                                 sizeof(ShaderMaterial));
         }
         mTransform.mDirty = false;
     }

@@ -23,6 +23,27 @@
 static glm::vec3 starting_scale;
 static bool starting_touch = false;
 
+void GizmoElement::setGizmoModel(GizmoMode mode) {
+    GizmoElement::mMode = mode;
+    BaseModel* gizmos[] = {GizmoElement::z, GizmoElement::x, GizmoElement::y};
+    if (mMode == GizmoModeTranslation || mMode == GizmoModeRotation) {
+        for (auto& gizmo : gizmos) {
+            for (auto& [id, mesh] : gizmo->mFlattenMeshes) {
+                if (mesh.mName == "Cube.001") {
+                    mesh.setVisible(false);
+                }
+            }
+        }
+    } else {
+        for (auto& gizmo : gizmos) {
+            for (auto& [id, mesh] : gizmo->mFlattenMeshes) {
+                if (mesh.mName == "Cube.001") {
+                    mesh.setVisible(true);
+                }
+            }
+        }
+    }
+}
 BaseModel* GizmoElement::testSelection(Camera& camera, size_t width, size_t height,
                                        std::pair<size_t, size_t> mouseCoord) {
     auto models = {center, z, y, x};
@@ -158,10 +179,8 @@ void GizmoElement::onMouseMove(MouseEvent event) {
                 GizmoElement::mSelectedPart->selected(false);
                 GizmoElement::mSelectedPart = nullptr;
             }
-            // std::cout << "we are in mouse move\n";
         }
     } else if (GizmoElement::mSelectedPart != nullptr) {  // If gizmo handle is already selected, start modifying
-        std::cout << "we are in mouse move " << GizmoElement::mMode << std::endl;
         if (GizmoElement::mMode == GizmoModeTranslation) {
             glm::vec3 final_pos = glm::vec3(0.0);
             if (std::holds_alternative<BaseModel*>(editor_selected)) {
@@ -275,9 +294,12 @@ struct GizmoModel : public IModel {
         GizmoModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("gizmo", app, RESOURCE_DIR "/gizmo/newgiz/gizmo_up.glb", app->getObjectBindGroupLayout())
+            mModel
+                ->load("gizmo", app,
+                       app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "gizmo" / "newgiz" / "gizmo_up2.glb",
+                       app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
-                .scale(glm::vec3{0.01f});
+                .scale(glm::vec3{0.1f});
             mModel->rotate({-90.0f, 0.0, 0.0f}, 0.0f);
             mModel->uploadToGPU(app);
             mModel->mTransform.getLocalTransform();
@@ -293,6 +315,7 @@ struct GizmoModel : public IModel {
             wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
                                  0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+            std::cout << "Gizmo has " << mModel->mFlattenMeshes.size() << " Number of Meshes\n";
         }
 
         Model* getModel() override { return mModel; }
@@ -309,10 +332,13 @@ struct GizmoModelY : public IModel {
         GizmoModelY(Application* app) {
             mModel = new Model{};
 
-            mModel->load("gizmo_y", app, RESOURCE_DIR "/gizmo/newgiz/gizmo_y.glb", app->getObjectBindGroupLayout())
+            mModel
+                ->load("gizmo_y", app,
+                       app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "gizmo" / "newgiz" / "gizmo_y2.glb",
+                       app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
-                .scale(glm::vec3{0.01f});
-            mModel->rotate({-180.0f, 90.0, 0.0f}, 0.0f);
+                .scale(glm::vec3{0.1f});
+            mModel->rotate({90.0f, 0.0, 0.0f}, 0.0f);
             mModel->uploadToGPU(app);
             mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
@@ -343,7 +369,9 @@ struct BoneModel : public IModel {
         BoneModel(Application* app) {
             mModel = new Model{};
 
-            mModel->load("bone", app, RESOURCE_DIR "/sphere.glb", app->getObjectBindGroupLayout())
+            mModel
+                ->load("bone", app, app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "sphere.glb",
+                       app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{1, 1, 1})
                 .scale(glm::vec3{.01f});
             // mModel->rotate({90.0f, 0.0, 180.0f}, 0.0f);
@@ -427,11 +455,13 @@ struct GizmoModelX : public IModel {
         GizmoModelX(Application* app) {
             mModel = new Model{};
 
-            mModel->load("gizmo_x", app, RESOURCE_DIR "/gizmo/newgiz/gizmo_x.glb", app->getObjectBindGroupLayout())
+            mModel
+                ->load("gizmo_x", app,
+                       app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "gizmo" / "newgiz" / "gizmo_x2.glb",
+                       app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
-                //
-                .scale(glm::vec3{0.01f});
-            mModel->rotate({0.0f, 0.0, 90.0f}, 0.0f);
+                .scale(glm::vec3{0.1f});
+            mModel->rotate({0.0f, 0.0, 00.0f}, 0.0f);
             mModel->uploadToGPU(app);
             mModel->mTransform.getLocalTransform();
             mModel->setTransparent(false);
@@ -463,7 +493,8 @@ struct GizmoModelCenter : public IModel {
             mModel = new Model{};
 
             mModel
-                ->load("gizmo_center", app, RESOURCE_DIR "/gizmo/newgiz/gizmo_center.glb",
+                ->load("gizmo_center", app,
+                       app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "gizmo" / "newgiz" / "gizmo_center.glb",
                        app->getObjectBindGroupLayout())
                 .moveTo(glm::vec3{-6.883, 3.048, -1.709})
                 .scale(glm::vec3{0.01f});
@@ -685,12 +716,6 @@ void Screen::onKey(KeyEvent event) {
         auto& is_active = mApp->mEditor->mEditorActive;
         is_active = !is_active;
 
-        // Toggle debug lines visibility
-        for (auto& collider : physics::PhysicSystem::mColliders) {
-            // mApp->mLineEngine->setVisibility(collider.getBoxId(), is_active);
-            // collider.getDebugLines().updateVisibility(is_active);
-        }
-
         if (!is_active) {
             glfwSetInputMode(key.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             if (glfwRawMouseMotionSupported()) glfwSetInputMode(key.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
@@ -699,14 +724,11 @@ void Screen::onKey(KeyEvent event) {
             if (glfwRawMouseMotionSupported()) glfwSetInputMode(key.window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
         }
     } else if (GLFW_KEY_Q == key.key && key.action == GLFW_PRESS && mApp->mEditor->mEditorActive) {
-        std::cout << "Gizmo Scale Mode!\n";
-        GizmoElement::mMode = GizmoModeScale;
+        GizmoElement::setGizmoModel(GizmoModeScale);
     } else if (GLFW_KEY_R == key.key && key.action == GLFW_PRESS && mApp->mEditor->mEditorActive) {
-        std::cout << "Gizmo Rotation Mode!\n";
-        GizmoElement::mMode = GizmoModeRotation;
+        GizmoElement::setGizmoModel(GizmoModeRotation);
     } else if (GLFW_KEY_G == key.key && key.action == GLFW_PRESS && mApp->mEditor->mEditorActive) {
-        std::cout << "Gizmo Translate Mode!\n";
-        GizmoElement::mMode = GizmoModeTranslation;
+        GizmoElement::setGizmoModel(GizmoModeTranslation);
     } else if (GLFW_KEY_LEFT_SHIFT == key.key && mApp->mEditor->mEditorActive) {
         if (key.action == GLFW_PRESS) {
             GizmoElement::mKeyModifier = KeyboardKey_LSHIFT;

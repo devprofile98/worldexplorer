@@ -15,6 +15,14 @@
 #include <vector>
 
 #include "../webgpu/webgpu.h"
+#include "material.h"
+#include "rendererResource.h"
+
+class Model;
+class Application;
+
+template <typename K, typename Type>
+class Registery;
 
 enum class TextureDimension { TEX_UNDEFINED, TEX_1D, TEX_2D, TEX_3D };
 
@@ -32,12 +40,12 @@ class Texture {
         Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths,
                 WGPUTextureFormat textureFormat = WGPUTextureFormat_RGBA8Unorm, uint32_t extent = 1);
         ~Texture();
-        float ff;
 
-        // access function
+        // Getter functions
         WGPUTexture getTexture();
         WGPUTextureView getTextureView();
         WGPUTextureView getTextureViewArray();
+        std::filesystem::path getPath() const;
 
         Texture& setBufferData(std::vector<uint8_t>& data);
         WGPUTextureView createView();
@@ -56,8 +64,12 @@ class Texture {
 
         static std::vector<uint8_t> expandToRGBA(uint8_t* data, size_t height, size_t width);
 
+        static std::shared_ptr<Texture> asyncLoadTexture(Registery<std::string, Texture>* registery,
+                                                         RendererResource& rc, std::string path);
+
     private:
         std::string mLabel;
+        std::filesystem::path mPath;
         WGPUTexture mTexture;
         WGPUTextureView mTextureView = nullptr;
         WGPUTextureView mArrayTextureView = nullptr;
@@ -110,6 +122,11 @@ class Registery {
 
     private:
         std::unordered_map<K, std::shared_ptr<V>> mRegistery;
+};
+
+class MaterialRegistery : public Registery<std::string, Material> {
+    public:
+        void applyMaterialTo(Application* app, Model* model, std::string meshName, std::string materialName);
 };
 
 #endif  // WEBGPUTEST_TEXTURE_H

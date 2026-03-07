@@ -46,6 +46,8 @@ struct GizmoElement : public MouseMoveListener, public MouseButtonListener {
         static void moveTo(const glm::vec3 position);
         void onMouseMove(MouseEvent event) override;
         void onMouseClick(MouseEvent event) override;
+
+        static void setGizmoModel(GizmoMode mMode);
 };
 
 struct Editor {

@@ -71,6 +71,11 @@ class Node {
                                           std::unordered_map<std::string, Node*>& nodemap);
 };
 
+enum ModelTypes {
+    FS = 0,
+    CODE,
+};
+
 // Hold the properties and needed object to represents the object transformation
 class Transform {
         friend class BaseModel;
@@ -148,7 +153,6 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         std::string mPath = "";
         const std::string& getName();
 
-        /*Buffer getVertexBuffer();*/
         Buffer getIndexBuffer();
         virtual size_t getVertexCount() const;
         void setTransparent(bool value = true);
@@ -168,6 +172,8 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         void updateHirarchy();
         CoordinateSystem getCoordinateSystem() const;
         void setCoordinateSystem(const CoordinateSystem& cs);
+        virtual ModelTypes getType() const;
+        virtual void setType(ModelTypes type);
 
         BaseModel& moveBy(const glm::vec3& m);
         BaseModel& moveTo(const glm::vec3& m);
@@ -196,6 +202,7 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         bool mIsTransparent = false;
         bool mIsVisible = true;
         CoordinateSystem mCoordinateSystem = Z_UP;
+        ModelTypes mType = ModelTypes::FS;
 };
 
 class Model : public BaseModel {

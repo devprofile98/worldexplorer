@@ -4,6 +4,8 @@
 
 #include <cstdint>
 #include <vector>
+
+#include "glm/fwd.hpp"
 struct LineEngine;
 
 class LineGroup {

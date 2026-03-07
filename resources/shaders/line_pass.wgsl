@@ -5,7 +5,6 @@ struct VertexOutput {
 
 struct Line {
     p: vec4<f32>,
-    color: vec3<f32>,
     tid: u32,
     isActive: u32,
 };
@@ -36,7 +35,8 @@ struct MyUniform {
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
-    out.color = vec4(lines[instance_index].color, 1.0);
+    // out.color = vec4(lines[instance_index].color, 1.0);
+    out.color = vec4(0.0, 0.0, 1.0, 1.0);
 
     var pointA = lines[instance_index].p.xyz;
     var pointB = mix(lines[instance_index + 1u].p.xyz, pointA, lines[instance_index].p.w); // simple trick to end the line based on 'w' component

@@ -2,6 +2,7 @@
 #ifndef WORLD_EXPLORER_APP_TERRAIN_H
 #define WORLD_EXPLORER_APP_TERRAIN_H
 
+#include "linegroup.h"
 #include "model.h"
 #include "model_registery.h"
 
@@ -18,6 +19,7 @@ class TerrainModel : public Model {
 
         void drawGraph(Application* app, WGPURenderPassEncoder encoder, Node* node);
         void drawHirarchy(Application* app, WGPURenderPassEncoder encoder) override;
+        LineGroup wireFrame;
 };
 
 class Cube : public Model {
@@ -31,6 +33,7 @@ class Cube : public Model {
 
         void drawGraph(Application* app, WGPURenderPassEncoder encoder, Node* node);
         void drawHirarchy(Application* app, WGPURenderPassEncoder encoder) override;
+        LineGroup wireFrame;
 };
 
 #endif  // !WORLD_EXPLORER_CORE_RENDERERRESOURCE_H

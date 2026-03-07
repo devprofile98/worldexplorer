@@ -6,13 +6,49 @@
 #include <filesystem>
 #include <format>
 #include <functional>
+#include <memory>
 #include <string>
 
+#include "application.h"
 #include "glm/exponential.hpp"
+#include "model.h"
 #include "profiling.h"
+#include "rendererResource.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+namespace {
+
+void loaderCallback(TextureLoader::LoadRequest* request) {
+    // Heavy work: read file + generate mipmaps on CPU
+    request->baseTexture->writeBaseTexture(request->path);
+    request->baseTexture->uploadToGPU(request->queue);
+    request->promise.set_value(request->baseTexture);
+}
+}  // namespace
+
+std::shared_ptr<Texture> Texture::asyncLoadTexture(Registery<std::string, Texture>* registery, RendererResource& rc,
+                                                   std::string path) {
+    auto cached = registery->get(path);
+    if (cached != nullptr) {
+        return cached;
+    }
+
+    auto texture = std::make_shared<Texture>(rc.device, path);  // reads file here
+
+    // queue async load
+    auto future = registery->mLoader.loadAsync(path, rc.queue, texture, loaderCallback);
+
+    registery->addToRegistery(path, texture);
+
+    if (texture->createView() == nullptr) {
+        std::cout << std::format("Failed to create view for at {}\n", path);
+    } else {
+        std::cout << std::format("Successfully loaded texture at {}\n", path);
+    }
+    return texture;
+}
 
 WGPUTextureView Texture::createView() {
     if (mIsTextureAlive) {
@@ -180,7 +216,7 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
         mIsTextureAlive = false;
         return;
     }
-
+    mPath = path;
     mDescriptor = {};
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
     std::string path_str = path.string();
@@ -193,9 +229,7 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
     mDescriptor.viewFormatCount = 0;
     mDescriptor.viewFormats = nullptr;
 
-    std::cout << "11111111111111111111111111\n";
     mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
-    std::cout << "22222222222222222222222\n";
     mIsTextureAlive = true;
 }
 
@@ -351,6 +385,7 @@ void Texture::Destroy() {
 
 WGPUTextureView Texture::getTextureView() { return mTextureView; }
 WGPUTextureView Texture::getTextureViewArray() { return mArrayTextureView; };
+std::filesystem::path Texture::getPath() const { return mPath; }
 
 std::vector<uint8_t> Texture::expandToRGBA(uint8_t* data, size_t height, size_t width) {
     if (!data) {
@@ -386,12 +421,6 @@ TextureLoader::TextureLoader(size_t numThreads) {
                     requests.pop();
                 }
 
-                // Heavy work: read file + generate mipmaps on CPU
-                // request.baseTexture->writeBaseTexture(request.path);
-                //
-                // request.baseTexture->uploadToGPU(request.queue);
-                //
-                // request.promise.set_value(request.baseTexture);
                 request.callback(&request);
             }
         });
@@ -420,4 +449,21 @@ std::future<std::shared_ptr<Texture>> TextureLoader::loadAsync(const std::string
     cv.notify_one();
 
     return future;
+}
+
+void MaterialRegistery::applyMaterialTo(Application* app, Model* model, std::string meshName,
+                                        std::string materialName) {
+    bool exists = list().contains(materialName);
+    std::cout << "Applying Material " << materialName << " To " << "Mesh: " << meshName << " Of " << model->getName()
+              << " and it " << (exists ? "exists" : "not loaded yet") << std::endl;
+
+    if (exists) {
+        for (auto& [id, mesh] : model->mFlattenMeshes) {
+            if (mesh.mName == meshName) {
+                std::cout << "happend!\n";
+                mesh.setMatreial(list()[materialName]);
+                model->createSomeBinding(app, app->getDefaultTextureBindingData());
+            }
+        }
+    }
 }

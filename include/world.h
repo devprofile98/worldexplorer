@@ -13,6 +13,7 @@
 #include "model.h"
 
 using Vec = std::array<float, 3>;
+using MaterialList = std::vector<std::pair<std::string, std::string>>;
 
 struct ColliderParams {
         std::string name;
@@ -50,6 +51,7 @@ struct ObjectLoaderParam {
         std::string name;
         std::string path;
         bool animated;
+        bool isVisible;
         CoordinateSystem cs;
         glm::vec3 translate;
         glm::vec3 scale;
@@ -58,14 +60,15 @@ struct ObjectLoaderParam {
         std::string defaultClip;
         bool isDefaultActor = false;
         bool isPhysicEnabled = false;
+        MaterialList materialList;
 
-        ObjectLoaderParam(int type, std::string name, std::string path, bool animated, CoordinateSystem cs,
-                          Vec translate, Vec scale, Vec rotate, std::vector<std::string> childrens,
-                          std::string defaultClip, SocketParams socketParam);
+        ObjectLoaderParam(int type, std::string name, std::string path, bool animated, bool isVisible,
+                          CoordinateSystem cs, Vec translate, Vec scale, Vec rotate, std::vector<std::string> childrens,
+                          std::string defaultClip, SocketParams socketParam, MaterialList matList);
 };
 
 struct World : public KeyboardListener, MouseMoveListener, MouseButtonListener, MouseScrollListener {
-        World(Application* core);
+        World(Application* core, const std::string& sceneFilePath);
         Model* makeChild(BaseModel* parent, BaseModel* child);
         void removeParent(BaseModel* child);
         void onNewModel(Model* model);
@@ -87,6 +90,9 @@ struct World : public KeyboardListener, MouseMoveListener, MouseButtonListener, 
         std::unordered_map<std::string, ObjectLoaderParam> map;
 
         Application* app;
+
+    private:
+        std::string mSceneFilePath;
 };
 
 #endif  //! WORLD_EXPLORER_WORLD_H

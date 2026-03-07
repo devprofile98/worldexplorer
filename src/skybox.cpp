@@ -97,7 +97,6 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath, s
     auto& resource = app->getRendererResource();
 
     int uniform_width, uniform_height, uniform_channels;
-
     std::string path = cubeTexturePath.string() + "/";
     path += sideNames[0];
     auto ret = stbi_info(path.c_str(), &uniform_width, &uniform_height, &uniform_channels);
@@ -130,7 +129,7 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath, s
     mRenderPipeline = new Pipeline{app, {bind_group_layout}, "skybox pipeline"};
     WGPUVertexBufferLayout d = mRenderPipeline->mVertexBufferLayout.addAttribute(0, 0, WGPUVertexFormat_Float32x3)
                                    .configure(sizeof(glm::vec3), VertexStepMode::VERTEX);
-    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/skybox.wgsl", resource)
+    mRenderPipeline->setShader(app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "shaders/skybox.wgsl", resource)
         .setVertexBufferLayout(d)
         .setVertexState(
 

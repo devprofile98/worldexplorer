@@ -5,11 +5,14 @@
 #include <glfw3webgpu.h>
 
 #include <array>
+#include <filesystem>
 #include <vector>
 
 #include "binding_group.h"
 #include "camera.h"
 #include "gpu_buffer.h"
+#include "material.h"
+#include "mesh.h"
 #include "terrain_pass.h"
 #include "texture.h"
 #include "utils.h"
@@ -45,6 +48,7 @@ struct LightingUniforms {
 
 class Application {
     public:
+        Application(const char* runningBinaryPath, const std::string& sceneFile = "world.json");
         bool initialize(const char* windowName, uint16_t width, uint16_t height);
         void terminate();
         void mainLoop();
@@ -70,6 +74,10 @@ class Application {
         WGPUTextureView getDepthStencilTarget();
         WGPUTextureView getColorTarget();
 
+        std::filesystem::path getWorkingDirectoryPath() const;
+        std::filesystem::path getBinaryPathAbsolute() const;
+        std::filesystem::path getBinaryPathRelative() const;
+
         Camera& getCamera();
         WGPUTextureFormat getTextureFormat();
         WGPUSampler getDefaultSampler();
@@ -91,6 +99,8 @@ class Application {
         Texture* mDefaultNormalMap = nullptr;
 
         Registery<std::string, Texture>* mTextureRegistery;
+        // Registery<std::string, Material>* mMaterialRegistery;
+        MaterialRegistery* mMaterialRegistery;
 
         BindingGroup mDefaultSkiningData = {};
         BindingGroup mDefaultTextureBindingGroup = {};
@@ -158,6 +168,9 @@ class Application {
 
     private:
         bool initDepthBuffer();
+        std::filesystem::path mCWDPath;
+        std::filesystem::path mBinaryPath;
+        std::string mSceneFilePath;
 };
 
 #endif  // TEST_WGPU_APPLICTION_H

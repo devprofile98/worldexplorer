@@ -4,6 +4,7 @@
 #include <webgpu/webgpu.h>
 
 #include <cstdint>
+#include <filesystem>
 
 #include "application.h"
 #include "profiling.h"
@@ -26,34 +27,34 @@ TerrainPass::TerrainPass(Application* app, const std::string& name) : RenderPass
     mTextureBindgroupLayout =
         mTexturesBindgroup.createLayout(mApp->getRendererResource(), "Terrain Texture layout bidngroup");
 
-    mGrass =
-        new Texture{mApp->getRendererResource().device,
-                    std::vector<std::filesystem::path>{RESOURCE_DIR "/mud/diffuse.jpg", RESOURCE_DIR "/mud/normal.jpg",
-                                                       RESOURCE_DIR "/mud/roughness.jpg"},
-                    WGPUTextureFormat_RGBA8Unorm, 3};
+    std::filesystem::path base_path = mApp->getBinaryPathAbsolute() / ".." / RESOURCE_DIR;
+    mGrass = new Texture{mApp->getRendererResource().device,
+                         std::vector<std::filesystem::path>{base_path / "mud/diffuse.jpg", base_path / "mud/normal.jpg",
+                                                            base_path / "mud/roughness.jpg"},
+                         WGPUTextureFormat_RGBA8Unorm, 3};
     mGrass->createViewArray(0, 3);
     mGrass->uploadToGPU(mApp->getRendererResource().queue);
 
     mRock = new Texture{mApp->getRendererResource().device,
-                        std::vector<std::filesystem::path>{RESOURCE_DIR "/Rock/Rock060_1K-JPG_Color.jpg",
-                                                           RESOURCE_DIR "/Rock/Rock060_1K-JPG_NormalGL.jpg",
-                                                           RESOURCE_DIR "/Rock/Rock060_1K-JPG_Roughness.jpg"},
+                        std::vector<std::filesystem::path>{base_path / "Rock/Rock060_1K-JPG_Color.jpg",
+                                                           base_path / "Rock/Rock060_1K-JPG_NormalGL.jpg",
+                                                           base_path / "Rock/Rock060_1K-JPG_Roughness.jpg"},
                         WGPUTextureFormat_RGBA8Unorm, 3};
     mRock->createViewArray(0, 3);
     mRock->uploadToGPU(mApp->getRendererResource().queue);
 
     mSand = new Texture{mApp->getRendererResource().device,
-                        std::vector<std::filesystem::path>{RESOURCE_DIR "/aerial/aerial_beach_01_diff_1k.jpg",
-                                                           RESOURCE_DIR "/aerial/aerial_beach_01_nor_gl_1k.jpg",
-                                                           RESOURCE_DIR "/aerial/aerial_beach_01_rough_1k.jpg"},
+                        std::vector<std::filesystem::path>{base_path / "aerial/aerial_beach_01_diff_1k.jpg",
+                                                           base_path / "aerial/aerial_beach_01_nor_gl_1k.jpg",
+                                                           base_path / "aerial/aerial_beach_01_rough_1k.jpg"},
                         WGPUTextureFormat_RGBA8Unorm, 3};
     mSand->createViewArray(0, 3);
     mSand->uploadToGPU(mApp->getRendererResource().queue);
 
     mSnow = new Texture{mApp->getRendererResource().device,
-                        std::vector<std::filesystem::path>{RESOURCE_DIR "/snow/snow_02_diff_1k.jpg",
-                                                           RESOURCE_DIR "/snow/snow_02_nor_gl_1k.jpg",
-                                                           RESOURCE_DIR "/snow/snow_02_rough_1k.jpg"},
+                        std::vector<std::filesystem::path>{base_path / "snow/snow_02_diff_1k.jpg",
+                                                           base_path / "snow/snow_02_nor_gl_1k.jpg",
+                                                           base_path / "snow/snow_02_rough_1k.jpg"},
                         WGPUTextureFormat_RGBA8Unorm, 3};
     mSnow->createViewArray(0, 3);
     mSnow->uploadToGPU(mApp->getRendererResource().queue);
@@ -91,7 +92,7 @@ void TerrainPass::createRenderPass(WGPUTextureFormat textureFormat) {
     mTexturesBindgroup.create(resource, mBindingData);
 
     mRenderPipeline->defaultConfiguration(resource, textureFormat);
-    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/terrain.wgsl", resource);
+    mRenderPipeline->setShader(mApp->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "shaders/terrain.wgsl", resource);
     setDefaultActiveStencil2(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_Back);
@@ -151,7 +152,8 @@ void OutlinePass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline =
         new Pipeline{mApp, {layouts[0], layouts[1], layouts[2], mLayerThree, layouts[3], layouts[5]}, "Outline Pass"};
     mRenderPipeline->defaultConfiguration(mApp->getRendererResource(), textureFormat);
-    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/outline.wgsl", mApp->getRendererResource());
+    mRenderPipeline->setShader(mApp->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "shaders/outline.wgsl",
+                               mApp->getRendererResource());
     setDefaultUseStencil(mRenderPipeline->getDepthStencilState());
     /*setDefaultActiveStencil(mRenderPipeline->getDepthStencilState());*/
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
@@ -200,7 +202,8 @@ void ViewPort3DPass::createRenderPass(WGPUTextureFormat textureFormat) {
     auto* layouts = mApp->getBindGroupLayouts();
     mRenderPipeline = new Pipeline{mApp, {layouts[0], layouts[1], layouts[2] /*, mLayerThree*/}, "3D ViewPort Pass"};
     mRenderPipeline->defaultConfiguration(mApp->getRendererResource(), textureFormat);
-    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/editor.wgsl", mApp->getRendererResource());
+    mRenderPipeline->setShader(mApp->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "shaders/editor.wgsl",
+                               mApp->getRendererResource());
     mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
     setDefault(mRenderPipeline->getDepthStencilState());
     mRenderPipeline->getDepthStencilState().format = WGPUTextureFormat_Depth24PlusStencil8;

@@ -212,7 +212,7 @@ if (MSVC)
 
     add_definitions(-DGLFW_EXPOSE_NATIVE_WIN32)
     set(OS_LIBRARIES d3dcompiler ws2_32 userenv bcrypt ntdll opengl32 Propsys RuntimeObject)
-    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm ${OS_LIBRARIES})
+    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm ${OS_LIBRARIES} nfd)
 
 else()
     target_compile_options(App PRIVATE -Wall -Wextra -pedantic)
@@ -222,7 +222,7 @@ else()
     )
 
     target_include_directories(App PUBLIC ${JoltPhysics_SOURCE_DIR}/..)
-    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm Jolt)
+    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm Jolt nfd)
 
 endif()
 

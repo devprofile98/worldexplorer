@@ -13,7 +13,7 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "gpu_buffer.h"
 #include "imgui.h"
-// #include "texture.h"
+#include "material.h"
 
 class Texture;
 
@@ -53,7 +53,7 @@ inline MaterialProps& operator&=(MaterialProps& a, MaterialProps b) {
 
 inline MaterialProps operator~(MaterialProps a) { return static_cast<MaterialProps>(~static_cast<uint32_t>(a)); }
 
-struct alignas(16) Material {
+struct alignas(16) ShaderMaterial {
         // Block 1: 4 x 4-byte fields = 16 bytes
         uint32_t isFlat;
         uint32_t useTexture;
@@ -92,6 +92,8 @@ class Mesh {
     public:
         void setVisible(bool visibility = true);
         bool getVisible() const;
+        void setMatreial(const std::shared_ptr<Material> mat);
+        std::shared_ptr<Material> getMatreial();
 
         unsigned int meshId;
         std::vector<VertexAttributes> mVertexData;
@@ -108,7 +110,8 @@ class Mesh {
         WGPUBindGroup mTextureBindGroup = {};
         std::vector<WGPUBindGroupEntry> binding_data{2};
         WGPUBindGroup mMaterialBindGroup = {};
-        Material mMaterial;
+        ShaderMaterial mMaterial;
+        std::shared_ptr<Material> mTextureMaterial = nullptr;
         std::string mMaterialName;
         std::string mName;
         bool mIsVisible = true;

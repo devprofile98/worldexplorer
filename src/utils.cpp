@@ -20,6 +20,7 @@
 #include "instance.h"
 #include "mesh.h"
 #include "model.h"
+#include "nfd.h"
 #include "physics.h"
 #include "point_light.h"
 #include "rendererResource.h"
@@ -830,6 +831,40 @@ std::vector<glm::vec4> generateAABBLines(const glm::vec3& min, const glm::vec3& 
     return result;
 }
 
+// mDebugLines = app->mLineEngine->create(
+//     box, glm::translate(glm::mat4{1.0}, mCenter) * glm::scale(glm::mat4{1.0}, halfExtent * glm::vec3{2.0}),
+//     mIsStatic ? (isSensor ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0}) : glm::vec3{1.0, 0.209, 0.0784});
+
+std::vector<glm::vec4> generateFromMesh(const std::vector<uint32_t>& indices,
+                                        const std::vector<VertexAttributes>& vertices) {
+    std::map<std::pair<uint32_t, uint32_t>, bool> drawn;
+    std::vector<glm::vec4> result;
+
+    for (size_t idx = 0; idx < indices.size(); idx += 3) {
+        auto first = indices[idx + 0];
+        auto second = indices[idx + 1];
+        auto third = indices[idx + 2];
+        auto fourth = first;
+        auto first_exists = !(drawn[std::pair{first, second}] || drawn[std::pair{second, first}]);
+        auto second_exists = !(drawn[std::pair{third, fourth}] || drawn[std::pair{fourth, third}]);
+        // std::cout << "line for  (" << first << ", " << second << ") -> " << first_exists << std::endl;
+        // std::cout << "line for  (" << third << ", " << fourth << ") -> " << second_exists << std::endl;
+        if (first_exists) {
+            result.emplace_back(glm::vec4{vertices[indices[idx + 0]].position, 0.0});
+            result.emplace_back(glm::vec4{vertices[indices[idx + 1]].position, 1.0});
+            drawn[std::pair{first, second}] = true;
+        }
+
+        if (second_exists) {
+            result.emplace_back(glm::vec4{vertices[indices[idx + 2]].position, 0.0});
+            result.emplace_back(glm::vec4{vertices[indices[idx + 0]].position, 1.0});
+            drawn[std::pair{third, fourth}] = true;
+        }
+    }
+    std::cout << " ::Line size is " << result.size() << std::endl;
+    return result;
+}
+
 std::vector<glm::vec4> generateBox(const glm::vec3& center, const glm::vec3& halfExtents) {
     std::vector<glm::vec4> result;
 
@@ -995,4 +1030,59 @@ void DebugBox::create(LineEngine* lineEngine, const glm::mat4& transformation, c
 void DebugBox::update() {
     debuglines->updateTransformation(glm::translate(glm::mat4{1.0}, center) *
                                      glm::scale(glm::mat4{1.0}, halfExtent * glm::vec3{2.0}));
+}
+
+void loadTextureFromFilesystem(Application* app) {
+    static nfdu8char_t* output;
+    static const nfdpathset_t* paths;
+    if (ImGui::Button("Add Texture")) {
+        nfdresult_t result = NFD_OpenDialogMultipleU8(&paths, nullptr, 0, nullptr);
+        if (result == NFD_OKAY) {
+            nfdpathsetsize_t listcount = 0;
+            NFD_PathSet_GetCount(paths, &listcount);
+            for (size_t i = 0; i < listcount; ++i) {
+                NFD_PathSet_GetPath(paths, i, &output);
+                Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), output);
+            }
+
+        } else if (result == NFD_CANCEL) {
+            std::cout << "User pressed cancel.\n";
+        } else {
+            std::cout << "Error: " << NFD_GetError() << std::endl;
+        }
+    }
+}
+
+std::shared_ptr<Texture> DrawTexturePicker(const char* label, std::shared_ptr<Texture>& slot,
+                                           Registery<std::string, Texture>* registry) {
+    if (slot && slot->isValid()) {
+        ImGui::TextColored(ImVec4(0, 1, 0, 1), "%s", label);
+        return nullptr;
+    }
+
+    ImGui::TextColored(ImVec4(1, 0, 0, 1), "No %s", label);
+
+    if (ImGui::BeginCombo(label, "Select")) {
+        if (ImGui::BeginTable("##tex_table", 2, ImGuiTableFlags_SizingStretchProp)) {
+            for (const auto& [name, texture] : registry->list()) {
+                if (texture == nullptr || !texture->isValid()) continue;
+                ImGui::PushID(texture.get());
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                if (ImGui::Selectable(name.c_str(), false)) {
+                    ImGui::PopID();
+                    ImGui::EndTable();
+                    ImGui::EndCombo();
+                    return texture;
+                }
+
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Image((ImTextureID)(intptr_t)texture->getTextureView(), ImVec2(20.0, 20.0));
+                ImGui::PopID();
+            }
+            ImGui::EndTable();
+        }
+        ImGui::EndCombo();
+    }
+    return nullptr;
 }

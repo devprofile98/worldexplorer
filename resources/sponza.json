@@ -1,0 +1,558 @@
+{
+  "actor": "human",
+  "cameras": [],
+  "colliders": [
+    {
+      "active": true,
+      "center": [
+        0.36916351318359375,
+        0.0,
+        -0.5298932790756226
+      ],
+      "half_extent": [
+        11.380000114440918,
+        10.0,
+        0.5400000214576721
+      ],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [
+        11.985259056091309,
+        1.2649509906768799,
+        -0.33029603958129883
+      ],
+      "half_extent": [
+        0.23000000417232513,
+        2.680000066757202,
+        0.11999999731779099
+      ],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [
+        12.42276382446289,
+        1.2246291637420654,
+        -0.5578253269195557
+      ],
+      "half_extent": [
+        0.23000000417232513,
+        2.680000066757202,
+        0.11999999731779099
+      ],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [
+        15.909208297729492,
+        1.2444344758987427,
+        -0.7673037052154541
+      ],
+      "half_extent": [
+        3.2799999713897705,
+        2.680000066757202,
+        0.11999999731779099
+      ],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [
+        14.067124366760254,
+        3.4488086700439453,
+        -0.549450159072876
+      ],
+      "half_extent": [
+        1.409999966621399,
+        0.4000000059604645,
+        0.11999999731779099
+      ],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [
+        13.659276962280273,
+        3.671116828918457,
+        -0.3208582401275635
+      ],
+      "half_extent": [
+        1.409999966621399,
+        0.20999999344348907,
+        0.11999999731779099
+      ],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [
+        13.081915855407715,
+        5.03585958480835,
+        -0.09661388397216797
+      ],
+      "half_extent": [
+        1.309999942779541,
+        1.1299999952316284,
+        0.11999999731779099
+      ],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [
+        13.897149085998535,
+        -1.1877110004425049,
+        -0.5399224758148193
+      ],
+      "half_extent": [
+        1.2300000190734863,
+        0.20000000298023224,
+        0.11999999731779099
+      ],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [
+        18.12908172607422,
+        3.65560245513916,
+        -0.5399224758148193
+      ],
+      "half_extent": [
+        1.0199999809265137,
+        0.20000000298023224,
+        0.11999999731779099
+      ],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [
+        -13.208553314208984,
+        -0.044605255126953125,
+        -0.05782890319824219
+      ],
+      "half_extent": [
+        2.190000057220459,
+        2.4000000953674316,
+        0.11999999731779099
+      ],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    }
+  ],
+  "lights": [
+    {
+      "color": [
+        0.9411765336990356,
+        1.0,
+        0.0
+      ],
+      "direction": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "inner_cutoff": 0.10000000149011612,
+      "linear": 0.07999999821186066,
+      "name": "1",
+      "outer_cutoff": 0.0010000000474974513,
+      "position": [
+        10.364340782165527,
+        -4.734087944030762,
+        9.381810188293457
+      ],
+      "quadratic": 0.0,
+      "type": "spot"
+    },
+    {
+      "color": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "direction": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "inner_cutoff": 0.8999999761581421,
+      "linear": 0.0,
+      "name": "2",
+      "outer_cutoff": 0.5,
+      "position": [
+        15.595812797546387,
+        0.9631826281547546,
+        3.4737439155578613
+      ],
+      "quadratic": 0.0,
+      "type": "spot"
+    }
+  ],
+  "materials": [
+    {
+      "diffuse_map": "/home/ahmad/Downloads/3D/Ak_47/ak-47-round.jpg",
+      "name": "ak47",
+      "normal_map": null,
+      "specular_map": null
+    },
+    {
+      "diffuse_map": "/home/ahmad/Downloads/3D/Ak_47/ak-47.jpg",
+      "name": "ak47-round",
+      "normal_map": null,
+      "specular_map": null
+    },
+    {
+      "diffuse_map": "/home/ahmad/Documents/project/cpp/wgputest/resources/psx_wooden_crate_baseColor.jpg",
+      "name": "",
+      "normal_map": null,
+      "specular_map": null
+    }
+  ],
+  "objects": [
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "cube22",
+      "instance": null,
+      "materials": [],
+      "name": "cube22",
+      "path": "",
+      "physics": null,
+      "rotate": [
+        0.0,
+        -0.0,
+        57.295780181884766
+      ],
+      "scale": [
+        0.009999999776482582,
+        0.009999999776482582,
+        0.009999999776482582
+      ],
+      "socket": null,
+      "translate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "type": 1,
+      "visible": false
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "sword",
+      "instance": null,
+      "materials": [],
+      "name": "sword",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/sword.gltf",
+      "physics": null,
+      "rotate": [
+        32.840476989746094,
+        -4.180967330932617,
+        -100.84580993652344
+      ],
+      "scale": [
+        0.013999992981553078,
+        0.01399999763816595,
+        0.013999991118907928
+      ],
+      "socket": {
+        "bone_name": "DEF-handR",
+        "model_name": "human",
+        "offset": {
+          "rotate": [
+            1.588930368423462,
+            0.18097318708896637,
+            0.010472006164491177
+          ],
+          "scale": [
+            0.019999999552965164,
+            0.019999999552965164,
+            0.019999999552965164
+          ],
+          "translate": [
+            -0.05000000074505806,
+            0.10000000149011612,
+            -0.0
+          ]
+        }
+      },
+      "translate": [
+        8.748812675476074,
+        -0.12021376192569733,
+        0.5621456503868103
+      ],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "y",
+      "default_clip": "",
+      "enabled": true,
+      "id": "pistol",
+      "instance": null,
+      "materials": [],
+      "name": "pistol",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/pistol/scene.gltf",
+      "physics": null,
+      "rotate": [
+        34.25486373901367,
+        69.94913482666016,
+        79.17064666748047
+      ],
+      "scale": [
+        0.03500000014901161,
+        0.034999996423721313,
+        0.03500000014901161
+      ],
+      "socket": {
+        "bone_name": "DEF-spine001",
+        "model_name": "human",
+        "offset": {
+          "rotate": [
+            -1.0471975803375244,
+            -0.0,
+            -1.2217304706573486
+          ],
+          "scale": [
+            0.05000000074505806,
+            0.05000000074505806,
+            0.05000000074505806
+          ],
+          "translate": [
+            0.0,
+            -0.10000000149011612,
+            -0.10000000149011612
+          ]
+        }
+      },
+      "translate": [
+        8.720903396606445,
+        0.09030221402645111,
+        0.6369639039039612
+      ],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": true,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "box",
+      "instance": null,
+      "materials": [
+        {
+          "Cube.001": ""
+        }
+      ],
+      "name": "box",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/box.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      },
+      "rotate": [
+        0.0,
+        -0.0,
+        16.700000762939453
+      ],
+      "scale": [
+        0.4000000059604645,
+        0.4000000059604645,
+        0.4000000059604645
+      ],
+      "socket": null,
+      "translate": [
+        -3.676443576812744,
+        2.4062628746032715,
+        0.4101043939590454
+      ],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "terrain",
+      "instance": null,
+      "materials": [],
+      "name": "terrain",
+      "path": "",
+      "physics": null,
+      "rotate": [
+        0.0,
+        -0.0,
+        57.295780181884766
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "socket": null,
+      "translate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "type": 1,
+      "visible": false
+    },
+    {
+      "animated": true,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "human",
+      "instance": null,
+      "materials": [],
+      "name": "human",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/model2.gltf",
+      "physics": null,
+      "rotate": [
+        90.0,
+        -1.7075473124350538e-06,
+        88.49708557128906
+      ],
+      "scale": [
+        0.699999988079071,
+        0.699999988079071,
+        0.699999988079071
+      ],
+      "socket": null,
+      "translate": [
+        8.839653968811035,
+        0.06975686550140381,
+        0.020106732845306396
+      ],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "y",
+      "default_clip": "",
+      "enabled": true,
+      "id": "ak47",
+      "instance": null,
+      "materials": [
+        {
+          "Round_2": "ak47"
+        },
+        {
+          "AK_47_2": "ak47-round"
+        }
+      ],
+      "name": "ak47",
+      "path": "/home/ahmad/Downloads/3D/Ak_47/Ak-47.obj",
+      "physics": null,
+      "rotate": [
+        2.3629751205444336,
+        -49.36628723144531,
+        -94.5076904296875
+      ],
+      "scale": [
+        0.00139999995008111,
+        0.00139999995008111,
+        0.00139999995008111
+      ],
+      "socket": {
+        "bone_name": "DEF-neck",
+        "model_name": "human",
+        "offset": {
+          "rotate": [
+            1.919862151145935,
+            0.08726654201745987,
+            2.268928050994873
+          ],
+          "scale": [
+            0.0020000000949949026,
+            0.0020000000949949026,
+            0.0020000000949949026
+          ],
+          "translate": [
+            -0.10000000149011612,
+            -0.20000000298023224,
+            -0.10000000149011612
+          ]
+        }
+      },
+      "translate": [
+        8.693310737609863,
+        0.02507644146680832,
+        0.8856369256973267
+      ],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "sponza",
+      "instance": null,
+      "materials": [],
+      "name": "sponza",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/not used/untitled.gltf",
+      "physics": null,
+      "rotate": [
+        0.0,
+        -0.0,
+        0.0
+      ],
+      "scale": [
+        0.009999999776482582,
+        0.009999999776482582,
+        0.009999999776482582
+      ],
+      "socket": null,
+      "translate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "type": 0,
+      "visible": true
+    }
+  ]
+}

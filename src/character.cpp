@@ -122,7 +122,7 @@ struct HumanBehaviour : public Behaviour {
               targetDistance(0.3),
               targetOffset(0.0, 0.0, 0.2),
               yaw(90.0f),
-              speed(3.0f),
+              speed(20.0f),
               isMoving(false),
               isAiming(false),
               isShooting(false),
@@ -227,6 +227,7 @@ struct HumanBehaviour : public Behaviour {
         void handleAttachedCamera(BaseModel* model, Camera* camera) override {
             auto forward = getForward();
 
+            auto [min, max] = model->getWorldSpaceAABB();
             // Compute the offset direction (modify as needed based on your coordinate system)
             glm::vec3 offset_dir = {forward.y, -forward.x, forward.z};  // Your existing transformation
             offset_dir = glm::normalize(offset_dir);                    // Normalize to get a unit vector
@@ -235,14 +236,15 @@ struct HumanBehaviour : public Behaviour {
             glm::vec3 camera_offset = offset_dir * targetDistance + (-targetOffset);
 
             // Compute the camera position by subtracting the offset from the actor's position
-            glm::vec3 cam_pos = model->mTransform.getPosition() - camera_offset;
+            glm::vec3 cam_pos = model->mTransform.getPosition() - camera_offset + glm::vec3{0.0, 0.0, (max.z - min.z)};
 
             if (model->mBehaviour) {
                 camera->mCameraUp = glm::vec3{0, 0, 1};
                 // Set the camera position
                 camera->setPosition(cam_pos);
                 // Set the camera to look at the actor's position
-                camera->setTarget(model->mTransform.getPosition() + targetOffset - cam_pos);
+                camera->setTarget(model->mTransform.getPosition() + targetOffset - cam_pos +
+                                  glm::vec3{0.0, 0.0, (max.z - min.z)});
             }
         }
 

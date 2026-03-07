@@ -130,6 +130,7 @@ Buffer& Drawable::getUniformBuffer() { return mUniformBuffer; }
 
 Model::Model(CoordinateSystem cs) : BaseModel() {
     BaseModel::setCoordinateSystem(cs);
+    BaseModel::setType(ModelTypes::FS);
     mTransform.mScaleMatrix = glm::scale(mTransform.mScaleMatrix, mTransform.mScale);
     mTransform.mTransformMatrix = mTransform.mRotationMatrix * mTransform.mTranslationMatrix * mTransform.mScaleMatrix;
     mTransform.mObjectInfo.transformation = mTransform.mTransformMatrix;
@@ -246,6 +247,9 @@ void Model::setDefaultAction(Action* defaultAction) { mDefaultAction = defaultAc
 
 CoordinateSystem BaseModel::getCoordinateSystem() const { return mCoordinateSystem; }
 void BaseModel::setCoordinateSystem(const CoordinateSystem& cs) { mCoordinateSystem = cs; }
+
+ModelTypes BaseModel::getType() const { return mType; }
+void BaseModel::setType(ModelTypes type) { mType = type; }
 
 glm::mat4 aiMatrix4x4ToGlm(const aiMatrix4x4& from) {
     glm::mat4 to;
@@ -413,6 +417,9 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
     auto& render_resource = app->getRendererResource();
     auto& mmesh = mFlattenMeshes[mMeshNumber];
+    auto d = mPath.find_last_of("/");
+
+    auto base_path = mPath.substr(0, d);
 
     auto load_texture = [&](aiTextureType type, MaterialProps flag, std::shared_ptr<Texture>* target) {
         for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
@@ -421,7 +428,7 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
             aiString str;
             material->GetTexture(type, i, &str);
-            std::string texture_path = RESOURCE_DIR;
+            std::string texture_path = base_path;
             texture_path += "/";
             texture_path += str.C_Str();
 
@@ -431,32 +438,39 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 pos += 1;                           // move past the inserted space
             }
 
-            auto cached = mApp->mTextureRegistery->get(texture_path);
-            if (cached != nullptr) {
-                *target = cached;
+            auto texture = Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), texture_path);
+            if (texture != nullptr) {
+                *target = texture;
                 mmesh.isTransparent = (*target)->isTransparent();
                 setTransparent(mmesh.isTransparent);
-                continue;
             }
 
-            auto texture =
-                std::make_shared<Texture>(mApp->getRendererResource().device, texture_path);  // reads file here
-
-            // queue async load
-            auto future = mApp->mTextureRegistery->mLoader.loadAsync(texture_path, render_resource.queue, texture,
-                                                                     loaderCallback);
-
-            mApp->mTextureRegistery->addToRegistery(texture_path, texture);
-
-            *target = texture;
-            mmesh.isTransparent = texture->isTransparent();
-            setTransparent(mmesh.isTransparent);
-
-            if (texture->createView() == nullptr) {
-                std::cout << std::format("Failed to create view for {} at {}\n", mName, texture_path);
-            } else {
-                std::cout << std::format("Successfully loaded texture {} at {}\n", mName, texture_path);
-            }
+            // auto cached = mApp->mTextureRegistery->get(texture_path);
+            // if (cached != nullptr) {
+            //     *target = cached;
+            //     mmesh.isTransparent = (*target)->isTransparent();
+            //     setTransparent(mmesh.isTransparent);
+            //     continue;
+            // }
+            //
+            // auto texture =
+            //     std::make_shared<Texture>(mApp->getRendererResource().device, texture_path);  // reads file here
+            //
+            // // queue async load
+            // auto future = mApp->mTextureRegistery->mLoader.loadAsync(texture_path, render_resource.queue, texture,
+            //                                                          loaderCallback);
+            //
+            // mApp->mTextureRegistery->addToRegistery(texture_path, texture);
+            //
+            // *target = texture;
+            // mmesh.isTransparent = texture->isTransparent();
+            // setTransparent(mmesh.isTransparent);
+            //
+            // if (texture->createView() == nullptr) {
+            //     std::cout << std::format("Failed to create view for {} at {}\n", mName, texture_path);
+            // } else {
+            //     std::cout << std::format("Successfully loaded texture {} at {}\n", mName, texture_path);
+            // }
         }
     };
 
@@ -504,8 +518,8 @@ Model& Model::load(std::string name, Application* app, const std::filesystem::pa
     mRootNode = Node::buildNodeTree(scene->mRootNode, nullptr, mNodeNameMap);
 
     if (mRootNode != nullptr) {
-        std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$ Node hirarchy created for" << getName() << " Succesfuly\n";
-        std::cout << glm::to_string(AiToGlm(mScene->mRootNode->mTransformation)) << "\n";
+        // std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$ Node hirarchy created for" << getName() << " Succesfuly\n";
+        // std::cout << glm::to_string(AiToGlm(mScene->mRootNode->mTransformation)) << "\n";
     }
 
     processNode(app, scene->mRootNode, scene, glm::mat4{1.0});
@@ -634,7 +648,7 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     mBindGroupEntry[2].buffer = mGlobalMeshTransformationBuffer.getBuffer();
     mBindGroupEntry[2].binding = 2;
     mBindGroupEntry[2].offset = 0;
-    mBindGroupEntry[2].size = 20 * sizeof(glm::mat4);
+    mBindGroupEntry[2].size = mFlattenMeshes.size() * sizeof(glm::mat4);
 
     WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
     mTrasBindGroupDesc.nextInChain = nullptr;
@@ -679,19 +693,19 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
 
         // Also create and initialize material buffer
         mesh.mMaterialBuffer.setLabel("")
-            .setSize(sizeof(Material))
+            .setSize(sizeof(ShaderMaterial))
             .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
             .setMappedAtCraetion(false)
             .create(&mApp->getRendererResource());
         wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial,
-                             sizeof(Material));
+                             sizeof(ShaderMaterial));
 
         std::array<WGPUBindGroupEntry, 2> material_bg_entries = {};
         material_bg_entries[0].nextInChain = nullptr;
         material_bg_entries[0].buffer = mesh.mMaterialBuffer.getBuffer();
         material_bg_entries[0].binding = 0;
         material_bg_entries[0].offset = 0;
-        material_bg_entries[0].size = sizeof(Material);
+        material_bg_entries[0].size = sizeof(ShaderMaterial);
 
         // Also create and initialize material buffer
         mesh.mMeshMapIdx.setLabel("mesh map index")
@@ -746,7 +760,7 @@ void Model::update(Application* app, float dt, float physicSimulating) {
         wgpuQueueWriteBuffer(queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
                              sizeof(ObjectInfo));
         for (auto& [id, mesh] : mFlattenMeshes) {
-            wgpuQueueWriteBuffer(queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial, sizeof(Material));
+            wgpuQueueWriteBuffer(queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial, sizeof(ShaderMaterial));
         }
         mTransform.mDirty = false;
     }
@@ -844,40 +858,6 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
     }
 }
 
-std::shared_ptr<Texture> DrawTexturePicker(const char* label, Model* model, std::shared_ptr<Texture>& slot,
-                                           Registery<std::string, Texture>* registry, Application* app) {
-    if (slot && slot->isValid()) {
-        ImGui::TextColored(ImVec4(0, 1, 0, 1), "%s", label);
-        return nullptr;
-    }
-
-    ImGui::TextColored(ImVec4(1, 0, 0, 1), "No %s", label);
-
-    if (ImGui::BeginCombo(label, "Select")) {
-        if (ImGui::BeginTable("##tex_table", 2, ImGuiTableFlags_SizingStretchProp)) {
-            for (const auto& [name, texture] : registry->list()) {
-                if (texture == nullptr || !texture->isValid()) continue;
-                ImGui::PushID(texture.get());
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                if (ImGui::Selectable(name.c_str(), false)) {
-                    ImGui::PopID();
-                    ImGui::EndTable();
-                    ImGui::EndCombo();
-                    return texture;
-                }
-
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Image((ImTextureID)(intptr_t)texture->getTextureView(), ImVec2(20.0, 20.0));
-                ImGui::PopID();
-            }
-            ImGui::EndTable();
-        }
-        ImGui::EndCombo();
-    }
-    return nullptr;
-}
-
 #ifdef DEVELOPMENT_BUILD
 void Model::userInterface() {
     ImGuiIO& io = ImGui::GetIO();
@@ -959,6 +939,13 @@ void Model::userInterface() {
         }
     }
 
+    {
+        static bool vis = false;
+        vis = getVisible();
+        if (ImGui::Checkbox("is Visible", &vis)) {
+            setVisible(vis);
+        }
+    }
     bool is_animated = mTransform.mObjectInfo.isAnimated;
     if (ImGui::Checkbox("Animated /Rest Pose", &is_animated)) {
         mTransform.mObjectInfo.isAnimated = is_animated;
@@ -1001,12 +988,10 @@ void Model::userInterface() {
                 mesh.setVisible(vis);
             }
 
-            auto diff_tex = DrawTexturePicker("Diffuse Texture", this, mesh.mTexture, mApp->mTextureRegistery, mApp);
-            auto norm_tex =
-                DrawTexturePicker("Normal Texture", this, mesh.mNormalMapTexture, mApp->mTextureRegistery, mApp);
-            auto spec_tex =
-                DrawTexturePicker("Specular Texture", this, mesh.mSpecularTexture, mApp->mTextureRegistery, mApp);
-            //
+            auto diff_tex = DrawTexturePicker("Diffuse Texture", mesh.mTexture, mApp->mTextureRegistery);
+            auto norm_tex = DrawTexturePicker("Normal Texture", mesh.mNormalMapTexture, mApp->mTextureRegistery);
+            auto spec_tex = DrawTexturePicker("Specular Texture", mesh.mSpecularTexture, mApp->mTextureRegistery);
+
             if (diff_tex != nullptr) {
                 mesh.mTexture = diff_tex;
                 mesh.isTransparent = diff_tex->isTransparent();
@@ -1131,49 +1116,26 @@ void Model::userInterface() {
         }
     }
 
-    // if (mTransform.mObjectInfo.isAnimated && anim->getActiveAction() != nullptr) {
-    //     for (auto& [name, bone] : anim->activeAction->Bonemap) {
-    //         ImGui::PushID((void*)bone);
-    //         if (ImGui::Button(name.c_str())) {
-    //             if (anim->activeAction->calculatedTransform.contains(name)) {
-    //                 // std::cout << "Bone " << name << " Exists!\n";
-    //             }
-    //         }
-    //         ImGui::PopID();  // Pop the unique ID for this item
-    //     }
-    // }
-
-    if (ImGui::CollapsingHeader("Materials")) {  // DefaultOpen makes it open initially
+    if (ImGui::CollapsingHeader("Materials")) {
         static bool open_texture_popup = false;
         static Model* selected_model = nullptr;
         static Mesh* selected_mesh = nullptr;
         static std::shared_ptr<Texture> slot = nullptr;
         static int texture_type = 0;
-        //
+
         if (open_texture_popup) {
-            ImGui::OpenPopup("Select texture");
-            if (ImGui::BeginPopupModal("Select texture", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Selecting for %s ", getName().c_str());
+            ImGui::OpenPopup("Select material");
+            if (ImGui::BeginPopupModal("Select material", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
                 ImGui::Text("Selecting for %s ", getName().c_str());
-                if (ImGui::BeginTable("##tex_table", 2, ImGuiTableFlags_SizingStretchProp)) {
-                    for (const auto& [name, texture] : mApp->mTextureRegistery->list()) {
-                        ImGui::PushID(texture.get());
+                if (ImGui::BeginTable("##mat_table", 2, ImGuiTableFlags_SizingStretchProp)) {
+                    ImGui::Text("Selecting for %s ", getName().c_str());
+                    for (const auto& [name, mat] : mApp->mMaterialRegistery->list()) {
+                        ImGui::PushID(mat.get());
                         ImGui::TableNextRow();
                         ImGui::TableSetColumnIndex(0);
                         if (ImGui::Selectable(name.c_str(), false)) {
-                            slot = texture;
-                            switch (texture_type) {
-                                case 1:
-                                    selected_mesh->mNormalMapTexture = texture;
-                                    break;
-                                case 2:
-                                    selected_mesh->mSpecularTexture = texture;
-                                    break;
-                                case 3:
-                                    selected_mesh->mTexture = texture;
-                                    break;
-                                default:
-                                    break;
-                            }
+                            selected_mesh->setMatreial(mat);
                             selected_model->createSomeBinding(mApp, mApp->getDefaultTextureBindingData());
 
                             open_texture_popup = false;
@@ -1182,7 +1144,7 @@ void Model::userInterface() {
                             selected_model = nullptr;
                         }
                         ImGui::TableSetColumnIndex(1);
-                        ImGui::Image((ImTextureID)(intptr_t)texture->getTextureView(), ImVec2(20.0, 20.0));
+                        ImGui::Image((ImTextureID)(intptr_t)mat->mDiffuseMap->getTextureView(), ImVec2(20.0, 20.0));
                         ImGui::PopID();
                     }
                     ImGui::EndTable();
@@ -1208,6 +1170,8 @@ void Model::userInterface() {
                 auto has_normal_tex = mesh.mNormalMapTexture && mesh.mNormalMapTexture->isValid();
                 auto has_diffuse_tex = mesh.mTexture && mesh.mTexture->isValid();
                 auto has_spec_tex = mesh.mSpecularTexture && mesh.mSpecularTexture->isValid();
+
+                ImGui::Text("%s", mesh.mName.c_str());
 
                 if (has_normal_tex) {
                     ImGui::Image((ImTextureID)(intptr_t)mesh.mNormalMapTexture->getTextureView(), ImVec2(20.0, 20.0));

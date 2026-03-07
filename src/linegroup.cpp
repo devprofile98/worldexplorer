@@ -66,9 +66,10 @@ LineGroup& LineGroup::updateColor(const glm::vec3& color) {
     if (it == mLineEngine->mLineGroups.end()) return *this;
 
     LineEngine::LineGroup& group = it->second;
-    for (auto& p : group.segment) {
-        p.color = color;
-    }
+    group.groupColor = color;
+    // for (auto& p : group.segment) {
+    //     p.color = color;
+    // }
     group.dirty = true;
     return *this;
 }

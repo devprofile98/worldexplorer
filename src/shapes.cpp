@@ -93,7 +93,7 @@ void LineEngine::initialize(Application* app) {
     mCirclePipeline = new Pipeline{app, {layout, camera_layout}, "Line joint Circle Drawing pipeline"};
 
     mPipeline->setVertexBufferLayout(mVertexBufferLayout.getLayout())
-        .setShader(RESOURCE_DIR "/shaders/line_pass.wgsl", resource)
+        .setShader(mApp->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "shaders/line_pass.wgsl", resource)
         .setVertexState()
         .setBlendState()
         .setPrimitiveState()
@@ -103,7 +103,7 @@ void LineEngine::initialize(Application* app) {
         .createPipeline(resource);
 
     mCirclePipeline->setVertexBufferLayout(mCircleBufferLayout.getLayout())
-        .setShader(RESOURCE_DIR "/shaders/line_circle_pass.wgsl", resource)
+        .setShader(mApp->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "shaders/line_circle_pass.wgsl", resource)
         .setVertexState()
         .setBlendState()
         .setPrimitiveState()
@@ -115,13 +115,13 @@ void LineEngine::initialize(Application* app) {
     mOffsetBuffer.setSize(mMaxPoints * sizeof(LineSegment))
         .setLabel("Instancing Shader Storage Buffer for lines")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
-        .setMappedAtCraetion(false)  // No need to map initially
+        .setMappedAtCraetion(false)
         .create(&resource);
 
     mTransformationBuffer.setSize(mMaxPoints * sizeof(glm::mat4))
         .setLabel("Transformation storage for lines")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
-        .setMappedAtCraetion(false)  // No need to map initially
+        .setMappedAtCraetion(false)
         .create(&resource);
 
     mVertexBuffer.setSize(sizeof(mLineInstance))
@@ -260,7 +260,7 @@ uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points, const glm::m
     mLineGroups[id] = {transformation, color, {}, 0, true};
     auto& segments = mLineGroups[id].segment;
     for (const auto& p : points) {
-        segments.emplace_back(LineSegment{p, color, id, true});
+        segments.emplace_back(LineSegment{p, id, true});
     }
     mGlobalDirty = true;
     return id;
@@ -302,7 +302,7 @@ void LineEngine::updateLines(uint32_t id, const std::vector<glm::vec4>& newPoint
     bool sizeChanged = (newPoints.size() != group.segment.size());
     std::vector<LineSegment> segments;
     for (const auto& p : newPoints) {
-        segments.emplace_back(LineSegment{p, group.groupColor, id, true});
+        segments.emplace_back(LineSegment{p, id, true});
     }
     group.segment = segments;
     group.dirty = true;
@@ -329,8 +329,9 @@ void LineEngine::updateLineColor(uint32_t id, const glm::vec3& color) {
     if (it == mLineGroups.end()) return;
 
     LineGroup& group = it->second;
-    for (auto& p : group.segment) {
-        p.color = color;
-    }
+    group.groupColor = color;
+    // for (auto& p : group.segment) {
+    //     p.color = color;
+    // }
     group.dirty = true;
 }

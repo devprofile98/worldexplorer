@@ -143,13 +143,15 @@ void loadModelFromFilesystem(World* world) {
                                                        model_name,
                                                        output,
                                                        isAnimated,
+                                                       true,
                                                        cs,
                                                        std::array<float, 3>{0.0, 0.0, 0.0},
                                                        std::array<float, 3>{1.0, 1.0, 1.0},
                                                        std::array<float, 3>{1.0, 1.0, 1.0},
                                                        {},
                                                        "",
-                                                       {}});
+                                                       {},
+                                                       MaterialList{}});
                 }
 
                 ImGui::CloseCurrentPopup();
@@ -169,118 +171,26 @@ void loadModelFromFilesystem(World* world) {
     }
 }
 
-namespace {
-
-void loaderCallback(TextureLoader::LoadRequest* request) {
-    // Heavy work: read file + generate mipmaps on CPU
-    request->baseTexture->writeBaseTexture(request->path);
-    request->baseTexture->uploadToGPU(request->queue);
-    request->promise.set_value(request->baseTexture);
-}
-}  // namespace
-
-void loadTextureFromFilesystem(Application* app) {
-    static bool open_popup = false;
-    static nfdu8char_t* output;
-    static const nfdpathset_t* paths;
-    static char model_name[100];
-    if (ImGui::Button("Add Texture")) {
-        nfdresult_t result = NFD_OpenDialogMultipleU8(&paths, nullptr, 0, nullptr);
-        if (result == NFD_OKAY) {
-            nfdpathsetsize_t listcount = 0;
-            NFD_PathSet_GetCount(paths, &listcount);
-            for (size_t i = 0; i < listcount; ++i) {
-                NFD_PathSet_GetPath(paths, i, &output);
-
-                auto cached = app->mTextureRegistery->get(output);
-                if (cached != nullptr) {
-                    return;
-                }
-
-                auto texture = std::make_shared<Texture>(app->getRendererResource().device, output);  // reads file here
-
-                // queue async load
-                auto future = app->mTextureRegistery->mLoader.loadAsync(output, app->getRendererResource().queue,
-                                                                        texture, loaderCallback);
-
-                app->mTextureRegistery->addToRegistery(output, texture);
-
-                if (texture->createView() == nullptr) {
-                    std::cout << std::format("Failed to create view for at {}\n", output);
-                } else {
-                    std::cout << std::format("Successfully loaded texture at {}\n", output);
-                }
-            }
-
-        } else if (result == NFD_CANCEL) {
-            std::cout << "User pressed cancel.\n";
-        } else {
-            std::cout << "Error: " << NFD_GetError() << std::endl;
-        }
-    }
-
-    // if (open_popup) {
-    //     ImGui::OpenPopup("Import Settings");
-    //
-    //     if (ImGui::BeginPopupModal("Import Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-    //         ImGui::TextWrapped("Importing:\n%s", output);
-    //         ImGui::Separator();
-    //
-    //         static bool isAnimated = true;
-    //         static int coordinate_system = 0;
-    //         static CoordinateSystem cs = Z_UP;
-    //
-    //         ImGui::InputText("Name", model_name, 100);
-    //         ImGui::Checkbox("Is Animated", &isAnimated);
-    //         if (ImGui::Combo("Coordinate System", &coordinate_system, "Z UP\0Y UP\0")) {
-    //             switch (coordinate_system) {
-    //                 case 0:
-    //                     cs = Z_UP;
-    //                     break;
-    //                 case 1:
-    //                     cs = Y_UP;
-    //                     break;
-    //                 default:
-    //                     break;
-    //             }
-    //         }
-    //
-    //         ImGui::Separator();
-    //         if (ImGui::Button("Import")) {
-    //             nfdpathsetsize_t listcount = 0;
-    //             NFD_PathSet_GetCount(paths, &listcount);
-    //             for (size_t i = 0; i < listcount; ++i) {
-    //                 NFD_PathSet_GetPath(paths, i, &output);
-    //                 std::cout << output << std::endl;
-    //
-    //                 world->loadModel(ObjectLoaderParam{model_name,
-    //                                                    output,
-    //                                                    isAnimated,
-    //                                                    cs,
-    //                                                    std::array<float, 3>{0.0, 0.0, 0.0},
-    //                                                    std::array<float, 3>{1.0, 1.0, 1.0},
-    //                                                    std::array<float, 3>{1.0, 1.0, 1.0},
-    //                                                    {},
-    //                                                    "",
-    //                                                    {}});
-    //             }
-    //
-    //             ImGui::CloseCurrentPopup();
-    //             open_popup = false;  // openImportPopup = false;
-    //             NFD_PathSet_Free(paths);
-    //         }
-    //
-    //         ImGui::SameLine();
-    //         if (ImGui::Button("Cancel")) {
-    //             ImGui::CloseCurrentPopup();
-    //             open_popup = false;
-    //             NFD_PathSet_Free(paths);
-    //         }
-    //
-    //         ImGui::EndPopup();
-    //     }
-    // }
-}
+// void loadTextureFromFilesystem(Application* app) {
+//     static nfdu8char_t* output;
+//     static const nfdpathset_t* paths;
+//     if (ImGui::Button("Add Texture")) {
+//         nfdresult_t result = NFD_OpenDialogMultipleU8(&paths, nullptr, 0, nullptr);
+//         if (result == NFD_OKAY) {
+//             nfdpathsetsize_t listcount = 0;
+//             NFD_PathSet_GetCount(paths, &listcount);
+//             for (size_t i = 0; i < listcount; ++i) {
+//                 NFD_PathSet_GetPath(paths, i, &output);
+//                 Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), output);
+//             }
+//
+//         } else if (result == NFD_CANCEL) {
+//             std::cout << "User pressed cancel.\n";
+//         } else {
+//             std::cout << "Error: " << NFD_GetError() << std::endl;
+//         }
+//     }
+// }
 
 WGPUTextureView getNextSurfaceTextureView(RendererResource& resources);
 WGPULimits GetRequiredLimits(WGPUAdapter adapter);
@@ -289,6 +199,15 @@ bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height)
 static LineGroup debuglinegroup;
 static LineGroup spheredebuglines;
 static LineGroup aabbDebugLines;
+
+Application::Application(const char* runningBinaryPath, const std::string& sceneFile) {
+    std::string binary_running_path = runningBinaryPath;
+    auto path = binary_running_path.substr(0, binary_running_path.find_last_of("/"));
+    std::cout << "The ruunning path is " << path << std::endl;
+    mBinaryPath = path;
+    mCWDPath = std::filesystem::current_path();
+    mSceneFilePath = sceneFile;
+}
 
 WGPUTextureFormat Application::getTextureFormat() { return mSurfaceFormat; }
 
@@ -375,13 +294,13 @@ void Application::initializePipeline() {
         object_information
             .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(ObjectInfo))
             .addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::UNIFORM, 100 * sizeof(glm::mat4))
-            .addBuffer(2, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY, 20 * sizeof(glm::mat4))
+            .addBuffer(2, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY, 0)
             .createLayout(resource, "Object Tranformation Matrix uniform");
 
     BindingGroup default_mesh_information;
     WGPUBindGroupLayout default_mesh_mat_layout =
         default_mesh_information
-            .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(Material))
+            .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(ShaderMaterial))
             .addBuffer(1, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t))
             .createLayout(resource, "mesh material Matrix uniform");
 
@@ -393,8 +312,9 @@ void Application::initializePipeline() {
                              {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
                               mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
                              "standard pipeline"};
-
-    mPipeline->defaultConfiguration(resource, mSurfaceFormat);
+    // "./resources/shaders/shader.wgsl"
+    mPipeline->defaultConfiguration(resource, mSurfaceFormat, WGPUTextureFormat_Depth24Plus,
+                                    (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str());
     setDefaultActiveStencil(mPipeline->getDepthStencilState());
     mPipeline->setDepthStencilState(mPipeline->getDepthStencilState());
     mPipeline->createPipeline(resource);
@@ -404,7 +324,9 @@ void Application::initializePipeline() {
                      {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
                       mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
                      "Draw outline pipe"};
-    mStenctilEnabledPipeline->defaultConfiguration(resource, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8)
+    mStenctilEnabledPipeline
+        ->defaultConfiguration(resource, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8,
+                               (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str())
         .createPipeline(resource);
 
     mDefaultTextureBindingData[0] = {};
@@ -591,7 +513,7 @@ void Application::initializePipeline() {
     mDefaultClipPlaneBG.create(resource, mDefaultClipPlaneBGData);
     mDefaultVisibleBuffer.create(resource, mDefaultVisibleBGData);
 
-    mSkybox = new SkyBox{this, RESOURCE_DIR "/skybox"};
+    mSkybox = new SkyBox{this, getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "skybox"};
 }
 
 // Initializing Vertex Buffers
@@ -653,8 +575,6 @@ void Application::initializeBuffers() {
         bones.emplace_back(glm::mat4{1.0});
     }
     mDefaultBoneFinalTransformData.queueWrite(0, bones.data(), sizeof(glm::mat4) * bones.size());
-    // wgpuQueueWriteBuffer(getRendererResource().queue, mDefaultBoneFinalTransformData.getBuffer(), 0, bones.data(),
-    //                      sizeof(glm::mat4) * bones.size());
 
     mDefaultMeshGlobalTransformData.setLabel("default global mesh transform")
         .setSize(20 * sizeof(glm::mat4))
@@ -716,7 +636,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
         std::cout << "Faield to create windows\n";
         return false;
     }
-    // GLFWwindow* provided_window = glfwCreateWindow(window_width, window_height, "World Explorer", nullptr, nullptr);
+    // GLFWwindow* provided_window = glfwCreateWindow(window_width, window_height, "World Explorer", nullptr,
+    // nullptr);
     GLFWwindow* provided_window = res.value();
 
     mEditor = new Editor{};
@@ -783,6 +704,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     mTextureRegistery = new Registery<std::string, Texture>{};
     mTextureRegistery->mLoader.device = render_device;
 
+    mMaterialRegistery = new MaterialRegistery{};
+
     // Configuring the surface
     WGPUSurfaceConfiguration surface_configuration = {};
     surface_configuration.nextInChain = nullptr;
@@ -820,7 +743,7 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
 
     physics::prepareJolt();
 
-    mWorld = new World{this};
+    mWorld = new World{this, mSceneFilePath};
     // mWorld->actor = mEditor->mEditorActive ? nullptr : mWorld->actor;
 
     // WGPUBufferDescriptor resolveBufferDesc{};
@@ -943,7 +866,8 @@ void Application::mainLoop() {
 
             auto socket_global = glm::mat4{1.0f};
 
-            if (m->mSocket->type == AnchorType::Bone) {
+            if (m->mSocket->type == AnchorType::Bone && base->getAnimation() != nullptr &&
+                base->getAnimation()->getActiveAction() != nullptr) {
                 if (base->getAnimation()->getActiveAction()->calculatedTransform.contains(m->mSocket->anchorName)) {
                     auto trans = base->getAnimation()->getActiveAction()->calculatedTransform[m->mSocket->anchorName];
 
@@ -1037,11 +961,7 @@ void Application::mainLoop() {
 
         uint32_t cascades_count = all_scenes.size();
         mTimeBuffer.queueWrite(0, &cascades_count, sizeof(uint32_t));
-        // wgpuQueueWriteBuffer(this->getRendererResource().queue, mTimeBuffer.getBuffer(), 0, &cascades_count,
-        //                      sizeof(uint32_t));
         mLightSpaceTransformation.queueWrite(0, all_scenes.data(), sizeof(Scene) * all_scenes.size());
-        // wgpuQueueWriteBuffer(this->getRendererResource().queue, mLightSpaceTransformation.getBuffer(), 0,
-        //                      all_scenes.data(), sizeof(Scene) * all_scenes.size());
     }
 
     {
@@ -1537,7 +1457,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                 ImGui::Checkbox("cull frustum", &cull_frustum);
             }
 
-            // static glm::vec3 pointlightshadow = glm::vec3{5.6f, -2.1f, 6.0f};
             if (ImGui::CollapsingHeader("Sun", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::SliderFloat("frustum split factor", &middle_plane_length, 1.0, 100);
                 ImGui::SliderFloat("far split factor", &far_plane_length, 1.0, 200);
@@ -1555,8 +1474,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             }
             if (ImGui::DragFloat4("clip plane:", glm::value_ptr(mDefaultPlane))) {
                 mDefaultClipPlaneBuf.queueWrite(0, glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
-                // wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
-                //                      glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
             }
             ImGui::EndTabItem();
         }
@@ -1917,6 +1834,126 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::EndTabItem();
         }
 
+        if (ImGui::BeginTabItem("Material")) {
+            ImGui::Text("%zu materials ", mMaterialRegistery->list().size());
+
+            loadTextureFromFilesystem(this);
+            if (ImGui::CollapsingHeader("Create Material", ImGuiTreeNodeFlags_DefaultOpen)) {
+                static char mat_name[128];
+                static Material* new_mat = new Material{"", nullptr, nullptr, nullptr};
+                static int which_texture = -1;
+                ImGui::InputText("Name", mat_name, 128);
+
+                static bool open_popup = false;
+                if (open_popup) {
+                    ImGui::OpenPopup("Create Material");
+
+                    if (ImGui::BeginPopupModal("Create Material", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                        auto tex = which_texture == 0
+                                       ? new_mat->mDiffuseMap
+                                       : (which_texture == 1 ? new_mat->mNormalMap : new_mat->mSpecularMap);
+                        auto diff_tex = DrawTexturePicker("Texture", tex, mTextureRegistery);
+                        if (diff_tex && diff_tex->isValid()) {
+                            if (which_texture == 0) {
+                                new_mat->mDiffuseMap = diff_tex;
+                            } else if (which_texture == 1) {
+                                new_mat->mNormalMap = diff_tex;
+                            } else if (which_texture == 2) {
+                                new_mat->mSpecularMap = diff_tex;
+                            }
+                        }
+
+                        if (ImGui::Button("Close")) {
+                            open_popup = false;
+                        }
+                        ImGui::EndPopup();
+                    }
+                }
+
+                if (ImGui::BeginTable("material##mat_table", 3, ImGuiTableFlags_SizingStretchProp)) {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    if (new_mat->mDiffuseMap && new_mat->mDiffuseMap->isValid()) {
+                        ImGui::Image((ImTextureID)(intptr_t)new_mat->mDiffuseMap->getTextureView(), ImVec2(40.0, 40.0));
+                    } else {
+                        ImGui::Button("+##dif", ImVec2(40.0, 40.0));
+                    }
+                    ImGui::TableSetColumnIndex(1);
+                    if (new_mat->mNormalMap && new_mat->mNormalMap->isValid()) {
+                        ImGui::Image((ImTextureID)(intptr_t)new_mat->mNormalMap->getTextureView(), ImVec2(40.0, 40.0));
+                    } else {
+                        ImGui::Button("+##nor", ImVec2(40.0, 40.0));
+                    }
+                    ImGui::TableSetColumnIndex(2);
+                    if (new_mat->mSpecularMap && new_mat->mSpecularMap->isValid()) {
+                        ImGui::Image((ImTextureID)(intptr_t)new_mat->mSpecularMap->getTextureView(),
+                                     ImVec2(40.0, 40.0));
+                    } else {
+                        ImGui::Button("+##spec", ImVec2(40.0, 40.0));
+                    }
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    if (ImGui::Button("edit##dif")) {
+                        open_popup = true;
+                        which_texture = 0;
+                    }
+                    ImGui::TableSetColumnIndex(1);
+                    if (ImGui::Button("edit##nor")) {
+                        open_popup = true;
+                        which_texture = 1;
+                    }
+                    ImGui::TableSetColumnIndex(2);
+                    if (ImGui::Button("edit##spec")) {
+                        open_popup = true;
+                        which_texture = 2;
+                    }
+                    ImGui::EndTable();
+
+                    if (ImGui::Button("Register Material")) {
+                        mMaterialRegistery->addToRegistery(mat_name, std::shared_ptr<Material>(new_mat));
+                        new_mat = new Material{mat_name, nullptr, nullptr, nullptr};
+                    }
+                }
+            }
+
+            if (ImGui::CollapsingHeader("Material Viewer", ImGuiTreeNodeFlags_DefaultOpen)) {
+                if (ImGui::BeginTable("material##mat_table", 4, ImGuiTableFlags_SizingStretchProp)) {
+                    for (const auto& [name, material] : mMaterialRegistery->list()) {
+                        ImGui::PushID(material.get());
+                        ImGui::TableNextRow();
+                        ImGui::TableSetColumnIndex(0);
+                        ImGui::Text("%s", name.c_str());
+                        ImGui::TableSetColumnIndex(1);
+                        if (material->mDiffuseMap && material->mDiffuseMap->isValid()) {
+                            ImGui::Image((ImTextureID)(intptr_t)material->mDiffuseMap->getTextureView(),
+                                         ImVec2(40.0, 40.0));
+                        } else {
+                            ImGui::Button("+##dif", ImVec2(40.0, 40.0));
+                        }
+                        ImGui::TableSetColumnIndex(2);
+
+                        if (material->mNormalMap && material->mNormalMap->isValid()) {
+                            ImGui::Image((ImTextureID)(intptr_t)material->mNormalMap->getTextureView(),
+                                         ImVec2(40.0, 40.0));
+                        } else {
+                            ImGui::Button("+##nor", ImVec2(40.0, 40.0));
+                        }
+                        ImGui::TableSetColumnIndex(3);
+                        if (material->mSpecularMap && material->mSpecularMap->isValid()) {
+                            ImGui::Image((ImTextureID)(intptr_t)material->mSpecularMap->getTextureView(),
+                                         ImVec2(40.0, 40.0));
+                        } else {
+                            ImGui::Button("+##spec", ImVec2(40.0, 40.0));
+                        }
+                        ImGui::PopID();
+                    }
+                    ImGui::EndTable();
+                }
+            }
+
+            ImGui::EndTabItem();
+        }
+
         ImGui::EndTabBar();
     }
 
@@ -1951,3 +1988,9 @@ const std::vector<WGPUBindGroupEntry> Application::getDefaultTextureBindingData(
 
 WGPUTextureView Application::getDepthStencilTarget() { return mDepthTextureView; }
 WGPUTextureView Application::getColorTarget() { return mCurrentTargetView; }
+
+std::filesystem::path Application::getWorkingDirectoryPath() const { return mCWDPath; }
+std::filesystem::path Application::getBinaryPathAbsolute() const {
+    return std::filesystem::current_path() / mBinaryPath;
+}
+std::filesystem::path Application::getBinaryPathRelative() const { return mBinaryPath; }

@@ -7,6 +7,7 @@
 #include <glm/fwd.hpp>
 #include <ios>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -27,6 +28,7 @@
 #include "model_registery.h"
 #include "physics.h"
 #include "point_light.h"
+#include "texture.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
 
@@ -102,6 +104,39 @@ void to_json(json& j, const BoneSocket& p) {
     };
 }
 
+void to_json(json& j, const Material& mat) {
+    j = json{{"name", mat.mName}};
+
+    if (mat.mNormalMap && mat.mNormalMap->isValid()) {
+        j["normal_map"] = mat.mNormalMap->getPath();
+    } else {
+        j["normal_map"] = nullptr;
+    }
+    if (mat.mDiffuseMap && mat.mDiffuseMap->isValid()) {
+        j["diffuse_map"] = mat.mDiffuseMap->getPath();
+    } else {
+        j["diffuse_map"] = nullptr;
+    }
+    if (mat.mSpecularMap && mat.mSpecularMap->isValid()) {
+        j["specular_map"] = mat.mSpecularMap->getPath();
+    } else {
+        j["specular_map"] = nullptr;
+    }
+}
+json to_json(const BaseModel* model) {
+    json j = json::array();
+
+    for (auto& [id, mat] : model->mFlattenMeshes) {
+        if (mat.mTextureMaterial != nullptr) {
+            json o;
+            o[mat.mName] = mat.mTextureMaterial->mName;
+            j.push_back(o);
+        }
+    }
+    std::cout << j << std::endl;
+    return j;
+}
+
 std::string coordinateSystemToString(const CoordinateSystem& cs) {
     switch (cs) {
         case Z_UP:
@@ -118,19 +153,20 @@ void to_json(json& j, const BaseModel& m) {
     // std::string default_clip = m.mDefaultAction != nullptr ? m.mDefaultAction->name : "";
     std::string default_clip = "";
 
-    j = json{
-        {"id", m.mName},
-        {"name", m.mName},
-        {"path", m.mPath},
-        {"enabled", true},
-        {"animated", m.mTransform.mObjectInfo.isAnimated == 1},
-        {"cs", coordinateSystemToString(m.getCoordinateSystem())},
-        {"translate", json::array({t.x, t.y, t.z})},
-        {"scale", json::array({s.x, s.y, s.z})},
-        {"rotate", json::array({glm::degrees(r.x), glm::degrees(r.y), glm::degrees(r.z)})},
-        {"childrens", json::array({})},
-        {"default_clip", default_clip},
-    };
+    j = json{{"type", m.getType()},
+             {"id", m.mName},
+             {"name", m.mName},
+             {"path", m.mPath},
+             {"visible", m.getVisible()},
+             {"enabled", true},
+             {"animated", m.mTransform.mObjectInfo.isAnimated == 1},
+             {"cs", coordinateSystemToString(m.getCoordinateSystem())},
+             {"translate", json::array({t.x, t.y, t.z})},
+             {"scale", json::array({s.x, s.y, s.z})},
+             {"rotate", json::array({glm::degrees(r.x), glm::degrees(r.y), glm::degrees(r.z)})},
+             {"childrens", json::array({})},
+             {"default_clip", default_clip},
+             {"materials", to_json(&m)}};
     if (m.mSocket == nullptr) {
         j["socket"] = nullptr;
     } else {
@@ -148,7 +184,6 @@ void to_json(json& j, const BaseModel& m) {
     } else {
         j["instance"] = *m.instance;
     }
-    // std::cout << "Model: " << j << std::endl;
 }
 
 TransformProperties calculateChildTransform(BaseModel* parent, BaseModel* child) {
@@ -160,6 +195,12 @@ void World::exportScene() {
     for (const auto& model : rootContainer) {
         json j = *model;
         objects.push_back(j);
+        if (model->getName() == "terrain") {
+            for (auto& [id, mat] : model->mFlattenMeshes) {
+                std::cout << ">>>> " << mat.mName << "    "
+                          << (mat.mTextureMaterial == nullptr ? " nothing" : mat.mTextureMaterial->mName) << std::endl;
+            }
+        }
     }
 
     json colliders = json::array();
@@ -178,19 +219,26 @@ void World::exportScene() {
         jlights.push_back(j);
     }
 
+    json materials = json::array();
+    for (auto& [name, mat] : app->mMaterialRegistery->list()) {
+        json j;
+        to_json(j, *mat);
+        materials.push_back(j);
+    }
+
     json scene;
     scene["objects"] = objects;
     scene["colliders"] = colliders;
     scene["lights"] = jlights;
     scene["cameras"] = json::array();
     scene["actor"] = actor != nullptr ? actor->getName() : "";
+    scene["materials"] = materials;
 
     auto scene_dump = scene.dump(2);
     std::cout << scene_dump << std::endl;
     std::ofstream out;
-    // out.open("resources/world.json", std::ios::out);
-    // out.write(scene_dump.c_str(), scene_dump.size());
-    out << scene_dump;
+    out.open(app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / mSceneFilePath, std::ios::trunc);
+    out.write(scene_dump.c_str(), scene_dump.size());
 }
 
 Model* World::makeChild(BaseModel* parent, BaseModel* child) {
@@ -210,7 +258,7 @@ Model* World::makeChild(BaseModel* parent, BaseModel* child) {
     return nullptr;
 }
 
-World::World(Application* app) : app(app) {
+World::World(Application* app, const std::string& sceneFilePath) : app(app), mSceneFilePath(sceneFilePath) {
     auto& input_manager = InputManager::instance();
     input_manager.mKeyListener.push_back(this);
     input_manager.mMouseMoveListeners.push_back(this);
@@ -267,12 +315,22 @@ void World::onNewModel(Model* loadedModel) {
 
     if (map.contains(loadedModel->mName)) {
         auto params = map.at(loadedModel->mName);
-        if (params.type == 1) {
+
+        if (!params.materialList.empty()) {
+            for (auto [name, mat_name] : params.materialList) {
+                app->mMaterialRegistery->applyMaterialTo(app, loadedModel, name, mat_name);
+            }
+        }
+
+        if (params.type == ModelTypes::CODE) {
             for (auto* model : rootContainer) {
-                std::cout << model->getName() << " is of type 2 " << std::endl;
-                model->moveTo(params.translate);
-                model->scale(params.scale);
-                std::cout << glm::to_string(params.scale) << std::endl;
+                if (model->mName == params.name) {
+                    model->setVisible(params.isVisible);
+                    std::cout << model->getName() << " is of type 2 " << std::endl;
+                    model->moveTo(params.translate);
+                    model->scale(params.scale);
+                    std::cout << glm::to_string(params.scale) << std::endl;
+                }
             }
         }
     }
@@ -410,17 +468,20 @@ void World::onMouseScroll(MouseEvent event) {
 
 glm::vec3 toGlm(std::array<float, 3> arr) { return glm::vec3{arr[0], arr[1], arr[2]}; }
 
-ObjectLoaderParam::ObjectLoaderParam(int type, std::string name, std::string path, bool animated, CoordinateSystem cs,
-                                     Vec translate, Vec scale, Vec rotate, std::vector<std::string> childrens,
-                                     std::string defaultClip, SocketParams socketParam)
+ObjectLoaderParam::ObjectLoaderParam(int type, std::string name, std::string path, bool animated, bool isVisible,
+                                     CoordinateSystem cs, Vec translate, Vec scale, Vec rotate,
+                                     std::vector<std::string> childrens, std::string defaultClip,
+                                     SocketParams socketParam, MaterialList matList)
     : socketParam(socketParam),
       type(type),
       name(name),
       path(path),
       animated(animated),
+      isVisible(isVisible),
       cs(cs),
       childrens(childrens),
-      defaultClip(defaultClip) {
+      defaultClip(defaultClip),
+      materialList(matList) {
     this->translate = toGlm(translate);
     this->scale = toGlm(scale);
     this->rotate = toGlm(rotate);
@@ -429,6 +490,7 @@ ObjectLoaderParam::ObjectLoaderParam(int type, std::string name, std::string pat
 struct BaseModelLoader : public IModel {
         BaseModelLoader(Application* app, ObjectLoaderParam param) {
             mModel = new Model{param.cs};
+            mModel->setVisible(param.isVisible);
             mModel->mPath = param.path;
             mModel->load(param.name, app, param.path, app->getObjectBindGroupLayout())
                 .moveTo(param.translate)
@@ -451,7 +513,7 @@ struct BaseModelLoader : public IModel {
             }
             // if mesh in node animated
             mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
-                .setSize(20 * sizeof(glm::mat4))
+                .setSize(mModel->mFlattenMeshes.size() * sizeof(glm::mat4))
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
                 .create(&app->getRendererResource());
 
@@ -556,6 +618,46 @@ void parseLights(LightManager* manager, const json& lights) {
     }
 }
 
+void parseMaterial(Application* app, const json& materials) {
+    for (auto& mat_obj : materials) {
+        std::string name = mat_obj["name"].get<std::string>();
+        json dif_map_json = mat_obj["diffuse_map"];
+        json nor_map_json = mat_obj["normal_map"];
+        json spec_map_json = mat_obj["specular_map"];
+
+        std::shared_ptr<Texture> dif_tex = nullptr;
+        std::shared_ptr<Texture> nor_tex = nullptr;
+        std::shared_ptr<Texture> spec_tex = nullptr;
+
+        if (!dif_map_json.is_null()) {
+            std::string dif_map = mat_obj["diffuse_map"].get<std::string>();
+            if (dif_map.starts_with("rc://")) {
+                dif_map.replace(0, 5, "");
+                dif_map = app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / dif_map;
+            }
+            dif_tex = Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), dif_map);
+        }
+        if (!nor_map_json.is_null()) {
+            std::string nor_map = mat_obj["normal_map"].get<std::string>();
+            if (nor_map.starts_with("rc://")) {
+                nor_map.replace(0, 5, "");
+                nor_map = app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / nor_map;
+            }
+            nor_tex = Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), nor_map);
+        }
+        if (!spec_map_json.is_null()) {
+            std::string spec_map = mat_obj["specular_map"].get<std::string>();
+            if (spec_map.starts_with("rc://")) {
+                spec_map.replace(0, 5, "");
+                spec_map = app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / spec_map;
+            }
+            spec_tex = Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), spec_map);
+        }
+
+        app->mMaterialRegistery->addToRegistery(name, std::make_shared<Material>(name, dif_tex, nor_tex, nullptr));
+    }
+}
+
 std::optional<SocketParams> parseSocketParam(const json& params) {
     if (params.is_null()) {
         return std::nullopt;
@@ -587,6 +689,16 @@ std::vector<Transformation> parseinstanceinfo(const json& params) {
         res.push_back({translate, scale, rotate});
     }
 
+    return res;
+}
+
+MaterialList parseMeshMaterial(std::vector<json>& materials) {
+    MaterialList res;
+    for (json& mat : materials) {
+        for (auto [k, v] : mat.items()) {
+            res.emplace_back(std::pair{k, v});
+        }
+    }
     return res;
 }
 
@@ -625,10 +737,14 @@ void World::loadModel(const ObjectLoaderParam& param) {
 }
 
 void World::loadWorld() {
-    std::ifstream world_file(RESOURCE_DIR "/world.json");
+    std::ifstream world_file(app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / mSceneFilePath);
 
     json j;
     json res = j.parse(world_file);
+
+    auto* light_manager = app->mLightManager;
+    parseLights(light_manager, res["lights"]);
+    parseMaterial(app, res["materials"]);
 
     actorName = res["actor"].get<std::string>();
 
@@ -643,6 +759,7 @@ void World::loadWorld() {
         if (!is_enabled) {
             continue;
         }
+        bool is_visible = object["visible"].get<bool>();
         bool is_animated = object["animated"].get<bool>();
         std::string _cs = object["cs"].get<std::string>();
         CoordinateSystem cs = _cs == "z" ? Z_UP : Y_UP;
@@ -651,6 +768,12 @@ void World::loadWorld() {
         std::array<float, 3> rotate = object["rotate"].get<std::array<float, 3>>();
         std::vector<std::string> childs = object["childrens"].get<std::vector<std::string>>();
         std::string default_clip = object["default_clip"].get<std::string>();
+        MaterialList mat_list{};
+        if (object.count("materials") > 0) {
+            auto materials = object["materials"].get<std::vector<json>>();
+            MaterialList mat_list = parseMeshMaterial(materials);
+        }
+
         auto physics_props = parsePhysics(object["physics"]);
         SocketParams socket_param;
         socket_param.isValid = false;
@@ -667,8 +790,8 @@ void World::loadWorld() {
         } else {
         }
 
-        ObjectLoaderParam param{type,  name,   path,   is_animated,  cs,          translate,
-                                scale, rotate, childs, default_clip, socket_param};
+        ObjectLoaderParam param{type,  name,   path,   is_animated,  is_visible,   cs,      translate,
+                                scale, rotate, childs, default_clip, socket_param, mat_list};
 
         param.instanceTransformations = instance_info;
 
@@ -682,17 +805,13 @@ void World::loadWorld() {
         if (param.path.starts_with("rc://")) {
             param.path.replace(0, 5, "");
             std::cout << "path read is " << param.path << std::endl;
-            param.path = RESOURCE_DIR + std::string{"/"} + param.path;
+            param.path = app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / param.path;
         }
-        // param.path = RESOURCE_DIR + std::string{"/"} + param.path;
-        if (type == 0) {
+        if (type == ModelTypes::FS) {
             loadModel(param);
         }
         map.emplace(name, param);
     }
-
-    auto* light_manager = app->mLightManager;
-    parseLights(light_manager, res["lights"]);
 
     auto f = std::bind(physics::PhysicSystem::createCollider, app, std::placeholders::_1, std::placeholders::_2,
                        std::placeholders::_3, std::placeholders::_4, false, nullptr);

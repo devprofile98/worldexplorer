@@ -205,7 +205,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     mTextureBindingData[1].binding = 1;
     mTextureBindingData[1].textureView = nullptr;
 
-    mRenderPipeline->setShader(RESOURCE_DIR "/shaders/shadow.wgsl", rc)
+    mRenderPipeline->setShader(mApp->getBinaryPathAbsolute() / ".." / RESOURCE_DIR "/shaders/shadow.wgsl", rc)
         .setVertexBufferLayout(d)
         .setVertexState()
         .setPrimitiveState()
@@ -443,7 +443,8 @@ void DepthPrePass::createRenderPass(WGPUTextureFormat textureFormat) {
     mRenderPipeline
         // ->defaultConfiguration(mApp, textureFormat, WGPUTextureFormat_Depth24Plus,
         //                        )
-        ->setShader(RESOURCE_DIR "/shaders/depth_prepass.wgsl", mApp->getRendererResource())
+        ->setShader(mApp->getBinaryPathAbsolute() / ".." / RESOURCE_DIR "/shaders/depth_prepass.wgsl",
+                    mApp->getRendererResource())
         .setVertexBufferLayout(d)
         .setVertexState()
         .setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_Front)
