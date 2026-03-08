@@ -10,6 +10,97 @@
 #include "utils.h"
 
 // #define WIREFRAME_ENABLED
+Pipeline* custom_shader = nullptr;
+WGPUBindGroupLayout custom_layout;
+BindingGroup custom_bindgroup;
+
+void createCustomShaderMaterial(Application* mApp, WGPUTextureFormat textureFormat) {
+    custom_bindgroup
+        .addTexture(0, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
+        .addTexture(1, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
+        .addTexture(2, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D)
+        .addTexture(3, BindGroupEntryVisibility::FRAGMENT, TextureSampleType::FLAOT, TextureViewDimension::ARRAY_2D);
+
+    custom_layout = custom_bindgroup.createLayout(mApp->getRendererResource(), "Terrain Texture layout bidngroup");
+
+    std::filesystem::path base_path = mApp->getBinaryPathAbsolute() / ".." / RESOURCE_DIR;
+    auto mGrass =
+        new Texture{mApp->getRendererResource().device,
+                    std::vector<std::filesystem::path>{base_path / "mud/diffuse.jpg", base_path / "mud/normal.jpg",
+                                                       base_path / "mud/roughness.jpg"},
+                    WGPUTextureFormat_RGBA8Unorm, 3};
+    mGrass->createViewArray(0, 3);
+    mGrass->uploadToGPU(mApp->getRendererResource().queue);
+
+    auto mRock = new Texture{mApp->getRendererResource().device,
+                             std::vector<std::filesystem::path>{base_path / "Rock/Rock060_1K-JPG_Color.jpg",
+                                                                base_path / "Rock/Rock060_1K-JPG_NormalGL.jpg",
+                                                                base_path / "Rock/Rock060_1K-JPG_Roughness.jpg"},
+                             WGPUTextureFormat_RGBA8Unorm, 3};
+    mRock->createViewArray(0, 3);
+    mRock->uploadToGPU(mApp->getRendererResource().queue);
+
+    auto mSand = new Texture{mApp->getRendererResource().device,
+                             std::vector<std::filesystem::path>{base_path / "aerial/aerial_beach_01_diff_1k.jpg",
+                                                                base_path / "aerial/aerial_beach_01_nor_gl_1k.jpg",
+                                                                base_path / "aerial/aerial_beach_01_rough_1k.jpg"},
+                             WGPUTextureFormat_RGBA8Unorm, 3};
+    mSand->createViewArray(0, 3);
+    mSand->uploadToGPU(mApp->getRendererResource().queue);
+
+    auto mSnow = new Texture{mApp->getRendererResource().device,
+                             std::vector<std::filesystem::path>{base_path / "snow/snow_02_diff_1k.jpg",
+                                                                base_path / "snow/snow_02_nor_gl_1k.jpg",
+                                                                base_path / "snow/snow_02_rough_1k.jpg"},
+                             WGPUTextureFormat_RGBA8Unorm, 3};
+    mSnow->createViewArray(0, 3);
+    mSnow->uploadToGPU(mApp->getRendererResource().queue);
+    std::vector<Texture*> mTempTextures = {mGrass, mRock, mSand, mSnow};
+
+    std::vector<WGPUBindGroupEntry> mBindingData{4};
+    mBindingData[0] = {};
+    mBindingData[0].nextInChain = nullptr;
+    mBindingData[0].binding = 0;
+    mBindingData[0].textureView = mTempTextures[0]->getTextureViewArray();
+
+    mBindingData[1] = {};
+    mBindingData[1].nextInChain = nullptr;
+    mBindingData[1].binding = 1;
+    mBindingData[1].textureView = mTempTextures[1]->getTextureViewArray();
+
+    mBindingData[2] = {};
+    mBindingData[2].nextInChain = nullptr;
+    mBindingData[2].binding = 2;
+    mBindingData[2].textureView = mTempTextures[2]->getTextureViewArray();
+
+    mBindingData[3] = {};
+    mBindingData[3].nextInChain = nullptr;
+    mBindingData[3].binding = 3;
+    mBindingData[3].textureView = mTempTextures[3]->getTextureViewArray();
+
+    custom_bindgroup.create(mApp->getRendererResource(), mBindingData);
+
+    auto* layouts = mApp->getBindGroupLayouts();
+    auto& resource = mApp->getRendererResource();
+    custom_shader = new Pipeline{
+        mApp, {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4], layouts[5], custom_layout}, "Custom Shader"};
+    custom_shader->defaultConfiguration(resource, textureFormat);
+    custom_shader->setShader(mApp->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "shaders" / "terrain.wgsl",
+                             resource);
+    custom_shader->setDepthStencilState(custom_shader->getDepthStencilState());
+    setDefault(custom_shader->getDepthStencilState());
+    custom_shader->getDepthStencilState().format = WGPUTextureFormat_Depth24PlusStencil8;
+    custom_shader->getDepthStencilState().depthWriteEnabled = WGPUOptionalBool_True;
+    custom_shader->getDepthStencilState().depthCompare = WGPUCompareFunction_Less;
+    custom_shader->setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_Back);
+
+    custom_shader->createPipeline(resource);
+}
+
+Pipeline* TerrainModel::getPipeline(Application* app) {
+    (void)app;
+    return custom_shader;
+}
 
 TerrainModel::TerrainModel(Application* app) : Model(CoordinateSystem::Z_UP) {
     BaseModel::mName = "terrain";
@@ -84,6 +175,8 @@ Model& TerrainModel::load(std::string name, Application* app, const std::filesys
     wireFrame = app->mLineEngine->create(mesh_wireframe_lines, mTransform.mTransformMatrix, glm::vec3{1.0, 0.0, 0.0});
 #endif
 
+    createCustomShaderMaterial(app, WGPUTextureFormat_BGRA8UnormSrgb);
+
     return *this;
 }
 
@@ -102,10 +195,21 @@ void TerrainModel::update(Application* app, float dt, float physicSimulating) {
     }
 }
 
+void TerrainModel::getCustomBindGroup(Application* app, WGPURenderPassEncoder encoder, Mesh& mesh) {
+    wgpuRenderPassEncoderSetBindGroup(encoder, 0, app->getBindingGroup().getBindGroup(), 0, nullptr);
+
+    wgpuRenderPassEncoderSetBindGroup(encoder, 1, getObjectInfoBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(
+        encoder, 2,
+        mesh.mTextureBindGroup == nullptr ? app->mDefaultTextureBindingGroup.getBindGroup() : mesh.mTextureBindGroup, 0,
+        nullptr);
+
+    wgpuRenderPassEncoderSetBindGroup(encoder, 6, custom_bindgroup.getBindGroup(), 0, nullptr);
+}
+
 struct TTerrain : public IModel {
         TTerrain(Application* app) {
             mModel = new TerrainModel{app};
-            // mModel->moveTo(glm::vec3{1}).scale(glm::vec3{1}).rotate(glm::vec3{0.0}, 0.0);
             std::cout << glm::to_string(mModel->mTransform.mTransformMatrix) << std::endl;
             mModel->load("terrain", app, "", nullptr);
             mModel->uploadToGPU(app);

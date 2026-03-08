@@ -16,9 +16,12 @@ class TerrainModel : public Model {
                     WGPUBindGroupLayout layout) override;
 
         void update(Application* app, float dt, float physicSimulating = true) override;
+        void getCustomBindGroup(Application* app, WGPURenderPassEncoder encoder, Mesh& mesh) override;
+        Pipeline* getPipeline(Application* app) override;
 
         void drawGraph(Application* app, WGPURenderPassEncoder encoder, Node* node);
         void drawHirarchy(Application* app, WGPURenderPassEncoder encoder) override;
+
         LineGroup wireFrame;
 };
 

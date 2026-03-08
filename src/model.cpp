@@ -630,6 +630,11 @@ void BaseModel::selected(bool selected) {
 bool BaseModel::isSelected() const { return mTransform.mObjectInfo.isSelected; }
 
 void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData) {
+    // release the old bindgroup, if any
+    if (ggg) {
+        wgpuBindGroupRelease(ggg);
+        ggg = nullptr;
+    }
     std::array<WGPUBindGroupEntry, 3> mBindGroupEntry = {};
     mBindGroupEntry[0].nextInChain = nullptr;
     mBindGroupEntry[0].binding = 0;
@@ -777,30 +782,28 @@ void Model::internalDraw(Application* app, WGPURenderPassEncoder encoder, Node* 
             continue;
         }
         WGPUBindGroup active_bind_group = nullptr;
-        if (isTransparent()) {
-            std::cout << getName() << "'s Mesh is transparent\n";
-        }
+
         active_bind_group = app->getBindingGroup().getBindGroup();
 
         wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                              wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
         wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
                                             wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
-        wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
-
-        wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(encoder, 2,
-                                          mesh.mTextureBindGroup == nullptr
-                                              ? app->mDefaultTextureBindingGroup.getBindGroup()
-                                              : mesh.mTextureBindGroup,
-                                          0, nullptr);
-
-        wgpuRenderPassEncoderSetBindGroup(encoder, 6, mesh.mMaterialBindGroup, 0, nullptr);
+        // wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
+        //
+        // wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
+        // wgpuRenderPassEncoderSetBindGroup(encoder, 2,
+        //                                   mesh.mTextureBindGroup == nullptr
+        //                                       ? app->mDefaultTextureBindingGroup.getBindGroup()
+        //                                       : mesh.mTextureBindGroup,
+        //                                   0, nullptr);
+        //
+        // wgpuRenderPassEncoderSetBindGroup(encoder, 6, mesh.mMaterialBindGroup, 0, nullptr);
+        getCustomBindGroup(app, encoder, mesh);
         if (this->instance != nullptr) {
             // wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mIndirectDrawArgsBuffer.getBuffer(), 0);
             wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), instance->getInstanceCount(), 0, 0, 0);
         } else {
-            // std::cout << getName() << " " << mesh.mIndexData.size() << std::endl;
             wgpuRenderPassEncoderDrawIndexed(encoder, mesh.mIndexData.size(), 1, 0, 0, 0);
         }
     }
@@ -1313,6 +1316,31 @@ BaseModel& BaseModel::rotate(const glm::quat& rot) {
     mTransform.mRotationMatrix = glm::toMat4(mTransform.mOrientation);
     return *this;
 }
+
+void BaseModel::getCustomBindGroup(Application* app, WGPURenderPassEncoder encoder, Mesh& mesh) {
+    (void)app;
+    (void)encoder;
+    (void)mesh;
+}
+Pipeline* BaseModel::getPipeline(Application* app) {
+    (void)app;
+    return nullptr;
+}
+
+void Model::getCustomBindGroup(Application* app, WGPURenderPassEncoder encoder, Mesh& mesh
+
+) {
+    wgpuRenderPassEncoderSetBindGroup(encoder, 0, app->getBindingGroup().getBindGroup(), 0, nullptr);
+
+    wgpuRenderPassEncoderSetBindGroup(encoder, 1, getObjectInfoBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(
+        encoder, 2,
+        mesh.mTextureBindGroup == nullptr ? app->mDefaultTextureBindingGroup.getBindGroup() : mesh.mTextureBindGroup, 0,
+        nullptr);
+
+    wgpuRenderPassEncoderSetBindGroup(encoder, 6, mesh.mMaterialBindGroup, 0, nullptr);
+}
+Pipeline* Model::getPipeline(Application* app) { return app->getPipeline(); }
 
 glm::vec3& Transform::getPosition() { return mPosition; }
 glm::vec3& Transform::getScale() { return mScale; }

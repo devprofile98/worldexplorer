@@ -73,6 +73,7 @@ class Application {
         const std::vector<WGPUBindGroupEntry> getDefaultTextureBindingData() const;
         WGPUTextureView getDepthStencilTarget();
         WGPUTextureView getColorTarget();
+        Pipeline* getPipeline();
 
         std::filesystem::path getWorkingDirectoryPath() const;
         std::filesystem::path getBinaryPathAbsolute() const;

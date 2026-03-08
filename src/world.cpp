@@ -11,6 +11,7 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -133,7 +134,22 @@ json to_json(const BaseModel* model) {
             j.push_back(o);
         }
     }
+    return j;
+}
+
+json to_json(const std::unordered_map<int, Mesh>& meshes) {
+    json j = json::array();
+
+    for (auto& [id, mesh] : meshes) {
+        json o;
+        json k;
+        o["uv"] = json::array({mesh.mMaterial.uvMultiplier.x, mesh.mMaterial.uvMultiplier.y});
+        k[mesh.mName] = o;
+        j.push_back(k);
+    }
+    std::cout << " +++++++++++++++++++++++++++++++++++++++\n";
     std::cout << j << std::endl;
+    std::cout << " +++++++++++++++++++++++++++++++++++++++\n";
     return j;
 }
 
@@ -153,20 +169,24 @@ void to_json(json& j, const BaseModel& m) {
     // std::string default_clip = m.mDefaultAction != nullptr ? m.mDefaultAction->name : "";
     std::string default_clip = "";
 
-    j = json{{"type", m.getType()},
-             {"id", m.mName},
-             {"name", m.mName},
-             {"path", m.mPath},
-             {"visible", m.getVisible()},
-             {"enabled", true},
-             {"animated", m.mTransform.mObjectInfo.isAnimated == 1},
-             {"cs", coordinateSystemToString(m.getCoordinateSystem())},
-             {"translate", json::array({t.x, t.y, t.z})},
-             {"scale", json::array({s.x, s.y, s.z})},
-             {"rotate", json::array({glm::degrees(r.x), glm::degrees(r.y), glm::degrees(r.z)})},
-             {"childrens", json::array({})},
-             {"default_clip", default_clip},
-             {"materials", to_json(&m)}};
+    j = json{
+        {"type", m.getType()},
+        {"id", m.mName},
+        {"name", m.mName},
+        {"path", m.mPath},
+        {"visible", m.getVisible()},
+        {"enabled", true},
+        {"animated", m.mTransform.mObjectInfo.isAnimated == 1},
+        {"cs", coordinateSystemToString(m.getCoordinateSystem())},
+        {"translate", json::array({t.x, t.y, t.z})},
+        {"scale", json::array({s.x, s.y, s.z})},
+        {"rotate", json::array({glm::degrees(r.x), glm::degrees(r.y), glm::degrees(r.z)})},
+        {"childrens", json::array({})},
+        {"default_clip", default_clip},
+        {"materials", to_json(&m)},
+        {"material_props", to_json(m.mFlattenMeshes)},
+    };
+
     if (m.mSocket == nullptr) {
         j["socket"] = nullptr;
     } else {
@@ -195,12 +215,6 @@ void World::exportScene() {
     for (const auto& model : rootContainer) {
         json j = *model;
         objects.push_back(j);
-        if (model->getName() == "terrain") {
-            for (auto& [id, mat] : model->mFlattenMeshes) {
-                std::cout << ">>>> " << mat.mName << "    "
-                          << (mat.mTextureMaterial == nullptr ? " nothing" : mat.mTextureMaterial->mName) << std::endl;
-            }
-        }
     }
 
     json colliders = json::array();
@@ -319,6 +333,19 @@ void World::onNewModel(Model* loadedModel) {
         if (!params.materialList.empty()) {
             for (auto [name, mat_name] : params.materialList) {
                 app->mMaterialRegistery->applyMaterialTo(app, loadedModel, name, mat_name);
+            }
+        }
+
+        if (!params.matPropMap.empty()) {
+            for (auto& [id, mesh] : loadedModel->mFlattenMeshes) {
+                auto prop = params.matPropMap.find(mesh.mName);
+                if (prop != params.matPropMap.end()) {
+                    mesh.mMaterial.uvMultiplier = glm::vec3{prop->second.uv[0], prop->second.uv[1], 1.0};
+                    loadedModel->mTransform.mDirty = true;
+                    std::cout << loadedModel->mName << " " << prop->first << " ::::: Has " << params.matPropMap.size()
+                              << " " << prop->second.uv[0] << " " << prop->second.uv[1] << " Materials\n";
+                } else {
+                }
             }
         }
 
@@ -467,11 +494,12 @@ void World::onMouseScroll(MouseEvent event) {
 }
 
 glm::vec3 toGlm(std::array<float, 3> arr) { return glm::vec3{arr[0], arr[1], arr[2]}; }
+glm::vec2 toGlm(std::array<float, 2> arr) { return glm::vec2{arr[0], arr[1]}; }
 
 ObjectLoaderParam::ObjectLoaderParam(int type, std::string name, std::string path, bool animated, bool isVisible,
                                      CoordinateSystem cs, Vec translate, Vec scale, Vec rotate,
                                      std::vector<std::string> childrens, std::string defaultClip,
-                                     SocketParams socketParam, MaterialList matList)
+                                     SocketParams socketParam, MaterialList matList, MaterialPropsMap matPropMap)
     : socketParam(socketParam),
       type(type),
       name(name),
@@ -481,7 +509,8 @@ ObjectLoaderParam::ObjectLoaderParam(int type, std::string name, std::string pat
       cs(cs),
       childrens(childrens),
       defaultClip(defaultClip),
-      materialList(matList) {
+      materialList(matList),
+      matPropMap(matPropMap) {
     this->translate = toGlm(translate);
     this->scale = toGlm(scale);
     this->rotate = toGlm(rotate);
@@ -655,6 +684,7 @@ void parseMaterial(Application* app, const json& materials) {
         }
 
         app->mMaterialRegistery->addToRegistery(name, std::make_shared<Material>(name, dif_tex, nor_tex, nullptr));
+        app->mMaterialRegistery->applyWaiters(app, name);
     }
 }
 
@@ -692,7 +722,19 @@ std::vector<Transformation> parseinstanceinfo(const json& params) {
     return res;
 }
 
-MaterialList parseMeshMaterial(std::vector<json>& materials) {
+MaterialPropsMap parseMeshMaterialProps(std::vector<json>& props) {
+    std::unordered_map<std::string, MaterialProperties> res;
+    for (json& properties : props) {
+        for (auto [k, v] : properties.items()) {
+            std::cout << " LLLLLLLLLLl " << k << v << std::endl;
+            auto uv = v["uv"].get<std::array<float, 2>>();
+            res[k] = MaterialProperties{k, uv};
+        }
+    }
+    return res;
+}
+
+MaterialList parseMeshMaterials(std::vector<json>& materials) {
     MaterialList res;
     for (json& mat : materials) {
         for (auto [k, v] : mat.items()) {
@@ -768,10 +810,17 @@ void World::loadWorld() {
         std::array<float, 3> rotate = object["rotate"].get<std::array<float, 3>>();
         std::vector<std::string> childs = object["childrens"].get<std::vector<std::string>>();
         std::string default_clip = object["default_clip"].get<std::string>();
+
         MaterialList mat_list{};
         if (object.count("materials") > 0) {
             auto materials = object["materials"].get<std::vector<json>>();
-            MaterialList mat_list = parseMeshMaterial(materials);
+            mat_list = parseMeshMaterials(materials);
+        }
+
+        MaterialPropsMap mat_map{};
+        if (object.count("material_props") > 0) {
+            auto props = object["material_props"].get<std::vector<json>>();
+            mat_map = parseMeshMaterialProps(props);
         }
 
         auto physics_props = parsePhysics(object["physics"]);
@@ -790,8 +839,8 @@ void World::loadWorld() {
         } else {
         }
 
-        ObjectLoaderParam param{type,  name,   path,   is_animated,  is_visible,   cs,      translate,
-                                scale, rotate, childs, default_clip, socket_param, mat_list};
+        ObjectLoaderParam param{type,  name,   path,   is_animated,  is_visible,   cs,       translate,
+                                scale, rotate, childs, default_clip, socket_param, mat_list, mat_map};
 
         param.instanceTransformations = instance_info;
 

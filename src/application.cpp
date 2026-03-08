@@ -71,22 +71,23 @@
 #include "wgpu_utils.h"
 #include "window.h"
 
-nfdu8char_t* outPath;
-nfdopendialogu8args_t args = {0};
-
-static bool cull_frustum = false;
-static bool show_physic_objects = false;
-static bool show_physic_debugs = false;
-static bool runPhysics = false;
-static Model* selectedPhysicModel = nullptr;
+namespace {
+bool cull_frustum = false;
+bool show_physic_objects = false;
+bool show_physic_debugs = false;
+bool runPhysics = false;
+Model* selectedPhysicModel = nullptr;
 
 bool flip_x = false;
 bool flip_y = false;
 bool flip_z = false;
 
-static float middle_plane_length = 15.0f;
-static float far_plane_length = 20.5f;
+float middle_plane_length = 15.0f;
+float far_plane_length = 20.5f;
 bool should_update_csm = true;
+bool render_shadow = true;
+
+}  // namespace
 
 void loadModelFromFilesystem(World* world) {
     static bool open_popup = false;
@@ -151,11 +152,14 @@ void loadModelFromFilesystem(World* world) {
                                                        {},
                                                        "",
                                                        {},
-                                                       MaterialList{}});
+                                                       MaterialList{},
+                                                       MaterialPropsMap{}
+
+                    });
                 }
 
                 ImGui::CloseCurrentPopup();
-                open_popup = false;  // openImportPopup = false;
+                open_popup = false;
                 NFD_PathSet_Free(paths);
             }
 
@@ -170,27 +174,6 @@ void loadModelFromFilesystem(World* world) {
         }
     }
 }
-
-// void loadTextureFromFilesystem(Application* app) {
-//     static nfdu8char_t* output;
-//     static const nfdpathset_t* paths;
-//     if (ImGui::Button("Add Texture")) {
-//         nfdresult_t result = NFD_OpenDialogMultipleU8(&paths, nullptr, 0, nullptr);
-//         if (result == NFD_OKAY) {
-//             nfdpathsetsize_t listcount = 0;
-//             NFD_PathSet_GetCount(paths, &listcount);
-//             for (size_t i = 0; i < listcount; ++i) {
-//                 NFD_PathSet_GetPath(paths, i, &output);
-//                 Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), output);
-//             }
-//
-//         } else if (result == NFD_CANCEL) {
-//             std::cout << "User pressed cancel.\n";
-//         } else {
-//             std::cout << "Error: " << NFD_GetError() << std::endl;
-//         }
-//     }
-// }
 
 WGPUTextureView getNextSurfaceTextureView(RendererResource& resources);
 WGPULimits GetRequiredLimits(WGPUAdapter adapter);
@@ -312,7 +295,6 @@ void Application::initializePipeline() {
                              {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
                               mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
                              "standard pipeline"};
-    // "./resources/shaders/shader.wgsl"
     mPipeline->defaultConfiguration(resource, mSurfaceFormat, WGPUTextureFormat_Depth24Plus,
                                     (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str());
     setDefaultActiveStencil(mPipeline->getDepthStencilState());
@@ -352,8 +334,6 @@ void Application::initializePipeline() {
 
     static uint32_t cidx = 0;
     mDefaultCameraIndex.queueWrite(0, &cidx, sizeof(uint32_t));
-    // wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultCameraIndex.getBuffer(), 0, &cidx,
-    //                      sizeof(uint32_t));
 
     mDefaultCameraIndexBindingData[0] = {};
     mDefaultCameraIndexBindingData[0].nextInChain = nullptr;
@@ -369,9 +349,6 @@ void Application::initializePipeline() {
         .create(mRendererResource);
 
     mDefaultClipPlaneBuf.queueWrite(0, glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
-    // glm::vec4 default_clip_plane{0.0, 0.0, 1.0, 100};
-    // wgpuQueueWriteBuffer(this->getRendererResource().queue, mDefaultClipPlaneBuf.getBuffer(), 0,
-    //                      glm::value_ptr(mDefaultPlane), sizeof(glm::vec4));
 
     WGPUSamplerDescriptor samplerDesc = {};
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
@@ -505,8 +482,6 @@ void Application::initializePipeline() {
     mDefaultVisibleBGData[0].offset = 0;
     mDefaultVisibleBGData[0].size = sizeof(uint32_t) * 100'000 * 5;
 
-    /* Creating actual bindgroups */
-    // auto& resource = getRendererResource();
     mBindingGroup.create(resource, mBindingData);
     mDefaultTextureBindingGroup.create(resource, mDefaultTextureBindingData);
     mDefaultCameraIndexBindgroup.create(resource, mDefaultCameraIndexBindingData);
@@ -531,8 +506,6 @@ void Application::initializeBuffers() {
     mUniforms.time = 1.0f;
     mUniforms.color = {0.0f, 1.0f, 0.4f, 1.0f};
     mUniformBuffer.queueWrite(0, &mUniforms, sizeof(CameraInfo));
-    // wgpuQueueWriteBuffer(this->getRendererResource().queue, mUniformBuffer.getBuffer(), 0, &mUniforms,
-    //                      sizeof(CameraInfo) * 1);
 
     mDirectionalLightBuffer.setLabel("Directional light buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
@@ -549,9 +522,6 @@ void Application::initializeBuffers() {
     mLightingUniforms.directions = {glm::vec4{0.5, 1.0, 1.0, 1.0}, glm::vec4{0.2, 0.4, 0.3, 1.0}};
     mLightingUniforms.colors = {glm::vec4{0.99, 1.0, 0.88, 1.0}, glm::vec4{0.6, 0.9, 1.0, 1.0}};
     mDirectionalLightBuffer.queueWrite(0, &mLightingUniforms, sizeof(LightingUniforms));
-    // wgpuQueueWriteBuffer(this->getRendererResource().queue, mDirectionalLightBuffer.getBuffer(), 0,
-    // &mLightingUniforms,
-    //                      sizeof(LightingUniforms));
 
     mLightBuffer.setLabel("Lights Buffer")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
@@ -615,15 +585,10 @@ void onWindowResize(GLFWwindow* window, int width, int height) {
     if (that != nullptr) that->onResize();
 }
 
-// WGPUBuffer resolveBuffer;
-// Create staging buffer for CPU read (WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst)
-// WGPUBuffer stagingBuffer;
-
 static float last_frame_time = 0.0;
 bool Application::initialize(const char* windowName, uint16_t width, uint16_t height) {
     // Creating the window
     mWindow = new Window<GLFWwindow>();
-    // auto [window_width, window_height] = getWindowSize();
     mWindow->mName = windowName;
     mWindow->mWindowSize = {width, height};
     mWindow->mResizeCallback = [&]() {
@@ -636,8 +601,7 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
         std::cout << "Faield to create windows\n";
         return false;
     }
-    // GLFWwindow* provided_window = glfwCreateWindow(window_width, window_height, "World Explorer", nullptr,
-    // nullptr);
+
     GLFWwindow* provided_window = res.value();
 
     mEditor = new Editor{};
@@ -739,25 +703,9 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     initializeBuffers();
     initializePipeline();
 
-    // TerrainModel tmodel;
-
     physics::prepareJolt();
 
     mWorld = new World{this, mSceneFilePath};
-    // mWorld->actor = mEditor->mEditorActive ? nullptr : mWorld->actor;
-
-    // WGPUBufferDescriptor resolveBufferDesc{};
-    // resolveBufferDesc.label = {"timing buffer", WGPU_STRLEN};
-    // resolveBufferDesc.size = 4 * sizeof(uint64_t);  // Matches querySet.count
-    // resolveBufferDesc.usage = WGPUBufferUsage_QueryResolve | WGPUBufferUsage_CopySrc;
-    // resolveBuffer = wgpuDeviceCreateBuffer(getRendererResource().device, &resolveBufferDesc);
-    //
-    // // Create staging buffer for CPU read (WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst)
-    // WGPUBufferDescriptor stagingBufferDesc{};
-    // stagingBufferDesc.label = {"timing buffer2", WGPU_STRLEN};
-    // stagingBufferDesc.size = resolveBufferDesc.size;
-    // stagingBufferDesc.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
-    // stagingBuffer = wgpuDeviceCreateBuffer(getRendererResource().device, &stagingBufferDesc);
 
     mLineEngine = new LineEngine{};
     mLineEngine->initialize(this);
@@ -777,24 +725,12 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     mWorld->loadWorld();
     last_frame_time = glfwGetTime();
 
-    //
-    //
-    //
-
     NFD_Init();
 
     static nfdu8filteritem_t filters[2] = {{"Source code", "c,cpp,cc"}, {"Headers", "h,hpp"}};
-    args.filterList = filters;
-    args.filterCount = 2;
-
-    //
-    //
-    //
 
     return true;
 }
-
-static bool first_time = true;
 
 void Application::mainLoop() {
     double time = glfwGetTime();
@@ -850,10 +786,7 @@ void Application::mainLoop() {
                 .updateVisibility(true);
         }
     }
-    // if (mWorld->actor && mWorld->actor->mBehaviour) {
     for (auto& m : mWorld->rootContainer) {
-        // auto* m = mWorld->actor->mBehaviour->getWeapon();
-        // auto* m = model;
         if (m != nullptr && m->mSocket != nullptr) {
             // Model* base = m;
             Model* base = m->mSocket->model;
@@ -952,35 +885,33 @@ void Application::mainLoop() {
 
     // ---------------- 1 - Preparing for shadow pass ---------------
     // The first pass is the shadow pass, only based on the opaque objects
-    if (should_update_csm) {
-        auto all_scenes = mShadowPass->createFrustumSplits(
-            corners, {{0.0, middle_plane_length},
-                      {middle_plane_length, middle_plane_length + far_plane_length},
-                      {middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 10}});
-        // });
+    if (render_shadow) {
+        if (should_update_csm) {
+            auto all_scenes = mShadowPass->createFrustumSplits(
+                corners, {{0.0, middle_plane_length},
+                          {middle_plane_length, middle_plane_length + far_plane_length},
+                          {middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 10}});
+            // });
 
-        uint32_t cascades_count = all_scenes.size();
-        mTimeBuffer.queueWrite(0, &cascades_count, sizeof(uint32_t));
-        mLightSpaceTransformation.queueWrite(0, all_scenes.data(), sizeof(Scene) * all_scenes.size());
-    }
+            uint32_t cascades_count = all_scenes.size();
+            mTimeBuffer.queueWrite(0, &cascades_count, sizeof(uint32_t));
+            mLightSpaceTransformation.queueWrite(0, all_scenes.data(), sizeof(Scene) * all_scenes.size());
+        }
 
-    {
         ZoneScoped;
-        mShadowPass->lightPos = mLightingUniforms.directions[0];
+        mShadowPass->sunDir = mLightingUniforms.directions[0];
         mShadowPass->renderAllCascades(encoder);
     }
     //
     //-------------- End of shadow pass
     mUniforms.setCamera(mCamera);
     mUniformBuffer.queueWrite(0, &mUniforms, sizeof(CameraInfo));
-    // wgpuQueueWriteBuffer(this->getRendererResource().queue, mUniformBuffer.getBuffer(), 0, &mUniforms,
-    //                      sizeof(CameraInfo));
 
     // mWaterRenderPass->drawWater();
-    for (const auto& model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-        if (model->mName == "human") {
-        }
-    }
+    // for (const auto& model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+    //     if (model->mName == "human") {
+    //     }
+    // }
 
     // Depth pre-pass to reduce number of overdraws
     {
@@ -996,9 +927,9 @@ void Application::mainLoop() {
         {
             // PerfTimer timer{"test"};
             wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mDepthPrePass->getPipeline()->getPipeline());
-            for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-                // model->drawHirarchy(this, render_pass_encoder);
-            }
+            // for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+            // model->drawHirarchy(this, render_pass_encoder);
+            // }
         }
 
         wgpuRenderPassEncoderEnd(render_pass_encoder);
@@ -1067,7 +998,6 @@ void Application::mainLoop() {
     {
         // {
         ZoneScopedNC("Color Pass", 0xFF);
-        wgpuRenderPassEncoderSetPipeline(render_pass_encoder, mPipeline->getPipeline());
         std::vector<Model*> opaques;
         std::vector<Model*> transparents;
         for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
@@ -1078,6 +1008,7 @@ void Application::mainLoop() {
             }
         }
         for (const auto& model : opaques) {
+            wgpuRenderPassEncoderSetPipeline(render_pass_encoder, model->getPipeline(this)->getPipeline());
             model->drawHirarchy(this, render_pass_encoder);
         }
 
@@ -1089,7 +1020,7 @@ void Application::mainLoop() {
             glm::vec3 pos_a = a->mTransform.mPosition;
             glm::vec3 pos_b = b->mTransform.mPosition;
 
-            float dist_a = glm::length2(pos_a - camera_pos);  // length2 = squared distance, faster
+            float dist_a = glm::length2(pos_a - camera_pos);
             float dist_b = glm::length2(pos_b - camera_pos);
 
             return dist_a > dist_b;  // farthest first
@@ -1155,7 +1086,6 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 6, mTerrainPass->mTexturesBindgroup.getBindGroup(), 0,
                                           nullptr);
 
-        // if (mWorld->actor == nullptr) {
         if (mEditor->mEditorActive) {
             updateGui(terrain_pass_encoder, delta_time);
         }
@@ -1523,7 +1453,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
         }
 
         if (ImGui::BeginTabItem("Lights")) {
-            mShadowPass->lightPos = mLightingUniforms.directions[0];
+            mShadowPass->sunDir = mLightingUniforms.directions[0];
 
             ImGui::Text("Directional Light");
             if (ImGui::ColorEdit3("Color", glm::value_ptr(mLightingUniforms.colors[0])) ||
@@ -1994,3 +1924,5 @@ std::filesystem::path Application::getBinaryPathAbsolute() const {
     return std::filesystem::current_path() / mBinaryPath;
 }
 std::filesystem::path Application::getBinaryPathRelative() const { return mBinaryPath; }
+
+Pipeline* Application::getPipeline() { return mPipeline; }

@@ -280,7 +280,7 @@ Scene ShadowPass::calculateFrustumScene(const std::vector<glm::vec4>& frustum, f
     }
     center /= frustum.size();
 
-    glm::vec3 lightDirection = glm::normalize(-this->lightPos);
+    glm::vec3 lightDirection = glm::normalize(-this->sunDir);
     glm::vec3 lightPosition =
         center - lightDirection * (glm::length(frustum[0] - frustum[7]) / 5.0f);  // Push light back
 

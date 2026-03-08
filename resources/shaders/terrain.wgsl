@@ -1,12 +1,10 @@
 
 #include "common.wgsl"
 
-//@group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 
 @group(2) @binding(0) var diffuse_map: texture_2d<f32>;
 @group(2) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
 @group(2) @binding(2) var normal_map: texture_2d<f32>;
-
 
 @group(3) @binding(0) var<uniform> myuniformindex: u32;
 
@@ -19,6 +17,8 @@
 @group(6) @binding(2) var sand_lake_texture2: texture_2d_array<f32>;
 @group(6) @binding(3) var snow_mountain_texture2: texture_2d_array<f32>;
 
+//@group(6) @binding(0) var<uniform> meshMaterial: Material;
+//@group(6) @binding(1) var<uniform> meshIdx: i32;
 
 const PI: f32 = 3.141592653589793;
 

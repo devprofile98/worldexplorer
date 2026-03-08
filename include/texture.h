@@ -127,6 +127,15 @@ class Registery {
 class MaterialRegistery : public Registery<std::string, Material> {
     public:
         void applyMaterialTo(Application* app, Model* model, std::string meshName, std::string materialName);
+        struct MaterialWaiters {
+                Model* model;
+                std::string meshName;
+        };
+
+        void applyWaiters(Application* app, std::string materialName);
+
+    private:
+        std::unordered_map<std::string, std::vector<MaterialWaiters>> mWaitersList;
 };
 
 #endif  // WEBGPUTEST_TEXTURE_H

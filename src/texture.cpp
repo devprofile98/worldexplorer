@@ -465,5 +465,22 @@ void MaterialRegistery::applyMaterialTo(Application* app, Model* model, std::str
                 model->createSomeBinding(app, app->getDefaultTextureBindingData());
             }
         }
+    } else {
+        std::cout << "Registering Material " << materialName << " To " << "Mesh: " << meshName << " Of "
+                  << model->getName() << " For Later!" << std::endl;
+        mWaitersList[materialName].emplace_back(MaterialWaiters{model, meshName});
+    }
+}
+
+void MaterialRegistery::applyWaiters(Application* app, std::string materialName) {
+    if (mWaitersList.contains(materialName)) {
+        for (auto& waiter : mWaitersList[materialName]) {
+            for (auto& [id, mesh] : waiter.model->mFlattenMeshes) {
+                if (mesh.mName == waiter.meshName) {
+                    mesh.setMatreial(list()[materialName]);
+                    waiter.model->createSomeBinding(app, app->getDefaultTextureBindingData());
+                }
+            }
+        }
     }
 }

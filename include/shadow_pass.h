@@ -43,7 +43,7 @@ class ShadowPass : public RenderPass {
         void renderAllCascades(WGPUCommandEncoder encoder);
         WGPUTextureView getTextureView(size_t level, size_t count);
 
-        glm::vec3 lightPos = glm::vec3{0.0f};
+        glm::vec3 sunDir = glm::vec3{0.0f};
 
         std::vector<glm::vec4> corners;
         std::vector<glm::vec4> mNear;

@@ -33,6 +33,7 @@ class Application;
 class Texture;
 class BaseModel;
 class Instance;
+class Pipeline;
 struct Animation;
 class Behaviour;
 struct BoneSocket;
@@ -166,6 +167,8 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         std::pair<glm::vec3, glm::vec3> getWorldMin();
         std::pair<glm::vec3, glm::vec3> getWorldSpaceAABB();
         std::pair<glm::vec3, glm::vec3> getPhysicsAABB();
+        virtual void getCustomBindGroup(Application* app, WGPURenderPassEncoder encoder, Mesh& mesh);
+        virtual Pipeline* getPipeline(Application* app);
 
         void addChildren(BaseModel* child);
         glm::mat4 getGlobalTransform();
@@ -215,6 +218,8 @@ class Model : public BaseModel {
         virtual Model& load(std::string name, Application* app, const std::filesystem::path& path,
                             WGPUBindGroupLayout layout);
         virtual Model& uploadToGPU(Application* app);
+        void getCustomBindGroup(Application* app, WGPURenderPassEncoder encoder, Mesh& mesh) override;
+        Pipeline* getPipeline(Application* app) override;
         void draw(Application* app, WGPURenderPassEncoder encoder) override;
         void drawHirarchy(Application* app, WGPURenderPassEncoder encoder) override;
         void drawGraph(Application* app, WGPURenderPassEncoder encoder, Node* node);
@@ -256,7 +261,7 @@ class Model : public BaseModel {
         Action* mDefaultAction = nullptr;
         Buffer offset_buffer = {};
         WGPUBindGroup mBindGroup = nullptr;
-        WGPUBindGroup ggg = {};
+        WGPUBindGroup ggg = nullptr;
         bool mIsLoaded = false;
 };
 

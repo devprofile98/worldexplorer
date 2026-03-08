@@ -124,7 +124,6 @@ Pipeline& Pipeline::defaultConfiguration(const RendererResource& resource, WGPUT
     mBlendState.alpha.operation = WGPUBlendOperation_Add;
 
     // 5 - color target
-    // WGPUColorTargetState color_target = {};
     mColorTargetState.format = surfaceTexture;
     mColorTargetState.blend = &mBlendState;
     mColorTargetState.writeMask = WGPUColorWriteMask_All;

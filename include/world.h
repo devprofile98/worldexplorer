@@ -2,6 +2,7 @@
 #ifndef WORLD_EXPLORER_WORLD_H
 #define WORLD_EXPLORER_WORLD_H
 
+#include <array>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -14,6 +15,13 @@
 
 using Vec = std::array<float, 3>;
 using MaterialList = std::vector<std::pair<std::string, std::string>>;
+
+struct MaterialProperties {
+        std::string meshName;
+        std::array<float, 2> uv;
+};
+
+using MaterialPropsMap = std::unordered_map<std::string, MaterialProperties>;
 
 struct ColliderParams {
         std::string name;
@@ -61,10 +69,12 @@ struct ObjectLoaderParam {
         bool isDefaultActor = false;
         bool isPhysicEnabled = false;
         MaterialList materialList;
+        MaterialPropsMap matPropMap;
 
         ObjectLoaderParam(int type, std::string name, std::string path, bool animated, bool isVisible,
                           CoordinateSystem cs, Vec translate, Vec scale, Vec rotate, std::vector<std::string> childrens,
-                          std::string defaultClip, SocketParams socketParam, MaterialList matList);
+                          std::string defaultClip, SocketParams socketParam, MaterialList matList,
+                          MaterialPropsMap matPropMap);
 };
 
 struct World : public KeyboardListener, MouseMoveListener, MouseButtonListener, MouseScrollListener {
