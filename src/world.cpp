@@ -406,8 +406,6 @@ load_socket:
                     }
                 }
                 if (target != nullptr) {
-                    // std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@ " << param.anchor << " Is the attaching bone for "
-                    //           << loadedModel->mName << "\n";
                     loadedModel->mSocket = new BoneSocket{/*TODO*/ static_cast<Model*>(target),
                                                           param.anchor,
                                                           param.translate,
@@ -427,13 +425,9 @@ load_socket:
         auto param = map.at(model->mName).socketParam;
         // auto loaded_model_param = map.at(loadedModel->mName).socketParam;
         if (param.name == loadedModel->mName) {
-            // std::cout << "@@@@@@@@@@1@@@@@@@@@@@@@@@@ " << param.anchor << " from " << loadedModel->mName
-            //           << " Is the attaching bone for " << model->mName << "\n";
             model->mSocket =
                 new BoneSocket{loadedModel, param.anchor, param.translate, param.scale, param.rotate, param.type};
         }
-        // if (map.contains(model->mName)) {
-        // }
     }
 
 end:

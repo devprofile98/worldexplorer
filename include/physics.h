@@ -63,6 +63,8 @@ class PhysicSystem {
     public:
         static uint32_t createCollider(Application* app, const std::string& name, const glm::vec3& center,
                                        const glm::vec3& halfExtent, bool isStatic, bool isSensor, void* userData);
+        static BoxCollider createCollider2(Application* app, const std::string& name, const glm::vec3& center,
+                                           const glm::vec3& halfExtent, bool isStatic, bool isSensor, void* userData);
         static void removeCollider(BoxCollider& collider);
         static inline std::vector<BoxCollider> mColliders;
 

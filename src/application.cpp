@@ -73,7 +73,7 @@
 
 namespace {
 bool cull_frustum = false;
-bool show_physic_objects = false;
+bool show_physic_objects = true;
 bool show_physic_debugs = false;
 bool runPhysics = false;
 Model* selectedPhysicModel = nullptr;
@@ -788,7 +788,6 @@ void Application::mainLoop() {
     }
     for (auto& m : mWorld->rootContainer) {
         if (m != nullptr && m->mSocket != nullptr) {
-            // Model* base = m;
             Model* base = m->mSocket->model;
 
             glm::mat4 offsetMat = glm::mat4(1.0f);
@@ -815,17 +814,6 @@ void Application::mainLoop() {
             } else if (m->mSocket->type == AnchorType::Model) {
                 auto trans = base->mTransform.mTransformMatrix;
                 auto [t, s, r] = decomposeTransformation(trans);
-                // t = (t) + (r * m->mSocket->positionOffset);
-                // auto final_trans = glm::translate(glm::mat4{1.0}, t);
-                // auto final_scale = glm::scale(glm::mat4{1.0}, s);
-                // r = glm::normalize(r * m->mSocket->rotationOffset);
-                // s = s * m->mSocket->scaleOffset;
-                // auto final_rot = glm::mat4_cast(r);
-                // socket_global = final_trans * final_rot * final_scale;
-                // // socket_global = trans;  // final_trans * final_rot * final_scale;
-                // m->moveTo(t);
-                // m->scale(s);
-                // m->rotate(normalize(r));
 
                 auto final_trans = glm::translate(glm::mat4{1.0}, t);
                 auto final_scale = glm::scale(glm::mat4{1.0}, s);
@@ -842,7 +830,6 @@ void Application::mainLoop() {
             m->rotate(normalize(r));
         }
     }
-    // }
 
     {
         // PerfTimer timer{"tick"};

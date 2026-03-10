@@ -91,6 +91,69 @@ class MyCharacterContactListener : public JPH::CharacterContactListener {
         Model* character = nullptr;
 };
 
+struct WeaponBehaviour : public Behaviour {
+        WeaponBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
+
+        virtual void onRightClick(Model* model, const glm::vec3& characterFront) {
+            std::cout << "Action from " << model->getName() << std::endl;
+        }
+
+        BoneSocket* activeSocket = nullptr;
+        BoneSocket* inactiveSocket = nullptr;
+
+        void setActiveSocket(Model* weapon, Model* target) {
+            activeSocket->model = target;
+            weapon->mSocket = activeSocket;
+        }
+        void setInactiveScoket(Model* weapon, Model* target) {
+            inactiveSocket->model = target;
+            weapon->mSocket = inactiveSocket;
+        }
+};
+
+struct PistolBehaviour : public WeaponBehaviour {
+        PistolBehaviour(std::string name) : WeaponBehaviour(name) {
+            inactiveSocket = new BoneSocket{nullptr,
+                                            "DEF-spine001",
+                                            {0.0, -0.1, -0.1},
+                                            {0.05, 0.05, 0.05},
+                                            glm::quat({-1.04719, -0.0, -1.22173}),
+                                            AnchorType::Bone};
+
+            activeSocket = new BoneSocket{
+                nullptr,         "DEF-handR", {-0.05, 0.290, 0.09}, {0.06, 0.06, 0.06}, glm::quat({0.0, -0.26, 1.57}),
+                AnchorType::Bone};
+        }
+
+        void onRightClick(Model* model, const glm::vec3& characterFront) override {
+            auto box = physics::PhysicSystem::createCollider2(app, "new collider",
+                                                              model->mSocket->model->mTransform.getPosition(),
+                                                              glm::vec3{0.01}, true, false, nullptr);
+
+            auto& bodyInterface = physics::getPhysicsSystem()->GetBodyInterface();
+
+            JPH::Vec3 newVel = JPH::Vec3(characterFront.x, characterFront.z, characterFront.y);  // add upward speed
+            newVel *= 5.0;
+
+            bodyInterface.SetLinearVelocity(box.getPhysicsComponent()->bodyId, newVel);
+        }
+};
+
+struct SwordBehaviour : public WeaponBehaviour {
+        SwordBehaviour(std::string name) : WeaponBehaviour(name) {
+            inactiveSocket = new BoneSocket{
+                nullptr,         "DEF-spine001", {0.16, 0.1, -0.0}, {0.02, 0.02, 0.02}, glm::quat({-1.65, 1.48, 1.74}),
+                AnchorType::Bone};
+
+            activeSocket = new BoneSocket{
+                nullptr,         "DEF-handR", {-0.05, 0.1, -0.0}, {0.02, 0.02, 0.02}, glm::quat({1.588, 0.180, 0.0104}),
+                AnchorType::Bone};
+        }
+};
+
+PistolBehaviour pistolbehaviour{"pistol"};
+SwordBehaviour swordbehaviour{"sword"};
+
 struct HumanBehaviour : public Behaviour {
         std::string name;
         glm::vec3 front;  // Character's forward direction
@@ -198,6 +261,7 @@ struct HumanBehaviour : public Behaviour {
                 if (mouse.action == GLFW_PRESS) {
                     state = Aiming;
                     isAiming = true;
+
                     if (!transitoin.active) {
                         transitoin.from = cameraOffset + glm::vec3{0.4};
                         transitoin.to = glm::vec3{0.3};
@@ -215,6 +279,9 @@ struct HumanBehaviour : public Behaviour {
                     }
                 }
             } else if (mouse.click == GLFW_MOUSE_BUTTON_LEFT) {
+                if (weapon != nullptr) {
+                    static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onRightClick(weapon, front);
+                }
                 isShooting = true;
             }
         }
@@ -262,9 +329,16 @@ struct HumanBehaviour : public Behaviour {
                 for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
                     if (m->mName == "pistol") {
                         std::cout << "find pistol\n";
+                        if (weapon != nullptr)
+                            static_cast<WeaponBehaviour*>(weapon->mBehaviour)
+                                ->setInactiveScoket(weapon, static_cast<Model*>(model));
                         weapon = m;
                         idleAction = "Pistol_Idle_Loop";
                         attackAction = "Pistol_Shoot";
+
+                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)
+                            ->setActiveSocket(weapon, static_cast<Model*>(model));
+
                         return;
                     }
                 }
@@ -273,7 +347,12 @@ struct HumanBehaviour : public Behaviour {
                 for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
                     if (m->mName == "sword") {
                         std::cout << "find sword\n";
+                        if (weapon != nullptr)
+                            static_cast<WeaponBehaviour*>(weapon->mBehaviour)
+                                ->setInactiveScoket(weapon, static_cast<Model*>(model));
                         weapon = m;
+                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)
+                            ->setActiveSocket(weapon, static_cast<Model*>(model));
                         idleAction = "Sword_Idle";
                         attackAction = "Sword_Attack";
                         return;

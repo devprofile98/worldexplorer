@@ -297,6 +297,13 @@ uint32_t PhysicSystem::createCollider(Application* app, const std::string& name,
     return mColliders.size() - 1;
 }
 
+BoxCollider PhysicSystem::createCollider2(Application* app, const std::string& name, const glm::vec3& center,
+                                          const glm::vec3& halfExtent, bool isStatic, bool isSensor, void* userData) {
+    BoxCollider box = {app, name, center, halfExtent, isStatic, isSensor, userData};
+    mColliders.emplace_back(box);
+    return box;
+}
+
 void PhysicSystem::removeCollider(BoxCollider& collider) {
     // TODO check how to check for the result
     auto body_id = collider.getPhysicsComponent()->bodyId;
