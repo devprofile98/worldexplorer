@@ -19,6 +19,7 @@
 #include <memory>
 #include <vector>
 
+#include "Jolt/Physics/Body/Body.h"
 #include "Jolt/Physics/Character/CharacterVirtual.h"
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/matrix_transform.hpp"
@@ -26,6 +27,7 @@
 #include "glm/fwd.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "linegroup.h"
+#include "mesh.h"
 
 class Application;
 class Model;
@@ -40,6 +42,8 @@ struct PhysicsComponent {
 
 namespace physics {
 
+JPH::Body* createPhysicFromShape(const std::vector<uint32_t> indices, const std::vector<VertexAttributes>& vertices,
+                                 const glm::mat4& transformMatrix);
 class BoxCollider {
     public:
         BoxCollider(Application* app, const std::string& name, const glm::vec3& center, const glm::vec3& halfExtent,

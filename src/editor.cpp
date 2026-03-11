@@ -23,6 +23,15 @@
 static glm::vec3 starting_scale;
 static bool starting_touch = false;
 
+void GizmoElement::setGizmoVisibility(bool visibility) {
+    BaseModel* gizmos[] = {GizmoElement::z, GizmoElement::x, GizmoElement::y};
+    for (auto& gizmo : gizmos) {
+        if (gizmo != nullptr) {
+            gizmo->setVisible(visibility);
+        }
+    }
+}
+
 void GizmoElement::setGizmoModel(GizmoMode mode) {
     GizmoElement::mMode = mode;
     BaseModel* gizmos[] = {GizmoElement::z, GizmoElement::x, GizmoElement::y};
@@ -82,6 +91,7 @@ void GizmoElement::onMouseClick(MouseEvent event) {
 
             if (app->mSelectedModel != nullptr) {
                 if (z != nullptr && x != nullptr && y != nullptr && GizmoElement::center != nullptr) {
+                    GizmoElement::setGizmoVisibility(true);
                     auto [min, max] = app->mSelectedModel->getWorldSpaceAABB();
                     auto center = (min + max) / glm::vec3{2.0f};
                     GizmoElement::moveTo(center);
@@ -186,7 +196,6 @@ void GizmoElement::onMouseMove(MouseEvent event) {
             if (std::holds_alternative<BaseModel*>(editor_selected)) {
                 BaseModel* selected_entity = std::get<BaseModel*>(editor_selected);
                 auto& pos = selected_entity->mTransform.getPosition();
-                std::cout << "We are moving " << selected_entity->getName() << std::endl;
                 auto new_pos = processGizmoMove(100, pos, that->getCamera(), move, width, height);
                 if (new_pos.has_value()) {
                     selected_entity->moveTo(new_pos.value());
@@ -324,6 +333,7 @@ struct GizmoModel : public IModel {
             (void)app;
             auto** gizmo_part = static_cast<BaseModel**>(params);
             *gizmo_part = this->mModel;
+            this->mModel->setVisible(false);
             (void)gizmo_part;  // Suppress unused variable warning
         };
 };
@@ -361,7 +371,7 @@ struct GizmoModelY : public IModel {
             (void)app;
             auto** gizmo_part = static_cast<BaseModel**>(params);
             *gizmo_part = this->mModel;
-            (void)gizmo_part;  // Suppress unused variable warning
+            this->mModel->setVisible(false);
         };
 };
 
@@ -484,7 +494,7 @@ struct GizmoModelX : public IModel {
             (void)app;
             auto** gizmo_part = static_cast<BaseModel**>(params);
             *gizmo_part = this->mModel;
-            (void)gizmo_part;  // Suppress unused variable warning
+            this->mModel->setVisible(false);
         };
 };
 
@@ -523,7 +533,7 @@ struct GizmoModelCenter : public IModel {
             (void)app;
             auto** gizmo_part = static_cast<BaseModel**>(params);
             *gizmo_part = this->mModel;
-            (void)gizmo_part;  // Suppress unused variable warning
+            this->mModel->setVisible(false);
         };
 };
 
@@ -532,6 +542,11 @@ REGISTER_MODEL("gizmo_x", GizmoModelX, Visibility_Editor, &GizmoElement::x);
 REGISTER_MODEL("gizmo_y", GizmoModelY, Visibility_Editor, &GizmoElement::y);
 REGISTER_MODEL("gizmo_center", GizmoModelCenter, Visibility_Editor, &GizmoElement::center);
 // REGISTER_MODEL("bone", BoneModel, Visibility_Editor, &Editor::BoneIndicator);
+
+Editor::Editor() {
+    GizmoElement::setGizmoVisibility(false);
+    // GizmoElement::setGizmoModel(GizmoModeTranslation);
+}
 
 void Editor::showBoneAt(const glm::mat4& transformation) {
     auto [trans, scale, rot] = decomposeTransformation(transformation);
@@ -715,6 +730,7 @@ void Screen::onKey(KeyEvent event) {
         std::cout << "escaped pressed!\n";
         auto& is_active = mApp->mEditor->mEditorActive;
         is_active = !is_active;
+        GizmoElement::setGizmoVisibility(is_active);
 
         if (!is_active) {
             glfwSetInputMode(key.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);

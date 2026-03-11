@@ -29,6 +29,7 @@
 #include "model_registery.h"
 #include "physics.h"
 #include "point_light.h"
+#include "shapes.h"
 #include "texture.h"
 #include "utils.h"
 #include "webgpu/webgpu.h"
@@ -325,6 +326,24 @@ void World::onNewModel(Model* loadedModel) {
     // Set the active actor
     if (actorName == loadedModel->mName) {
         actor = loadedModel;
+    }
+
+    if (loadedModel->getName() == "terrain" || loadedModel->getName() == "tower") {
+        auto& mesh = loadedModel->mFlattenMeshes.begin()->second;
+        auto* bdy =
+            physics::createPhysicFromShape(mesh.mIndexData, mesh.mVertexData, loadedModel->mTransform.mTransformMatrix);
+
+        if (bdy != nullptr) {
+            loadedModel->mPhysicComponent = new PhysicsComponent{bdy->GetID()};
+            std::cout << "Success to create physics from mesh " << loadedModel->getName() << "!\n";
+        } else {
+            std::cout << "Failed to create physics from mesh!\n";
+        }
+        auto mesh_wireframe_lines = generateFromMesh(mesh.mIndexData, mesh.mVertexData);
+        if (loadedModel->getName() == "tower") {
+            app->mLineEngine->create(mesh_wireframe_lines, loadedModel->mTransform.mTransformMatrix,
+                                     glm::vec3{1.0, 0.0, 0.0});
+        }
     }
 
     if (map.contains(loadedModel->mName)) {

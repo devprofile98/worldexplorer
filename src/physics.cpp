@@ -22,13 +22,20 @@
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <glm/fwd.hpp>
 #include <memory>
 
+#include "Jolt/Core/Reference.h"
+#include "Jolt/Geometry/Triangle.h"
 #include "Jolt/Math/Quat.h"
 #include "Jolt/Math/Vec3.h"
+#include "Jolt/Physics/Body/Body.h"
 #include "Jolt/Physics/Body/BodyID.h"
 #include "Jolt/Physics/Body/MotionType.h"
+#include "Jolt/Physics/Collision/Shape/MeshShape.h"
+#include "Jolt/Physics/Collision/Shape/Shape.h"
+#include "Jolt/Physics/EActivation.h"
 #include "application.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_float3.hpp"
@@ -39,6 +46,7 @@
 #include "glm/gtx/quaternion.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "glm/trigonometric.hpp"
+#include "mesh.h"
 #include "shapes.h"
 #include "utils.h"
 
@@ -148,7 +156,7 @@ CharacterVirtual* createCharacter() {
     Ref<CharacterVirtualSettings> settings = new CharacterVirtualSettings();
 
     // Shape: usually a capsule or cylinder
-    Ref<Shape> capsule = new CapsuleShape(0.01f, 0.01f);  // half_height = 0.8m (full cyl height 1.6m), radius = 0.4m
+    Ref<Shape> capsule = new CapsuleShape(0.1f, 0.1f);
     settings->mShape = capsule;
 
     // Important parameters
@@ -160,9 +168,9 @@ CharacterVirtual* createCharacter() {
 
     JPH::Quat rotate90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
     // Create the character
-    auto* character = new CharacterVirtual(settings, RVec3(-1.3, 3.0, 0.14),  // initial position
-                                           rotate90X,                         // initial rotation
-                                           0,                                 // user data (optional)
+    auto* character = new CharacterVirtual(settings, RVec3(22, 12, 3),  // initial position
+                                           rotate90X,                   // initial rotation
+                                           0,                           // user data (optional)
                                            &physicsSystem);
 
     return character;
@@ -194,7 +202,7 @@ BodyID createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const
         new BoxShape(Vec3(shape.x, shape.z, shape.y), 0.01), RVec3(centerPos.x, centerPos.z, centerPos.y),
         {rotation.x, rotation.z, rotation.y, rotation.w}, active ? EMotionType::Dynamic : EMotionType::Static,
         active ? Layers::MOVING : Layers::NON_MOVING);
-    boxSettings.mAllowSleeping = false;
+    boxSettings.mAllowSleeping = true;
 
     boxSettings.mFriction = friction;
     boxSettings.mRestitution = restitution;
@@ -266,9 +274,9 @@ void JoltLoop(float dt) { physicsSystem.Update(dt, 1, temp_allocator, job_system
 BoxCollider::BoxCollider(Application* app, const std::string& name, const glm::vec3& center,
                          const glm::vec3& halfExtent, bool isStatic, bool isSensor, void* userData)
     : mCenter(center), mHalfExtent(halfExtent), mName(name), mIsStatic(isStatic) {
-    auto box = generateBox();
+    auto box = generateBox({0.0, 0.0, 0.0}, {0.5, 0.5, 0.5});
     mDebugLines = app->mLineEngine->create(
-        box, glm::translate(glm::mat4{1.0}, mCenter) * glm::scale(glm::mat4{1.0}, halfExtent * glm::vec3{2.0}),
+        box, glm::translate(glm::mat4{1.0}, mCenter) * glm::scale(glm::mat4{1.0}, halfExtent),
         mIsStatic ? (isSensor ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0}) : glm::vec3{1.0, 0.209, 0.0784});
 
     glm::quat qu;
@@ -312,6 +320,37 @@ void PhysicSystem::removeCollider(BoxCollider& collider) {
     auto _ = std::remove_if(mColliders.begin(), mColliders.end(),
                             [&body_id](BoxCollider& box) { return body_id == box.getPhysicsComponent()->bodyId; });
     body_interface.RemoveBody(body_id);
+}
+
+Body* createPhysicFromShape(const std::vector<uint32_t> indices, const std::vector<VertexAttributes>& vertices,
+                            const glm::mat4& transformMatrix) {
+    TriangleList triangles;
+    triangles.reserve(indices.size() / 3);
+
+    for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+        uint32_t i0 = indices[i], i1 = indices[i + 1], i2 = indices[i + 2];
+        auto p = transformMatrix * glm::vec4{vertices[i0].position, 0.0};
+        auto p1 = transformMatrix * glm::vec4{vertices[i1].position, 0.0};
+        auto p2 = transformMatrix * glm::vec4{vertices[i2].position, 0.0};
+        triangles.push_back(Triangle(Float3(p.x, p.z, p.y), Float3(p1.x, p1.z, p1.y), Float3(p2.x, p2.z, p2.y)));
+    }
+
+    MeshShapeSettings mesh_setting(triangles);
+    mesh_setting.mMaxTrianglesPerLeaf = 4;
+
+    ShapeSettings::ShapeResult result = mesh_setting.Create();
+    if (result.HasError()) {
+        return nullptr;
+    }
+    RefConst<Shape> shape = result.Get();
+
+    BodyCreationSettings body_settings(shape, RVec3(0, 0, 0), Quat::sIdentity(), EMotionType::Static,
+                                       Layers::NON_MOVING);
+
+    BodyInterface& body_interface = physicsSystem.GetBodyInterface();
+    Body* body = body_interface.CreateBody(body_settings);
+    body_interface.AddBody(body->GetID(), EActivation::DontActivate);
+    return body;
 }
 
 }  // namespace physics

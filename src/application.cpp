@@ -780,9 +780,8 @@ void Application::mainLoop() {
         if (selectedPhysicModel != nullptr) {
             auto [pos, rot] = physics::getPositionAndRotationyId(selectedPhysicModel->mPhysicComponent->bodyId);
             debuglinegroup
-                .updateTransformation(
-                    glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
-                    glm::scale(glm::mat4{1.0}, selectedPhysicModel->mTransform.getScale() * glm::vec3{2.0}))
+                .updateTransformation(glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
+                                      glm::scale(glm::mat4{1.0}, selectedPhysicModel->mTransform.getScale()))
                 .updateVisibility(true);
         }
     }

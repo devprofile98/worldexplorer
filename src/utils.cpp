@@ -695,7 +695,6 @@ bool isInside(const glm::vec3& pos, const glm::vec3& min, const glm::vec3& max) 
 
 glm::vec3 worldToClip(const glm::mat4& projection, const glm::vec3& vector) {
     auto res = projection * glm::vec4(vector, 0.0);
-    // std::cout << "0--------> " << glm::to_string() << std::endl;
     return glm::normalize(glm::vec3(std::move(res)));
 }
 
@@ -712,7 +711,11 @@ IntersectionRes testIntersection(Camera& camera, size_t width, size_t height, st
 
     auto worldray = glm::normalize(glm::inverse(camera.getView()) * eyecoord);
     for (auto& obj : models) {
-        auto [obj_min, obj_max] = obj->getWorldMin();
+        auto [obj_min, obj_max] = obj->getWorldSpaceAABB();
+        if (glm::length(obj_max - obj_min) < 0.001f) {
+            std::cout << "continued on zero length bounding box\n";
+            continue;
+        }
         bool does_intersect = intersection(ray_origin, worldray, obj_min, obj_max);
         auto is_inside = isInside(ray_origin, obj_min, obj_max);
 
@@ -723,7 +726,6 @@ IntersectionRes testIntersection(Camera& camera, size_t width, size_t height, st
                 bool does_intersect = intersection(ray_origin, worldray, obj_in_world_min, obj_in_world_max);
                 auto is_inside = isInside(ray_origin, obj_in_world_min, obj_in_world_max);
                 if (does_intersect && !is_inside && obj->getVisible()) {
-                    std::cout << "Instance object is intersecting with the ray!\n";
                     hits.emplace_back(ins->createInstanceWrapper(i), glm::vec3(ins->mPositions[i]));
                 }
             }
@@ -798,7 +800,7 @@ BaseModel* testIntersection2(Camera& camera, size_t width, size_t height, std::p
         if (obj == nullptr) {
             continue;
         }
-        auto [obj_in_world_min, obj_in_world_max] = obj->getWorldMin();
+        auto [obj_in_world_min, obj_in_world_max] = obj->getWorldSpaceAABB();
         bool does_intersect = intersection(ray_origin, normalized, obj_in_world_min, obj_in_world_max);
         if (does_intersect) {
             return obj;
@@ -831,10 +833,6 @@ std::vector<glm::vec4> generateAABBLines(const glm::vec3& min, const glm::vec3& 
     return result;
 }
 
-// mDebugLines = app->mLineEngine->create(
-//     box, glm::translate(glm::mat4{1.0}, mCenter) * glm::scale(glm::mat4{1.0}, halfExtent * glm::vec3{2.0}),
-//     mIsStatic ? (isSensor ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0}) : glm::vec3{1.0, 0.209, 0.0784});
-
 std::vector<glm::vec4> generateFromMesh(const std::vector<uint32_t>& indices,
                                         const std::vector<VertexAttributes>& vertices) {
     std::map<std::pair<uint32_t, uint32_t>, bool> drawn;
@@ -847,8 +845,6 @@ std::vector<glm::vec4> generateFromMesh(const std::vector<uint32_t>& indices,
         auto fourth = first;
         auto first_exists = !(drawn[std::pair{first, second}] || drawn[std::pair{second, first}]);
         auto second_exists = !(drawn[std::pair{third, fourth}] || drawn[std::pair{fourth, third}]);
-        // std::cout << "line for  (" << first << ", " << second << ") -> " << first_exists << std::endl;
-        // std::cout << "line for  (" << third << ", " << fourth << ") -> " << second_exists << std::endl;
         if (first_exists) {
             result.emplace_back(glm::vec4{vertices[indices[idx + 0]].position, 0.0});
             result.emplace_back(glm::vec4{vertices[indices[idx + 1]].position, 1.0});
@@ -861,7 +857,6 @@ std::vector<glm::vec4> generateFromMesh(const std::vector<uint32_t>& indices,
             drawn[std::pair{third, fourth}] = true;
         }
     }
-    std::cout << " ::Line size is " << result.size() << std::endl;
     return result;
 }
 
@@ -1046,7 +1041,6 @@ void loadTextureFromFilesystem(Application* app) {
             }
 
         } else if (result == NFD_CANCEL) {
-            std::cout << "User pressed cancel.\n";
         } else {
             std::cout << "Error: " << NFD_GetError() << std::endl;
         }

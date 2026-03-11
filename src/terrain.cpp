@@ -5,6 +5,7 @@
 #include "glm/fwd.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "model.h"
+#include "physics.h"
 #include "shapes.h"
 #include "terrain_pass.h"
 #include "utils.h"
@@ -134,7 +135,6 @@ Model& TerrainModel::uploadToGPU(Application* app) {
 };
 
 void TerrainModel::drawGraph(Application* app, WGPURenderPassEncoder encoder, Node* node) {
-    // std::cout << "terrain model here\n";
     internalDraw(app, encoder, node);
 
     for (auto* child : node->mChildrens) {
@@ -169,6 +169,8 @@ Model& TerrainModel::load(std::string name, Application* app, const std::filesys
     for (auto index : terrain.indices) {
         mesh.mIndexData.push_back(index);
     }
+    moveTo({0.0, 0.0, 0.0});
+    rotate({0.0, 0.0, 0.0}, 0.0);
 
 #ifdef WIREFRAME_ENABLED
     auto mesh_wireframe_lines = generateFromMesh(mesh.mIndexData, mesh.mVertexData);
@@ -330,7 +332,16 @@ Model& Cube::load(std::string name, Application* app, const std::filesystem::pat
         16, 17, 18, 16, 18, 19,  // Top
         20, 21, 22, 20, 22, 23,  // Bottom
     };
+    moveTo(glm::vec3{0.0, 0.0, -2.8});
+    rotate({0.0, 0.0, 0.0}, 0.0);
 
+    auto* bdy = physics::createPhysicFromShape(mesh.mIndexData, mesh.mVertexData, mTransform.mTransformMatrix);
+
+    if (bdy != nullptr) {
+        mPhysicComponent = new PhysicsComponent{bdy->GetID()};
+    } else {
+        std::cout << "Failed to create physics from mesh!\n";
+    }
 #ifdef WIREFRAME_ENABLED
     auto mesh_wireframe_lines = generateFromMesh(mesh.mIndexData, mesh.mVertexData);
     wireFrame = app->mLineEngine->create(mesh_wireframe_lines, mTransform.mTransformMatrix, glm::vec3{1.0, 0.0, 0.0});
@@ -372,4 +383,4 @@ struct CubeLoader : public IModel {
         };
 };
 
-USER_REGISTER_MODEL("cube", CubeLoader);
+USER_REGISTER_MODEL("cube22", CubeLoader);

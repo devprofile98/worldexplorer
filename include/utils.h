@@ -135,7 +135,7 @@ std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width,
 // Terrain generateTerrainVertices(size_t gridSize);
 std::vector<glm::vec4> generateAABBLines(const glm::vec3& min, const glm::vec3& max);
 std::vector<glm::vec4> generateCone();
-std::vector<glm::vec4> generateBox(const glm::vec3& center = {0, 0, 0}, const glm::vec3& halfExtents = {0.5, 0.5, 0.5});
+std::vector<glm::vec4> generateBox(const glm::vec3& center = {0, 0, 0}, const glm::vec3& halfExtents = {1.0, 1.0, 1.0});
 std::vector<glm::vec4> generateSphere(uint8_t numLong = 16, uint8_t numLat = 12, uint8_t numLongSegments = 8);
 std::vector<glm::vec4> generateFromMesh(const std::vector<uint32_t>& indices,
                                         const std::vector<VertexAttributes>& vertices);
