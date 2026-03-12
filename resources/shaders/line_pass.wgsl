@@ -9,8 +9,9 @@ struct Line {
     isActive: u32,
 };
 
-struct Transformation {
+struct LineGroupProperties {
     trans: mat4x4f,
+    color: vec4f
 };
 
 struct VertexInput {
@@ -27,7 +28,7 @@ struct MyUniform {
 };
 
 @group(0) @binding(0) var<storage, read> lines : array<Line>;
-@group(0) @binding(1) var<storage, read> transformations : array<Transformation>;
+@group(0) @binding(1) var<storage, read> properties : array<LineGroupProperties>;
 
 @group(1) @binding(0) var<uniform> viewProjection : MyUniform;
 
@@ -35,7 +36,6 @@ struct MyUniform {
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var out: VertexOutput;
-    // out.color = vec4(lines[instance_index].color, 1.0);
     out.color = vec4(0.0, 0.0, 1.0, 1.0);
 
     var pointA = lines[instance_index].p.xyz;
@@ -43,7 +43,8 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 
     // Interpolate in 3D space first (correct for perspective)
     let point = mix(pointA, pointB, in.position.x);
-    let line_transform = transformations[lines[instance_index].tid].trans;
+    let line_transform = properties[lines[instance_index].tid].trans;
+    out.color = properties[lines[instance_index].tid].color;
     var center_clip = viewProjection.projectionMatrix * viewProjection.viewMatrix * line_transform * vec4f(point, 1.0);
     if lines[instance_index].isActive == 0u || lines[instance_index + 1u].isActive == 0u {
         //pointA = vec3f(0.0);

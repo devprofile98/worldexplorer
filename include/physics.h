@@ -17,6 +17,7 @@
 #include <glm/fwd.hpp>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "Jolt/Physics/Body/Body.h"
@@ -32,12 +33,21 @@
 class Application;
 class Model;
 
+enum ColliderType {
+    Box = 0,
+    Capsule = 1,
+    TriList = 5,
+    Compound,
+};
+
 struct PhysicsComponent {
         PhysicsComponent(JPH::BodyID id);
         virtual ~PhysicsComponent() = default;
         virtual void onContactAdded(Model* other);
         virtual void onContactRemoved(Model* other);
         JPH::BodyID bodyId;
+        ColliderType colliderType = ColliderType::Box;
+        std::optional<LineGroup> mDebugLines = std::nullopt;
 };
 
 namespace physics {
@@ -51,12 +61,11 @@ class BoxCollider {
         glm::vec3 mCenter;
         glm::vec3 mHalfExtent;
         std::string mName;
-        LineGroup& getDebugLines();
+        LineGroup* getDebugLines();
         std::shared_ptr<PhysicsComponent> getPhysicsComponent();
         glm::mat4 getTransformation() const;
 
     private:
-        LineGroup mDebugLines;
         std::shared_ptr<PhysicsComponent> mPhysicComponent;
         bool mIsStatic;
         bool mIsSensor;

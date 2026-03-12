@@ -76,7 +76,7 @@ void LineEngine::initialize(Application* app) {
         .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::STORAGE_READONLY,
                    mMaxPoints * sizeof(LineSegment))
         .addBuffer(1, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::STORAGE_READONLY,
-                   mMaxPoints * sizeof(glm::mat4));
+                   mMaxPoints * sizeof(LineGroupProperty));
     mCameraBindGroup.addBuffer(0,  //
                                BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM,
                                sizeof(CameraInfo));
@@ -118,7 +118,7 @@ void LineEngine::initialize(Application* app) {
         .setMappedAtCraetion(false)
         .create(&resource);
 
-    mTransformationBuffer.setSize(mMaxPoints * sizeof(glm::mat4))
+    mTransformationBuffer.setSize(mMaxPoints * sizeof(LineGroupProperty))
         .setLabel("Transformation storage for lines")
         .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage)
         .setMappedAtCraetion(false)
@@ -130,7 +130,8 @@ void LineEngine::initialize(Application* app) {
         .setMappedAtCraetion()
         .create(&resource);
 
-    wgpuQueueWriteBuffer(resource.queue, mVertexBuffer.getBuffer(), 0, mLineInstance.data(), sizeof(mLineInstance));
+    mVertexBuffer.queueWrite(0, mLineInstance.data(), sizeof(mLineInstance));
+    // wgpuQueueWriteBuffer(resource.queue, mVertexBuffer.getBuffer(), 0, mLineInstance.data(), sizeof(mLineInstance));
 
     mCircleIndexData = generateCircleIndexBuffer();
     mCircleVertexData = generateCircleVertices();
@@ -141,8 +142,9 @@ void LineEngine::initialize(Application* app) {
         .setMappedAtCraetion()
         .create(&resource);
 
-    wgpuQueueWriteBuffer(resource.queue, mCircleVertexBuffer.getBuffer(), 0, mCircleVertexData.data(),
-                         mCircleVertexData.size() * sizeof(glm::vec3));
+    mCircleVertexBuffer.queueWrite(0, mCircleVertexData.data(), mCircleVertexData.size() * sizeof(glm::vec3));
+    // wgpuQueueWriteBuffer(resource.queue, mCircleVertexBuffer.getBuffer(), 0, mCircleVertexData.data(),
+    //                      mCircleVertexData.size() * sizeof(glm::vec3));
 
     mCircleIndexBuffer.setSize(mCircleIndexData.size() * sizeof(uint16_t))
         .setLabel("Single Circle Index Buffer")
@@ -150,8 +152,9 @@ void LineEngine::initialize(Application* app) {
         .setMappedAtCraetion()
         .create(&resource);
 
-    wgpuQueueWriteBuffer(resource.queue, mCircleIndexBuffer.getBuffer(), 0, mCircleIndexData.data(),
-                         mCircleIndexData.size() * sizeof(uint16_t));
+    mCircleIndexBuffer.queueWrite(0, mCircleIndexData.data(), mCircleIndexData.size() * sizeof(uint16_t));
+    // wgpuQueueWriteBuffer(resource.queue, mCircleIndexBuffer.getBuffer(), 0, mCircleIndexData.data(),
+    //                      mCircleIndexData.size() * sizeof(uint16_t));
 
     mBindingData.push_back({});
     mBindingData.push_back({});
@@ -167,7 +170,7 @@ void LineEngine::initialize(Application* app) {
     mBindingData[1].buffer = mTransformationBuffer.getBuffer();
     mBindingData[1].binding = 1;
     mBindingData[1].offset = 0;
-    mBindingData[1].size = mMaxPoints * sizeof(glm::mat4);
+    mBindingData[1].size = mMaxPoints * sizeof(LineGroupProperty);
 
     mCameraBindingData.push_back({});
     mCameraBindingData[0].nextInChain = nullptr;
@@ -207,9 +210,12 @@ void LineEngine::draw(Application* app, WGPURenderPassEncoder encoder) {
         if (group.dirty && !group.segment.empty()) {
             uint64_t byteOffset = static_cast<uint64_t>(group.buffer_offset) * sizeof(LineSegment);
             uint64_t byteSize = group.segment.size() * sizeof(LineSegment);
-            wgpuQueueWriteBuffer(queue, mOffsetBuffer.getBuffer(), byteOffset, group.segment.data(), byteSize);
-            wgpuQueueWriteBuffer(queue, mTransformationBuffer.getBuffer(), id * sizeof(glm::mat4),
-                                 glm::value_ptr(group.transformation), sizeof(glm::mat4));
+            mOffsetBuffer.queueWrite(byteOffset, group.segment.data(), byteSize);
+            // wgpuQueueWriteBuffer(queue, mOffsetBuffer.getBuffer(), byteOffset, group.segment.data(), byteSize);
+            mTransformationBuffer.queueWrite(id * sizeof(LineGroupProperty), &group.properties,
+                                             sizeof(LineGroupProperty));
+            // wgpuQueueWriteBuffer(queue, mTransformationBuffer.getBuffer(), id * sizeof(LineGroupProperty),
+            //                      &group.properties, sizeof(LineGroupProperty));
             group.dirty = false;
             // No need to set dirty=false here; do it after successful write if you add error handling
         }
@@ -257,7 +263,7 @@ uint32_t LineEngine::addLines(const std::vector<glm::vec4>& points, const glm::m
     }
 
     uint32_t id = mNextGroupId++;
-    mLineGroups[id] = {transformation, color, {}, 0, true};
+    mLineGroups[id] = {{transformation, glm::vec4{color, 1.0}}, color, {}, 0, true};
     auto& segments = mLineGroups[id].segment;
     for (const auto& p : points) {
         segments.emplace_back(LineSegment{p, id, true});
@@ -295,7 +301,6 @@ void LineEngine::setVisibility(uint32_t id, bool visibility) {
 
 void LineEngine::updateLines(uint32_t id, const std::vector<glm::vec4>& newPoints) {
     auto it = mLineGroups.find(id);
-    // std::cout << "updating debug line group " << id << std::endl;
     if (it == mLineGroups.end()) return;
 
     LineGroup& group = it->second;
@@ -318,7 +323,7 @@ void LineEngine::updateLineTransformation(uint32_t id, const glm::mat4& trans) {
         return;
     }
     LineGroup& group = it->second;
-    group.transformation = trans;
+    group.properties.transformation = trans;
     group.dirty = true;
 }
 
@@ -329,9 +334,7 @@ void LineEngine::updateLineColor(uint32_t id, const glm::vec3& color) {
     if (it == mLineGroups.end()) return;
 
     LineGroup& group = it->second;
+    group.properties.color = glm::vec4{color, 1.0};
     group.groupColor = color;
-    // for (auto& p : group.segment) {
-    //     p.color = color;
-    // }
     group.dirty = true;
 }

@@ -156,7 +156,7 @@ CharacterVirtual* createCharacter() {
     Ref<CharacterVirtualSettings> settings = new CharacterVirtualSettings();
 
     // Shape: usually a capsule or cylinder
-    Ref<Shape> capsule = new CapsuleShape(0.1f, 0.1f);
+    Ref<Shape> capsule = new CapsuleShape(0.3f, 0.1f);
     settings->mShape = capsule;
 
     // Important parameters
@@ -274,11 +274,6 @@ void JoltLoop(float dt) { physicsSystem.Update(dt, 1, temp_allocator, job_system
 BoxCollider::BoxCollider(Application* app, const std::string& name, const glm::vec3& center,
                          const glm::vec3& halfExtent, bool isStatic, bool isSensor, void* userData)
     : mCenter(center), mHalfExtent(halfExtent), mName(name), mIsStatic(isStatic) {
-    auto box = generateBox({0.0, 0.0, 0.0}, {0.5, 0.5, 0.5});
-    mDebugLines = app->mLineEngine->create(
-        box, glm::translate(glm::mat4{1.0}, mCenter) * glm::scale(glm::mat4{1.0}, halfExtent),
-        mIsStatic ? (isSensor ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0}) : glm::vec3{1.0, 0.209, 0.0784});
-
     glm::quat qu;
     qu.w = 1.0;
     qu.x = 0.0;
@@ -286,6 +281,11 @@ BoxCollider::BoxCollider(Application* app, const std::string& name, const glm::v
     qu.z = 0.0;
     mPhysicComponent = std::make_shared<PhysicsComponent>(
         physics::createAndAddBody(halfExtent, center, glm::normalize(qu), isStatic, 0.5, 0.0f, 0.0f, 1.f, isSensor));
+
+    auto box = generateBox({0.0, 0.0, 0.0}, {0.5, 0.5, 0.5});
+    mPhysicComponent->mDebugLines = app->mLineEngine->create(
+        box, glm::translate(glm::mat4{1.0}, mCenter) * glm::scale(glm::mat4{1.0}, halfExtent),
+        mIsStatic ? (isSensor ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0}) : glm::vec3{1.0, 0.209, 0.0784});
 }
 
 glm::mat4 BoxCollider::getTransformation() const {
@@ -295,7 +295,12 @@ glm::mat4 BoxCollider::getTransformation() const {
            glm::scale(glm::mat4{1.0}, mHalfExtent * glm::vec3{2.0});
 }
 
-LineGroup& BoxCollider::getDebugLines() { return mDebugLines; }
+LineGroup* BoxCollider::getDebugLines() {
+    if (mPhysicComponent != nullptr && mPhysicComponent->mDebugLines.has_value()) {
+        return &mPhysicComponent->mDebugLines.value();
+    }
+    return nullptr;
+}
 
 std::shared_ptr<PhysicsComponent> BoxCollider::getPhysicsComponent() { return mPhysicComponent; }
 

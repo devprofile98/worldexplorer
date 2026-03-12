@@ -253,7 +253,7 @@ void World::exportScene() {
     std::cout << scene_dump << std::endl;
     std::ofstream out;
     out.open(app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / mSceneFilePath, std::ios::trunc);
-    out.write(scene_dump.c_str(), scene_dump.size());
+    // out.write(scene_dump.c_str(), scene_dump.size());
 }
 
 Model* World::makeChild(BaseModel* parent, BaseModel* child) {
@@ -328,21 +328,28 @@ void World::onNewModel(Model* loadedModel) {
         actor = loadedModel;
     }
 
-    if (loadedModel->getName() == "terrain" || loadedModel->getName() == "tower") {
+    if (loadedModel->getName() == "tower" || loadedModel->getName() == "terrain" || loadedModel->getName() == "chair") {
         auto& mesh = loadedModel->mFlattenMeshes.begin()->second;
+        loadedModel->getGlobalTransform();
+        std::cout << glm::to_string(loadedModel->mTransform.getPosition()) << "is the position\n";
+        std::cout << glm::to_string(loadedModel->mTransform.getEulerRotation()) << "is the rotation\n";
+        std::cout << glm::to_string(loadedModel->mTransform.getScale()) << "is the scale\n";
+        std::cout << glm::to_string(loadedModel->mTransform.mTransformMatrix) << "is the transformation\n";
         auto* bdy =
             physics::createPhysicFromShape(mesh.mIndexData, mesh.mVertexData, loadedModel->mTransform.mTransformMatrix);
 
         if (bdy != nullptr) {
             loadedModel->mPhysicComponent = new PhysicsComponent{bdy->GetID()};
+            loadedModel->mPhysicComponent->colliderType = ColliderType::TriList;
             std::cout << "Success to create physics from mesh " << loadedModel->getName() << "!\n";
         } else {
             std::cout << "Failed to create physics from mesh!\n";
         }
-        auto mesh_wireframe_lines = generateFromMesh(mesh.mIndexData, mesh.mVertexData);
-        if (loadedModel->getName() == "tower") {
-            app->mLineEngine->create(mesh_wireframe_lines, loadedModel->mTransform.mTransformMatrix,
-                                     glm::vec3{1.0, 0.0, 0.0});
+        if (loadedModel->getName() == "tower" || loadedModel->getName() == "chair") {
+            auto mesh_wireframe_lines = generateFromMesh(mesh.mIndexData, mesh.mVertexData);
+            loadedModel->mPhysicComponent->mDebugLines = app->mLineEngine->create(
+                mesh_wireframe_lines, loadedModel->mTransform.mTransformMatrix, glm::vec3{1.0, 0.0, 0.0});
+            loadedModel->mPhysicComponent->mDebugLines->updateVisibility(false);
         }
     }
 

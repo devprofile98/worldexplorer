@@ -1286,6 +1286,7 @@ void Model::userInterface() {
                 open_physics_popup = true;
             }
         } else {
+            ImGui::Text("Has physics type: %d", mPhysicComponent->colliderType);
             ImGui::Text("Has physics already!");
         }
     }

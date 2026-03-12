@@ -22,9 +22,13 @@ struct LineEngine {
                 uint32_t transformationId;
                 uint32_t isActive;
         };
+        struct alignas(16) LineGroupProperty {
+                glm::mat4 transformation;
+                glm::vec4 color;
+        };
 
         struct LineGroup {
-                glm::mat4 transformation;
+                LineGroupProperty properties;
                 glm::vec3 groupColor;
                 std::vector<LineSegment> segment;
                 uint32_t buffer_offset = 0;  // Starting index in the storage buffer

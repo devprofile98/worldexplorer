@@ -77,6 +77,7 @@ bool show_physic_objects = true;
 bool show_physic_debugs = false;
 bool runPhysics = false;
 Model* selectedPhysicModel = nullptr;
+// Model* lastSelectedPhysicModel = nullptr;
 
 bool flip_x = false;
 bool flip_y = false;
@@ -181,6 +182,7 @@ bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height)
 
 static LineGroup debuglinegroup;
 static LineGroup spheredebuglines;
+static LineGroup capsuledebuglines;
 static LineGroup aabbDebugLines;
 
 Application::Application(const char* runningBinaryPath, const std::string& sceneFile) {
@@ -715,6 +717,9 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     spheredebuglines =
         mLineEngine->create(generateSphere(), glm::mat4{0.0}, glm::vec3{0.5, 0.5, 0.0}).updateVisibility(false);
 
+    capsuledebuglines = mLineEngine->create(generateCapsule(0.1, 0.05), glm::mat4{0.0}, glm::vec3{0.5, 0.5, 0.0})
+                            .updateVisibility(false);
+
     aabbDebugLines = mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.8, 0.5, 0.0}).updateVisibility(false);
 
     debugbox.create(mLineEngine, glm::mat4{0.0}, glm::vec3{1.0});
@@ -775,14 +780,20 @@ void Application::mainLoop() {
     if (show_physic_objects) {
         for (auto& collider : physics::PhysicSystem::mColliders) {
             auto t = collider.getTransformation();
-            collider.getDebugLines().updateTransformation(t);
+            collider.getDebugLines()->updateTransformation(t);
         }
+
         if (selectedPhysicModel != nullptr) {
-            auto [pos, rot] = physics::getPositionAndRotationyId(selectedPhysicModel->mPhysicComponent->bodyId);
-            debuglinegroup
-                .updateTransformation(glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
-                                      glm::scale(glm::mat4{1.0}, selectedPhysicModel->mTransform.getScale()))
-                .updateVisibility(true);
+            auto* physic_model = selectedPhysicModel->mPhysicComponent;
+            if (physic_model != nullptr && physic_model->mDebugLines.has_value()) {
+                physic_model->mDebugLines.value().updateVisibility(true);
+            } else {
+                auto [pos, rot] = physics::getPositionAndRotationyId(selectedPhysicModel->mPhysicComponent->bodyId);
+                debuglinegroup
+                    .updateTransformation(glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
+                                          glm::scale(glm::mat4{1.0}, selectedPhysicModel->mTransform.getScale()))
+                    .updateVisibility(true);
+            }
         }
     }
     for (auto& m : mWorld->rootContainer) {
@@ -835,6 +846,14 @@ void Application::mainLoop() {
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
             reinterpret_cast<BaseModel*>(model)->updateHirarchy();
             model->update(this, delta_time, runPhysics);
+            if (model->getName() == "human") {
+                auto [min, max] = model->getWorldSpaceAABB();
+                auto center = (max.z - min.z) / 2.0f;
+                // std::cout << glm::to_string(center) << std::endl;
+                capsuledebuglines.updateTransformation(
+                    glm::translate(glm::mat4{1.0}, model->mTransform.getPosition() + glm::vec3{0.0, 0.0, center}) *
+                    glm::scale(glm::mat4{1.0}, glm::vec3{1.0, 1.0, 1.0}));
+            }
         }
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_Editor)) {
             model->update(this, delta_time, runPhysics);
@@ -1639,6 +1658,19 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                 spheredebuglines.updateVisibility(true);
             }
 
+            {
+                static glm::vec3 scale{0.0};
+                static glm::vec3 translation{0.0};
+                if (ImGui::DragFloat3("capsule center", glm::value_ptr(translation), 0.01) ||
+                    ImGui::DragFloat3("capsule scale ", glm::value_ptr(scale), 0.01)) {
+                    capsuledebuglines.updateTransformation(glm::translate(glm::mat4{1.0}, translation) *
+                                                           glm::scale(glm::mat4{1.0}, scale));
+                }
+            }
+            if (ImGui::Button("Create capsule")) {
+                capsuledebuglines.updateVisibility(true);
+            }
+
             ImGui::NewLine();
             ImGui::Separator();
             if (ImGui::Checkbox("show physics objects", &show_physic_objects)) {
@@ -1655,6 +1687,10 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                         ImGui::PushID((void*)item);
                         // Create a unique ID for each selectable item based on its unique item.id
                         if (ImGui::Button(item->getName().c_str())) {
+                            if (selectedPhysicModel != nullptr &&
+                                selectedPhysicModel->mPhysicComponent->mDebugLines.has_value()) {
+                                selectedPhysicModel->mPhysicComponent->mDebugLines.value().updateVisibility(false);
+                            }
                             selectedPhysicModel = item;
                         }
                         ImGui::PopID();  // Pop the unique ID for this item
@@ -1667,7 +1703,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::Separator();
             if (ImGui::Checkbox("Show Colliders Debug lines", &show_physic_debugs)) {
                 for (auto& collider : physics::PhysicSystem::mColliders) {
-                    collider.getDebugLines().updateVisibility(show_physic_debugs);
+                    collider.getDebugLines()->updateVisibility(show_physic_debugs);
                 }
             }
             static LineGroup* selectedGroup = nullptr;
@@ -1676,22 +1712,22 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                     ImGui::PushID((void*)&collider);
 
                     if (ImGui::Button(
-                            std::format("{} #{}", collider.mName.c_str(), collider.getDebugLines().mId).c_str())) {
+                            std::format("{} #{}", collider.mName.c_str(), collider.getDebugLines()->mId).c_str())) {
                         if (selectedGroup != nullptr) {
                             selectedGroup->updateColor({1.0, 0.0, 0.0});
                         }
-                        selectedGroup = &collider.getDebugLines();
+                        selectedGroup = collider.getDebugLines();
                         selectedGroup->updateColor({0.1, 0.0, 0.9});
                     }
 
                     if (ImGui::BeginPopupContextItem()) {
                         if (ImGui::MenuItem("Remove")) {
-                            collider.getDebugLines().remove();
+                            collider.getDebugLines()->remove();
                             physics::PhysicSystem::removeCollider(collider);
                         };
                         if (ImGui::MenuItem("Modify")) {
                             auto cld = collider;
-                            collider.getDebugLines().remove();
+                            collider.getDebugLines()->remove();
                             physics::PhysicSystem::removeCollider(collider);
 
                             debugbox.center = cld.mCenter;

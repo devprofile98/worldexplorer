@@ -909,9 +909,39 @@ std::vector<glm::vec4> generateBox(const glm::vec3& center, const glm::vec3& hal
     return result;
 }
 
+std::vector<glm::vec4> generateCapsule(float halfHeight, float factor, uint8_t numLong, uint8_t numLongSegments) {
+    std::vector<glm::vec4> results;
+
+    std::vector<glm::vec3> meridians;
+    // longitudes
+    for (size_t lon = 0; lon < numLong; ++lon) {
+        auto theta = lon * (2 * std::numbers::pi) / numLong;
+        for (size_t seg = 0; seg < numLongSegments + 1; ++seg) {
+            auto phi = seg * (std::numbers::pi) / numLongSegments;
+            float x = glm::sin(phi) * glm::cos(theta) * factor;
+            float y = glm::sin(phi) * glm::sin(theta) * factor;
+            float z = glm::cos(phi) * factor;
+            if (phi > glm::radians(90.0f)) {
+                meridians.emplace_back(x, y, z - halfHeight);
+            } else {
+                meridians.emplace_back(x, y, z + halfHeight);
+            }
+        }
+    }
+
+    for (size_t i = 0; i < meridians.size() - 1; ++i) {
+        auto line_ended = (i % (numLongSegments - 1)) == 0;
+        results.emplace_back(glm::vec4{meridians[i], 0});
+        results.emplace_back(glm::vec4{meridians[i + 1], line_ended ? 1 : 0});
+    }
+    results[results.size() - 1].w = 1;
+    return results;
+}
+
 std::vector<glm::vec4> generateSphere(uint8_t numLong, uint8_t numLat, uint8_t numLongSegments) {
     std::vector<glm::vec4> results;
 
+    glm::vec3{0.0, 0.0, 2.0};
     std::vector<glm::vec3> meridians;
     // longitudes
     for (size_t lon = 0; lon < numLong; ++lon) {
@@ -935,10 +965,8 @@ std::vector<glm::vec4> generateSphere(uint8_t numLong, uint8_t numLat, uint8_t n
     for (size_t lat = 1; lat < numLat; ++lat) {
         auto phi = lat * (std::numbers::pi / numLat);
         std::vector<glm::vec3> rings;
-        // for (size_t seg = 0; seg < num_segments + 1; ++seg) {
         for (size_t lon = 0; lon < numLong; ++lon) {
             auto theta = lon * (2 * std::numbers::pi / numLong);
-            // auto phi = seg * (std::numbers::pi) / num_segments;
             float x = glm::sin(phi) * glm::cos(theta);
             float y = glm::sin(phi) * glm::sin(theta);
             float z = glm::cos(phi);
