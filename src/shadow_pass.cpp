@@ -354,7 +354,7 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
     mBindingData[2].buffer = mFrustuIndexBuffer[which].getBuffer();
     for (auto& model : models) {
         if (!model->getVisible()) {
-            return;
+            continue;
         }
         for (auto& [mat_id, mesh] : model->mFlattenMeshes) {
             ZoneScopedN("inner loop loop");

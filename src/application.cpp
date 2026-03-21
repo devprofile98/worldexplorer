@@ -149,7 +149,7 @@ void loadModelFromFilesystem(World* world) {
                                                        cs,
                                                        std::array<float, 3>{0.0, 0.0, 0.0},
                                                        std::array<float, 3>{1.0, 1.0, 1.0},
-                                                       std::array<float, 3>{1.0, 1.0, 1.0},
+                                                       std::array<float, 3>{0.0, 0.0, 0.0},
                                                        {},
                                                        "",
                                                        {},
@@ -717,7 +717,7 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     spheredebuglines =
         mLineEngine->create(generateSphere(), glm::mat4{0.0}, glm::vec3{0.5, 0.5, 0.0}).updateVisibility(false);
 
-    capsuledebuglines = mLineEngine->create(generateCapsule(0.1, 0.05), glm::mat4{0.0}, glm::vec3{0.5, 0.5, 0.0})
+    capsuledebuglines = mLineEngine->create(generateCapsule(0.3, 0.3), glm::mat4{0.0}, glm::vec3{0.5, 0.5, 0.0})
                             .updateVisibility(false);
 
     aabbDebugLines = mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.8, 0.5, 0.0}).updateVisibility(false);
@@ -772,11 +772,6 @@ void Application::mainLoop() {
         }
     }
 
-    if (mSelectedModel != nullptr) {
-        auto [min, max] = mSelectedModel->getWorldSpaceAABB();
-        aabbDebugLines.updateLines(generateAABBLines(min, max));
-    }
-
     if (show_physic_objects) {
         for (auto& collider : physics::PhysicSystem::mColliders) {
             auto t = collider.getTransformation();
@@ -796,73 +791,42 @@ void Application::mainLoop() {
             }
         }
     }
-    for (auto& m : mWorld->rootContainer) {
-        if (m != nullptr && m->mSocket != nullptr) {
-            Model* base = m->mSocket->model;
-
-            glm::mat4 offsetMat = glm::mat4(1.0f);
-
-            offsetMat = glm::translate(offsetMat, m->mSocket->positionOffset);
-            offsetMat *= glm::mat4_cast(m->mSocket->rotationOffset);
-            offsetMat = glm::scale(offsetMat, m->mSocket->scaleOffset);
-
-            auto socket_global = glm::mat4{1.0f};
-
-            if (m->mSocket->type == AnchorType::Bone && base->getAnimation() != nullptr &&
-                base->getAnimation()->getActiveAction() != nullptr) {
-                if (base->getAnimation()->getActiveAction()->calculatedTransform.contains(m->mSocket->anchorName)) {
-                    auto trans = base->getAnimation()->getActiveAction()->calculatedTransform[m->mSocket->anchorName];
-
-                    auto [t, s, r] = decomposeTransformation(base->mTransform.mTransformMatrix * trans);
-                    // socket_global = base->mTransform.mTransformMatrix * trans;
-                    auto final_trans = glm::translate(glm::mat4{1.0}, t);
-                    auto final_scale = glm::scale(glm::mat4{1.0}, s);
-                    auto final_rot = glm::mat4_cast(r);
-
-                    socket_global = final_trans * final_rot * final_scale;
-                }
-            } else if (m->mSocket->type == AnchorType::Model) {
-                auto trans = base->mTransform.mTransformMatrix;
-                auto [t, s, r] = decomposeTransformation(trans);
-
-                auto final_trans = glm::translate(glm::mat4{1.0}, t);
-                auto final_scale = glm::scale(glm::mat4{1.0}, s);
-                auto final_rot = glm::mat4_cast(r);
-
-                socket_global = final_trans * final_rot * final_scale;
-            }
-            auto new_trans = socket_global * offsetMat;
-
-            auto [t, s, r] = decomposeTransformation(new_trans);
-
-            m->moveTo(t);
-            m->scale(s);
-            m->rotate(normalize(r));
-        }
-    }
 
     {
         // PerfTimer timer{"tick"};
+        static int counter = 0;
+        counter = 0;
+        std::unordered_map<Model*, bool> calculated_transformation;
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+            // First update model transformation based on their socket property. if they are socket to other models
+            model->updateSocketTransformation(calculated_transformation);
+
+            // Update heirarchy, if a model is child to another model
             reinterpret_cast<BaseModel*>(model)->updateHirarchy();
+
+            // Update physics and other systems like animations
             model->update(this, delta_time, runPhysics);
+
+            ++counter;
             if (model->getName() == "human") {
                 auto [min, max] = model->getWorldSpaceAABB();
                 auto center = (max.z - min.z) / 2.0f;
-                // std::cout << glm::to_string(center) << std::endl;
                 capsuledebuglines.updateTransformation(
                     glm::translate(glm::mat4{1.0}, model->mTransform.getPosition() + glm::vec3{0.0, 0.0, center}) *
                     glm::scale(glm::mat4{1.0}, glm::vec3{1.0, 1.0, 1.0}));
             }
         }
-        for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_Editor)) {
-            model->update(this, delta_time, runPhysics);
-        }
+
         auto* actor = mWorld->actor;
-        if (!mEditor->mEditorActive && actor != nullptr && actor->mBehaviour != nullptr) {
-            actor->mBehaviour->handleAttachedCamera(actor, &mCamera);
-            actor->mBehaviour->update(actor, delta_time);
+        if (!mEditor->mEditorActive && actor != nullptr && actor->mInputHandler != nullptr) {
+            actor->mInputHandler->handleAttachedCamera(actor, &mCamera);
+            actor->mBehaviour->onTick(static_cast<Model*>(actor), delta_time);
         }
+    }
+
+    if (mSelectedModel != nullptr) {
+        auto [min, max] = mSelectedModel->getWorldSpaceAABB();
+        aabbDebugLines.updateLines(generateAABBLines(min, max));
     }
 
     // create a commnad encoder
@@ -1091,9 +1055,7 @@ void Application::mainLoop() {
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 6, mTerrainPass->mTexturesBindgroup.getBindGroup(), 0,
                                           nullptr);
 
-        if (mEditor->mEditorActive) {
-            updateGui(terrain_pass_encoder, delta_time);
-        }
+        updateGui(terrain_pass_encoder, delta_time);
 
         wgpuRenderPassEncoderEnd(terrain_pass_encoder);
         wgpuRenderPassEncoderRelease(terrain_pass_encoder);
@@ -1366,9 +1328,15 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
+    ImGuiIO& io = ImGui::GetIO();
+    if (!mEditor->mEditorActive) {
+        // io.ClearInputKeys();
+        ImGui::EndFrame();
+        return;
+    }
+
     if (ImGui::BeginTabBar("ObjectTabs")) {
         if (ImGui::BeginTabItem("Scene")) {
-            ImGuiIO& io = ImGui::GetIO();
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", time * 1000.0f, 1.0 / time);
 
             ImGui::Checkbox("flip x", &flip_x);
@@ -1482,7 +1450,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                 if (item->mSocket != nullptr) {
                     ImGui::PushID((void*)item);
                     // Create a unique ID for each selectable item based on its unique item.id
-                    bool modified = false;
                     static glm::vec3 euler_rot{0.0f};
                     if (ImGui::Selectable(
                             std::format("{} to {} Bone of: {} {}", item->getName().c_str(),
@@ -1502,16 +1469,22 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                     }
 
                     if (target_socket == item) {
+                        bool modified = false;
                         float speed = ImGui::IsKeyPressed(ImGuiKey_LeftShift) ? 0.001 : 0.5;
-                        ImGui::DragFloat3("Pos offset", glm::value_ptr(item->mSocket->positionOffset), speed);
-                        modified |= ImGui::DragFloat3("Rotation offset", glm::value_ptr(euler_rot),
-                                                      ImGui::IsKeyPressed(ImGuiKey_LeftShift) ? 0.1 : 5.0);
-                        ImGui::DragFloat3("scale offset", glm::value_ptr(item->mSocket->scaleOffset), speed);
-                        ImGui::NewLine();
-                        if (modified) {
+                        modified |=
+                            ImGui::DragFloat3("Pos offset", glm::value_ptr(item->mSocket->positionOffset), speed);
+                        if (ImGui::DragFloat3("Rotation offset", glm::value_ptr(euler_rot),
+                                              ImGui::IsKeyPressed(ImGuiKey_LeftShift) ? 0.1 : 5.0)) {
+                            modified = true;
                             item->mSocket->rotationOffset = glm::quat(glm::vec3{
                                 glm::radians(euler_rot.x), glm::radians(euler_rot.y), glm::radians(euler_rot.z)});
                         }
+                        modified |=
+                            ImGui::DragFloat3("scale offset", glm::value_ptr(item->mSocket->scaleOffset), speed);
+                        if (modified) {
+                            item->mSocket->calculateTransform();
+                        }
+                        ImGui::NewLine();
 
                         switch (static_cast<int>(item->mSocket->type)) {
                             case 0:
@@ -1636,13 +1609,19 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                     mEditor->gizmo.moveTo(debugbox.center);
                 }
             }
-            static bool is_static = false;
             static bool is_sensor = false;
-            ImGui::Checkbox("is Dynamic?", &is_static);
+            static int current_physic_type = 0;
+            static MotionType motion_type = MotionType::Static;
+
+            const char* physic_types[] = {"Static", "Kimematic", "Dynamic"};
+            if (ImGui::Combo("Motion Type", &current_physic_type, physic_types, IM_ARRAYSIZE(physic_types))) {
+                // This runs when selection changes
+                motion_type = static_cast<MotionType>(current_physic_type);
+            }
             ImGui::Checkbox("is Sensor?", &is_sensor);
             if (ImGui::Button("Create box")) {
                 physics::PhysicSystem::createCollider(this, "new collider", debugbox.center, debugbox.halfExtent,
-                                                      is_static, is_sensor, nullptr);
+                                                      motion_type, is_sensor, nullptr);
             }
 
             {
@@ -1678,10 +1657,21 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                     debuglinegroup.updateVisibility(show_physic_objects);
                 }
             }
+            if (selectedPhysicModel != nullptr) {
+                auto& interface = physics::getPhysicsSystem()->GetBodyInterface();
+                auto& bodyid = selectedPhysicModel->mPhysicComponent->bodyId;
+                MotionType etype = (MotionType)interface.GetMotionType(bodyid);
+                if (etype == MotionType::Kinematic) {
+                    if (ImGui::Button("Add velocity")) {
+                        interface.AddLinearVelocity(bodyid, {-.5f, 0.0f, 0.00f});
+                    }
+                }
+            }
 
             if (ImGui::BeginCombo("Physic objects", selectedPhysicModel == nullptr
                                                         ? "Choose one##1"
                                                         : selectedPhysicModel->getName().c_str())) {
+                auto& interface = physics::getPhysicsSystem()->GetBodyInterface();
                 for (const auto& item : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
                     if (item->mPhysicComponent != nullptr) {
                         ImGui::PushID((void*)item);
@@ -1692,6 +1682,16 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                                 selectedPhysicModel->mPhysicComponent->mDebugLines.value().updateVisibility(false);
                             }
                             selectedPhysicModel = item;
+                        }
+                        ImGui::SameLine();
+                        if (item != nullptr) {
+                            auto& bodyid = item->mPhysicComponent->bodyId;
+                            MotionType etype = (MotionType)interface.GetMotionType(bodyid);
+                            ImGui::Text("%s %d",
+                                        etype == MotionType::Static
+                                            ? "Static"
+                                            : (etype == MotionType::Dynamic ? "Dynamic " : "Kinematic"),
+                                        interface.GetObjectLayer(bodyid));
                         }
                         ImGui::PopID();  // Pop the unique ID for this item
                     }

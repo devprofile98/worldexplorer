@@ -43,6 +43,7 @@ struct SocketParams {
 
 struct PhysicsParams {
         std::string type;
+        bool isSensor = false;
 };
 
 struct Transformation {

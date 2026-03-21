@@ -125,6 +125,7 @@ add_executable(
 
     # Game files and logics
     src/character.cpp
+    src/dragon.cpp
     src/terrain.cpp
 
     ${TRACY_SOURCES}

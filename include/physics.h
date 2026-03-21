@@ -11,6 +11,7 @@
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 //
 #include <Jolt/Physics/Body/BodyID.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 
 // GLM forward declarations are fine
 #include <cstdint>
@@ -33,6 +34,12 @@
 class Application;
 class Model;
 
+enum MotionType : uint8_t {
+    Static = 0,
+    Kinematic,
+    Dynamic,
+};
+
 enum ColliderType {
     Box = 0,
     Capsule = 1,
@@ -43,8 +50,8 @@ enum ColliderType {
 struct PhysicsComponent {
         PhysicsComponent(JPH::BodyID id);
         virtual ~PhysicsComponent() = default;
-        virtual void onContactAdded(Model* other);
-        virtual void onContactRemoved(Model* other);
+        virtual void onContactAdded(Model* self, Model* other);
+        virtual void onContactRemoved(Model* self, Model* other);
         JPH::BodyID bodyId;
         ColliderType colliderType = ColliderType::Box;
         std::optional<LineGroup> mDebugLines = std::nullopt;
@@ -57,7 +64,7 @@ JPH::Body* createPhysicFromShape(const std::vector<uint32_t> indices, const std:
 class BoxCollider {
     public:
         BoxCollider(Application* app, const std::string& name, const glm::vec3& center, const glm::vec3& halfExtent,
-                    bool isStatic, bool isSensor, void* userData);
+                    MotionType motionType, bool isSensor, void* userData);
         glm::vec3 mCenter;
         glm::vec3 mHalfExtent;
         std::string mName;
@@ -67,7 +74,7 @@ class BoxCollider {
 
     private:
         std::shared_ptr<PhysicsComponent> mPhysicComponent;
-        bool mIsStatic;
+        MotionType mMotionType;
         bool mIsSensor;
         void* mUserData;
 };
@@ -75,9 +82,11 @@ class BoxCollider {
 class PhysicSystem {
     public:
         static uint32_t createCollider(Application* app, const std::string& name, const glm::vec3& center,
-                                       const glm::vec3& halfExtent, bool isStatic, bool isSensor, void* userData);
+                                       const glm::vec3& halfExtent, MotionType motionType, bool isSensor,
+                                       void* userData);
         static BoxCollider createCollider2(Application* app, const std::string& name, const glm::vec3& center,
-                                           const glm::vec3& halfExtent, bool isStatic, bool isSensor, void* userData);
+                                           const glm::vec3& halfExtent, MotionType motionType, bool isSensor,
+                                           void* userData);
         static void removeCollider(BoxCollider& collider);
         static inline std::vector<BoxCollider> mColliders;
 
@@ -88,14 +97,15 @@ class PhysicSystem {
 void prepareJolt();
 void JoltLoop(float dt);
 std::pair<glm::vec3, glm::quat> getPositionAndRotationyId(JPH::BodyID id);
-JPH::BodyID createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const glm::quat& rotation, bool active,
-                             float friction, float restitution, float linearDamping, float gravityFactor,
-                             bool isSensor = false, void* userData = nullptr);
+JPH::BodyID createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const glm::quat& rotation,
+                             MotionType motionType, float friction, float restitution, float linearDamping,
+                             float gravityFactor, bool isSensor = false, void* userData = nullptr);
 JPH::BodyInterface& getBodyInterface();
 void setRotation(JPH::BodyID id, const glm::quat& rot);
 void setPosition(JPH::BodyID id, const glm::vec3& pos);
-JPH::CharacterVirtual* createCharacter();
+JPH::CharacterVirtual* createCharacter(JPH::Ref<JPH::Shape> shape, const glm::vec3& initialPosition);
 JPH::PhysicsSystem* getPhysicsSystem();
+JPH::CapsuleShape* createCapsuleShape(float halfHeight, float radius);
 void updateCharacter(JPH::CharacterVirtual* physicalCharacter, float dt, JPH::Vec3 movement);
 }  // namespace physics
 

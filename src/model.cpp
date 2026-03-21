@@ -24,6 +24,7 @@
 #include "assimp/mesh.h"
 #include "assimp/quaternion.h"
 #include "assimp/vector3.h"
+#include "glm/common.hpp"
 #include "glm/ext/matrix_common.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/matrix.hpp"
@@ -234,8 +235,8 @@ void Model::updateAnimation(float dt) {
             populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes,
                                                      anims);
             auto& databuffer = mGlobalMeshTransformationData;
-            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mGlobalMeshTransformationBuffer.getBuffer(), 0,
-                                 databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+            mGlobalMeshTransformationBuffer.queueWrite(0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+
             mTransform.mDirty = true;
         }
     }
@@ -594,17 +595,14 @@ Model& Model::uploadToGPU(Application* app) {
             .setMappedAtCraetion()
             .create(&mApp->getRendererResource());
 
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mVertexBuffer.getBuffer(), 0,
-                             mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
+        mesh.mVertexBuffer.queueWrite(0, mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
 
         mesh.mIndexBuffer.setLabel("index buffer for object info")
             .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex | WGPUBufferUsage_Index)
             .setSize((mesh.mIndexData.size()) * sizeof(uint32_t))
             .setMappedAtCraetion()
             .create(&mApp->getRendererResource());
-
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndexBuffer.getBuffer(), 0, mesh.mIndexData.data(),
-                             mesh.mIndexData.size() * sizeof(uint32_t));
+        mesh.mIndexBuffer.queueWrite(0, mesh.mIndexData.data(), mesh.mIndexData.size() * sizeof(uint32_t));
     }
     // }
     return *this;
@@ -702,8 +700,7 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
             .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
             .setMappedAtCraetion(false)
             .create(&mApp->getRendererResource());
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial,
-                             sizeof(ShaderMaterial));
+        mesh.mMaterialBuffer.queueWrite(0, &mesh.mMaterial, sizeof(ShaderMaterial));
 
         std::array<WGPUBindGroupEntry, 2> material_bg_entries = {};
         material_bg_entries[0].nextInChain = nullptr;
@@ -718,9 +715,7 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
             .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
             .setMappedAtCraetion(false)
             .create(&mApp->getRendererResource());
-
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMeshMapIdx.getBuffer(), 0, &mesh.meshId,
-                             sizeof(uint32_t));
+        mesh.mMeshMapIdx.queueWrite(0, &mesh.meshId, sizeof(uint32_t));
 
         material_bg_entries[1].nextInChain = nullptr;
         material_bg_entries[1].buffer = mesh.mMeshMapIdx.getBuffer();
@@ -739,15 +734,54 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     }
 }
 
+glm::mat4 calculateSocketTransformation(BoneSocket* socket) {
+    Model* base = socket->model;
+    auto* animation = base->getAnimation();
+    glm::mat4 final_transform = glm::mat4{1.0};
+    if (socket->type == AnchorType::Bone && animation != nullptr && animation->getActiveAction() != nullptr) {
+        auto& base_transforms = animation->getActiveAction()->calculatedTransform;
+        if (base_transforms.contains(socket->anchorName)) {
+            const auto& trans = base_transforms[socket->anchorName];
+            final_transform = base->mTransform.mTransformMatrix * trans * socket->transform;
+        }
+    } else if (socket->type == AnchorType::Model) {
+        final_transform = base->mTransform.mTransformMatrix * socket->transform;
+    }
+    return final_transform;
+}
+
+void updateSocketTransformation(Model* self, BoneSocket* const socket,
+                                std::unordered_map<Model*, bool>& calculatedTransform) {
+    // Recursively calculate parent socket transformation if parent is socketed also
+    if (calculatedTransform.contains(self)) {
+        return;
+    }
+    if (socket->model->mSocket != nullptr) {
+        if (!calculatedTransform.contains(self)) {
+            updateSocketTransformation(socket->model, socket->model->mSocket, calculatedTransform);
+        }
+    }
+    auto [t, s, r] = decomposeTransformation(calculateSocketTransformation(socket));
+    self->moveTo(t);
+    self->scale(s);
+    self->rotate(normalize(r));
+    calculatedTransform[self] = true;
+}
+
+void Model::updateSocketTransformation(std::unordered_map<Model*, bool>& calculatedTransforms) {
+    if (mSocket != nullptr && !calculatedTransforms.contains(this)) {
+        ::updateSocketTransformation(this, mSocket, calculatedTransforms);
+    }
+}
+
 void Model::update(Application* app, float dt, float physicSimulating) {
-    auto& queue = app->getRendererResource().queue;
+    (void)app;
 
     updateAnimation(dt);
 
     if (mScene->HasAnimations() && anim->getActiveAction() && anim->getActiveAction()->hasSkining) {
-        wgpuQueueWriteBuffer(queue, mSkiningTransformationBuffer.getBuffer(), 0 * sizeof(glm::mat4),
-                             anim->mFinalTransformations.data(),
-                             anim->mFinalTransformations.size() * sizeof(glm::mat4));
+        mSkiningTransformationBuffer.queueWrite(0, anim->mFinalTransformations.data(),
+                                                anim->mFinalTransformations.size() * sizeof(glm::mat4));
     }
 
     // Apply position/Rotation changes to the meshes
@@ -762,10 +796,10 @@ void Model::update(Application* app, float dt, float physicSimulating) {
 
     // If object is diry, then update its buffer
     if (mTransform.mDirty) {
-        wgpuQueueWriteBuffer(queue, Drawable::getUniformBuffer().getBuffer(), 0, &mTransform.mObjectInfo,
-                             sizeof(ObjectInfo));
+        Drawable::getUniformBuffer().queueWrite(0, &mTransform.mObjectInfo, sizeof(ObjectInfo));
         for (auto& [id, mesh] : mFlattenMeshes) {
-            wgpuQueueWriteBuffer(queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial, sizeof(ShaderMaterial));
+            // TODO, can we write all of these in one batch?
+            mesh.mMaterialBuffer.queueWrite(0, &mesh.mMaterial, sizeof(ShaderMaterial));
         }
         mTransform.mDirty = false;
     }
@@ -1069,10 +1103,8 @@ void Model::userInterface() {
 
             if (ImGui::Button("New instance")) {
                 size_t new_idx = instance->duplicateLastInstance(glm::vec3{.01}, min, max);
-                wgpuQueueWriteBuffer(
-                    mApp->getRendererResource().queue, mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
+                mApp->mInstanceManager->getInstancingBuffer().queueWrite(
                     ((InstanceManager::MAX_INSTANCE_COUNT * instance->mOffsetID) + new_idx) * sizeof(InstanceData),
-                    // (instance->mOffsetID + new_idx) * sizeof(InstanceData),
                     &instance->mInstanceBuffer[new_idx], sizeof(InstanceData));
             }
             if (ImGui::Button("Export instances info")) {
@@ -1101,13 +1133,6 @@ void Model::userInterface() {
                 ins->mManager->getInstancingBuffer().queueWrite(
                     (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
                     ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
-                // wgpuQueueWriteBuffer(mApp->getRendererResource().queue,
-                //                      mApp->mInstanceManager->getInstancingBuffer().getBuffer(),
-                //                      (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) *
-                //                      sizeof(InstanceData), ins->mInstanceBuffer.data(), sizeof(InstanceData) *
-                //                      (ins->mInstanceBuffer.size()));
-
-                std::cout << "(((((((((((((((( in mesh " << mFlattenMeshes.size() << std::endl;
 
                 mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + getName()).c_str())
                     .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
@@ -1259,28 +1284,58 @@ void Model::userInterface() {
         // }
     }
     static bool open_physics_popup = false;
-    static glm::vec3 box_center = {};
-    static glm::vec3 box_half_ex = {};
-
-    if (open_physics_popup) {
-        ImGui::OpenPopup("Select texture");
-        if (ImGui::BeginPopupModal("Create Physics", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-            static bool is_dynamic = false;
-            ImGui::DragFloat3("center", glm::value_ptr(box_center));
-            ImGui::DragFloat3("half extent", glm::value_ptr(box_half_ex));
-            ImGui::Checkbox("Dynamic", &is_dynamic);
-
-            if (ImGui::Button("Cancel")) {
-                open_physics_popup = false;
-            }
-            ImGui::SameLine();
-            ImGui::Button("Create");
-
-            ImGui::EndPopup();
-        }
-    }
 
     if (ImGui::CollapsingHeader("Physics")) {
+        if (open_physics_popup) {
+            ImGui::OpenPopup("Create Physics");
+            if (ImGui::BeginPopupModal("Create Physics", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                const char* items[] = {"Box", "Capsule", "Concave Tri list", "Compound"};
+                static int current_item = 0;
+                const char* physic_types[] = {"Static", "Kimematic", "Dynamic"};
+                static int current_physic_type = 0;
+                static MotionType motion_type = MotionType::Static;
+                if (ImGui::Combo("Type", &current_item, items, IM_ARRAYSIZE(items))) {
+                    // This runs when selection changes
+                }
+
+                if (current_item == 0) {
+                    static glm::vec3 box_center = {};
+                    static glm::vec3 box_half_ex = {};
+                    ImGui::DragFloat3("center", glm::value_ptr(box_center));
+                    ImGui::SameLine();
+                    if (ImGui::Button("Center to Model")) {
+                        box_center = mTransform.getPosition();
+                    }
+                    ImGui::DragFloat3("half extent", glm::value_ptr(box_half_ex));
+                    if (ImGui::Combo("Motion Type", &current_physic_type, physic_types, IM_ARRAYSIZE(physic_types))) {
+                        motion_type = static_cast<MotionType>(current_physic_type);
+                    }
+                    if (ImGui::Button("Create")) {
+                        if (current_item == 0) {
+                            mPhysicComponent = new PhysicsComponent{
+                                physics::createAndAddBody(box_half_ex, box_center, mTransform.getOrientation(),
+                                                          motion_type, 0.5, 0.0f, 0.0f, 1.f, false, this)};
+                        }
+                    }
+                } else if (current_item == 1) {
+                    static glm::vec3 capsule_center = {};
+                    static float capsule_height = {};
+                    static float capsule_radius = {};
+                    ImGui::DragFloat3("center", glm::value_ptr(capsule_center));
+                    ImGui::DragFloat("height", &capsule_height);
+                    ImGui::DragFloat("radius", &capsule_radius);
+                } else if (current_item == 2) {
+                    ImGui::Text("Best for Static object like walls");
+                }
+
+                if (ImGui::Button("Cancel")) {
+                    open_physics_popup = false;
+                }
+                ImGui::SameLine();
+
+                ImGui::EndPopup();
+            }
+        }
         if (mPhysicComponent == nullptr) {
             if (ImGui::Button("Add physics")) {
                 open_physics_popup = true;
@@ -1308,13 +1363,14 @@ BaseModel& BaseModel::rotate(const glm::vec3& around, float degree) {
     mTransform.mEulerRotation += around;
     glm::vec3 euler_radians = glm::radians(mTransform.mEulerRotation);
     mTransform.mRotationMatrix = glm::toMat4(glm::quat(euler_radians));
-    mTransform.mOrientation = glm::quat(euler_radians);
+    mTransform.mOrientation = glm::normalize(glm::quat(euler_radians));
     getGlobalTransform();
     return *this;
 }
 BaseModel& BaseModel::rotate(const glm::quat& rot) {
-    mTransform.mOrientation = rot;
+    mTransform.mOrientation = glm::normalize(rot);
     mTransform.mRotationMatrix = glm::toMat4(mTransform.mOrientation);
+    getGlobalTransform();
     return *this;
 }
 

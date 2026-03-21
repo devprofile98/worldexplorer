@@ -35,10 +35,11 @@ class BaseModel;
 class Instance;
 class Pipeline;
 struct Animation;
-class Behaviour;
+class PawnBehaviour;
 struct BoneSocket;
 struct PhysicsComponent;
 struct Action;
+class InputHandler;
 
 struct alignas(4) DrawIndexedIndirectArgs {
         uint32_t indexCount;
@@ -199,7 +200,8 @@ class BaseModel : public Drawable, public AABB, public DebugUI {
         Instance* instance = nullptr;
         std::vector<BaseModel*> mChildrens{};
         PhysicsComponent* mPhysicComponent = nullptr;
-        Behaviour* mBehaviour = nullptr;
+        PawnBehaviour* mBehaviour = nullptr;
+        InputHandler* mInputHandler = nullptr;
 
     private:
         bool mIsTransparent = false;
@@ -227,6 +229,8 @@ class Model : public BaseModel {
 
         Model& setFoliage();
         Model& useTexture(bool use = true);
+
+        void updateSocketTransformation(std::unordered_map<Model*, bool>& calculatedTransforms);
         virtual void update(Application* app, float dt, float physicSimulating = true);
 
         // Getters
@@ -237,6 +241,7 @@ class Model : public BaseModel {
         Animation* getAnimation();
         Action* getDefaultAction();
         void setDefaultAction(Action* defaultAction);
+        // std::unordered_map<Model*, bool> mCalculatedSocketTransforms;
 
         Buffer mIndirectDrawArgsBuffer;
         Buffer mSkiningTransformationBuffer;

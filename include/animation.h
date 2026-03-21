@@ -75,12 +75,19 @@ enum class AnchorType {
 };
 
 struct BoneSocket {
+        BoneSocket(Model* base, std::string anchorName, glm::vec3 positionOffset, glm::vec3 scaleOffset,
+                   glm::quat rotationOffset, AnchorType type) noexcept;
         Model* model;
         std::string anchorName;
         glm::vec3 positionOffset;
         glm::vec3 scaleOffset;
         glm::quat rotationOffset;
         AnchorType type;
+        void calculateTransform();
+
+        // private:
+        bool mDirty = false;
+        glm::mat4 transform = glm::mat4{1.0};
 };
 
 #endif  //! WORLD_EXPLORER_ANIMATION_H

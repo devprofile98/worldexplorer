@@ -7,17 +7,20 @@
 #include "camera.h"
 #include "world.h"
 
-void Behaviour::sayHello() { std::cout << "hello from " << name << '\n'; }
-void Behaviour::handleKey(BaseModel* model, KeyEvent event, float dt) {}
-void Behaviour::handleMouseMove(BaseModel* model, MouseEvent event) {}
-void Behaviour::handleMouseClick(BaseModel* model, MouseEvent event) {}
-void Behaviour::handleMouseScroll(BaseModel* model, MouseEvent event) {}
-void Behaviour::handleAttachedCamera(BaseModel* model, Camera* camera) {}
-void Behaviour::update(BaseModel* model, float dt) {}
-void Behaviour::onModelLoad(BaseModel* model) {}
+void InputHandler::handleKey(BaseModel*, KeyEvent, float) {}
+void InputHandler::handleMouseMove(BaseModel*, MouseEvent) {}
+void InputHandler::handleMouseClick(BaseModel*, MouseEvent) {}
+void InputHandler::handleMouseScroll(BaseModel*, MouseEvent) {}
+void InputHandler::handleAttachedCamera(BaseModel*, Camera*) {}
+// void InputHandler::update(BaseModel*, float) {}
 
-glm::vec3 Behaviour::getForward() { return glm::vec3{0.0}; }
-BaseModel* Behaviour::getWeapon() { return nullptr; }
+void PawnBehaviour::onLoad(Model*) {}
+void PawnBehaviour::onEquip(Model*, Model*) {}
+void PawnBehaviour::onUnequip(Model*, Model*) {}
+void PawnBehaviour::onTick(Model*, float dt) { (void)dt; }
+
+glm::vec3 InputHandler::getForward() { return glm::vec3{0.0}; }
+BaseModel* InputHandler::getWeapon() { return nullptr; }
 
 ModelRegistry& ModelRegistry::instance() {
     static ModelRegistry inst;
@@ -26,10 +29,13 @@ ModelRegistry& ModelRegistry::instance() {
 
 void ModelRegistry::registerModel(const std::string& name, FactoryFunc func) { factories[name] = func; }
 
-void ModelRegistry::registerBehaviour(const std::string& name, Behaviour* behaviour) {
-    std::cout << "Addinng new behaviour for " << name << '\n';
+void ModelRegistry::registerInputHandler(const std::string& name, InputHandler* inputHandler) {
+    inputHandlerMap[name] = inputHandler;
+}
 
-    behaviourMap[name] = behaviour;
+;
+void ModelRegistry::registerBehaviour(const std::string& name, PawnBehaviour* behaviour) {
+    pawnBehaviourMap[name] = behaviour;
 }
 
 ModelRegistry::ModelContainer& ModelRegistry::getLoadedModel(ModelVisibility visibility) {
@@ -62,11 +68,17 @@ void ModelRegistry::tick(Application* app) {
                 app->mWorld->onNewModel(model.model);
             }
             std::cout << "Searching for Behaviour for: " << model.model->mName << '\n';
-            if (behaviourMap.contains(model.model->mName)) {
+            if (inputHandlerMap.contains(model.model->mName)) {
                 std::cout << "Behaviour for this  exists " << model.model->mName << '\n';
-                model.model->mBehaviour = behaviourMap[model.model->mName];
+                model.model->mInputHandler = inputHandlerMap[model.model->mName];
+                model.model->mInputHandler->app = app;
+                // model.model->mInputHandler->onModelLoad(model.model);
+            }
+            if (pawnBehaviourMap.contains(model.model->mName)) {
+                std::cout << "Behaviour for this  exists " << model.model->mName << '\n';
+                model.model->mBehaviour = pawnBehaviourMap[model.model->mName];
                 model.model->mBehaviour->app = app;
-                model.model->mBehaviour->onModelLoad(model.model);
+                model.model->mBehaviour->onLoad(model.model);
             }
             it = futures.erase(it);
         } else {

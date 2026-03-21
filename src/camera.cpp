@@ -35,7 +35,7 @@ Camera::Camera(glm::vec3 translate, glm::vec3 scale, glm::vec3 rotationAxis, flo
 }
 
 Camera& Camera::setTarget(glm::vec3 target) {
-    mCameraFront = glm::normalize(target);
+    mCameraFront = target;
     return *this;
 }
 

@@ -337,3 +337,18 @@ bool Animation::isEnded() const {
     float duration_ms = activeAction->mAnimationDuration * 1000.0f;
     return !activeAction->loop && activeAction->mAnimationSecond >= duration_ms;
 }
+
+void BoneSocket::calculateTransform() {
+    transform = glm::translate(glm::mat4(1.0f), positionOffset) * glm::mat4_cast(rotationOffset) *
+                glm::scale(glm::mat4(1.0f), scaleOffset);
+}
+BoneSocket::BoneSocket(Model* base, std::string anchorName, glm::vec3 positionOffset, glm::vec3 scaleOffset,
+                       glm::quat rotationOffset, AnchorType type) noexcept
+    : model(base),
+      anchorName(anchorName),
+      positionOffset(positionOffset),
+      scaleOffset(scaleOffset),
+      rotationOffset(rotationOffset),
+      type(type) {
+    calculateTransform();
+}

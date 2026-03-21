@@ -52,17 +52,8 @@ class MyCharacterContactListener : public JPH::CharacterContactListener {
             Model* model = reinterpret_cast<Model*>(userData);
 
             auto name = model == nullptr ? "No Name" : model->getName();
-            // printf("Character touched body %u %lu %s\n", inBodyID2.GetIndex(), userData, name.c_str());
             if (model != nullptr) {
                 contactmodel = model;
-                // model->mPhysicComponent->onContactAdded(character);
-                //
-                // auto& bodyInterface = physics::getPhysicsSystem()->GetBodyInterface();
-                //
-                // JPH::Vec3 currentVel = body.GetLinearVelocity();
-                // JPH::Vec3 newVel = currentVel + JPH::Vec3(0.0f, 5.0f, 0.0f);  // add upward speed
-                //
-                // bodyInterface.SetLinearVelocity(inBodyID2, newVel);
             }
         }
 
@@ -85,31 +76,107 @@ class MyCharacterContactListener : public JPH::CharacterContactListener {
             // auto name = model == nullptr ? "No Name" : model->getName();
             // printf("Character touched body %u %lu %s\n", inBodyID2.GetIndex(), userData, name.c_str());
             if (model != nullptr) {
-                model->mPhysicComponent->onContactRemoved(character);
+                model->mPhysicComponent->onContactRemoved(model, character);
             }
         }
         Model* character = nullptr;
 };
 
-struct WeaponBehaviour : public Behaviour {
+struct WeaponBehaviour : public PawnBehaviour {
         WeaponBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
-
-        virtual void onRightClick(Model* model, const glm::vec3& characterFront) {
-            std::cout << "Action from " << model->getName() << std::endl;
-        }
 
         BoneSocket* activeSocket = nullptr;
         BoneSocket* inactiveSocket = nullptr;
 
-        void setActiveSocket(Model* weapon, Model* target) {
+        virtual void onFirePrimary(Model* model, const glm::vec3& characterFront) {
+            std::cout << "Action from " << model->getName() << std::endl;
+        }
+
+        virtual void onFireSecondary(Model* model, const glm::vec3& characterFront) {
+            std::cout << "Action from " << model->getName() << std::endl;
+        }
+
+        virtual void onReload(Model* model) { std::cout << "Reload from " << model->getName() << std::endl; }
+
+        void onEquip(Model* weapon, Model* target) override {
             activeSocket->model = target;
             weapon->mSocket = activeSocket;
         }
-        void setInactiveScoket(Model* weapon, Model* target) {
+
+        void onUnequip(Model* weapon, Model* target) override {
             inactiveSocket->model = target;
             weapon->mSocket = inactiveSocket;
         }
 };
+
+class JetPackPhysics : public PhysicsComponent {
+    public:
+        JetPackPhysics(JPH::BodyID id) : PhysicsComponent(id) {}
+        void onContactAdded(Model* self, Model* other) override {
+            auto& bodyInterface = physics::getPhysicsSystem()->GetBodyInterface();
+
+            std::cout << "Jetpack contacted by " << other->getName() << '\n';
+
+            bodyInterface.SetAngularVelocity(bodyId, {0.0, 1.0, 0.0});
+
+            self->getAnimation()->playAction("Rotate", true);
+        }
+
+        void onContactRemoved(Model* self, Model* other) override {
+            std::cout << "Jetpack contact Removed from " << other->getName() << '\n';
+            self->getAnimation()->playAction("Rotate", false);
+        }
+};
+
+struct JetpackBehaviour : public WeaponBehaviour {
+        JetpackBehaviour(std::string name) : WeaponBehaviour(name) {
+            ModelRegistry::instance().registerBehaviour(name, this);
+
+            activeSocket = new BoneSocket{nullptr,
+                                          "DEF-spine001",
+                                          {-0.0, 0.3499999940395355, -0.10000000149011612},
+                                          {0.20000000298023224, 0.20000000298023224, 0.20000000298023224},
+                                          glm::quat({-1.5707963705062866, 0.2617993950843811, 0.0}),
+                                          AnchorType::Bone};
+
+            inactiveSocket = new BoneSocket{nullptr,
+                                            "DEF-spine001",
+                                            {-0.0, 0.3499999940395355, -0.10000000149011612},
+                                            {0.0, 0.0, 0.0},
+                                            glm::quat({-1.5707963705062866, 0.2617993950843811, 0.0}),
+                                            AnchorType::Bone};
+        }
+
+        // void handleKey(BaseModel* model, KeyEvent event, float dt) override {
+        //     auto key = std::get<Keyboard>(event);
+        //
+        //     if (GLFW_KEY_SPACE == key.key /* && GLFW_REPEAT == key.action*/) {
+        //         return;
+        //     }
+        // }
+
+        void onEquip(Model* weapon, Model* target) override {
+            weapon->setVisible(true);
+            activeSocket->model = target;
+            weapon->mSocket = activeSocket;
+        }
+
+        void onUnequip(Model* weapon, Model* target) override {
+            weapon->setVisible(false);
+            inactiveSocket->model = target;
+            weapon->mSocket = inactiveSocket;
+        }
+
+        void onLoad(Model* model) override {
+            auto* cube_phy = new JetPackPhysics{model->mPhysicComponent->bodyId};
+            delete model->mPhysicComponent;
+            model->mPhysicComponent = cube_phy;
+
+            std::cout << "Jetpack model loooaded " << (model->mPhysicComponent == nullptr) << std::endl;
+        }
+};
+
+JetpackBehaviour jpbehaviour{"jp"};
 
 struct PistolBehaviour : public WeaponBehaviour {
         PistolBehaviour(std::string name) : WeaponBehaviour(name) {
@@ -125,10 +192,10 @@ struct PistolBehaviour : public WeaponBehaviour {
                 AnchorType::Bone};
         }
 
-        void onRightClick(Model* model, const glm::vec3& characterFront) override {
+        void onFirePrimary(Model* model, const glm::vec3& characterFront) override {
             auto box = physics::PhysicSystem::createCollider2(app, "new collider",
                                                               model->mSocket->model->mTransform.getPosition(),
-                                                              glm::vec3{0.01}, true, false, nullptr);
+                                                              glm::vec3{0.01}, MotionType::Dynamic, false, nullptr);
 
             auto& bodyInterface = physics::getPhysicsSystem()->GetBodyInterface();
 
@@ -154,7 +221,7 @@ struct SwordBehaviour : public WeaponBehaviour {
 PistolBehaviour pistolbehaviour{"pistol"};
 SwordBehaviour swordbehaviour{"sword"};
 
-struct HumanBehaviour : public Behaviour {
+struct HumanInputHandler : public InputHandler, public PawnBehaviour {
         std::string name;
         glm::vec3 front;  // Character's forward direction
         glm::vec3 up;     // Up vector (typically {0, 1, 0} for world up)
@@ -178,7 +245,7 @@ struct HumanBehaviour : public Behaviour {
         std::string idleAction;
         JPH::CharacterVirtual* physicalCharacter;
 
-        HumanBehaviour(std::string name)
+        HumanInputHandler(std::string name)
             : name(name),
               front(0.0f, 1.0f, 0.0f),  // Forward after 90-degree X rotation
               up(0.0f, 0.0f, -1.0f),    // Up after 90-degree X rotation
@@ -199,19 +266,11 @@ struct HumanBehaviour : public Behaviour {
               attackAction("Punch_Jab"),
               idleAction("Idle_Loop"),
               physicalCharacter(nullptr) {
+            ModelRegistry::instance().registerInputHandler(name, this);
             ModelRegistry::instance().registerBehaviour(name, this);
         }
 
-        void onModelLoad(BaseModel* model) override {
-            std::cout << "Character Human just created\n";
-            physicalCharacter = physics::createCharacter();
-
-            static auto listener = new MyCharacterContactListener{};
-            listener->character = static_cast<Model*>(model);
-            physicalCharacter->SetListener(listener);
-        }
-
-        void sayHello() override { std::cout << "Hello from " << name << '\n'; }
+        // void sayHello() override { std::cout << "Hello from " << name << '\n'; }
 
         // Handle mouse movement for rotation
         void handleMouseMove(BaseModel* model, MouseEvent event) override {
@@ -236,8 +295,9 @@ struct HumanBehaviour : public Behaviour {
             // std::cout << glm::to_string(front) << std::endl;
 
             // Update model orientation
-            // glm::mat4 initialRotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f,
-            // 0.0f)); glm::mat4 totalRotation = yawRotation * initialRotation;  // Combine yaw and initial X rotation
+            // glm::mat4 initialRotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f,
+            // 0.0f, 0.0f)); glm::mat4 totalRotation = yawRotation * initialRotation;  // Combine yaw and
+            // initial X rotation
 
             // 1. +90° rotation around X (converts Y-up → Z-up orientation)
             JPH::Quat rot90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
@@ -280,7 +340,7 @@ struct HumanBehaviour : public Behaviour {
                 }
             } else if (mouse.click == GLFW_MOUSE_BUTTON_LEFT) {
                 if (weapon != nullptr) {
-                    static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onRightClick(weapon, front);
+                    static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onFirePrimary(weapon, front);
                 }
                 isShooting = true;
             }
@@ -328,16 +388,14 @@ struct HumanBehaviour : public Behaviour {
             if (InputManager::keys[GLFW_KEY_1]) {
                 for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
                     if (m->mName == "pistol") {
-                        std::cout << "find pistol\n";
                         if (weapon != nullptr)
                             static_cast<WeaponBehaviour*>(weapon->mBehaviour)
-                                ->setInactiveScoket(weapon, static_cast<Model*>(model));
+                                ->onUnequip(weapon, static_cast<Model*>(model));
                         weapon = m;
                         idleAction = "Pistol_Idle_Loop";
                         attackAction = "Pistol_Shoot";
 
-                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)
-                            ->setActiveSocket(weapon, static_cast<Model*>(model));
+                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon, static_cast<Model*>(model));
 
                         return;
                     }
@@ -346,17 +404,33 @@ struct HumanBehaviour : public Behaviour {
             if (InputManager::keys[GLFW_KEY_2]) {
                 for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
                     if (m->mName == "sword") {
-                        std::cout << "find sword\n";
                         if (weapon != nullptr)
                             static_cast<WeaponBehaviour*>(weapon->mBehaviour)
-                                ->setInactiveScoket(weapon, static_cast<Model*>(model));
+                                ->onUnequip(weapon, static_cast<Model*>(model));
                         weapon = m;
-                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)
-                            ->setActiveSocket(weapon, static_cast<Model*>(model));
+                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon, static_cast<Model*>(model));
                         idleAction = "Sword_Idle";
                         attackAction = "Sword_Attack";
                         return;
                     }
+                }
+            }
+            if (InputManager::keys[GLFW_KEY_3]) {
+                for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+                    if (m->mName == "jp") {
+                        physics::getBodyInterface().DeactivateBody(m->mPhysicComponent->bodyId);
+                        if (weapon != nullptr)
+                            static_cast<WeaponBehaviour*>(weapon->mBehaviour)
+                                ->onUnequip(weapon, static_cast<Model*>(model));
+                        weapon = m;
+                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon, static_cast<Model*>(model));
+                        return;
+                    }
+                }
+            }
+            if (InputManager::keys[GLFW_KEY_SPACE]) {
+                if (weapon != nullptr && weapon->getName() == "jp") {
+                    physicalCharacter->SetLinearVelocity({0.0, 1.0, 0.0});
                 }
             }
         }
@@ -365,9 +439,12 @@ struct HumanBehaviour : public Behaviour {
             glm::vec3 moveDir(0.0f);  // Movement direction relative to front vector
             bool noKey = true;
             if (InputManager::isKeyDown(GLFW_KEY_SPACE) && state != Jumping) {
-                state = Jumping;
-                moveDir.z += 1;
-                noKey = false;
+                if (weapon != nullptr && weapon->getName() == "jp") {
+                } else {
+                    state = Jumping;
+                    moveDir.z += 1;
+                    noKey = false;
+                }
             }
 
             if (InputManager::isKeyDown(GLFW_KEY_W)) {
@@ -453,7 +530,7 @@ struct HumanBehaviour : public Behaviour {
             }
         }
 
-        void update(BaseModel* model, float dt) override {
+        void onTick(Model* model, float dt) override {
             if (physicalCharacter == nullptr) return;
             auto movement = processInput();
 
@@ -487,7 +564,7 @@ struct HumanBehaviour : public Behaviour {
             physicalCharacter->SetLinearVelocity(jolt_movement);
             physics::updateCharacter(physicalCharacter, dt, {});
             if (contactmodel != nullptr) {
-                contactmodel->mPhysicComponent->onContactAdded(contactmodel);
+                contactmodel->mPhysicComponent->onContactAdded(contactmodel, static_cast<Model*>(model));
                 contactmodel = nullptr;
             }
 
@@ -516,14 +593,23 @@ struct HumanBehaviour : public Behaviour {
         }
 
         glm::vec3 getForward() override { return glm::normalize(glm::cross(front, up)); }
+
+        void onLoad(Model* model) override {
+            std::cout << "Character Human just created\n";
+            physicalCharacter = physics::createCharacter(physics::createCapsuleShape(0.3f, 0.05f), {22, 3, 12});
+
+            static auto listener = new MyCharacterContactListener{};
+            listener->character = static_cast<Model*>(model);
+            physicalCharacter->SetListener(listener);
+        }
 };
 
-HumanBehaviour humanbehaviour{"human"};
+HumanInputHandler humaninputhandler{"human"};
 
 class CubePhysics : public PhysicsComponent {
     public:
         CubePhysics(JPH::BodyID id) : PhysicsComponent(id) {}
-        void onContactAdded(Model* other) override {
+        void onContactAdded(Model* self, Model* other) override {
             auto& bodyInterface = physics::getPhysicsSystem()->GetBodyInterface();
 
             JPH::Vec3 currentVel = bodyInterface.GetLinearVelocity(bodyId);
@@ -534,15 +620,15 @@ class CubePhysics : public PhysicsComponent {
             std::cout << "Cube contacted by " << other->getName() << '\n';
         }
 
-        void onContactRemoved(Model* other) override {
+        void onContactRemoved(Model* self, Model* other) override {
             std::cout << "Cube contact Removed from " << other->getName() << '\n';
         }
 };
 
-struct CubeBehaviour : public Behaviour {
+struct CubeBehaviour : public PawnBehaviour {
         CubeBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
 
-        void onModelLoad(BaseModel* model) override {
+        void onLoad(Model* model) override {
             auto* cube_phy = new CubePhysics{model->mPhysicComponent->bodyId};
             delete model->mPhysicComponent;
             model->mPhysicComponent = cube_phy;
@@ -551,3 +637,5 @@ struct CubeBehaviour : public Behaviour {
 };
 
 CubeBehaviour cubebehaviour{"cube"};
+
+struct TreeBehaviour : public InputHandler {};

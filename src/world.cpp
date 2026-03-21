@@ -35,7 +35,7 @@
 #include "webgpu/webgpu.h"
 
 using json = nlohmann::json;
-using AddColliderFunction = std::function<uint32_t(const std::string&, const glm::vec3&, const glm::vec3&, bool)>;
+using AddColliderFunction = std::function<uint32_t(const std::string&, const glm::vec3&, const glm::vec3&, MotionType)>;
 
 void to_json(json& j, const PhysicsComponent& p) { j = json{{"enabled", true}, {"type", "dynamic"}}; }
 
@@ -166,7 +166,7 @@ std::string coordinateSystemToString(const CoordinateSystem& cs) {
 void to_json(json& j, const BaseModel& m) {
     const auto& t = m.mTransform.mPosition;
     const auto& s = m.mTransform.mScale;
-    const auto& r = glm::eulerAngles(m.mTransform.mOrientation);
+    const auto& r = glm::normalize(glm::eulerAngles(m.mTransform.mOrientation));
     // std::string default_clip = m.mDefaultAction != nullptr ? m.mDefaultAction->name : "";
     std::string default_clip = "";
 
@@ -467,8 +467,8 @@ void World::onKey(KeyEvent event) {
 
     /* Send the event to every registered model with a behaviour*/
     for (const auto& model : models) {
-        if (model->mBehaviour != nullptr) {
-            model->mBehaviour->handleKey(model, event, delta);
+        if (model->mInputHandler != nullptr) {
+            model->mInputHandler->handleKey(model, event, delta);
         }
     }
 }
@@ -481,8 +481,8 @@ void World::onMouseMove(MouseEvent event) {
 
     /* Send the event to every registered model with a behaviour*/
     for (const auto& model : models) {
-        if (model->mBehaviour != nullptr) {
-            model->mBehaviour->handleMouseMove(model, event);
+        if (model->mInputHandler != nullptr) {
+            model->mInputHandler->handleMouseMove(model, event);
         }
     }
 }
@@ -494,8 +494,8 @@ void World::onMouseClick(MouseEvent event) {
     }
 
     for (const auto& model : models) {
-        if (model->mBehaviour != nullptr) {
-            model->mBehaviour->handleMouseClick(model, event);
+        if (model->mInputHandler != nullptr) {
+            model->mInputHandler->handleMouseClick(model, event);
         }
     }
 }
@@ -507,8 +507,8 @@ void World::onMouseScroll(MouseEvent event) {
     }
 
     for (const auto& model : models) {
-        if (model->mBehaviour != nullptr) {
-            model->mBehaviour->handleMouseScroll(model, event);
+        if (model->mInputHandler != nullptr) {
+            model->mInputHandler->handleMouseScroll(model, event);
         }
     }
 }
@@ -632,8 +632,18 @@ void parseColliders(AddColliderFunction fn, const json& colliders) {
         std::string shape = cld["shape"].get<std::string>();
         std::array<float, 3> center = cld["center"].get<std::array<float, 3>>();
         std::array<float, 3> h_extent = cld["half_extent"].get<std::array<float, 3>>();
+
+        MotionType motion_type = MotionType::Static;
+        if (type == "dynamic") {
+            motion_type = MotionType::Dynamic;
+        } else if (type == "static") {
+            motion_type = MotionType::Static;
+        } else if (type == "kinematic") {
+            motion_type = MotionType::Kinematic;
+        }
+
         if (active) {
-            fn(name, toGlm(center), toGlm(h_extent), type == "dynamic");
+            fn(name, toGlm(center), toGlm(h_extent), motion_type);
         }
     }
 }
@@ -769,8 +779,12 @@ std::optional<PhysicsParams> parsePhysics(const json& params) {
         return std::nullopt;
     }
     std::string type = params["type"].get<std::string>();
+    bool is_sensor = false;
+    if (params.contains("sensor")) {
+        is_sensor = params["sensor"].get<bool>();
+    }
 
-    return PhysicsParams{type};
+    return PhysicsParams{type, is_sensor};
 }
 
 void World::loadModel(const ObjectLoaderParam& param) {
@@ -789,9 +803,17 @@ void World::loadModel(const ObjectLoaderParam& param) {
             auto [min, max] = model.getModel()->getPhysicsAABB();
             auto center = (min + max) * 0.5f;
             auto half_extent = (max - min) * 0.5f;
-            model.getModel()->mPhysicComponent = new PhysicsComponent{
-                physics::createAndAddBody(half_extent, center, qu, param.physicsParams.type == "dynamic" ? true : false,
-                                          0.5, 0.0f, 0.0f, 1.f, false, model.getModel())};
+            MotionType motion_type = MotionType::Static;
+            if (param.physicsParams.type == "dynamic") {
+                motion_type = MotionType::Dynamic;
+            } else if (param.physicsParams.type == "static") {
+                motion_type = MotionType::Static;
+            } else if (param.physicsParams.type == "kinematic") {
+                motion_type = MotionType::Kinematic;
+            }
+            model.getModel()->mPhysicComponent =
+                new PhysicsComponent{physics::createAndAddBody(half_extent, center, qu, motion_type, 0.5, 0.0f, 0.0f,
+                                                               1.f, param.physicsParams.isSensor, model.getModel())};
         }
 
         return {model.getModel(), Visibility_User};

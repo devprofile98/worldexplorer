@@ -19,18 +19,27 @@ class Camera;
 
 /* Base class for element behaviours, for example: models can inherit from it or have a component of this type to be
  * able to handle Input events */
-class Behaviour {
+class InputHandler {
     public:
-        virtual void sayHello();
         virtual void handleKey(BaseModel* model, KeyEvent event, float dt);
         virtual void handleMouseMove(BaseModel* model, MouseEvent event);
         virtual void handleMouseClick(BaseModel* model, MouseEvent event);
         virtual void handleMouseScroll(BaseModel* model, MouseEvent event);
         virtual void handleAttachedCamera(BaseModel* model, Camera* camera);
-        virtual void update(BaseModel* model, float dt);
+        // virtual void update(BaseModel* model, float dt);
         virtual glm::vec3 getForward();
         virtual BaseModel* getWeapon();
-        virtual void onModelLoad(BaseModel* model);
+
+        std::string name;
+        Application* app;
+};
+
+class PawnBehaviour {
+    public:
+        virtual void onLoad(Model* model);
+        virtual void onEquip(Model* weapon, Model* target);
+        virtual void onUnequip(Model* weapon, Model* target);
+        virtual void onTick(Model*, float dt);
 
         std::string name;
         Application* app;
@@ -59,7 +68,8 @@ class ModelRegistry {
 
         static ModelRegistry& instance();
         void registerModel(const std::string& name, FactoryFunc func);
-        void registerBehaviour(const std::string& name, Behaviour* behaviour);
+        void registerInputHandler(const std::string& name, InputHandler* inputHandler);
+        void registerBehaviour(const std::string& name, PawnBehaviour* behaviour);
         void tick(Application* app);
 
         std::unordered_map<std::string, FactoryFunc> factories;
@@ -69,7 +79,8 @@ class ModelRegistry {
         ModelContainer mUserLoadedModel;
         ModelContainer mEditorLoadedModel;
         std::vector<std::future<LoadModelResult>> futures;
-        std::unordered_map<std::string, Behaviour*> behaviourMap;
+        std::unordered_map<std::string, InputHandler*> inputHandlerMap;
+        std::unordered_map<std::string, PawnBehaviour*> pawnBehaviourMap;
 };
 
 #define USER_REGISTER_MODEL(NAME, TYPE) REGISTER_MODEL(NAME, TYPE, Visibility_User, nullptr)
