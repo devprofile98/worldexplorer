@@ -23,6 +23,7 @@ class Buffer {
 
         // Getters
         WGPUBuffer getBuffer();
+        uint64_t getBufferSize();
 
     private:
         WGPUBufferDescriptor mBufferDescriptor;

@@ -445,33 +445,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 mmesh.isTransparent = (*target)->isTransparent();
                 setTransparent(mmesh.isTransparent);
             }
-
-            // auto cached = mApp->mTextureRegistery->get(texture_path);
-            // if (cached != nullptr) {
-            //     *target = cached;
-            //     mmesh.isTransparent = (*target)->isTransparent();
-            //     setTransparent(mmesh.isTransparent);
-            //     continue;
-            // }
-            //
-            // auto texture =
-            //     std::make_shared<Texture>(mApp->getRendererResource().device, texture_path);  // reads file here
-            //
-            // // queue async load
-            // auto future = mApp->mTextureRegistery->mLoader.loadAsync(texture_path, render_resource.queue, texture,
-            //                                                          loaderCallback);
-            //
-            // mApp->mTextureRegistery->addToRegistery(texture_path, texture);
-            //
-            // *target = texture;
-            // mmesh.isTransparent = texture->isTransparent();
-            // setTransparent(mmesh.isTransparent);
-            //
-            // if (texture->createView() == nullptr) {
-            //     std::cout << std::format("Failed to create view for {} at {}\n", mName, texture_path);
-            // } else {
-            //     std::cout << std::format("Successfully loaded texture {} at {}\n", mName, texture_path);
-            // }
         }
     };
 
@@ -734,22 +707,6 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     }
 }
 
-glm::mat4 calculateSocketTransformation(BoneSocket* socket) {
-    Model* base = socket->model;
-    auto* animation = base->getAnimation();
-    glm::mat4 final_transform = glm::mat4{1.0};
-    if (socket->type == AnchorType::Bone && animation != nullptr && animation->getActiveAction() != nullptr) {
-        auto& base_transforms = animation->getActiveAction()->calculatedTransform;
-        if (base_transforms.contains(socket->anchorName)) {
-            const auto& trans = base_transforms[socket->anchorName];
-            final_transform = base->mTransform.mTransformMatrix * trans * socket->transform;
-        }
-    } else if (socket->type == AnchorType::Model) {
-        final_transform = base->mTransform.mTransformMatrix * socket->transform;
-    }
-    return final_transform;
-}
-
 void updateSocketTransformation(Model* self, BoneSocket* const socket,
                                 std::unordered_map<Model*, bool>& calculatedTransform) {
     // Recursively calculate parent socket transformation if parent is socketed also
@@ -761,7 +718,7 @@ void updateSocketTransformation(Model* self, BoneSocket* const socket,
             updateSocketTransformation(socket->model, socket->model->mSocket, calculatedTransform);
         }
     }
-    auto [t, s, r] = decomposeTransformation(calculateSocketTransformation(socket));
+    auto [t, s, r] = decomposeTransformation(socket->update());
     self->moveTo(t);
     self->scale(s);
     self->rotate(normalize(r));
@@ -1446,23 +1403,23 @@ std::pair<glm::vec3, glm::vec3> BaseModel::getWorldSpaceAABB() {
     corners[7] = glm::vec3(max.x, max.y, max.z);
 
     // 2. Initialize worldMin and worldMax
-    glm::vec3 worldMin(std::numeric_limits<float>::max());
-    glm::vec3 worldMax(std::numeric_limits<float>::lowest());  // Equivalent to -FLT_MAX
+    glm::vec3 world_min(std::numeric_limits<float>::max());
+    glm::vec3 world_max(std::numeric_limits<float>::lowest());  // Equivalent to -FLT_MAX
 
     // 3. Transform each corner and update worldMin/worldMax
     for (int i = 0; i < 8; ++i) {
         glm::vec4 transformedCorner = getGlobalTransform() * glm::vec4(corners[i], 1.0f);
 
-        worldMin.x = glm::min(worldMin.x, transformedCorner.x);
-        worldMin.y = glm::min(worldMin.y, transformedCorner.y);
-        worldMin.z = glm::min(worldMin.z, transformedCorner.z);
+        world_min.x = glm::min(world_min.x, transformedCorner.x);
+        world_min.y = glm::min(world_min.y, transformedCorner.y);
+        world_min.z = glm::min(world_min.z, transformedCorner.z);
 
-        worldMax.x = glm::max(worldMax.x, transformedCorner.x);
-        worldMax.y = glm::max(worldMax.y, transformedCorner.y);
-        worldMax.z = glm::max(worldMax.z, transformedCorner.z);
+        world_max.x = glm::max(world_max.x, transformedCorner.x);
+        world_max.y = glm::max(world_max.y, transformedCorner.y);
+        world_max.z = glm::max(world_max.z, transformedCorner.z);
     }
 
-    return {worldMin, worldMax};
+    return {world_min, world_max};
 }
 
 std::pair<glm::vec3, glm::vec3> BaseModel::getPhysicsAABB() {

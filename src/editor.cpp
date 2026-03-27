@@ -227,7 +227,7 @@ void GizmoElement::onMouseMove(MouseEvent event) {
                 if (new_pos.has_value()) {
                     selected_entity->mPosition = glm::vec4(new_pos.value(), 0.0);
                     final_pos = selected_entity->mPosition;
-                    LightManager::getInstance()->update();
+                    // LightManager::getInstance()->update();
                 }
             } else if (std::holds_alternative<SingleInstance>(editor_selected)) {
                 auto ins = std::get<SingleInstance>(editor_selected);

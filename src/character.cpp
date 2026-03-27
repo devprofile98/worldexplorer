@@ -16,9 +16,113 @@
 #include "instance.h"
 #include "model.h"
 #include "model_registery.h"
+#include "particle_system.h"
 #include "physics.h"
 #include "rendererResource.h"
 #include "world.h"
+
+namespace {
+
+constexpr glm::vec2 offsets[]{glm::vec2{0.0, 0.0f},   glm::vec2{0.0, 0.333f},    glm::vec2{0.0, 0.666f},
+                              glm::vec2{0.333f, 0.0}, glm::vec2{0.333f, 0.333f}, glm::vec2{0.333f, 0.666f},
+                              glm::vec2{0.666f, 0.0}, glm::vec2{0.666f, 0.333f}, glm::vec2{0.666f}};
+}
+
+static Particle spawnParticle(ParticleSystem* system, const glm::vec3& emitterPosition) {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    auto& settings = system->getSettings();
+    glm::vec2& speed_range = settings.speedRange;
+    std::uniform_real_distribution<float> dist_for_speed(speed_range.x, speed_range.y);
+    std::uniform_real_distribution<float> dist_for_rotation(1.0, 90.0);
+    std::uniform_int_distribution<uint16_t> dist_for_uvoffset(0, 8);
+    std::uniform_real_distribution<float> dist_for_scale(settings.scaleRange.x, settings.scaleRange.y);
+
+    Particle particle;
+    particle.position = emitterPosition;
+    particle.life = settings.mLifeTime;
+    particle.speed = -dist_for_speed(gen);
+    particle.rotate = glm::vec3{dist_for_rotation(gen), dist_for_rotation(gen), dist_for_rotation(gen)};
+    particle.scale = dist_for_scale(gen);
+    particle.uvoffset = offsets[dist_for_uvoffset(gen)];
+    return particle;
+}
+
+glm::mat4 BillboardMatrix(Application* app, glm::vec3 position, float size) {
+    // Extract camera right and up from view matrix (transpose of rotation part)
+    auto viewMatrix = app->mCamera.getView();
+    glm::vec3 right = glm::vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
+    glm::vec3 up = glm::vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+
+    // Build matrix that always faces camera
+    glm::mat4 m(1.0f);
+    m[0] = glm::vec4(right * size, 0);
+    m[1] = glm::vec4(up * size, 0);
+    m[2] = glm::vec4(0, 0, 1, 0);  // doesn't matter, facing camera
+    m[3] = glm::vec4(position, 1);
+
+    return m;
+}
+
+static glm::vec3 turbulence(glm::vec3 pos, float time, float strength) {
+    float x = glm::sin(pos.y * 1.7f + time * 2.1f) * glm::cos(pos.z * 1.3f + time * 1.7f);
+    float z = 0;  // don't disturb vertical rise much
+    float y = glm::cos(pos.x * 1.5f + time * 2.3f) * glm::sin(pos.y * 1.9f + time * 1.4f);
+    return glm::vec3(x, y, z) * strength;
+}
+
+glm::vec4 FireColor(float t) {
+    // t = 0 (just born / hottest) → 1 (dying / coolest)
+
+    if (t < 0.2f) {
+        // Core — bright white/yellow center
+        float s = t / 0.2f;
+        return glm::mix(glm::vec4(1.0f, 1.0f, 0.9f, 0.9f),  // white-yellow
+                        glm::vec4(1.0f, 0.8f, 0.1f, 0.8f),  // yellow
+                        s);
+    } else if (t < 0.6f) {
+        // Mid — orange
+        float s = (t - 0.2f) / 0.4f;
+        return glm::mix(glm::vec4(1.0f, 0.8f, 0.1f, 0.8f),  // yellow
+                        glm::vec4(1.0f, 0.3f, 0.0f, 0.6f),  // orange-red
+                        s);
+    } else {
+        // Tail — dark red to transparent smoke
+        float s = (t - 0.6f) / 0.4f;
+        return glm::mix(glm::vec4(1.0f, 0.3f, 0.0f, 0.6f),  // orange-red
+                        glm::vec4(0.1f, 0.1f, 0.1f, 0.0f),  // dark smoke, fade out
+                        s);
+    }
+}
+
+static void simulateParticles(ParticleSystem* system, float dt, std::vector<Particle>& particles,
+                              std::vector<ParticleData>& particlesData) {
+    auto& settings = system->getSettings();
+    for (size_t i = 0; i < particles.size(); ++i) {
+        auto velocity = settings.getSpeedDirection() * particles[i].speed;
+        float t = 1.0f - (particles[i].life / settings.mLifeTime);  // 0=new, 1=old
+        auto turb = turbulence(particles[i].position, t * particles[i].scale, 0.8 * t) * particles[i].scale;
+        velocity += turb * dt;
+
+        // Add upward buoyancy (hot air rises)
+        velocity.z += 2.0f * dt;
+
+        // Drag — fire slows down as it rises
+        velocity *= 1.0f - (0.4f * dt);
+        particles[i].position += glm::vec3{velocity * dt};
+        particles[i].life -= dt;
+    }
+
+    for (size_t i = 0; i < particles.size(); ++i) {
+        float t = 1.0f - (particles[i].life / settings.mLifeTime);  // 0=new, 1=old
+        particlesData[i].transformation = BillboardMatrix(system->mApp, particles[i].position, settings.mSize);
+        particlesData[i].props = FireColor(t);
+        particlesData[i].uvoffset = particles[i].uvoffset;
+    }
+}
+
+BoneSocket* muzzleSocket = nullptr;
+extern glm::vec3 extern_position;
 
 struct CameraTransition {
         bool active;
@@ -129,6 +233,12 @@ class JetPackPhysics : public PhysicsComponent {
 };
 
 struct JetpackBehaviour : public WeaponBehaviour {
+        ParticleSystem* particleSystem = nullptr;
+        ParticleSystemSetting activeSettings{
+            {0.0, 0.0, -1.0}, spawnParticle, simulateParticles, {-1.110, -0.09}, {9.578, 28.660}, 0.3f, 0.02, 50};
+
+        ParticleSystemSetting InactiveSettings{
+            {0.0, 0.0, -1.0}, spawnParticle, simulateParticles, {-0.290, -0.09}, {9.578, 28.660}, 0.3f, 0.02, 10};
         JetpackBehaviour(std::string name) : WeaponBehaviour(name) {
             ModelRegistry::instance().registerBehaviour(name, this);
 
@@ -147,22 +257,18 @@ struct JetpackBehaviour : public WeaponBehaviour {
                                             AnchorType::Bone};
         }
 
-        // void handleKey(BaseModel* model, KeyEvent event, float dt) override {
-        //     auto key = std::get<Keyboard>(event);
-        //
-        //     if (GLFW_KEY_SPACE == key.key /* && GLFW_REPEAT == key.action*/) {
-        //         return;
-        //     }
-        // }
+        void onTick(Model* model, float dt) override {}
 
         void onEquip(Model* weapon, Model* target) override {
             weapon->setVisible(true);
+            particleSystem->setActive(true);
             activeSocket->model = target;
             weapon->mSocket = activeSocket;
         }
 
         void onUnequip(Model* weapon, Model* target) override {
             weapon->setVisible(false);
+            particleSystem->setActive(false);
             inactiveSocket->model = target;
             weapon->mSocket = inactiveSocket;
         }
@@ -173,6 +279,27 @@ struct JetpackBehaviour : public WeaponBehaviour {
             model->mPhysicComponent = cube_phy;
 
             std::cout << "Jetpack model loooaded " << (model->mPhysicComponent == nullptr) << std::endl;
+
+            particleSystem = new ParticleSystem{PawnBehaviour::app, "jetpack exhaust", InactiveSettings};
+            muzzleSocket = new BoneSocket{model,
+                                          "",
+                                          glm::vec3{0.0, 0.0, -0.990},
+                                          glm::vec3{1.0},
+                                          glm::quat(glm::radians(glm::vec3{0.0, 180.0f, 0.0})),
+                                          AnchorType::Model};
+            particleSystem->setEmitterSocket(muzzleSocket);
+
+            app->mParticleSystemsManager->registerSystem(particleSystem);
+        }
+        void handleKey(BaseModel* model, KeyEvent event, float dt) override {
+            auto key = std::get<Keyboard>(event);
+            if (key.key == GLFW_KEY_SPACE) {
+                if (key.action == GLFW_PRESS) {
+                    particleSystem->getSettings() = activeSettings;
+                } else if (key.action == GLFW_RELEASE) {
+                    particleSystem->getSettings() = InactiveSettings;
+                }
+            }
         }
 };
 
@@ -205,6 +332,63 @@ struct PistolBehaviour : public WeaponBehaviour {
             bodyInterface.SetLinearVelocity(box.getPhysicsComponent()->bodyId, newVel);
         }
 };
+
+struct TorchBehaviour : public WeaponBehaviour {
+        ParticleSystem* particleSystem = nullptr;
+        int torchlight = -1;
+        TorchBehaviour(std::string name) : WeaponBehaviour(name) {
+            inactiveSocket = new BoneSocket{nullptr,
+                                            "DEF-spine001",
+                                            {0.0, -0.1, -0.1},
+                                            {0.05, 0.05, 0.05},
+                                            glm::quat({-1.04719, -0.0, -1.22173}),
+                                            AnchorType::Bone};
+
+            activeSocket = new BoneSocket{
+                nullptr,         "DEF-handL", {0.05, 0.070, 0.08}, {0.06, 0.06, 0.06}, glm::quat({0.0, -0.0, 0.0}),
+                AnchorType::Bone};
+        }
+
+        void onTick(Model* model, float dt) override {
+            if (torchlight >= 0) {
+                app->mLightManager->getLights()[torchlight].mPosition =
+                    glm::vec4{particleSystem->getEmitterSocket()->globalPosition, 0.0f};
+                app->mLightManager->update(torchlight, false);
+            }
+        }
+
+        void onFirePrimary(Model* model, const glm::vec3& characterFront) override {}
+
+        void onEquip(Model* weapon, Model* target) override {
+            weapon->setVisible(true);
+            particleSystem->setActive(true);
+            activeSocket->model = target;
+            weapon->mSocket = activeSocket;
+        }
+
+        void onUnequip(Model* weapon, Model* target) override {
+            weapon->setVisible(false);
+            particleSystem->setActive(false);
+            inactiveSocket->model = target;
+            weapon->mSocket = inactiveSocket;
+        }
+        void onLoad(Model* model) override {
+            ParticleSystemSetting settings{
+                {0.0, 0.0, -1.0}, spawnParticle, simulateParticles, {-0.190, -0.02}, {1.528, 9.7}, 0.4f, 0.01, 20};
+
+            particleSystem = new ParticleSystem{PawnBehaviour::app, "torch fire", settings};
+
+            particleSystem->setEmitterSocket(new BoneSocket{model, "", glm::vec3{0.0, 0.0, 2.840}, glm::vec3{1.0},
+                                                            glm::vec3{0.0}, AnchorType::Model});
+
+            app->mParticleSystemsManager->registerSystem(particleSystem);
+
+            torchlight = app->mLightManager->createPointLight(
+                glm::vec4{0.0, 0.0, 0.0, 1.0}, glm::vec4{1.0, 0.0, 0.0, 1.0}, glm::vec4{1.0, 0.0, 0.0, 1.0},
+                glm::vec4{1.0, 0.0, 0.0, 1.0}, 1.0, -1.0, 1.8, "");
+        }
+};
+TorchBehaviour torchbehaviour{"torch"};
 
 struct SwordBehaviour : public WeaponBehaviour {
         SwordBehaviour(std::string name) : WeaponBehaviour(name) {
@@ -378,6 +562,9 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
         // Handle keyboard input for movement
         void handleKey(BaseModel* model, KeyEvent event, float dt) override {
             auto space_value = InputManager::keys[GLFW_KEY_SPACE];
+            if (weapon != nullptr) {
+                weapon->mBehaviour->handleKey(model, event, dt);
+            }
             if (space_value) {
                 state = Jumping;
                 isInJump = true;
@@ -428,6 +615,21 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                     }
                 }
             }
+            if (InputManager::keys[GLFW_KEY_4]) {
+                for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+                    if (m->mName == "torch") {
+                        if (weapon != nullptr)
+                            static_cast<WeaponBehaviour*>(weapon->mBehaviour)
+                                ->onUnequip(weapon, static_cast<Model*>(model));
+                        weapon = m;
+                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon, static_cast<Model*>(model));
+                        idleAction = "Idle_Torch_Loop";
+                        attackAction = "Idle_Torch_Loop";
+                        return;
+                    }
+                }
+            }
+
             if (InputManager::keys[GLFW_KEY_SPACE]) {
                 if (weapon != nullptr && weapon->getName() == "jp") {
                     physicalCharacter->SetLinearVelocity({0.0, 1.0, 0.0});
@@ -559,6 +761,9 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                 auto jolt_gravity = physics::getPhysicsSystem()->GetGravity();
                 // apply gravity
                 jolt_movement += jolt_gravity * (float)dt;
+            }
+            if (weapon) {
+                weapon->mBehaviour->onTick(weapon, dt);
             }
 
             physicalCharacter->SetLinearVelocity(jolt_movement);

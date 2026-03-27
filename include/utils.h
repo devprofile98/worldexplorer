@@ -139,6 +139,8 @@ std::vector<glm::vec4> generateBox(const glm::vec3& center = {0, 0, 0}, const gl
 std::vector<glm::vec4> generateSphere(uint8_t numLong = 16, uint8_t numLat = 12, uint8_t numLongSegments = 8);
 std::vector<glm::vec4> generateCapsule(float halfHeight, float factor = 1.0, uint8_t numLong = 16,
                                        uint8_t numLongSegments = 8);
+
+std::vector<glm::vec4> generateLine();
 std::vector<glm::vec4> generateFromMesh(const std::vector<uint32_t>& indices,
                                         const std::vector<VertexAttributes>& vertices);
 
@@ -146,6 +148,8 @@ glm::quat rotationBetweenVectors(glm::vec3 start, glm::vec3 dest);
 void loadTextureFromFilesystem(Application* app);
 std::shared_ptr<Texture> DrawTexturePicker(const char* label, std::shared_ptr<Texture>& slot,
                                            Registery<std::string, Texture>* registry);
+
+std::filesystem::path normalizePath(Application* app, std::string& path);
 
 class PerfTimer {
     public:

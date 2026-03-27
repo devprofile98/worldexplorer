@@ -120,6 +120,7 @@ add_executable(
     src/input_manager.cpp
     src/animation.cpp
     src/world.cpp
+    src/particle_system.cpp
 
     # src/tree.cpp
 

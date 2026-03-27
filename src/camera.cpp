@@ -8,7 +8,7 @@
 void CameraInfo::setCamera(Camera& camera) {
     projectMatrix = camera.getProjection();
     viewMatrix = camera.getView();
-    modelMatrix = camera.getModel();
+    modelMatrix = camera.getProjection() * camera.getView();
     cameraWorldPosition = camera.getPos();
 }
 

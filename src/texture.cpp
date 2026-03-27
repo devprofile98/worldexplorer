@@ -303,6 +303,8 @@ Texture& Texture::setBufferData(std::vector<uint8_t>& data) {
     return *this;
 }
 
+std::vector<uint8_t>& Texture::getBuffer(size_t level) { return mBufferData[level]; }
+
 bool Texture::isTransparent() { return mHasAlphaChannel; }
 
 void generateMipMaps(WGPUTexelCopyBufferLayout& source, WGPUTexelCopyTextureInfo& destination,

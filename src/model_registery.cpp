@@ -18,6 +18,7 @@ void PawnBehaviour::onLoad(Model*) {}
 void PawnBehaviour::onEquip(Model*, Model*) {}
 void PawnBehaviour::onUnequip(Model*, Model*) {}
 void PawnBehaviour::onTick(Model*, float dt) { (void)dt; }
+void PawnBehaviour::handleKey(BaseModel* model, KeyEvent event, float dt) {}
 
 glm::vec3 InputHandler::getForward() { return glm::vec3{0.0}; }
 BaseModel* InputHandler::getWeapon() { return nullptr; }

@@ -18,6 +18,7 @@
 #include "instance.h"
 #include "model.h"
 #include "model_registery.h"
+#include "particle_system.h"
 #include "physics.h"
 #include "rendererResource.h"
 #include "world.h"
@@ -85,7 +86,9 @@ enum class DragonState {
     Jumping,
     Falling,
     Aiming,
+    Flapping,
 };
+
 struct DragonInputHandler : public InputHandler, public PawnBehaviour {
         std::string name;
         glm::vec3 front;  // Character's forward direction
@@ -99,6 +102,7 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
         bool isAiming;
         bool isShooting;
         bool isInJump;
+        bool isGrounded;
         float cameraOffset;
         float lastX;
         float lastY;
@@ -107,7 +111,7 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
         float groundLevel = -3.262;
         glm::vec3 velocity{0.0};
         Model* weapon;
-        // std::string attackAction;
+        ParticleSystem* particleSystem = nullptr;
         std::string idleAction;
         JPH::CharacterVirtual* physicalCharacter;
 
@@ -124,6 +128,7 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
               isAiming(false),
               isShooting(false),
               isInJump(false),
+              isGrounded(true),
               cameraOffset(0.0),
               lastX(0),
               lastY(0),
@@ -137,6 +142,7 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
             ModelRegistry::instance().registerBehaviour(name, this);
         }
 
+        bool Grounded() { return isGrounded; }
         // Handle mouse movement for rotation
         void handleMouseMove(BaseModel* model, MouseEvent event) override {
             // Sensitivity for mouse movement
@@ -209,6 +215,11 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
             } else if (mouse.click == GLFW_MOUSE_BUTTON_LEFT) {
                 if (weapon != nullptr) {
                 }
+                if (mouse.action == GLFW_PRESS || mouse.action == GLFW_REPEAT) {
+                    particleSystem->setActive(true);
+                } else if (mouse.action == GLFW_RELEASE) {
+                    particleSystem->setActive(false);
+                }
                 isShooting = true;
             }
         }
@@ -254,96 +265,32 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
         void handleKey(BaseModel* model, KeyEvent event, float dt) override {
             auto space_value = InputManager::keys[GLFW_KEY_SPACE];
             if (space_value) {
-                state = DragonState::Jumping;
+                state = DragonState::Flapping;
                 isInJump = true;
-            } else if (state == DragonState::Jumping) {
+            } else if (state == DragonState::Flapping) {
                 state = DragonState::Falling;
             }
 
-            if (InputManager::keys[GLFW_KEY_1]) {
-                roll = 0;
-            } else if (InputManager::keys[GLFW_KEY_2]) {
-                roll = 10.0;
-            } else if (InputManager::keys[GLFW_KEY_3]) {
-                roll = 20.0;
-            } else if (InputManager::keys[GLFW_KEY_4]) {
-                roll = 30.0;
-            } else if (InputManager::keys[GLFW_KEY_5]) {
-                roll = 40.0;
-            } else if (InputManager::keys[GLFW_KEY_6]) {
-                roll = 50.0;
-            } else if (InputManager::keys[GLFW_KEY_7]) {
-                roll = 60.0;
-            } else if (InputManager::keys[GLFW_KEY_8]) {
-                roll = 70.0;
-            } else if (InputManager::keys[GLFW_KEY_9]) {
-                roll = 80.0;
-            }
-
-            //     for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            //         if (m->mName == "pistol") {
-            //             if (weapon != nullptr)
-            //                 static_cast<WeaponBehaviour*>(weapon->mBehaviour)
-            //                     ->onUnequip(weapon, static_cast<Model*>(model));
-            //             weapon = m;
-            //             idleAction = "Pistol_Idle_Loop";
-            //             attackAction = "Pistol_Shoot";
-            //
-            //             static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon,
-            //             static_cast<Model*>(model));
-            //
-            //             return;
-            //         }
-            //     }
-            // }
-            // if (InputManager::keys[GLFW_KEY_2]) {
-            //     for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            //         if (m->mName == "sword") {
-            //             if (weapon != nullptr)
-            //                 static_cast<WeaponBehaviour*>(weapon->mBehaviour)
-            //                     ->onUnequip(weapon, static_cast<Model*>(model));
-            //             weapon = m;
-            //             static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon,
-            //             static_cast<Model*>(model)); idleAction = "Sword_Idle"; attackAction = "Sword_Attack";
-            //             return;
-            //         }
-            //     }
-            // }
-            // if (InputManager::keys[GLFW_KEY_3]) {
-            //     for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            //         if (m->mName == "jp") {
-            //             physics::getBodyInterface().DeactivateBody(m->mPhysicComponent->bodyId);
-            //             if (weapon != nullptr)
-            //                 static_cast<WeaponBehaviour*>(weapon->mBehaviour)
-            //                     ->onUnequip(weapon, static_cast<Model*>(model));
-            //             weapon = m;
-            //             static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon,
-            //             static_cast<Model*>(model)); return;
-            //         }
-            //     }
-            // }
-            if (InputManager::keys[GLFW_KEY_SPACE]) {
-                // if (weapon != nullptr && weapon->getName() == "jp") {
+            if (InputManager::keys[GLFW_KEY_SPACE] && InputManager::keys[GLFW_KEY_W]) {
+                physicalCharacter->SetLinearVelocity({1.0, 2.0, 0.0});
+            } else if (InputManager::keys[GLFW_KEY_SPACE]) {
                 physicalCharacter->SetLinearVelocity({0.0, 3.0, 0.0});
-                // }
-                // std::cout << "Dragon flying \n";
+            } else if (!Grounded() && InputManager::keys[GLFW_KEY_W]) {
+                physicalCharacter->SetLinearVelocity({2.0, 0.0, 0.0});
             }
         }
 
         glm::vec3 processInput() {
             glm::vec3 moveDir(0.0f);  // Movement direction relative to front vector
             bool noKey = true;
-            if (InputManager::isKeyDown(GLFW_KEY_SPACE) && state != DragonState::Jumping) {
-                // if (weapon != nullptr && weapon->getName() == "jp") {
-                // } else {
-                state = DragonState::Jumping;
+            if (InputManager::isKeyDown(GLFW_KEY_SPACE) && state != DragonState::Flapping) {
+                state = DragonState::Flapping;
                 moveDir.z += 8;
                 noKey = false;
-                // }
             }
 
             if (InputManager::isKeyDown(GLFW_KEY_W)) {
-                if (state != DragonState::Jumping) {
+                if (state != DragonState::Flapping) {
                     state = DragonState::Running;
                 }
                 moveDir += front;
@@ -365,7 +312,9 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
                 moveDir -= glm::normalize(glm::cross(front, up));
                 noKey = false;
             }
-            if (noKey) {
+
+            if (!Grounded()) {
+            } else if (noKey) {
                 state = DragonState::Idle;
             }
 
@@ -377,51 +326,51 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
             std::string clip_name;
             bool loop;
             model->getAnimation()->isEnded();
-            if (isAiming) {
-                // if (isShooting && weapon != nullptr) {
-                //     if (!model->getAnimation()->isEnded()) {
-                //         clip_name = attackAction;
-                //         loop = false;
-                //     } else {
-                //         clip_name = idleAction;
-                //         loop = true;
-                //         isShooting = false;
-                //     }
-                // } else {
-                isShooting = false;
-                clip_name = idleAction;
-                loop = true;
-                // }
-            } else {
-                switch (state) {
-                    case DragonState::Idle: {
-                        clip_name = "Idle";
-                        loop = true;
-                        break;
-                    }
-                    case DragonState::Running: {
-                        if (!isInJump) {
-                            clip_name = "Walk";
-                            loop = true;
-                        }
-                        break;
-                    }
-                    case DragonState::Falling: {
-                        clip_name = "Flap";
-                        loop = false;
-                        break;
-                    }
-                    case DragonState::Jumping: {
-                        clip_name = "Flap";
-                        loop = true;
-                        break;
-                    }
-                    default:
-                        clip_name = "Idle";
-                        loop = true;
-                        break;
+            // if (isAiming) {
+            // if (isShooting && weapon != nullptr) {
+            //     if (!model->getAnimation()->isEnded()) {
+            //         clip_name = attackAction;
+            //         loop = false;
+            //     } else {
+            //         clip_name = idleAction;
+            //         loop = true;
+            //         isShooting = false;
+            //     }
+            // } else {
+            // isShooting = false;
+            // clip_name = idleAction;
+            // loop = true;
+            // }
+            // } else {
+            switch (state) {
+                case DragonState::Idle: {
+                    clip_name = "Idle";
+                    loop = true;
+                    break;
                 }
+                case DragonState::Running: {
+                    if (!isInJump) {
+                        clip_name = "Walk";
+                        loop = true;
+                    }
+                    break;
+                }
+                case DragonState::Falling: {
+                    clip_name = "Flap";
+                    loop = false;
+                    break;
+                }
+                case DragonState::Flapping: {
+                    clip_name = "Flap";
+                    loop = true;
+                    break;
+                }
+                default:
+                    clip_name = "Idle";
+                    loop = true;
+                    break;
             }
+            // }
             if (last_clip != clip_name) {
                 model->getAnimation()->playAction(clip_name, loop);
                 last_clip = clip_name;
@@ -430,6 +379,8 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
 
         void onTick(Model* model, float dt) override {
             if (physicalCharacter == nullptr) return;
+
+            // particleSystem->updateParticleSystem(dt, true);
             auto movement = processInput();
 
             decideCurrentAnimation(static_cast<Model*>(model), dt);
@@ -443,7 +394,8 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
 
             if (physicalCharacter->GetGroundState() == JPH::CharacterVirtual::EGroundState::OnGround) {
                 isInJump = false;
-                if (state == DragonState::Jumping) {
+                isGrounded = true;
+                if (state == DragonState::Flapping) {
                     jolt_movement.SetY(3.0);
                     isInJump = true;
                 } else {
@@ -456,6 +408,7 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
             } else {
                 auto jolt_gravity = physics::getPhysicsSystem()->GetGravity();
                 // apply gravity
+                isGrounded = false;
                 jolt_movement += jolt_gravity * (float)dt;
             }
 
@@ -492,6 +445,42 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
 
         glm::vec3 getForward() override { return glm::normalize(glm::cross(front, up)); }
 
+        static Particle spawnParticle(ParticleSystem* system, const glm::vec3& emitterPosition) {
+            static std::random_device rd;
+            static std::mt19937 gen(rd());
+            auto& settings = system->getSettings();
+            glm::vec2& speed_range = settings.speedRange;
+            std::uniform_real_distribution<float> dist_for_speed(speed_range.x, speed_range.y);
+            std::uniform_real_distribution<float> dist_for_rotation(1.0, 90.0);
+            std::uniform_real_distribution<float> dist_for_scale(settings.scaleRange.x, settings.scaleRange.y);
+
+            Particle particle;
+            particle.position = emitterPosition;
+            particle.life = settings.mLifeTime;
+            particle.speed = -dist_for_speed(gen);
+            particle.rotate = glm::vec3{dist_for_rotation(gen), dist_for_rotation(gen), dist_for_rotation(gen)};
+            particle.scale = dist_for_scale(gen);
+            return particle;
+        }
+
+        static void simulateParticles(ParticleSystem* system, float dt, std::vector<Particle>& particles,
+                                      std::vector<ParticleData>& particlesData) {
+            for (size_t i = 0; i < particles.size(); ++i) {
+                particles[i].position += glm::vec3{system->getSettings().getSpeedDirection() * particles[i].speed};
+                particles[i].life -= dt;
+            }
+            for (size_t i = 0; i < particles.size(); ++i) {
+                auto translation = glm::translate(glm::mat4{1.0f}, particles[i].position);
+                auto rotation = glm::normalize(glm::quat(particles[i].rotate));
+                auto scale = glm::scale(glm::mat4{1.0}, glm::vec3{particles[i].scale});
+                particlesData[i].transformation = translation * glm::mat4_cast(rotation) * scale;
+                auto alpha = particles[i].life < 0.0f ? 0.0 : 1.0;
+                particlesData[i].props = glm::mix(glm::vec4{0.9, 0.1, 0.0, alpha}, glm::vec4{1.0, 1.0, 0.5, alpha},
+                                                  particles[i].life * (1.0f / system->getSettings().mLifeTime));
+                particlesData[i].uvoffset = particles[i].uvoffset;
+            }
+        }
+
         void onLoad(Model* model) override {
             std::cout << "Character Dragon just created\n";
             physicalCharacter = physics::createCharacter(physics::createCapsuleShape(0.3f, 0.05f), {22, 3, 12});
@@ -499,6 +488,16 @@ struct DragonInputHandler : public InputHandler, public PawnBehaviour {
             static auto listener = new MyCharacterContactListener{};
             listener->character = static_cast<Model*>(model);
             physicalCharacter->SetListener(listener);
+
+            ParticleSystemSetting settings{
+                {0.0, 0.0, -1.0}, spawnParticle, simulateParticles, {0.240, 0.370}, {0.018, 0.039}, 0.4f, 0.01, 20};
+
+            particleSystem = new ParticleSystem{PawnBehaviour::app, "dragon fire", settings};
+
+            particleSystem->setEmitterSocket(new BoneSocket{model, "head", glm::vec3{0.0, 0.190, 0.060}, glm::vec3{1.0},
+                                                            glm::vec3{90.0, 0.0, 0.0}, AnchorType::Bone});
+            particleSystem->setActive(false);
+            PawnBehaviour::app->mParticleSystemsManager->registerSystem(particleSystem);
         }
 };
 

@@ -48,6 +48,7 @@ class Texture {
         std::filesystem::path getPath() const;
 
         Texture& setBufferData(std::vector<uint8_t>& data);
+        std::vector<uint8_t>& getBuffer(size_t level = 0);
         WGPUTextureView createView();
         WGPUTextureView createViewDepthOnly(uint32_t base = 0, uint32_t count = 1);
         WGPUTextureView createViewDepthStencil(uint32_t base = 0, uint32_t count = 1);

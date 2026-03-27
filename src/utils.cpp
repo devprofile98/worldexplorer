@@ -860,6 +860,13 @@ std::vector<glm::vec4> generateFromMesh(const std::vector<uint32_t>& indices,
     return result;
 }
 
+std::vector<glm::vec4> generateLine() {
+    std::vector<glm::vec4> result;
+    result.emplace_back(glm::vec4{0.0, 0.0, 0.0, 0.0});
+    result.emplace_back(glm::vec4{0.0, 0.0, 1.0, 1.0});
+    return result;
+}
+
 std::vector<glm::vec4> generateBox(const glm::vec3& center, const glm::vec3& halfExtents) {
     std::vector<glm::vec4> result;
 
@@ -1107,4 +1114,12 @@ std::shared_ptr<Texture> DrawTexturePicker(const char* label, std::shared_ptr<Te
         ImGui::EndCombo();
     }
     return nullptr;
+}
+
+std::filesystem::path normalizePath(Application* app, std::string& path) {
+    if (path.starts_with("rc://")) {
+        path.replace(0, 5, "");
+        path = app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / path;
+    }
+    return path;
 }

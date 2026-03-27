@@ -39,8 +39,8 @@ LightManager* LightManager::getInstance() { return mLightInstance; }
 
 Buffer& LightManager::getCountBuffer() { return mLightCountBuffer; }
 
-void LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float cons, float lin,
-                                    float quad, const char* name) {
+size_t LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float cons,
+                                      float lin, float quad, const char* name) {
     Light light;
     light.mPosition = pos;
     light.mAmbient = amb;
@@ -51,16 +51,16 @@ void LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff
     light.mQuadratic = quad;
     light.type = POINT;
 
+    auto ret_idx = mLights.size();
     mLights.emplace_back(std::move(light));
     mLightsNames.push_back(name);
 
     updateCount();
+    return ret_idx;
 }
 
-void LightManager::createSpotLight(glm::vec4 pos, glm::vec4 direction, glm::vec4 diff, float cutoff, float outerCutoff,
-                                   float linear, float quadratic, const char* name) {
-    (void)cutoff;
-    (void)outerCutoff;
+size_t LightManager::createSpotLight(glm::vec4 pos, glm::vec4 direction, glm::vec4 diff, float cutoff,
+                                     float outerCutoff, float linear, float quadratic, const char* name) {
     Light light;
     light.mPosition = pos;
     light.mDirection = direction;
@@ -73,15 +73,16 @@ void LightManager::createSpotLight(glm::vec4 pos, glm::vec4 direction, glm::vec4
     light.mLinear = linear;
     light.mQuadratic = quadratic;
 
-    mLights.push_back(light);
+    auto ret_idx = mLights.size();
+    mLights.emplace_back(std::move(light));
     mLightsNames.push_back(name);
     updateCount();
+    return ret_idx;
 }
 
 void LightManager::updateCount() {
     mLightCount = mLights.size();
-    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mLightCountBuffer.getBuffer(), 0, &mLightCount,
-                         sizeof(uint32_t));
+    mLightCountBuffer.queueWrite(0, &mLightCount, sizeof(uint32_t));
 }
 
 Light* LightManager::get(size_t index) { return mLights.size() > 0 ? &mLights[index] : nullptr; }
@@ -91,8 +92,8 @@ void LightManager::uploadToGpu(Application* app, WGPUBuffer buffer) {
     wgpuQueueWriteBuffer(app->getRendererResource().queue, buffer, 0, mLights.data(), sizeof(Light) * mLights.size());
 }
 
-void LightManager::update() {
-    auto* light = get(mSelectedLightInGui);
+void LightManager::update(int index, bool updateDebugLines) {
+    auto* light = get(index);
 
     glm::mat4 t{1.0};
     t = glm::translate(t, glm::vec3(light->mPosition));
@@ -100,14 +101,15 @@ void LightManager::update() {
         glm::quat rot = rotationBetweenVectors(glm::vec3{0.0, 0.0, 1.0}, light->mDirection);
         t = t * glm::toMat4(rot);
     }
-    if (boxId < 1024) {
-        mApp->mLineEngine->updateLineTransformation(boxId, t);
-    } else {
-        boxId = mApp->mLineEngine->addLines(generateCone(), t);
-    }
+    mApp->mLightBuffer.queueWrite(sizeof(Light) * mSelectedLightInGui, light, sizeof(Light));
 
-    wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->mLightBuffer.getBuffer(),
-                         sizeof(Light) * mSelectedLightInGui, light, sizeof(Light));
+    if (updateDebugLines) {
+        if (boxId < 1024) {
+            mApp->mLineEngine->updateLineTransformation(boxId, t);
+        } else {
+            boxId = mApp->mLineEngine->addLines(generateCone(), t);
+        }
+    }
 }
 
 void LightManager::renderGUI() {
@@ -128,7 +130,7 @@ void LightManager::renderGUI() {
         ImGui::PushID(i);
         if (ImGui::Selectable(mLightsNames[i].c_str(), light == &getLights()[mSelectedLightInGui])) {
             mSelectedLightInGui = i;
-            update();
+            update(mSelectedLightInGui);
         }
         if (ImGui::BeginPopupContextItem()) {
             if (ImGui::MenuItem("Delete")) {
@@ -146,21 +148,22 @@ void LightManager::renderGUI() {
     ImGui::NextColumn();
 
     if (light != nullptr) {
+        auto speed = !ImGui::IsKeyDown(ImGuiKey_LeftShift) ? 1.0f : 0.01f;
         changed |= ImGui::ColorEdit3("Color##env", glm::value_ptr(light->mAmbient));
         if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-            changed |= ImGui::DragFloat3("Position##env", glm::value_ptr(light->mPosition), 1.0, -20.0f, 20.0f);
-
+            changed |= ImGui::DragFloat3("Position##env", glm::value_ptr(light->mPosition), speed);
             if (light->type == SPOT) {
-                changed |= ImGui::DragFloat3("sDirection##env", glm::value_ptr(light->mDirection), 1.0, -1.0, 1.0f);
+                changed |= ImGui::DragFloat3("sDirection##env", glm::value_ptr(light->mDirection), speed, -1.0, 1.0f);
             }
         }
         if (ImGui::CollapsingHeader("Attenuation", ImGuiTreeNodeFlags_DefaultOpen)) {
-            changed |= ImGui::DragFloat("Linear##env", &light->mLinear, 1.0, -10.0f, 10.0f);
+            changed |= ImGui::DragFloat("Constant##env", &light->mConstant, speed);
+            changed |= ImGui::DragFloat("Linear##env", &light->mLinear, speed);
             if (light->type == SPOT) {
-                changed |= ImGui::DragFloat("Inner Cutoff##env", &light->mInnerCutoff, 1.0, 0, 2.0);
-                changed |= ImGui::DragFloat("outer Cutoff##env", &light->mOuterCutoff, 1.0, 0, 2.0);
+                changed |= ImGui::DragFloat("Inner Cutoff##env", &light->mInnerCutoff, speed);
+                changed |= ImGui::DragFloat("outer Cutoff##env", &light->mOuterCutoff, speed);
             }
-            changed |= ImGui::DragFloat("Quadratic##env", &light->mQuadratic, 1.0, -10.0f, 10.0f);
+            changed |= ImGui::DragFloat("Quadratic##env", &light->mQuadratic, speed);
         }
         if (changed) {
             if (boxId < 1024) {
@@ -172,8 +175,7 @@ void LightManager::renderGUI() {
             } else {
                 boxId = mApp->mLineEngine->addLines(generateCone());
             }
-            wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mApp->mLightBuffer.getBuffer(),
-                                 sizeof(Light) * mSelectedLightInGui, light, sizeof(Light));
+            mApp->mLightBuffer.queueWrite(sizeof(Light) * mSelectedLightInGui, light, sizeof(Light));
         }
         // -------------------------- Back to first Column -----------------------------------
     }

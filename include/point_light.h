@@ -35,15 +35,15 @@ class LightManager {
     public:
         static LightManager* init(Application* app);
         static LightManager* getInstance();
-        void createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float cons, float lin,
-                              float quad, const char* name);
+        size_t createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float cons, float lin,
+                                float quad, const char* name);
 
-        void createSpotLight(glm::vec4 pos, glm::vec4 direction, glm::vec4 diff, float cutoff, float outerCutoff,
-                             float linear, float quadratic, const char* name);
+        size_t createSpotLight(glm::vec4 pos, glm::vec4 direction, glm::vec4 diff, float cutoff, float outerCutoff,
+                               float linear, float quadratic, const char* name);
 
         Light* get(size_t index);
         void uploadToGpu(Application* app, WGPUBuffer buffer);
-        void update();
+        void update(int index, bool updateDebugLines = true);
 
         void renderGUI();
         void nextLight();

@@ -40,6 +40,7 @@ class PawnBehaviour {
         virtual void onEquip(Model* weapon, Model* target);
         virtual void onUnequip(Model* weapon, Model* target);
         virtual void onTick(Model*, float dt);
+        virtual void handleKey(BaseModel* model, KeyEvent event, float dt);
 
         std::string name;
         Application* app;

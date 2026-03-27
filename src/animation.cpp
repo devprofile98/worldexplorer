@@ -9,7 +9,9 @@
 #include "assimp/scene.h"
 #include "glm/fwd.hpp"
 #include "glm/gtc/quaternion.hpp"
+#include "glm/gtx/quaternion.hpp"
 #include "glm/gtx/string_cast.hpp"
+#include "utils.h"
 
 glm::mat4 AiToGlm(const aiMatrix4x4& aiMat) {
     return glm::mat4(aiMat.a1, aiMat.b1, aiMat.c1, aiMat.d1, aiMat.a2, aiMat.b2, aiMat.c2, aiMat.d2, aiMat.a3, aiMat.b3,
@@ -339,9 +341,30 @@ bool Animation::isEnded() const {
 }
 
 void BoneSocket::calculateTransform() {
-    transform = glm::translate(glm::mat4(1.0f), positionOffset) * glm::mat4_cast(rotationOffset) *
+    transform = glm::translate(glm::mat4(1.0f), positionOffset) * glm::toMat4(rotationOffset) *
                 glm::scale(glm::mat4(1.0f), scaleOffset);
 }
+
+glm::mat4 BoneSocket::update() {
+    Model* base = model;
+    auto* animation = base->getAnimation();
+    glm::mat4 final_transform = glm::mat4{1.0};
+    if (type == AnchorType::Bone && animation != nullptr && animation->getActiveAction() != nullptr) {
+        auto& base_transforms = animation->getActiveAction()->calculatedTransform;
+        if (base_transforms.contains(anchorName)) {
+            const auto& trans = base_transforms[anchorName];
+            final_transform = base->mTransform.mTransformMatrix * trans * transform;
+        }
+    } else if (type == AnchorType::Model) {
+        final_transform = base->mTransform.mTransformMatrix * transform;
+    }
+    auto [t, s, r] = decomposeTransformation(final_transform);
+    globalPosition = t;
+    globalRotation = r;
+    globalScale = s;
+    return final_transform;
+}
+
 BoneSocket::BoneSocket(Model* base, std::string anchorName, glm::vec3 positionOffset, glm::vec3 scaleOffset,
                        glm::quat rotationOffset, AnchorType type) noexcept
     : model(base),

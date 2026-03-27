@@ -30,6 +30,7 @@ class SkyBox;
 class Pipeline;
 class CompositionPass;
 class WaterPass;
+class ParticleSystemsManager;
 struct World;
 template <typename K, typename V>
 class Registry;  // Forward declaration
@@ -166,6 +167,7 @@ class Application {
 
         WGPURenderPipelineDescriptor mPipelineDescriptor;
         World* mWorld;
+        ParticleSystemsManager* mParticleSystemsManager;
 
     private:
         bool initDepthBuffer();

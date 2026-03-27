@@ -28,6 +28,7 @@ Buffer& Buffer::setSize(uint64_t size) {
     mBufferDescriptor.size = size;
     return *this;
 }
+uint64_t Buffer::getBufferSize() { return mBufferDescriptor.size; }
 
 WGPUBuffer Buffer::create(RendererResource* resource) {
     mBuffer = wgpuDeviceCreateBuffer(resource->device, &mBufferDescriptor);

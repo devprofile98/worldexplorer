@@ -10,6 +10,7 @@
 #include <format>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
@@ -22,6 +23,7 @@
 #include "glm/gtx/quaternion.hpp"
 #include "glm/matrix.hpp"
 #include "mesh.h"
+#include "particle_system.h"
 #include "physics.h"
 #include "renderpass.h"
 #include "shapes.h"
@@ -71,8 +73,14 @@
 #include "wgpu_utils.h"
 #include "window.h"
 
+extern BoneSocket* muzzleSocket;
+glm::vec3 extern_position{0.0};
+
 namespace {
+
+// ParticleSystem* particle_system;
 bool cull_frustum = false;
+bool simulate_particles = false;
 bool show_physic_objects = true;
 bool show_physic_debugs = false;
 bool runPhysics = false;
@@ -207,27 +215,27 @@ void Application::initializePipeline() {
 #endif
 
     // creating default diffuse texture
-    mDefaultDiffuse = new Texture{this->getRendererResource().device, 1, 1, TextureDimension::TEX_2D};
+    mDefaultDiffuse = new Texture{mRendererResource->device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_diffuse_texture_view = mDefaultDiffuse->createView();
     std::vector<uint8_t> texture_data = {255, 0, 255, 255};  // Purple color for Default texture color
     mDefaultDiffuse->setBufferData(texture_data);
-    mDefaultDiffuse->uploadToGPU(this->getRendererResource().queue);
+    mDefaultDiffuse->uploadToGPU(mRendererResource->queue);
 
     // Creating default meatlic-roughness texture
-    mDefaultMetallicRoughness = new Texture{this->getRendererResource().device, 1, 1, TextureDimension::TEX_2D};
+    mDefaultMetallicRoughness = new Texture{mRendererResource->device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_metallic_roughness_texture_view = mDefaultMetallicRoughness->createView();
     texture_data = {255, 120, 10, 255};
     mDefaultMetallicRoughness->setBufferData(texture_data);
-    mDefaultMetallicRoughness->uploadToGPU(this->getRendererResource().queue);
+    mDefaultMetallicRoughness->uploadToGPU(mRendererResource->queue);
 
     // Creating default normal-map texture
-    mDefaultNormalMap = new Texture{this->getRendererResource().device, 1, 1, TextureDimension::TEX_2D};
+    mDefaultNormalMap = new Texture{mRendererResource->device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_normal_map_view = mDefaultNormalMap->createView();
     texture_data = {0, 255, 0, 255};
     mDefaultNormalMap->setBufferData(texture_data);
-    mDefaultNormalMap->uploadToGPU(this->getRendererResource().queue);
+    mDefaultNormalMap->uploadToGPU(mRendererResource->queue);
 
-    auto resource = getRendererResource();
+    auto& resource = getRendererResource();
     // Initializing Default bindgroups
     WGPUBindGroupLayout bind_group_layout =
         mBindingGroup
@@ -707,6 +715,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
 
     physics::prepareJolt();
 
+    mParticleSystemsManager = new ParticleSystemsManager{};
+
     mWorld = new World{this, mSceneFilePath};
 
     mLineEngine = new LineEngine{};
@@ -729,6 +739,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
 
     mWorld->loadWorld();
     last_frame_time = glfwGetTime();
+
+    // particle_system = new ParticleSystem{this};
 
     NFD_Init();
 
@@ -794,8 +806,6 @@ void Application::mainLoop() {
 
     {
         // PerfTimer timer{"tick"};
-        static int counter = 0;
-        counter = 0;
         std::unordered_map<Model*, bool> calculated_transformation;
         for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
             // First update model transformation based on their socket property. if they are socket to other models
@@ -807,20 +817,13 @@ void Application::mainLoop() {
             // Update physics and other systems like animations
             model->update(this, delta_time, runPhysics);
 
-            ++counter;
-            if (model->getName() == "human") {
-                auto [min, max] = model->getWorldSpaceAABB();
-                auto center = (max.z - min.z) / 2.0f;
-                capsuledebuglines.updateTransformation(
-                    glm::translate(glm::mat4{1.0}, model->mTransform.getPosition() + glm::vec3{0.0, 0.0, center}) *
-                    glm::scale(glm::mat4{1.0}, glm::vec3{1.0, 1.0, 1.0}));
-            }
-        }
-
-        auto* actor = mWorld->actor;
-        if (!mEditor->mEditorActive && actor != nullptr && actor->mInputHandler != nullptr) {
-            actor->mInputHandler->handleAttachedCamera(actor, &mCamera);
-            actor->mBehaviour->onTick(static_cast<Model*>(actor), delta_time);
+            // if (model->getName() == "human") {
+            //     auto [min, max] = model->getWorldSpaceAABB();
+            //     auto center = (max.z - min.z) / 2.0f;
+            //     capsuledebuglines.updateTransformation(
+            //         glm::translate(glm::mat4{1.0}, model->mTransform.getPosition() + glm::vec3{0.0, 0.0, center}) *
+            //         glm::scale(glm::mat4{1.0}, glm::vec3{1.0, 1.0, 1.0}));
+            // }
         }
     }
 
@@ -843,8 +846,6 @@ void Application::mainLoop() {
     // -------------------------------------------------------------------------
     auto fp = create2FrustumPlanes(corners);
     getFrustumPlaneBuffer().queueWrite(0, fp.data(), sizeof(FrustumPlanesUniform));
-    // wgpuQueueWriteBuffer(this->getRendererResource().queue, getFrustumPlaneBuffer().getBuffer(), 0, fp.data(),
-    //                      sizeof(FrustumPlanesUniform));
 
     if (cull_frustum) {
         // runFrustumCullingTask(this, encoder);
@@ -873,6 +874,11 @@ void Application::mainLoop() {
     }
     //
     //-------------- End of shadow pass
+    auto* actor = mWorld->actor;
+    if (!mEditor->mEditorActive && actor != nullptr && actor->mInputHandler != nullptr) {
+        actor->mInputHandler->handleAttachedCamera(actor, &mCamera);
+    }
+
     mUniforms.setCamera(mCamera);
     mUniformBuffer.queueWrite(0, &mUniforms, sizeof(CameraInfo));
 
@@ -975,6 +981,9 @@ void Application::mainLoop() {
             } else {
                 opaques.push_back(model);
             }
+            if (model->mBehaviour != nullptr && model != mWorld->actor) {
+                model->mBehaviour->onTick(model, delta_time);
+            }
         }
         for (const auto& model : opaques) {
             wgpuRenderPassEncoderSetPipeline(render_pass_encoder, model->getPipeline(this)->getPipeline());
@@ -1003,9 +1012,29 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
 
+    // for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
+    // particleSystem->updateParticleSystem(t, dt, true);
+    // particleSystem->executePass();
+    // if (model->getName() == "coin") {
+    //     extern_position = model->mTransform.getPosition();
+    // }
+    // }
+
     // wgpuQuerySetRelease(querySet);
     // ---------------------------------------------------------------------
     mLineEngine->executePass();
+    // ---------------------------------------------------------------------
+    if (!mEditor->mEditorActive && actor != nullptr && actor->mInputHandler != nullptr) {
+        // actor->mInputHandler->handleAttachedCamera(actor, &mCamera);
+        actor->mBehaviour->onTick(static_cast<Model*>(actor), delta_time);
+    }
+
+    mParticleSystemsManager->run(delta_time);
+
+    // particle_system->updateParticleSystem(
+    //     mSelectedModel == nullptr ? glm::vec3{0.0f} : mSelectedModel->mTransform.getPosition(), delta_time,
+    //     simulate_particles);
+    // particle_system->executePass();
     // ---------------------------------------------------------------------
     // mWaterRenderPass->waterBlend();
     // ---------------------------------------------------------------------
@@ -1330,6 +1359,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
     ImGuiIO& io = ImGui::GetIO();
     if (!mEditor->mEditorActive) {
+        // if (!true) {
         // io.ClearInputKeys();
         ImGui::EndFrame();
         return;
@@ -1339,9 +1369,13 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
         if (ImGui::BeginTabItem("Scene")) {
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", time * 1000.0f, 1.0 / time);
 
-            ImGui::Checkbox("flip x", &flip_x);
-            ImGui::Checkbox("flip y", &flip_y);
-            ImGui::Checkbox("flip z", &flip_z);
+            ImGui::Checkbox("simulate particles", &simulate_particles);
+
+            // if (muzzleSocket != nullptr) {
+            //     if (ImGui::DragFloat3("muzzle pos", glm::value_ptr(muzzleSocket->positionOffset), 1.0)) {
+            //         muzzleSocket->calculateTransform();
+            //     }
+            // }
 
             if (ImGui::CollapsingHeader("Cameras", ImGuiTreeNodeFlags_DefaultOpen)) {
                 if (ImGui::DragFloat("z-near", &mCamera.mZnear, 1.0, 0.0, 180.0f) ||
@@ -1905,6 +1939,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
             ImGui::EndTabItem();
         }
+        mParticleSystemsManager->userInterface(this);
 
         ImGui::EndTabBar();
     }
