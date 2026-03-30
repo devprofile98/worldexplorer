@@ -32,7 +32,10 @@
 #include "Jolt/Physics/Body/Body.h"
 #include "Jolt/Physics/Body/BodyID.h"
 #include "Jolt/Physics/Body/MotionType.h"
+#include "Jolt/Physics/Collision/CastResult.h"
+#include "Jolt/Physics/Collision/RayCast.h"
 #include "Jolt/Physics/Collision/Shape/MeshShape.h"
+#include "Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h"
 #include "Jolt/Physics/Collision/Shape/Shape.h"
 #include "Jolt/Physics/EActivation.h"
 #include "application.h"
@@ -149,6 +152,70 @@ static JobSystemThreadPool* job_system;
 static PhysicsSystem physicsSystem;
 static BodyID boxBodyID;
 
+JPH::Vec3 toJolt(const glm::vec3 vec) { return {vec.x, vec.z, vec.y}; }
+JPH::Quat toJolt(const glm::quat& rot) {
+    auto qu = glm::normalize(rot);
+    qu.z *= -1;
+    qu = glm::normalize(qu);
+    return {qu.x, qu.z, qu.y, qu.w};
+}
+glm::vec3 toGLM(const JPH::Vec3& vec) { return {vec.GetX(), vec.GetZ(), vec.GetY()}; }
+
+HitResult ShootRay(glm::vec3 origin, glm::vec3 direction, float maxDistance) {
+    RRayCast ray;
+    ray.mOrigin = toJolt(origin);
+    ray.mDirection = toJolt(direction * maxDistance);
+
+    RayCastResult hit;
+
+    if (!physicsSystem.GetNarrowPhaseQuery().CastRay(ray, hit)) return {.valid = false};
+
+    // Get normal from the hit surface
+    BodyLockRead lock(physicsSystem.GetBodyLockInterface(), hit.mBodyID);
+    glm::vec3 normal = glm::vec3(0);
+
+    if (lock.Succeeded()) {
+        const Body& body = lock.GetBody();
+
+        // Get surface normal at hit point
+        Vec3 joltNormal = body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, ray.GetPointOnRay(hit.mFraction));
+        normal = toGLM(joltNormal);
+    }
+
+    return {
+        .point = toGLM(ray.GetPointOnRay(hit.mFraction)),
+        .normal = normal,
+        .bodyId = hit.mBodyID,
+        .fraction = hit.mFraction,
+        .valid = true,
+    };
+}
+
+HitResult ShootRay2(glm::vec3 origin, glm::vec3 direction, float maxDistance) {
+    using namespace JPH;
+    RRayCast ray;
+    ray.mOrigin = toJolt(origin);
+    ray.mDirection = toJolt(direction * maxDistance);
+
+    RayCastResult hit;
+    RayCastSettings settings;
+    settings.mBackFaceModeConvex = EBackFaceMode::IgnoreBackFaces;  // don't hit inside of meshes
+
+    // Use broadphase + narrowphase for accuracy
+    bool didHit = physicsSystem.GetNarrowPhaseQuery().CastRay(ray, hit, BroadPhaseLayerFilter{}, ObjectLayerFilter{},
+                                                              BodyFilter{});
+
+    if (!didHit) return {.valid = false};
+
+    return {
+        .point = toGLM(ray.mOrigin + ray.mDirection * hit.mFraction),
+        .normal = glm::vec3{1.0},  // toGLM(hit.mBodyID /* get normal from shape */),
+        .bodyId = hit.mBodyID,
+        .fraction = hit.mFraction,
+        .valid = true,
+    };
+}
+
 PhysicsSystem* getPhysicsSystem() { return &physicsSystem; }
 JPH::CapsuleShape* createCapsuleShape(float halfHeight, float radius) { return new CapsuleShape(halfHeight, radius); }
 
@@ -213,6 +280,51 @@ BodyID createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, const
     boxSettings.mGravityFactor = gravityFactor;
 
     return bi.CreateAndAddBody(boxSettings, EActivation::Activate);
+}
+
+static Ref<Shape> CreateBottomOriginBoxShape(const glm::vec3& half_extents) {
+    // BoxShape is centered on its own local origin.
+    // If the model origin is at the bottom, shift the collision shape upward by half height.
+    Vec3 shape_offset(0.0f, 0.0, 0.0f);
+
+    BoxShapeSettings box_settings(toJolt(half_extents));
+    Ref<Shape> box_shape = box_settings.Create().Get();
+
+    RotatedTranslatedShapeSettings offset_shape_settings(shape_offset, Quat::sIdentity(), box_shape);
+    return offset_shape_settings.Create().Get();
+}
+
+glm::vec3 syncPhysicsFromRender(Transform& render, PhysicsComponent* physic) {
+    glm::vec3 com_pos = render.mPosition + render.mOrientation * physic->localOffset;
+
+    BodyInterface& bi = physicsSystem.GetBodyInterface();
+    bi.SetPositionAndRotation(physic->bodyId, RVec3(com_pos.x, com_pos.z, com_pos.y), toJolt(render.mOrientation),
+                              EActivation::Activate);
+    return com_pos;
+}
+
+PhysicsComponent* CreatePhysicsBox(const glm::vec3& localoffset, const glm::vec3& model_half_extents,
+                                   glm::vec3& world_bottom_position, void* userData) {
+    // auto local_pivot_offset = localoffset;glm::vec3{0.0f, 0.0, model_half_extents.z};
+    auto local_pivot_offset = localoffset;
+    // auto local_pivot_offset = model_half_extents - world_bottom_position;  // glm::vec3{0.0f, model_half_extents.y,
+    // 0.0};
+
+    Ref<Shape> shape = CreateBottomOriginBoxShape(model_half_extents);
+
+    // Put the body's COM at the correct world position.
+    Vec3 body_com_pos = toJolt(world_bottom_position + local_pivot_offset);
+
+    BodyCreationSettings settings(shape, RVec3(body_com_pos.GetX(), body_com_pos.GetZ(), body_com_pos.GetY()),
+                                  Quat::sIdentity(), EMotionType::Static, Layers::NON_MOVING);
+    settings.mUserData = reinterpret_cast<uint64_t>(userData);
+
+    BodyInterface& bi = physicsSystem.GetBodyInterface();
+    Body* body = bi.CreateBody(settings);
+    bi.AddBody(body->GetID(), EActivation::Activate);
+    PhysicsComponent* comp = new PhysicsComponent{body->GetID()};
+    comp->localOffset = local_pivot_offset;
+    return comp;
 }
 
 BodyInterface& getBodyInterface() { return physicsSystem.GetBodyInterface(); }

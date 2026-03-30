@@ -55,10 +55,22 @@ struct PhysicsComponent {
         JPH::BodyID bodyId;
         ColliderType colliderType = ColliderType::Box;
         std::optional<LineGroup> mDebugLines = std::nullopt;
+        glm::vec3 localOffset;
 };
 
 namespace physics {
 
+struct HitResult {
+        glm::vec3 point;
+        glm::vec3 normal;
+        JPH::BodyID bodyId;
+        float fraction;  // 0-1, how far along the ray the hit occurred
+        bool valid;
+};
+
+glm::vec3 syncPhysicsFromRender(Transform& render, PhysicsComponent* physic);
+PhysicsComponent* CreatePhysicsBox(const glm::vec3& localoffset, const glm::vec3& model_half_extents,
+                                   glm::vec3& world_bottom_position, void* userData);
 JPH::Body* createPhysicFromShape(const std::vector<uint32_t> indices, const std::vector<VertexAttributes>& vertices,
                                  const glm::mat4& transformMatrix);
 class BoxCollider {
@@ -94,6 +106,7 @@ class PhysicSystem {
         Application* mApp;
 };
 
+HitResult ShootRay(glm::vec3 origin, glm::vec3 direction, float maxDistance);
 void prepareJolt();
 void JoltLoop(float dt);
 std::pair<glm::vec3, glm::quat> getPositionAndRotationyId(JPH::BodyID id);

@@ -80,3 +80,9 @@ bool LineGroup::remove() {
     }
     return false;
 }
+
+LineGroup& LineGroup::setScaleFatcor(const glm::vec3& scale) {
+    mScaleFactor = scale;
+    return *this;
+}
+glm::vec3& LineGroup::getScaleFatcor() { return mScaleFactor; }

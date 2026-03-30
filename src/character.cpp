@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <random>
+#include <vector>
 
 #include "GLFW/glfw3.h"
 #include "animation.h"
@@ -19,6 +20,8 @@
 #include "particle_system.h"
 #include "physics.h"
 #include "rendererResource.h"
+#include "shapes.h"
+#include "utils.h"
 #include "world.h"
 
 namespace {
@@ -26,7 +29,8 @@ namespace {
 constexpr glm::vec2 offsets[]{glm::vec2{0.0, 0.0f},   glm::vec2{0.0, 0.333f},    glm::vec2{0.0, 0.666f},
                               glm::vec2{0.333f, 0.0}, glm::vec2{0.333f, 0.333f}, glm::vec2{0.333f, 0.666f},
                               glm::vec2{0.666f, 0.0}, glm::vec2{0.666f, 0.333f}, glm::vec2{0.666f}};
-}
+
+}  // namespace
 
 static Particle spawnParticle(ParticleSystem* system, const glm::vec3& emitterPosition) {
     static std::random_device rd;
@@ -320,16 +324,27 @@ struct PistolBehaviour : public WeaponBehaviour {
         }
 
         void onFirePrimary(Model* model, const glm::vec3& characterFront) override {
-            auto box = physics::PhysicSystem::createCollider2(app, "new collider",
-                                                              model->mSocket->model->mTransform.getPosition(),
-                                                              glm::vec3{0.01}, MotionType::Dynamic, false, nullptr);
+            auto hit = physics::ShootRay(model->mSocket->globalPosition, characterFront, 100.0f);
+            static LineGroup debuglinegroup =
+                app->mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.2, 0.0, 8.0}).updateVisibility(true);
+            std::vector<glm::vec4> line;
+            line.push_back(glm::vec4{model->mSocket->globalPosition, 0.0});
+            line.push_back(glm::vec4{model->mSocket->globalPosition + (100.0f * glm::normalize(characterFront)), 1.0});
+            debuglinegroup.updateLines(line);
 
-            auto& bodyInterface = physics::getPhysicsSystem()->GetBodyInterface();
-
-            JPH::Vec3 newVel = JPH::Vec3(characterFront.x, characterFront.z, characterFront.y);  // add upward speed
-            newVel *= 5.0;
-
-            bodyInterface.SetLinearVelocity(box.getPhysicsComponent()->bodyId, newVel);
+            if (hit.valid) {
+                JPH::BodyLockRead lock(physics::getPhysicsSystem()->GetBodyLockInterface(), hit.bodyId);
+                if (lock.Succeeded()) {
+                    // Retrieve your entity from userdata
+                    Model* entity = (Model*)lock.GetBody().GetUserData();
+                    if (entity == nullptr) return;
+                    std::cout << "Hit result: " << hit.valid << entity->getName() << std::endl;
+                    // if (entity && entity->type == EntityType::Zombie) {
+                    //     Zombie* zombie = static_cast<Zombie*>(entity);
+                    //     zombie->TakeDamage(weaponDamage, hit.point, hit.normal);
+                    // }
+                }
+            }
         }
 };
 
@@ -506,21 +521,21 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                     state = Aiming;
                     isAiming = true;
 
-                    if (!transitoin.active) {
-                        transitoin.from = cameraOffset + glm::vec3{0.4};
-                        transitoin.to = glm::vec3{0.3};
-                        transitoin.active = true;
-                        transitoin.timeLeft = 0.5;
-                    }
+                    // if (!transitoin.active) {
+                    //     transitoin.from = cameraOffset + glm::vec3{0.4};
+                    //     transitoin.to = glm::vec3{0.3};
+                    //     transitoin.active = true;
+                    //     transitoin.timeLeft = 0.5;
+                    // }
                 } else if (mouse.action == GLFW_RELEASE) {
                     state = Idle;
                     isAiming = false;
-                    if (!transitoin.active) {
-                        transitoin.from = glm::vec3{0.3};
-                        transitoin.to = cameraOffset + glm::vec3{0.4};
-                        transitoin.timeLeft = 0.5;
-                        transitoin.active = true;
-                    }
+                    // if (!transitoin.active) {
+                    //     transitoin.from = glm::vec3{0.3};
+                    //     transitoin.to = cameraOffset + glm::vec3{0.4};
+                    //     transitoin.timeLeft = 0.5;
+                    //     transitoin.active = true;
+                    // }
                 }
             } else if (mouse.click == GLFW_MOUSE_BUTTON_LEFT) {
                 if (weapon != nullptr) {
@@ -537,13 +552,13 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
 
         void handleAttachedCamera(BaseModel* model, Camera* camera) override {
             auto forward = getForward();
+            std::cout << glm::to_string(forward) << std::endl;
 
             auto [min, max] = model->getWorldSpaceAABB();
-            // Compute the offset direction (modify as needed based on your coordinate system)
-            glm::vec3 offset_dir = {forward.y, -forward.x, forward.z};  // Your existing transformation
-            offset_dir = glm::normalize(offset_dir);                    // Normalize to get a unit vector
 
-            // Apply the user-defined distance and any additional offset (e.g., vertical adjustment)
+            glm::vec3 offset_dir = {forward.y, -forward.x, forward.z};
+            offset_dir = glm::normalize(offset_dir);
+
             glm::vec3 camera_offset = offset_dir * targetDistance + (-targetOffset);
 
             // Compute the camera position by subtracting the offset from the actor's position
@@ -784,17 +799,17 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             desired_rotation.w = new_rotation.GetW();
             model->rotate(desired_rotation);
 
-            if (transitoin.active) {
-                transitoin.timeLeft -= dt;
-                auto t = glm::clamp(transitoin.timeLeft, 0.0f, 1.0f);
-
-                float eased_t = t * t * (3.0f - 2.0f * t);
-                targetDistance = glm::mix(transitoin.from, transitoin.to, 1 - eased_t);
-
-                if (transitoin.timeLeft <= 0) {
-                    transitoin.active = false;
-                }
-            }
+            // if (transitoin.active) {
+            //     transitoin.timeLeft -= dt;
+            //     auto t = glm::clamp(transitoin.timeLeft, 0.0f, 1.0f);
+            //
+            //     float eased_t = t * t * (3.0f - 2.0f * t);
+            //     targetDistance = glm::mix(transitoin.from, transitoin.to, 1 - eased_t);
+            //
+            //     if (transitoin.timeLeft <= 0) {
+            //         transitoin.active = false;
+            //     }
+            // }
         }
 
         glm::vec3 getForward() override { return glm::normalize(glm::cross(front, up)); }
@@ -835,8 +850,10 @@ struct CubeBehaviour : public PawnBehaviour {
 
         void onLoad(Model* model) override {
             auto* cube_phy = new CubePhysics{model->mPhysicComponent->bodyId};
+            auto lines = model->mPhysicComponent->mDebugLines.value();
             delete model->mPhysicComponent;
             model->mPhysicComponent = cube_phy;
+            model->mPhysicComponent->mDebugLines = lines;
             std::cout << "Cube model loooaded " << (model->mPhysicComponent == nullptr) << std::endl;
         }
 };

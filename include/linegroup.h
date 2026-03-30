@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "glm/fwd.hpp"
+#include "model.h"
 struct LineEngine;
 
 class LineGroup {
@@ -15,12 +16,15 @@ class LineGroup {
         LineGroup& updateTransformation(const glm::mat4& trans);
         LineGroup& updateColor(const glm::vec3& color);
         LineGroup& updateVisibility(bool visibility);
+        LineGroup& setScaleFatcor(const glm::vec3& scale);
+        glm::vec3& getScaleFatcor();
         bool remove();
         bool isInitialized() const;
 
     private:
         bool mInitialized = false;
         LineEngine* mLineEngine;
+        glm::vec3 mScaleFactor;
         friend struct LineEngine;
 };
 

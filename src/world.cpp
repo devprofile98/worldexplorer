@@ -756,7 +756,7 @@ MaterialPropsMap parseMeshMaterialProps(std::vector<json>& props) {
     std::unordered_map<std::string, MaterialProperties> res;
     for (json& properties : props) {
         for (auto [k, v] : properties.items()) {
-            std::cout << " LLLLLLLLLLl " << k << v << std::endl;
+            // std::cout << " LLLLLLLLLLl " << k << v << std::endl;
             auto uv = v["uv"].get<std::array<float, 2>>();
             res[k] = MaterialProperties{k, uv};
         }
@@ -803,6 +803,7 @@ void World::loadModel(const ObjectLoaderParam& param) {
             auto [min, max] = model.getModel()->getPhysicsAABB();
             auto center = (min + max) * 0.5f;
             auto half_extent = (max - min) * 0.5f;
+
             MotionType motion_type = MotionType::Static;
             if (param.physicsParams.type == "dynamic") {
                 motion_type = MotionType::Dynamic;
@@ -811,9 +812,30 @@ void World::loadModel(const ObjectLoaderParam& param) {
             } else if (param.physicsParams.type == "kinematic") {
                 motion_type = MotionType::Kinematic;
             }
-            model.getModel()->mPhysicComponent =
-                new PhysicsComponent{physics::createAndAddBody(half_extent, center, qu, motion_type, 0.5, 0.0f, 0.0f,
-                                                               1.f, param.physicsParams.isSensor, model.getModel())};
+            if (param.name == "tree" || param.name == "zombie") {
+                model.getModel()->mPhysicComponent =
+                    physics::CreatePhysicsBox(center - model.getModel()->mTransform.getPosition(), half_extent,
+                                              model.getModel()->mTransform.getPosition(), model.getModel());
+            } else {
+                JPH::BodyID id{};
+                id = physics::createAndAddBody(half_extent, center, qu, motion_type, 0.5, 0.0f, 0.0f, 1.f,
+                                               param.physicsParams.isSensor, model.getModel());
+                model.getModel()->mPhysicComponent = new PhysicsComponent{id};
+            }
+            // if (model.getModel()->getName() == "tree") {
+            // std::cout << "------ info are " << glm::to_string(half_extent) << " : " << glm::to_string(center)
+            //           << std::endl;
+            // }
+
+            model.getModel()->mPhysicComponent->mDebugLines =
+                app->mLineEngine
+                    ->create(generateBox(),
+                             glm::translate(glm::mat4{1.0}, center) * glm::scale(glm::mat4{1.0}, half_extent),
+                             (motion_type == MotionType::Static)
+                                 ? (false ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0})
+                                 : glm::vec3{1.0, 0.209, 0.0784})
+                    .updateVisibility(false);
+            model.getModel()->mPhysicComponent->mDebugLines.value().setScaleFatcor(half_extent);
         }
 
         return {model.getModel(), Visibility_User};

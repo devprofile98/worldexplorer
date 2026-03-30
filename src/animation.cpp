@@ -255,20 +255,21 @@ bool Animation::initAnimation(const aiScene* scene, std::string name) {
                 b->id = action->Bonemap.size();
                 action->Bonemap[channel->mNodeName.C_Str()] = b;
                 // if (scene->mNumAnimations == 1) {
-                if (name == "tire") {
-                    std::cout << "\tChannel with name " << channel->mNodeName.C_Str()
-                              << " has data : trans: " << b->channel.translations.size()
-                              << " scales:  " << b->channel.scales.size() << " rotations:  " << b->channel.quats.size()
-                              << std::endl;
-                    std::cout << " ------------------------------------------------------------\n";
-
-                    for (const auto& p : b->channel.translations) {
-                        std::cout << p.time << " :::::::::::::: " << glm::to_string(p.value) << std::endl;
-                    }
-                    for (const auto& p : b->channel.quats) {
-                        std::cout << p.time << " ||||||||||||||| " << glm::to_string(p.value) << std::endl;
-                    }
-                }
+                // if (name == "tire") {
+                //     std::cout << "\tChannel with name " << channel->mNodeName.C_Str()
+                //               << " has data : trans: " << b->channel.translations.size()
+                //               << " scales:  " << b->channel.scales.size() << " rotations:  " <<
+                //               b->channel.quats.size()
+                //               << std::endl;
+                //     std::cout << " ------------------------------------------------------------\n";
+                //
+                //     for (const auto& p : b->channel.translations) {
+                //         // std::cout << p.time << " :::::::::::::: " << glm::to_string(p.value) << std::endl;
+                //     }
+                //     for (const auto& p : b->channel.quats) {
+                //         // std::cout << p.time << " ||||||||||||||| " << glm::to_string(p.value) << std::endl;
+                //     }
+                // }
             }
 
             bool is_node_based = true;

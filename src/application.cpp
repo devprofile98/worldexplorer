@@ -468,9 +468,9 @@ void Application::initializePipeline() {
     shadow_sampler_desc.minFilter = WGPUFilterMode_Linear;
     shadow_sampler_desc.mipmapFilter = WGPUMipmapFilterMode_Linear;
     shadow_sampler_desc.lodMinClamp = 0.0f;
-    shadow_sampler_desc.lodMaxClamp = 1.0f;
+    shadow_sampler_desc.lodMaxClamp = 8.0f;
     shadow_sampler_desc.compare = WGPUCompareFunction_Greater;
-    shadow_sampler_desc.maxAnisotropy = 1;
+    shadow_sampler_desc.maxAnisotropy = 16;
     WGPUSampler shadow_sampler = wgpuDeviceCreateSampler(this->getRendererResource().device, &shadow_sampler_desc);
 
     mBindingData[8] = {};
@@ -776,10 +776,21 @@ void Application::mainLoop() {
     if (runPhysics) {
         physics::JoltLoop(delta_time);
     } else {
-        for (const auto& cube : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            if (cube->mPhysicComponent != nullptr) {
-                physics::setRotation(cube->mPhysicComponent->bodyId, glm::normalize(cube->mTransform.mOrientation));
-                physics::setPosition(cube->mPhysicComponent->bodyId, cube->mTransform.getPosition());
+        for (const auto& model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+            if (model->mPhysicComponent != nullptr) {
+                if (model->getName() == "tree" || model->getName() == "zombie") {
+                    // std::cout << glm::to_string(
+                    physics::syncPhysicsFromRender(model->mTransform, model->mPhysicComponent);
+                    // )<< std::endl;
+                } else {
+                    physics::setRotation(model->mPhysicComponent->bodyId,
+                                         glm::normalize(model->mTransform.mOrientation));
+                    if (model->getName() == "tree") {
+                        std::cout << "pos is " << glm::to_string(model->mTransform.getPosition()) << "\n";
+                    }
+                    // auto [min, max] = model->getPhysicsAABB();
+                    physics::setPosition(model->mPhysicComponent->bodyId, model->mTransform.getPosition());
+                }
             }
         }
     }
@@ -792,14 +803,25 @@ void Application::mainLoop() {
 
         if (selectedPhysicModel != nullptr) {
             auto* physic_model = selectedPhysicModel->mPhysicComponent;
-            if (physic_model != nullptr && physic_model->mDebugLines.has_value()) {
-                physic_model->mDebugLines.value().updateVisibility(true);
-            } else {
-                auto [pos, rot] = physics::getPositionAndRotationyId(selectedPhysicModel->mPhysicComponent->bodyId);
-                debuglinegroup
-                    .updateTransformation(glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
-                                          glm::scale(glm::mat4{1.0}, selectedPhysicModel->mTransform.getScale()))
-                    .updateVisibility(true);
+            if (physic_model != nullptr) {
+                auto [min, max] = selectedPhysicModel->getPhysicsAABB();
+                auto half_extent = (max - min) * 0.5f;
+
+                if (physic_model->mDebugLines.has_value()) {
+                    auto [pos, rot] = physics::getPositionAndRotationyId(physic_model->bodyId);
+
+                    physic_model->mDebugLines.value()
+                        .updateTransformation(
+                            glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
+                            glm::scale(glm::mat4{1.0}, physic_model->mDebugLines.value().getScaleFatcor()))
+                        .updateVisibility(true);
+                } else {
+                    auto [pos, rot] = physics::getPositionAndRotationyId(physic_model->bodyId);
+                    debuglinegroup
+                        .updateTransformation(glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
+                                              glm::scale(glm::mat4{1.0}, half_extent))
+                        .updateVisibility(true);
+                }
             }
         }
     }
@@ -829,6 +851,7 @@ void Application::mainLoop() {
 
     if (mSelectedModel != nullptr) {
         auto [min, max] = mSelectedModel->getWorldSpaceAABB();
+        // std::cout << "ZZombie half extent and center are " << glm::to_string((max - min) * 0.5f) << "\n";
         aabbDebugLines.updateLines(generateAABBLines(min, max));
     }
 
