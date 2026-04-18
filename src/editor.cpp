@@ -320,9 +320,10 @@ struct GizmoModel : public IModel {
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
                 .create(&app->getRendererResource());
 
-            auto& databuffer = mModel->mGlobalMeshTransformationData;
-            wgpuQueueWriteBuffer(app->getRendererResource().queue, mModel->mGlobalMeshTransformationBuffer.getBuffer(),
-                                 0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
+            const auto& databuffer = mModel->mGlobalMeshTransformationData;
+            mModel->mGlobalMeshTransformationBuffer.queueWrite(0, databuffer.data(),
+                                                               sizeof(glm::mat4) * databuffer.size());
+
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
             std::cout << "Gizmo has " << mModel->mFlattenMeshes.size() << " Number of Meshes\n";
         }
@@ -401,18 +402,21 @@ struct BoneModel : public IModel {
             std::vector<glm::vec3> positions;
             std::vector<glm::vec3> rotations;
             std::vector<glm::vec3> scales;
+            std::vector<bool> hasPhysics;
             positions.reserve(5);
             rotations.reserve(5);
             scales.reserve(5);
+            hasPhysics.reserve(5);
 
             for (size_t i = 0; i < 5; i++) {
                 positions.emplace_back(glm::vec3{i, i, i});
                 rotations.emplace_back(glm::vec3{0.0, 0.0, 0.0});
                 scales.emplace_back(glm::vec3{0.9f});
+                hasPhysics.emplace_back(false);
             }
 
-            auto* ins =
-                new Instance{positions, rotations, scales, glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
+            auto* ins = new Instance{
+                positions, rotations, scales, hasPhysics, glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
 
             wgpuQueueWriteBuffer(app->getRendererResource().queue,
                                  app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,
@@ -588,37 +592,35 @@ void Screen::onMouseMove(MouseEvent event) {
     if (drag_state.active) {
         camera.processMouse(move.xPos, move.yPos);
     }
-    double x = 0;
-    double y = 0;
 
     auto [window_width, window_height] = mApp->getWindowSize();
     if (move.yPos <= 0) {
-        x = move.xPos;
-        y = window_height - 1;
+        // x = move.xPos;
+        // y = window_height - 1;
         input.setCursorPosition(move.window, move.xPos, window_height - 1);
         camera.updateCursor(move.xPos, window_height - 1);
     } else if (move.yPos > window_height - 20) {
-        x = move.xPos;
-        y = 1;
+        // x = move.xPos;
+        // y = 1;
         input.setCursorPosition(move.window, move.xPos, 1);
         camera.updateCursor(move.xPos, 1);
     } else {
-        y = move.yPos;
-        x = move.xPos;
+        // y = move.yPos;
+        // x = move.xPos;
     }
     if (move.xPos <= 0) {
-        x = window_width - 1;
-        y = move.yPos;
+        // x = window_width - 1;
+        // y = move.yPos;
         input.setCursorPosition(move.window, window_width - 1, move.yPos);
         camera.updateCursor(window_width - 1, move.yPos);
     } else if (move.xPos >= window_width - 1) {
-        x = 1;
-        y = move.yPos;
+        // x = 1;
+        // y = move.yPos;
         input.setCursorPosition(move.window, 1, move.yPos);
         camera.updateCursor(1, move.yPos);
     } else {
-        y = move.yPos;
-        x = move.xPos;
+        // y = move.yPos;
+        // x = move.xPos;
     }
     // input.setCursorPosition(move.window, x, y);
     // camera.updateCursor(x, y);

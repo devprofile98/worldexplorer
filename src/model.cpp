@@ -235,6 +235,7 @@ void Model::updateAnimation(float dt) {
             populateGlobalMeshesTransformationBuffer(mApp, mRootNode, mGlobalMeshTransformationData, mFlattenMeshes,
                                                      anims);
             auto& databuffer = mGlobalMeshTransformationData;
+
             mGlobalMeshTransformationBuffer.queueWrite(0, databuffer.data(), sizeof(glm::mat4) * databuffer.size());
 
             mTransform.mDirty = true;
@@ -416,7 +417,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
         }
     }
 
-    auto& render_resource = app->getRendererResource();
     auto& mmesh = mFlattenMeshes[mMeshNumber];
     auto d = mPath.find_last_of("/");
 
@@ -602,9 +602,9 @@ bool BaseModel::isSelected() const { return mTransform.mObjectInfo.isSelected; }
 
 void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> bindingData) {
     // release the old bindgroup, if any
-    if (ggg) {
-        wgpuBindGroupRelease(ggg);
-        ggg = nullptr;
+    if (mObjectInfoBindGroup != nullptr) {
+        wgpuBindGroupRelease(mObjectInfoBindGroup);
+        mObjectInfoBindGroup = nullptr;
     }
     std::array<WGPUBindGroupEntry, 3> mBindGroupEntry = {};
     mBindGroupEntry[0].nextInChain = nullptr;
@@ -626,6 +626,10 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     mBindGroupEntry[2].offset = 0;
     mBindGroupEntry[2].size = mFlattenMeshes.size() * sizeof(glm::mat4);
 
+    const auto& databuffer = mGlobalMeshTransformationData;
+    mGlobalMeshTransformationBuffer.queueWrite(0, mGlobalMeshTransformationData.data(),
+                                               sizeof(glm::mat4) * databuffer.size());
+
     WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
     mTrasBindGroupDesc.nextInChain = nullptr;
     mTrasBindGroupDesc.entries = mBindGroupEntry.data();
@@ -633,7 +637,7 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
     mTrasBindGroupDesc.label = WGPUStringView{"translation bind group", WGPU_STRLEN};
     mTrasBindGroupDesc.layout = app->mBindGroupLayouts[1];
 
-    ggg = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);
+    mObjectInfoBindGroup = wgpuDeviceCreateBindGroup(app->getRendererResource().device, &mTrasBindGroupDesc);
 
     for (auto& [mat_id, mesh] : mFlattenMeshes) {
         mesh.binding_data = bindingData;
@@ -769,27 +773,16 @@ void Model::internalDraw(Application* app, WGPURenderPassEncoder encoder, Node* 
 
     for (auto& mid : node->mMeshIndices) {
         auto& mesh = mFlattenMeshes[mid];
+
         if (!mesh.getVisible()) {
             continue;
         }
-        WGPUBindGroup active_bind_group = nullptr;
-
-        active_bind_group = app->getBindingGroup().getBindGroup();
 
         wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, mesh.mVertexBuffer.getBuffer(), 0,
                                              wgpuBufferGetSize(mesh.mVertexBuffer.getBuffer()));
         wgpuRenderPassEncoderSetIndexBuffer(encoder, mesh.mIndexBuffer.getBuffer(), WGPUIndexFormat_Uint32, 0,
                                             wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
-        // wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
-        //
-        // wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
-        // wgpuRenderPassEncoderSetBindGroup(encoder, 2,
-        //                                   mesh.mTextureBindGroup == nullptr
-        //                                       ? app->mDefaultTextureBindingGroup.getBindGroup()
-        //                                       : mesh.mTextureBindGroup,
-        //                                   0, nullptr);
-        //
-        // wgpuRenderPassEncoderSetBindGroup(encoder, 6, mesh.mMaterialBindGroup, 0, nullptr);
+
         getCustomBindGroup(app, encoder, mesh);
         if (this->instance != nullptr) {
             // wgpuRenderPassEncoderDrawIndexedIndirect(encoder, mIndirectDrawArgsBuffer.getBuffer(), 0);
@@ -818,7 +811,6 @@ void Model::drawGraph(Application* app, WGPURenderPassEncoder encoder, Node* nod
 void Model::drawHirarchy(Application* app, WGPURenderPassEncoder encoder) { drawGraph(app, encoder, mRootNode); }
 
 void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
-    auto& render_resource = app->getRendererResource();
     WGPUBindGroup active_bind_group = nullptr;
     if (!getVisible()) {
         return;
@@ -836,7 +828,7 @@ void Model::draw(Application* app, WGPURenderPassEncoder encoder) {
                                             wgpuBufferGetSize(mesh.mIndexBuffer.getBuffer()));
         wgpuRenderPassEncoderSetBindGroup(encoder, 0, active_bind_group, 0, nullptr);
 
-        wgpuRenderPassEncoderSetBindGroup(encoder, 1, ggg, 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(encoder, 1, mObjectInfoBindGroup, 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(encoder, 2,
                                           mesh.mTextureBindGroup == nullptr
                                               ? app->mDefaultTextureBindingGroup.getBindGroup()
@@ -1045,13 +1037,13 @@ void Model::userInterface() {
             for (size_t i = 0; i < instances_count; ++i) {
                 ImGui::PushID((void*)&instance->mPositions[i]);
                 ImGui::LabelText("Label", "instance #%ld", i);
-                bool pos_changed = ImGui::DragFloat3("pos", glm::value_ptr(instance->mPositions[i]), 0.01);
-                bool scale_changed = ImGui::DragFloat3("scale", glm::value_ptr(instance->mScale[i]), 0.01);
-                bool rot_changed = ImGui::DragFloat3("rot", glm::value_ptr(instance->mRotation[i]), 1.0);
-
-                if (pos_changed || scale_changed) {
+                if (ImGui::DragFloat3("pos", glm::value_ptr(instance->mPositions[i]), 0.01)) {
                     instance->createInstanceWrapper(i).moveTo(instance->mPositions[i]);
-                } else if (rot_changed) {
+                }
+                if (ImGui::DragFloat3("scale", glm::value_ptr(instance->mScale[i]), 0.01)) {
+                    instance->createInstanceWrapper(i).moveTo(instance->mPositions[i]);
+                }
+                if (ImGui::DragFloat3("rot", glm::value_ptr(instance->mRotation[i]), 1.0)) {
                     instance->createInstanceWrapper(i).rotate(instance->mRotation[i]);
                 }
 
@@ -1059,7 +1051,7 @@ void Model::userInterface() {
             }
 
             if (ImGui::Button("New instance")) {
-                size_t new_idx = instance->duplicateLastInstance(glm::vec3{.01}, min, max);
+                size_t new_idx = instance->duplicateLastInstance(mTransform, glm::vec3{.01}, min, max);
                 mApp->mInstanceManager->getInstancingBuffer().queueWrite(
                     ((InstanceManager::MAX_INSTANCE_COUNT * instance->mOffsetID) + new_idx) * sizeof(InstanceData),
                     &instance->mInstanceBuffer[new_idx], sizeof(InstanceData));
@@ -1071,11 +1063,9 @@ void Model::userInterface() {
             ImGui::TextColored(ImVec4(1.0, 0.0, 0.0, 1.0), "No Instance!");
             ImGui::SameLine();
             if (ImGui::Button("Enable Instancing")) {
-                auto* ins = new Instance{{mTransform.getPosition()},
-                                         {mTransform.getEulerRotation()},
-                                         {mTransform.getScale()},
-                                         glm::vec4{min, 1.0f},
-                                         glm::vec4{max, 1.0f}};
+                auto* ins = new Instance{{mTransform.getPosition()}, {mTransform.getEulerRotation()},
+                                         {mTransform.getScale()},    {false},
+                                         glm::vec4{min, 1.0f},       glm::vec4{max, 1.0f}};
                 ins->parent = this;
                 // ins->mApp = mApp;
                 ins->mManager = mApp->mInstanceManager;
@@ -1208,6 +1198,11 @@ void Model::userInterface() {
                     mTransform.mDirty = true;
                 }
 
+                bool isflat = mesh.mMaterial.isFlat == 1;
+                if (ImGui::Checkbox("isFlat", &isflat)) {
+                    mesh.mMaterial.isFlat = isflat;
+                    mTransform.mDirty = true;
+                }
                 if (ImGui::DragFloat3("Uv Values", glm::value_ptr(mesh.mMaterial.uvMultiplier), drag_speed, 100.0f)) {
                     mTransform.mDirty = true;
                 }
@@ -1354,6 +1349,7 @@ void Model::getCustomBindGroup(Application* app, WGPURenderPassEncoder encoder, 
 
     wgpuRenderPassEncoderSetBindGroup(encoder, 6, mesh.mMaterialBindGroup, 0, nullptr);
 }
+
 Pipeline* Model::getPipeline(Application* app) { return app->getPipeline(); }
 
 glm::vec3& Transform::getPosition() { return mPosition; }
@@ -1483,4 +1479,4 @@ void BaseModel::updateHirarchy() {
     }
 }
 
-WGPUBindGroup Model::getObjectInfoBindGroup() { return ggg; }
+WGPUBindGroup Model::getObjectInfoBindGroup() { return mObjectInfoBindGroup; }

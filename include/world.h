@@ -41,21 +41,29 @@ struct SocketParams {
         AnchorType type;
 };
 
+enum class PhysicGenMethod {
+    AABB = 0,
+    MESH = 1,
+    CUSTOM = 2,
+};
+
 struct PhysicsParams {
         std::string type;
         bool isSensor = false;
+        PhysicGenMethod method = PhysicGenMethod::AABB;
 };
 
-struct Transformation {
+struct InstanceInfo {
         glm::vec3 position;
         glm::vec3 scale;
         glm::vec3 rotation;
+        bool hasPhysics;
 };
 
 struct ObjectLoaderParam {
         SocketParams socketParam;
         PhysicsParams physicsParams;
-        std::vector<Transformation> instanceTransformations;
+        std::vector<InstanceInfo> instanceTransformations;
         int type;
         std::string name;
         std::string path;

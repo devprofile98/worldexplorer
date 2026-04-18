@@ -13,6 +13,7 @@
 #include "glm/geometric.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/gtx/string_cast.hpp"
+#include "glm/trigonometric.hpp"
 #include "input_manager.h"
 #include "instance.h"
 #include "model.h"
@@ -142,6 +143,7 @@ enum CharacterState {
     Jumping,
     Falling,
     Aiming,
+    Crouch,
 };
 
 static Model* contactmodel = nullptr;
@@ -183,7 +185,7 @@ class MyCharacterContactListener : public JPH::CharacterContactListener {
 
             // auto name = model == nullptr ? "No Name" : model->getName();
             // printf("Character touched body %u %lu %s\n", inBodyID2.GetIndex(), userData, name.c_str());
-            if (model != nullptr) {
+            if (model != nullptr && model->mPhysicComponent != nullptr) {
                 model->mPhysicComponent->onContactRemoved(model, character);
             }
         }
@@ -191,7 +193,10 @@ class MyCharacterContactListener : public JPH::CharacterContactListener {
 };
 
 struct WeaponBehaviour : public PawnBehaviour {
-        WeaponBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
+        WeaponBehaviour(std::string name) {
+            maxPickDistance = 2.5;  // all weapon should be pickable at this range
+            ModelRegistry::instance().registerBehaviour(name, this);
+        }
 
         BoneSocket* activeSocket = nullptr;
         BoneSocket* inactiveSocket = nullptr;
@@ -324,7 +329,6 @@ struct PistolBehaviour : public WeaponBehaviour {
         }
 
         void onFirePrimary(Model* model, const glm::vec3& characterFront) override {
-            auto hit = physics::ShootRay(model->mSocket->globalPosition, characterFront, 100.0f);
             static LineGroup debuglinegroup =
                 app->mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.2, 0.0, 8.0}).updateVisibility(true);
             std::vector<glm::vec4> line;
@@ -332,6 +336,10 @@ struct PistolBehaviour : public WeaponBehaviour {
             line.push_back(glm::vec4{model->mSocket->globalPosition + (100.0f * glm::normalize(characterFront)), 1.0});
             debuglinegroup.updateLines(line);
 
+            auto [w, h] = PawnBehaviour::app->getWindowSize();
+            auto [origin, ray] = PawnBehaviour::app->getCamera().getLookingRay(w, h, {w / 2, h / 2});
+            auto hit = physics::ShootRay(origin, ray, 10.0f);
+            // auto hit = physics::ShootRay(model->mSocket->globalPosition, characterFront, 100.0f);
             if (hit.valid) {
                 JPH::BodyLockRead lock(physics::getPhysicsSystem()->GetBodyLockInterface(), hit.bodyId);
                 if (lock.Succeeded()) {
@@ -339,14 +347,129 @@ struct PistolBehaviour : public WeaponBehaviour {
                     Model* entity = (Model*)lock.GetBody().GetUserData();
                     if (entity == nullptr) return;
                     std::cout << "Hit result: " << hit.valid << entity->getName() << std::endl;
-                    // if (entity && entity->type == EntityType::Zombie) {
-                    //     Zombie* zombie = static_cast<Zombie*>(entity);
-                    //     zombie->TakeDamage(weaponDamage, hit.point, hit.normal);
-                    // }
                 }
             }
         }
 };
+
+struct EnemyBehaviour : public PawnBehaviour {
+        EnemyBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
+        virtual void TakeDamage() {}
+        void onLoad(Model* model) override {}
+        int damage = 100;
+};
+
+struct ZombieBehaviour : public EnemyBehaviour {
+        int state = 0;
+        ZombieBehaviour(std::string name) : EnemyBehaviour(name) {}
+
+        void TakeDamage() override {
+            damage -= 1;
+            std::cout << name << " Damage is " << damage << std::endl;
+        }
+
+        void decideAnimation() {
+            static int last_state = state;
+            if (last_state != state) {
+                this->model->getAnimation()->playAction("Zombie_Walk_Fwd_Loop", true);
+            }
+        }
+
+        void onTick(Model* model, float dt) override {
+            static LineGroup debuglinegroup =
+                PawnBehaviour::app->mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.1, 0.1, 1.0})
+                    .updateVisibility(true);
+
+            auto* actor = PawnBehaviour::app->mWorld->actor;
+            if (actor == nullptr) return;
+            auto origin = model->mTransform.getPosition();
+            origin.z += model->getAABBSize().z + 0.1;  // works as eye socket
+            auto diff_vec = glm::normalize(
+                (actor->mTransform.getPosition() + glm::vec3{0.0, 0.0, actor->getAABBSize().z / 4}) - origin);
+            physics::HitResult hit = physics::ShootRay(origin, diff_vec, 10.0f);
+
+            std::vector<glm::vec4> line;
+            line.push_back({origin, 0.0});
+            line.push_back({origin + (10.0f * diff_vec), 1.0});
+            debuglinegroup.updateLines(line);
+
+            if (hit.valid) {
+                JPH::BodyLockRead lock(physics::getPhysicsSystem()->GetBodyLockInterface(), hit.bodyId);
+                if (lock.Succeeded()) {
+                    // Retrieve your entity from userdata
+                    Model* entity = (Model*)lock.GetBody().GetUserData();
+                    // std::cout << "Succeeded but " << entity << std::endl;
+                    if (entity == nullptr) {
+                        return;
+                    }
+                    std::cout << "Hit result: " << hit.valid << entity->getName() << std::endl;
+                    if (actor == entity) {
+                        state = 1;  // chasing
+                    }
+                }
+            } else {
+                state = 0;
+            }
+
+            decideAnimation();
+            if (state == 1) {
+                diff_vec.z = 0;
+                model->moveBy(glm::normalize(diff_vec) * 0.01f);
+            }
+        }
+};
+
+ZombieBehaviour zombiebehaviour{"zombie"};
+
+struct Ak47Behaviour : public WeaponBehaviour {
+        Ak47Behaviour(std::string name) : WeaponBehaviour(name) {
+            maxPickDistance = 2.5;  // all weapon should be pickable at this range
+            inactiveSocket = new BoneSocket{nullptr,
+                                            "DEF-neck",
+                                            {-0.1, -0.2, -0.1},
+                                            {0.002, 0.002, 0.002},
+                                            glm::quat({1.919862151145935, 0.08726654201745987, 2.268928050994873}),
+                                            AnchorType::Bone};
+
+            activeSocket = new BoneSocket{nullptr,
+                                          "DEF-handR",
+                                          {-0.01, 0.22, -0.12},
+                                          {0.002, 0.002, 0.002},
+                                          glm::quat(glm::radians(glm::vec3{0.0, -5.0, -91.417})),
+                                          AnchorType::Bone};
+        }
+
+        void onFirePrimary(Model* model, const glm::vec3& characterFront) override {
+            auto [w, h] = PawnBehaviour::app->getWindowSize();
+            auto [origin, ray] = PawnBehaviour::app->getCamera().getLookingRay(w, h, {w / 2, h / 2});
+            auto hit = physics::ShootRay(origin, ray, 10.0f);
+            if (hit.valid) {
+                JPH::BodyLockRead lock(physics::getPhysicsSystem()->GetBodyLockInterface(), hit.bodyId);
+                if (lock.Succeeded()) {
+                    // Retrieve your entity from userdata
+                    Model* entity = (Model*)lock.GetBody().GetUserData();
+                    if (entity == nullptr) return;
+                    // std::cout << "Hit result: " << hit.valid << entity->getName() << std::endl;
+                    if (entity && entity->getName() == "zombie") {
+                        ZombieBehaviour* zombie = static_cast<ZombieBehaviour*>(entity->mBehaviour);
+                        zombie->TakeDamage();
+                    }
+                }
+            }
+        }
+
+        void onEquip(Model* weapon, Model* target) override {
+            activeSocket->model = target;
+            weapon->mSocket = activeSocket;
+            if (weapon->mPhysicComponent != nullptr) {
+                physics::getBodyInterface().RemoveBody(weapon->mPhysicComponent->bodyId);
+                delete weapon->mPhysicComponent;
+                weapon->mPhysicComponent = nullptr;
+            }
+        }
+};
+
+Ak47Behaviour ak47behaviour{"ak47"};
 
 struct TorchBehaviour : public WeaponBehaviour {
         ParticleSystem* particleSystem = nullptr;
@@ -400,7 +523,7 @@ struct TorchBehaviour : public WeaponBehaviour {
 
             torchlight = app->mLightManager->createPointLight(
                 glm::vec4{0.0, 0.0, 0.0, 1.0}, glm::vec4{1.0, 0.0, 0.0, 1.0}, glm::vec4{1.0, 0.0, 0.0, 1.0},
-                glm::vec4{1.0, 0.0, 0.0, 1.0}, 1.0, -1.0, 1.8, "");
+                glm::vec4{1.0, 0.0, 0.0, 1.0}, 1.0, -1.0, 1.8, 1.0, "torch light");
         }
 };
 TorchBehaviour torchbehaviour{"torch"};
@@ -426,6 +549,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
         glm::vec3 up;     // Up vector (typically {0, 1, 0} for world up)
         glm::vec3 targetDistance;
         glm::vec3 targetOffset;
+        float roll;     // Horizontal rotation angle (degrees)
         float yaw;      // Horizontal rotation angle (degrees)
         float speed;    // Movement speed (units per second)
         bool isMoving;  // Track movement state for animation
@@ -440,9 +564,11 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
         float groundLevel = -3.262;
         glm::vec3 velocity{0.0};
         Model* weapon;
+        Model* objectToGrab = nullptr;
         std::string attackAction;
         std::string idleAction;
         JPH::CharacterVirtual* physicalCharacter;
+        std::vector<Model*> inventory{};
 
         HumanInputHandler(std::string name)
             : name(name),
@@ -450,6 +576,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
               up(0.0f, 0.0f, -1.0f),    // Up after 90-degree X rotation
               targetDistance(0.3),
               targetOffset(0.0, 0.0, 0.2),
+              roll(0.0f),
               yaw(90.0f),
               speed(20.0f),
               isMoving(false),
@@ -485,6 +612,13 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
 
             // Update yaw based on mouse X movement
             yaw -= diffX * sensitivity;
+            roll -= diffY * sensitivity;
+            if (roll > 70) {
+                roll = 70;
+            }
+            if (roll < -70) {
+                roll = -70;
+            }
 
             glm::vec3 baseFront(0.0f, -1.0f, 0.0f);  // Model's forward after initial X rotation
 
@@ -499,15 +633,15 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             // initial X rotation
 
             // 1. +90° rotation around X (converts Y-up → Z-up orientation)
-            JPH::Quat rot90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
+            // JPH::Quat rot90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(0.0f));
 
             // 2. Yaw rotation around world Y (Jolt's up axis)
             JPH::Quat yawQuat = JPH::Quat::sRotation(JPH::Vec3::sAxisY(), JPH::DegreesToRadians(-yaw));
-            JPH::Quat finalRot = yawQuat * rot90X;
+            JPH::Quat finalRot = yawQuat;  // * rot90X;
 
-            auto y = finalRot.GetY();
-            finalRot.SetY(finalRot.GetZ());
-            finalRot.SetZ(-y);
+            // auto y = finalRot.GetY();
+            // finalRot.SetY(finalRot.GetZ());
+            // finalRot.SetZ(-y);
 
             physicalCharacter->SetRotation(finalRot);
         }
@@ -544,6 +678,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                 isShooting = true;
             }
         }
+
         void handleMouseScroll(BaseModel* model, MouseEvent event) override {
             auto scroll = std::get<Scroll>(event);
             cameraOffset += scroll.yOffset < 0 ? 0.1 : -0.1;
@@ -551,8 +686,51 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
         }
 
         void handleAttachedCamera(BaseModel* model, Camera* camera) override {
+            static LineGroup debuglinegroup =
+                PawnBehaviour::app->mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.5, 0.5, 0.0})
+                    .updateVisibility(true);
+            auto [w, h] = PawnBehaviour::app->getWindowSize();
+            auto [origin, ray] = PawnBehaviour::app->getCamera().getLookingRay(w, h, {w / 2, h / 2});
+            std::vector<glm::vec4> line;
+            line.push_back({origin, 0.0});
+            line.push_back({origin + (10.0f * glm::normalize(ray)), 1.0});
+            debuglinegroup.updateLines(line);
+            {
+                auto hit = physics::ShootRay(origin, ray, 10.0f);
+                if (hit.valid) {
+                    JPH::BodyLockRead lock(physics::getPhysicsSystem()->GetBodyLockInterface(), hit.bodyId);
+                    if (lock.Succeeded()) {
+                        // Retrieve your entity from userdata
+                        Model* entity = (Model*)lock.GetBody().GetUserData();
+
+                        // if (entity != nullptr) {
+                        // std::cout << entity->getName() << std::endl;
+                        // }
+                        if (entity != nullptr && objectToGrab != entity && entity->mBehaviour != nullptr &&
+                            entity->mBehaviour->maxPickDistance > 0.0) {
+                            auto pawn_to_object =
+                                glm::length(entity->mTransform.getPosition() - model->mTransform.getPosition());
+                            std::cout << pawn_to_object << std::endl;
+                            if (pawn_to_object < entity->mBehaviour->maxPickDistance) {
+                                std::cout << entity->getName() << " Is pickable " << std::endl;
+                                objectToGrab = entity;
+                            }
+                            // if (entity && entity->type == EntityType::Zombie) {
+                            //     Zombie* zombie = static_cast<Zombie*>(entity);
+                            //     zombie->TakeDamage(weaponDamage, hit.point, hit.normal);
+                            // }
+                            debuglinegroup.updateColor({0.5, 0.5, 0.0});
+                        } else {
+                            objectToGrab = nullptr;
+                        }
+                    }
+                } else {
+                    debuglinegroup.updateColor({1.0, 1.0, 1.0});
+                    objectToGrab = nullptr;
+                }
+            }
+
             auto forward = getForward();
-            std::cout << glm::to_string(forward) << std::endl;
 
             auto [min, max] = model->getWorldSpaceAABB();
 
@@ -562,9 +740,15 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             glm::vec3 camera_offset = offset_dir * targetDistance + (-targetOffset);
 
             // Compute the camera position by subtracting the offset from the actor's position
-            glm::vec3 cam_pos = model->mTransform.getPosition() - camera_offset + glm::vec3{0.0, 0.0, (max.z - min.z)};
+            // glm::vec3 cam_pos = model->mTransform.getPosition() - camera_offset + glm::vec3{0.0, 0.0, (max.z
+            // - min.z)};
 
             if (model->mBehaviour) {
+                auto roll_factor_z = -glm::sin(glm::radians(roll)) * 3.0f;
+                auto cp = model->mTransform.getPosition() - camera_offset +
+                          glm::vec3{0.0, 0.0, (max.z - min.z) + roll_factor_z};
+
+                glm::vec3 cam_pos = cp;
                 camera->mCameraUp = glm::vec3{0, 0, 1};
                 // Set the camera position
                 camera->setPosition(cam_pos);
@@ -587,21 +771,37 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                 state = Falling;
             }
 
+            if (InputManager::keys[GLFW_KEY_E] && objectToGrab != nullptr) {
+                std::cout << " >> You Grabbed object " << objectToGrab->getName() << std::endl;
+                static_cast<WeaponBehaviour*>(objectToGrab->mBehaviour)
+                    ->onUnequip(objectToGrab, static_cast<Model*>(model));
+                inventory.push_back(objectToGrab);
+            }
             if (InputManager::keys[GLFW_KEY_1]) {
-                for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-                    if (m->mName == "pistol") {
-                        if (weapon != nullptr)
-                            static_cast<WeaponBehaviour*>(weapon->mBehaviour)
-                                ->onUnequip(weapon, static_cast<Model*>(model));
-                        weapon = m;
-                        idleAction = "Pistol_Idle_Loop";
-                        attackAction = "Pistol_Shoot";
-
-                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon, static_cast<Model*>(model));
-
+                // for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+                // if (m->mName == "pistol") {
+                if (inventory.size() > 0) {
+                    if (weapon != nullptr && inventory[0] == weapon) {
                         return;
                     }
+                    if (weapon != nullptr)
+                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)
+                            ->onUnequip(weapon, static_cast<Model*>(model));
+                    weapon = inventory[0];
+                    if (weapon->getName() == "ak47") {
+                        idleAction = "ak47_Aim_Loop";
+                        attackAction = "ak47-fire";
+                    } else {
+                        idleAction = "Pistol_Idle_Loop";
+                        attackAction = "Pistol_Shoot";
+                    }
+
+                    static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon, static_cast<Model*>(model));
                 }
+                //
+                //     return;
+                // }
+                // }
             }
             if (InputManager::keys[GLFW_KEY_2]) {
                 for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
@@ -655,6 +855,55 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
         glm::vec3 processInput() {
             glm::vec3 moveDir(0.0f);  // Movement direction relative to front vector
             bool noKey = true;
+            bool is_left_shift_down = InputManager::isKeyDown(GLFW_KEY_LEFT_SHIFT);
+            bool left_ctrl_down = InputManager::isKeyDown(GLFW_KEY_LEFT_CONTROL);
+
+            if (InputManager::isKeyDown(GLFW_KEY_W)) {
+                if (is_left_shift_down) {
+                    state = Running;
+                } else if (left_ctrl_down) {
+                    state = Crouch;
+                } else if (state != Jumping) {
+                    state = Walking;
+                }
+                moveDir += front;
+                noKey = false;
+            }
+            if (InputManager::isKeyDown(GLFW_KEY_S)) {
+                if (is_left_shift_down) {
+                    state = Running;
+                } else if (left_ctrl_down) {
+                    state = Crouch;
+                } else if (state != Jumping) {
+                    state = Walking;
+                }
+                moveDir -= front;
+                noKey = false;
+            }
+            if (InputManager::isKeyDown(GLFW_KEY_A)) {
+                if (is_left_shift_down) {
+                    state = Running;
+                } else if (left_ctrl_down) {
+                    state = Crouch;
+                } else if (state != Jumping) {
+                    state = Walking;
+                }
+                moveDir += glm::normalize(glm::cross(front, up));
+                noKey = false;
+            }
+
+            if (InputManager::isKeyDown(GLFW_KEY_D)) {
+                if (is_left_shift_down) {
+                    state = Running;
+                } else if (left_ctrl_down) {
+                    state = Crouch;
+                } else if (state != Jumping) {
+                    state = Walking;
+                }
+                moveDir -= glm::normalize(glm::cross(front, up));
+                noKey = false;
+            }
+
             if (InputManager::isKeyDown(GLFW_KEY_SPACE) && state != Jumping) {
                 if (weapon != nullptr && weapon->getName() == "jp") {
                 } else {
@@ -664,29 +913,6 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                 }
             }
 
-            if (InputManager::isKeyDown(GLFW_KEY_W)) {
-                if (state != Jumping) {
-                    state = Running;
-                }
-                moveDir += front;
-                noKey = false;
-            }
-            if (InputManager::isKeyDown(GLFW_KEY_S)) {
-                state = Running;
-                moveDir -= front;
-                noKey = false;
-            }
-            if (InputManager::isKeyDown(GLFW_KEY_A)) {
-                state = Running;
-                moveDir += glm::normalize(glm::cross(front, up));
-                noKey = false;
-            }
-
-            if (InputManager::isKeyDown(GLFW_KEY_D)) {
-                state = Running;
-                moveDir -= glm::normalize(glm::cross(front, up));
-                noKey = false;
-            }
             if (noKey) {
                 state = Idle;
             }
@@ -699,6 +925,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             std::string clip_name;
             bool loop;
             model->getAnimation()->isEnded();
+
             if (isAiming) {
                 if (isShooting && weapon != nullptr) {
                     if (!model->getAnimation()->isEnded()) {
@@ -721,10 +948,23 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                         loop = true;
                         break;
                     }
+                    case Walking: {
+                        if (!isInJump) {
+                            clip_name = "Walk_Loop";
+                            loop = true;
+                        }
+                        break;
+                    }
                     case Running: {
                         if (!isInJump) {
-                            // clip_name = "Jog_Fwd_Loop";
-                            clip_name = "Walk_Loop";
+                            clip_name = "Sprint_Loop";
+                            loop = true;
+                        }
+                        break;
+                    }
+                    case Crouch: {
+                        if (!isInJump) {
+                            clip_name = "Crouch_Fwd_Loop";
                             loop = true;
                         }
                         break;
@@ -753,7 +993,14 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
 
             decideCurrentAnimation(static_cast<Model*>(model), dt);
 
-            auto move_amount = movement * speed * dt;
+            auto current_speed = speed;
+            if (state == Running) {
+                current_speed = 2.5 * speed;
+            } else if (state == Crouch) {
+                current_speed = 0.75 * speed;
+            }
+
+            auto move_amount = movement * current_speed * dt;
 
             JPH::Vec3 current_vel = physicalCharacter->GetLinearVelocity();
             JPH::Vec3 jolt_movement = {move_amount.x, current_vel.GetY(), move_amount.y};
@@ -763,7 +1010,11 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             if (physicalCharacter->GetGroundState() == JPH::CharacterVirtual::EGroundState::OnGround) {
                 isInJump = false;
                 if (state == Jumping) {
-                    jolt_movement.SetY(3.0);
+                    if (state == Running) {
+                        jolt_movement.SetY(4.0);
+                    } else {
+                        jolt_movement.SetY(3.0);
+                    }
                     isInJump = true;
                 } else {
                     jolt_movement.SetY(std::max(0.0f, jolt_movement.GetY()));
@@ -790,7 +1041,13 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
 
             JPH::RVec3 new_position = physicalCharacter->GetPosition();
             JPH::Quat new_rotation = physicalCharacter->GetRotation();
+            new_position.SetY(new_position.GetY() - model->getAABBSize().z / 4);
             model->moveTo({new_position.GetX(), new_position.GetZ(), new_position.GetY()});
+
+            auto y = new_rotation.GetY();
+            new_rotation.SetY(new_rotation.GetZ());
+            // negative sing is CRITICAL to sync the physical world with the renderer world
+            new_rotation.SetZ(-y);
 
             glm::quat desired_rotation;
             desired_rotation.x = new_rotation.GetX();
@@ -815,8 +1072,11 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
         glm::vec3 getForward() override { return glm::normalize(glm::cross(front, up)); }
 
         void onLoad(Model* model) override {
-            std::cout << "Character Human just created\n";
-            physicalCharacter = physics::createCharacter(physics::createCapsuleShape(0.3f, 0.05f), {22, 3, 12});
+            std::cout << "Character Human just created\n" << model->getName() << std::endl;
+            // physicalCharacter = physics::createCharacter(physics::createCapsuleShape(0.3f, 0.05f), {22, 3,
+            // 12});
+            physicalCharacter = physics::createCharacter(physics::createCapsuleShape(0.4f, 0.130f), {0.0, 0.0, 2},
+                                                         reinterpret_cast<JPH::uint64>(model));
 
             static auto listener = new MyCharacterContactListener{};
             listener->character = static_cast<Model*>(model);

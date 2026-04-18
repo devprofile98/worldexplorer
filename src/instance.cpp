@@ -28,11 +28,13 @@ size_t InstanceManager::getNewId() {
 }
 
 Instance::Instance(std::vector<glm::vec3> positions, std::vector<glm::vec3> rotation, std::vector<glm::vec3> scales,
-                   const glm::vec4&& minAABB, const glm::vec4&& maxAABB) {
+                   std::vector<bool> hasPhysics, const glm::vec4&& minAABB, const glm::vec4&& maxAABB) {
     for (size_t i = 0; i < positions.size(); i++) {
         mPositions.push_back(positions[i]);
         mScale.push_back(scales[i]);
         mRotation.push_back(rotation[i]);
+        mHasPhysic.push_back(hasPhysics[i]);
+        mPhysicsComponents.push_back(nullptr);
         auto trans = glm::translate(glm::mat4{1.0f}, positions[i]);
         auto rotate = glm::toMat4(glm::normalize(glm::quat(glm::radians(rotation[i]))));
         auto scale = glm::scale(glm::mat4{1.0f}, scales[i]);
@@ -41,11 +43,12 @@ Instance::Instance(std::vector<glm::vec3> positions, std::vector<glm::vec3> rota
     }
 }
 
-uint16_t Instance::duplicateLastInstance(const glm::vec3& posOffset, const glm::vec3& min, const glm::vec3& max) {
+uint16_t Instance::duplicateLastInstance(const Transform& originalTransform, const glm::vec3& posOffset,
+                                         const glm::vec3& min, const glm::vec3& max) {
     size_t new_idx = mPositions.size();
-    auto new_pos = new_idx == 0 ? glm::vec3{0.0} : mPositions.back() + posOffset;
-    auto new_scale = new_idx == 0 ? glm::vec3{1.0} : mScale.back();
-    auto new_rotate = new_idx == 0 ? glm::vec3{0.0} : mRotation.back();
+    auto new_pos = new_idx == 0 ? originalTransform.mPosition : mPositions.back() + posOffset;
+    auto new_scale = new_idx == 0 ? originalTransform.mScale : mScale.back();
+    auto new_rotate = new_idx == 0 ? originalTransform.mEulerRotation : mRotation.back();
 
     mPositions.push_back(new_pos);
     mScale.push_back(new_scale);
@@ -87,7 +90,7 @@ Transformable& SingleInstance::moveTo(const glm::vec3& to) {
     ins_pos = to;
 
     glm::mat4 trans = glm::translate(glm::mat4{1.0}, instance->mPositions[idx]);
-    auto r = glm::toMat4(glm::quat(glm::degrees(instance->mRotation[idx])));
+    auto r = glm::toMat4(glm::quat(glm::radians(instance->mRotation[idx])));
     auto s = glm::scale(glm::mat4{1.0}, instance->mScale[idx]);
     auto t = trans * r * s;
 
@@ -106,7 +109,7 @@ Transformable& SingleInstance::rotate(const glm::vec3& to) {
     ins_rot = to;
 
     glm::mat4 trans = glm::translate(glm::mat4{1.0}, instance->mPositions[idx]);
-    auto r = glm::toMat4(glm::quat(glm::degrees(instance->mRotation[idx])));
+    auto r = glm::toMat4(glm::quat(glm::radians(instance->mRotation[idx])));
     auto s = glm::scale(glm::mat4{1.0}, instance->mScale[idx]);
 
     auto t = trans * r * s;

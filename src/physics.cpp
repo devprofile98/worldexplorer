@@ -153,12 +153,14 @@ static PhysicsSystem physicsSystem;
 static BodyID boxBodyID;
 
 JPH::Vec3 toJolt(const glm::vec3 vec) { return {vec.x, vec.z, vec.y}; }
+
 JPH::Quat toJolt(const glm::quat& rot) {
     auto qu = glm::normalize(rot);
     qu.z *= -1;
     qu = glm::normalize(qu);
     return {qu.x, qu.z, qu.y, qu.w};
 }
+
 glm::vec3 toGLM(const JPH::Vec3& vec) { return {vec.GetX(), vec.GetZ(), vec.GetY()}; }
 
 HitResult ShootRay(glm::vec3 origin, glm::vec3 direction, float maxDistance) {
@@ -219,7 +221,7 @@ HitResult ShootRay2(glm::vec3 origin, glm::vec3 direction, float maxDistance) {
 PhysicsSystem* getPhysicsSystem() { return &physicsSystem; }
 JPH::CapsuleShape* createCapsuleShape(float halfHeight, float radius) { return new CapsuleShape(halfHeight, radius); }
 
-CharacterVirtual* createCharacter(Ref<Shape> shape, const glm::vec3& initialPosition) {
+CharacterVirtual* createCharacter(Ref<Shape> shape, const glm::vec3& initialPosition, uint64 userData) {
     Ref<CharacterVirtualSettings> settings = new CharacterVirtualSettings();
 
     // Shape: usually a capsule or cylinder
@@ -232,12 +234,12 @@ CharacterVirtual* createCharacter(Ref<Shape> shape, const glm::vec3& initialPosi
     settings->mPenetrationRecoverySpeed = 1.0f;
     settings->mPredictiveContactDistance = 0.1f;
 
-    JPH::Quat rotate90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(0.0f));
+    // JPH::Quat rotate90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(0.0f));
     // Create the character
     auto* character = new CharacterVirtual(
         settings, {initialPosition.x, initialPosition.z, initialPosition.y},  // RVec3(22, 12, 3),  // initial position
-        rotate90X,                                                            // initial rotation
-        0,                                                                    // user data (optional)
+        Quat::sIdentity(),                                                    // initial rotation
+        userData,                                                             // user data (optional)
         &physicsSystem);
 
     return character;
@@ -303,6 +305,15 @@ glm::vec3 syncPhysicsFromRender(Transform& render, PhysicsComponent* physic) {
     return com_pos;
 }
 
+glm::vec3 syncPhysicsFromRender(const glm::vec3& position, const glm::quat& orientation, PhysicsComponent* physic) {
+    glm::vec3 com_pos = position + orientation * physic->localOffset;
+
+    BodyInterface& bi = physicsSystem.GetBodyInterface();
+    bi.SetPositionAndRotation(physic->bodyId, RVec3(com_pos.x, com_pos.z, com_pos.y), toJolt(orientation),
+                              EActivation::Activate);
+    return com_pos;
+}
+
 PhysicsComponent* CreatePhysicsBox(const glm::vec3& localoffset, const glm::vec3& model_half_extents,
                                    glm::vec3& world_bottom_position, void* userData) {
     // auto local_pivot_offset = localoffset;glm::vec3{0.0f, 0.0, model_half_extents.z};
@@ -324,6 +335,30 @@ PhysicsComponent* CreatePhysicsBox(const glm::vec3& localoffset, const glm::vec3
     bi.AddBody(body->GetID(), EActivation::Activate);
     PhysicsComponent* comp = new PhysicsComponent{body->GetID()};
     comp->localOffset = local_pivot_offset;
+    return comp;
+}
+
+// PhysicsComponent* CreatePhysicsCapsule(const glm::vec3& localoffset, const glm::vec3& model_half_extents,
+//                                        glm::vec3& world_bottom_position, void* userData) {
+PhysicsComponent* CreatePhysicsCapsule(const glm::vec3& center, float halfHeight, float radius, void* userData) {
+    // auto local_pivot_offset = localoffset;glm::vec3{0.0f, 0.0, model_half_extents.z};
+    // auto local_pivot_offset = localoffset;
+    // auto local_pivot_offset = model_half_extents - world_bottom_position;  // glm::vec3{0.0f, model_half_extents.y,
+    // 0.0};
+
+    Ref<Shape> shape = createCapsuleShape(halfHeight, radius);
+
+    // Put the body's COM at the correct world position.
+    // Vec3 body_com_pos = toJolt(world_bottom_position + local_pivot_offset);
+
+    BodyCreationSettings settings(shape, toJolt(center), Quat::sIdentity(), EMotionType::Static, Layers::NON_MOVING);
+    settings.mUserData = reinterpret_cast<uint64_t>(userData);
+
+    BodyInterface& bi = physicsSystem.GetBodyInterface();
+    Body* body = bi.CreateBody(settings);
+    bi.AddBody(body->GetID(), EActivation::Activate);
+    PhysicsComponent* comp = new PhysicsComponent{body->GetID()};
+    // comp->localOffset = local_pivot_offset;
     return comp;
 }
 
@@ -366,7 +401,7 @@ std::pair<glm::vec3, glm::quat> getPositionAndRotationyId(BodyID id) {
     glm_rot.y = rotation.GetY();
     glm_rot.z = rotation.GetZ();
     glm_rot.w = rotation.GetW();
-    return {glm::vec3{position.GetX(), position.GetZ(), position.GetY()}, glm_rot};
+    return {toGLM(position), glm_rot};
 }
 
 void setRotation(BodyID id, const glm::quat& rot) {
@@ -379,7 +414,7 @@ void setRotation(BodyID id, const glm::quat& rot) {
 
 void setPosition(BodyID id, const glm::vec3& pos) {
     auto& interface = physics::getBodyInterface();
-    interface.SetPosition(id, {pos.x, pos.z, pos.y}, EActivation::Activate);
+    interface.SetPosition(id, toJolt(pos), EActivation::Activate);
 }
 
 void JoltLoop(float dt) { physicsSystem.Update(dt, 1, temp_allocator, job_system); }

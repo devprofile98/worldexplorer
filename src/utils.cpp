@@ -1051,7 +1051,7 @@ PerfTimer::~PerfTimer() {
 
 void DebugBox::create(LineEngine* lineEngine, const glm::mat4& transformation, const glm::vec3& color) {
     mLineEngine = lineEngine;
-    auto box = generateBox();
+    auto box = generateBox(glm::vec3{0.0f}, glm::vec3{0.5f});
     // debugLinesId = lineEngine->addLines(box, transformation, color);
     debuglines = new LineGroup{};
     *debuglines = lineEngine->create(box, transformation, color);

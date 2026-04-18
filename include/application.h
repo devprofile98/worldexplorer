@@ -36,6 +36,7 @@ template <typename K, typename V>
 class Registry;  // Forward declaration
 template <typename W>
 class Window;
+class HDRPipeline;
 struct RendererResource;
 struct Editor;
 
@@ -128,6 +129,7 @@ class Application {
         LightingUniforms mLightingUniforms;
         LightManager* mLightManager;
         Pipeline* mPipeline;
+        Pipeline* mHDRPipeline;
         Pipeline* mStenctilEnabledPipeline;
 
         ShadowPass* mShadowPass;
@@ -137,6 +139,7 @@ class Application {
         TerrainPass* mTerrainPass;
         OutlinePass* mOutlinePass;
         ViewPort3DPass* m3DviewportPass;
+        HDRPipeline* mHDRpp = nullptr;
 
         WaterPass* mWaterRenderPass;
         WGPUSampler mDefaultSampler;
@@ -164,6 +167,7 @@ class Application {
         WGPUTextureView mDepthTextureView;
         WGPUTextureView mDepthTextureViewDepthOnly;
         Texture* mDepthTexture;
+        Texture* mHDRTexture = nullptr;
 
         WGPURenderPipelineDescriptor mPipelineDescriptor;
         World* mWorld;
@@ -171,6 +175,7 @@ class Application {
 
     private:
         bool initDepthBuffer();
+        bool createHDRTexture();
         std::filesystem::path mCWDPath;
         std::filesystem::path mBinaryPath;
         std::string mSceneFilePath;

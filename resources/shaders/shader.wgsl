@@ -39,7 +39,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     var transform: mat4x4f;
 
     if instance_index != 0 {
-        let original_instance_idx = visible_instances_indices[off_id + instance_index];
+        //let original_instance_idx = visible_instances_indices[off_id + instance_index];
         transform = offsetInstance[instance_index + off_id].transformation * meshTransformation.global[meshIdx];
     } else {
         transform = objectTranformation.transformations * meshTransformation.global[meshIdx];
@@ -136,7 +136,7 @@ fn calculateSpotLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo:
     let theta = dot(L, normalize(-light.direction.xyz));
     let epsilon = light.cutOff - light.outerCutOff;
     let intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
-    let radiance = light.ambient.rgb * attenuation * intensity;
+    let radiance = light.ambient.rgb * attenuation * intensity * light.intensity;
     let NDF = distributionGGX(N, H, roughness);
     let G = geometrySmith(N, V, L, roughness);
     let F = fresnelSchlick(max(dot(H, V), 0.0), F0);
@@ -161,7 +161,7 @@ fn calculatePointLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo
     let L = normalize(diff);
     let H = normalize(V + L);
     let attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
-    let radiance = light.ambient.rgb * attenuation;
+    let radiance = light.ambient.rgb * attenuation * light.intensity;
 
     let NDF = distributionGGX(N, H, roughness);
     let G = geometrySmith(N, V, L, roughness);
@@ -220,6 +220,15 @@ fn geometrySmith(N: vec3f, V: vec3f, L: vec3f, roughness: f32) -> f32 {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+
+    var cascadeIndex: u32 = numOfCascades - 1u;
+    for (var i: u32 = 0u; i < numOfCascades; i++) {
+        if abs(in.viewSpacePos.z) < lightSpaceTrans[i].farZ {
+            cascadeIndex = i;
+            break;
+        }
+    }
+    var shadowPos = lightSpaceTrans[cascadeIndex].projection * lightSpaceTrans[cascadeIndex].view * vec4f(in.worldPos, 1.0);
 
     let uv = in.uv * meshMaterial.uvMultiplier.xy;
     let d = dot(in.worldPos, clipping_plane.xyz) + clipping_plane.w;
@@ -293,7 +302,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         }
     }
 
-    let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
+    //let shadow = calculateShadow(in.shadowPos, length(in.viewSpacePos), in.shadowIdx);
+    let shadow = calculateShadow(shadowPos, length(in.viewSpacePos), cascadeIndex);
 
     ////////////// Calculations for sun light 
         {
@@ -325,11 +335,23 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     var color = ambient + lo;
 
-	// HDR tonemapping
-    color = color / (color + vec3f(1.0));
-	// gamma correct
-    //color = pow(color, vec3(1.2));
+    if meshMaterial.isFlat == 1u {
+        color = vec3f(100.0, 100.0, 100.0);
+    }
 
+	// HDR tonemapping
+    if uMyUniform[myuniformindex].flag1 > 0 {
+        //color = color / (color + vec3f(1.0));
+	   // gamma correct
+       // color = pow(color, vec3(1.2));
+    }
+
+
+    //if cascadeIndex == 0u {
+    //    color = color * vec3f(1.0, 0.0, 0.0);
+    //} else if cascadeIndex == 1u {
+    //    color = color * vec3f(0.0, 0.0, 1.0);
+    //}
 
     return vec4f(color, 1.0);
     //return vec4f(lo, 1.0);

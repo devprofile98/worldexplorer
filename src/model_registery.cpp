@@ -80,6 +80,7 @@ void ModelRegistry::tick(Application* app) {
                 model.model->mBehaviour = pawnBehaviourMap[model.model->mName];
                 model.model->mBehaviour->app = app;
                 model.model->mBehaviour->onLoad(model.model);
+                model.model->mBehaviour->model = model.model;
             }
             it = futures.erase(it);
         } else {

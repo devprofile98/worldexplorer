@@ -204,6 +204,12 @@
       "name": "ak47-round",
       "normal_map": null,
       "specular_map": null
+    },
+    {
+      "diffuse_map": "/home/ahmad/Documents/project/cpp/wgputest/resources/zombie.png",
+      "name": "zombie skin",
+      "normal_map": null,
+      "specular_map": null
     }
   ],
   "objects": [
@@ -460,9 +466,10 @@
       ],
       "materials": [],
       "name": "human",
-      "path": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/model2.gltf",
+      "path2": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/model2.gltf",
+      "path": "/home/ahmad/Documents/3d/mine3.gltf",
       "physics": null,
-      "rotate": [90.0, -0.0, -7.808364391326904],
+      "rotate": [0.0, -0.0, -0.0],
       "scale": [0.5, 0.5, 0.5],
       "socket": null,
       "translate": [
@@ -1039,7 +1046,11 @@
       "materials": [],
       "name": "terrain",
       "path": "",
-      "physics": null,
+      "physics": {
+        "enabled": true,
+        "method": "mesh",
+        "type": "static"
+      },
       "rotate": [0.0, -0.0, 0.0],
       "scale": [1.0, 1.0, 1.0],
       "socket": null,
@@ -1091,7 +1102,11 @@
       "materials": [],
       "name": "tower",
       "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/tower.obj",
-      "physics": null,
+      "physics": {
+        "enabled": true,
+        "method": "mesh",
+        "type": "static"
+      },
       "rotate": [0.0, 0.0, 0.0],
       "scale": [0.8999999761581421, 0.8999999761581421, 0.8999999761581421],
       "socket": null,
@@ -1235,13 +1250,16 @@
       ],
       "materials": [
         {
-          "meshes[0]": ""
+          "Mesh_0": "zombie skin"
         }
       ],
       "name": "zombie",
-      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/zombie.glb",
-      "physics": null,
-      "rotate": [90.0, -0.0, 0.0],
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/zombie.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      },
+      "rotate": [0.0, -0.0, 0.0],
       "scale": [0.6000000238418579, 0.6000000238418579, 0.6000000238418579],
       "socket": null,
       "translate": [11.899999618530273, 20.299999237060547, -1.5],
@@ -1281,7 +1299,11 @@
       "materials": [],
       "name": "torch",
       "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/torch.gltf",
-      "physics": null,
+      "physics": {
+        "enabled": true,
+        "type": "kinematic",
+        "sensor": true
+      },
       "rotate": [2.849189043045044, -2.533364772796631, 57.16878890991211],
       "scale": [0.02999999187886715, 0.03000001050531864, 0.030000004917383194],
       "socket2": {

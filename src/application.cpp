@@ -18,10 +18,12 @@
 #include "animation.h"
 #include "binding_group.h"
 #include "camera.h"
+#include "full_quad_converter.h"
 #include "glm/detail/qualifier.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/gtx/quaternion.hpp"
 #include "glm/matrix.hpp"
+#include "hdr_pass.h"
 #include "mesh.h"
 #include "particle_system.h"
 #include "physics.h"
@@ -91,10 +93,14 @@ bool flip_x = false;
 bool flip_y = false;
 bool flip_z = false;
 
-float middle_plane_length = 15.0f;
+float middle_plane_length = 70.0f;
 float far_plane_length = 20.5f;
 bool should_update_csm = true;
 bool render_shadow = true;
+
+FullQuadConverter* fqconverter;
+Texture* shadow_converterd;
+WGPUSampler shadow_sampler;
 
 }  // namespace
 
@@ -189,6 +195,7 @@ WGPULimits GetRequiredLimits(WGPUAdapter adapter);
 bool initSwapChain(RendererResource& resources, uint32_t width, uint32_t height);
 
 static LineGroup debuglinegroup;
+static LineGroup instancedebuglinegroup;
 static LineGroup spheredebuglines;
 static LineGroup capsuledebuglines;
 static LineGroup aabbDebugLines;
@@ -231,9 +238,10 @@ void Application::initializePipeline() {
     // Creating default normal-map texture
     mDefaultNormalMap = new Texture{mRendererResource->device, 1, 1, TextureDimension::TEX_2D};
     WGPUTextureView default_normal_map_view = mDefaultNormalMap->createView();
-    texture_data = {0, 255, 0, 255};
+    texture_data = {220, 220, 220, 255};
     mDefaultNormalMap->setBufferData(texture_data);
     mDefaultNormalMap->uploadToGPU(mRendererResource->queue);
+    mTextureRegistery->addToRegistery("default normal", std::shared_ptr<Texture>(mDefaultNormalMap));
 
     auto& resource = getRendererResource();
     // Initializing Default bindgroups
@@ -308,8 +316,20 @@ void Application::initializePipeline() {
     mPipeline->defaultConfiguration(resource, mSurfaceFormat, WGPUTextureFormat_Depth24Plus,
                                     (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str());
     setDefaultActiveStencil(mPipeline->getDepthStencilState());
+    mPipeline->setColorTargetState(WGPUTextureFormat_RGBA16Float);
     mPipeline->setDepthStencilState(mPipeline->getDepthStencilState());
     mPipeline->createPipeline(resource);
+
+    mHDRPipeline = new Pipeline{this,
+                                {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
+                                 mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
+                                "standard hdr pipeline"};
+    mHDRPipeline->defaultConfiguration(resource, mSurfaceFormat, WGPUTextureFormat_Depth24Plus,
+                                       (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str());
+    setDefaultActiveStencil(mPipeline->getDepthStencilState());
+    // mPipeline->setColorTargetState(WGPUTextureFormat_RGBA16Float);
+    mHDRPipeline->setDepthStencilState(mPipeline->getDepthStencilState());
+    mHDRPipeline->createPipeline(resource);
 
     mStenctilEnabledPipeline =
         new Pipeline{this,
@@ -388,9 +408,11 @@ void Application::initializePipeline() {
 
     mTerrainPass = new TerrainPass{this, "Terrain Render Pass"};
     mTerrainPass->create(mSurfaceFormat);
+    // mTerrainPass->create(WGPUTextureFormat_RGBA16Float);
 
     m3DviewportPass = new ViewPort3DPass{this, "ViewPort 3D Render Pass"};
 
+    createHDRTexture();
     initDepthBuffer();
 
     m3DviewportPass->create(mSurfaceFormat);
@@ -398,6 +420,7 @@ void Application::initializePipeline() {
     mOutlinePass = new OutlinePass{this, "Outline Render Pass"};
     mOutlinePass->create(mSurfaceFormat, mDepthTextureViewDepthOnly);
 
+    mHDRpp = new HDRPipeline{this, "hdr pipeline"};
     // mWaterRenderPass = new WaterPass{this, "Water pass"};
     // mWaterRenderPass->createRenderPass(WGPUTextureFormat_BGRA8UnormSrgb);
 
@@ -471,7 +494,7 @@ void Application::initializePipeline() {
     shadow_sampler_desc.lodMaxClamp = 8.0f;
     shadow_sampler_desc.compare = WGPUCompareFunction_Greater;
     shadow_sampler_desc.maxAnisotropy = 16;
-    WGPUSampler shadow_sampler = wgpuDeviceCreateSampler(this->getRendererResource().device, &shadow_sampler_desc);
+    shadow_sampler = wgpuDeviceCreateSampler(this->getRendererResource().device, &shadow_sampler_desc);
 
     mBindingData[8] = {};
     mBindingData[8].nextInChain = nullptr;
@@ -513,7 +536,7 @@ void Application::initializeBuffers() {
         .setMappedAtCraetion()
         .create(mRendererResource);
 
-    mUniforms.time = 1.0f;
+    mUniforms.time = 0;
     mUniforms.color = {0.0f, 1.0f, 0.4f, 1.0f};
     mUniformBuffer.queueWrite(0, &mUniforms, sizeof(CameraInfo));
 
@@ -576,10 +599,13 @@ void Application::onResize() {
 
     // Re-init
     initSwapChain(getRendererResource(), width, height);
+    createHDRTexture();
     initDepthBuffer();
 
     mOutlinePass->mTextureView = mDepthTexture->createViewDepthOnly();
     mOutlinePass->createSomeBinding();
+
+    mHDRpp->onResize();
 
     mCamera.update(mUniforms, width, height);
 }
@@ -723,11 +749,13 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     mLineEngine->initialize(this);
     // create and hide debug lines
     debuglinegroup = mLineEngine->create(generateBox(), glm::mat4{0.0}, {0.2, 0.0, 8.0}).updateVisibility(false);
+    instancedebuglinegroup =
+        mLineEngine->create(generateBox(), glm::mat4{0.0}, {0.2, 0.0, 8.0}).updateVisibility(false);
 
     spheredebuglines =
         mLineEngine->create(generateSphere(), glm::mat4{0.0}, glm::vec3{0.5, 0.5, 0.0}).updateVisibility(false);
 
-    capsuledebuglines = mLineEngine->create(generateCapsule(0.3, 0.3), glm::mat4{0.0}, glm::vec3{0.5, 0.5, 0.0})
+    capsuledebuglines = mLineEngine->create(generateCapsule(0.05f, 0.1f), glm::mat4{0.0}, glm::vec3{0.5, 0.5, 0.0})
                             .updateVisibility(false);
 
     aabbDebugLines = mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.8, 0.5, 0.0}).updateVisibility(false);
@@ -744,7 +772,19 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
 
     NFD_Init();
 
-    static nfdu8filteritem_t filters[2] = {{"Source code", "c,cpp,cc"}, {"Headers", "h,hpp"}};
+    // static nfdu8filteritem_t filters[2] = {{"Source code", "c,cpp,cc"}, {"Headers", "h,hpp"}};
+    fqconverter = new FullQuadConverter{};
+    fqconverter->initialize(this, mShadowPass->getTextureView(0, 1), shadow_sampler);
+
+    shadow_converterd = new Texture{getRendererResource().device,
+                                    256,
+                                    256,
+                                    TextureDimension::TEX_2D,
+                                    WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
+                                    WGPUTextureFormat_BGRA8Unorm,
+                                    1,
+                                    "shadow converted texture"};
+    shadow_converterd->createView();
 
     return true;
 }
@@ -773,23 +813,53 @@ void Application::mainLoop() {
         }
     }
 
+    {
+        // PerfTimer timer{"tick"};
+        std::unordered_map<Model*, bool> calculated_transformation;
+        for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
+            // First update model transformation based on their socket property. if they are socket to other models
+            model->updateSocketTransformation(calculated_transformation);
+
+            // Update heirarchy, if a model is child to another model
+            reinterpret_cast<BaseModel*>(model)->updateHirarchy();
+
+            // Update physics and other systems like animations
+            model->update(this, delta_time, runPhysics);
+        }
+    }
+
+    if (mSelectedModel != nullptr) {
+        auto [min, max] = mSelectedModel->getWorldSpaceAABB();
+        // std::cout << "ZZombie half extent and center are " << glm::to_string((max - min) * 0.5f) << "\n";
+        aabbDebugLines.updateLines(generateAABBLines(min, max));
+    }
+
     if (runPhysics) {
         physics::JoltLoop(delta_time);
     } else {
         for (const auto& model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
             if (model->mPhysicComponent != nullptr) {
-                if (model->getName() == "tree" || model->getName() == "zombie") {
-                    // std::cout << glm::to_string(
-                    physics::syncPhysicsFromRender(model->mTransform, model->mPhysicComponent);
-                    // )<< std::endl;
-                } else {
-                    physics::setRotation(model->mPhysicComponent->bodyId,
-                                         glm::normalize(model->mTransform.mOrientation));
-                    if (model->getName() == "tree") {
-                        std::cout << "pos is " << glm::to_string(model->mTransform.getPosition()) << "\n";
+                // if (model->getName() == "tree" || model->getName() == "zombie") {
+                physics::syncPhysicsFromRender(model->mTransform, model->mPhysicComponent);
+                // } else {
+                //     physics::setRotation(model->mPhysicComponent->bodyId,
+                //                          glm::normalize(model->mTransform.mOrientation));
+                //     physics::setPosition(model->mPhysicComponent->bodyId, model->mTransform.getPosition());
+                // }
+                if (model->instance != nullptr) {
+                    auto* ins = model->instance;
+                    for (size_t i = 0; i < ins->getInstanceCount(); ++i) {
+                        // if (model->getName() == "barrier") {
+                        //     std::cout << "Instance #" << i
+                        //               << " With rot: " << glm::to_string(glm::quat(glm::radians(ins->mRotation[i])))
+                        //               << " And pos:" << glm::to_string(ins->mPositions[i]) << std::endl;
+                        // }
+                        if (ins->mPhysicsComponents[i] != nullptr) {
+                            physics::syncPhysicsFromRender(ins->mPositions[i],
+                                                           glm::quat(glm::radians(ins->mRotation[i])),
+                                                           ins->mPhysicsComponents[i].get());
+                        }
                     }
-                    // auto [min, max] = model->getPhysicsAABB();
-                    physics::setPosition(model->mPhysicComponent->bodyId, model->mTransform.getPosition());
                 }
             }
         }
@@ -804,18 +874,44 @@ void Application::mainLoop() {
         if (selectedPhysicModel != nullptr) {
             auto* physic_model = selectedPhysicModel->mPhysicComponent;
             if (physic_model != nullptr) {
-                auto [min, max] = selectedPhysicModel->getPhysicsAABB();
-                auto half_extent = (max - min) * 0.5f;
-
                 if (physic_model->mDebugLines.has_value()) {
-                    auto [pos, rot] = physics::getPositionAndRotationyId(physic_model->bodyId);
+                    {
+                        auto [pos, rot] = physics::getPositionAndRotationyId(physic_model->bodyId);
 
-                    physic_model->mDebugLines.value()
-                        .updateTransformation(
-                            glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
-                            glm::scale(glm::mat4{1.0}, physic_model->mDebugLines.value().getScaleFatcor()))
-                        .updateVisibility(true);
+                        physic_model->mDebugLines
+                            .value()
+                            // .updateTransformation(
+                            //     glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
+                            //     glm::scale(glm::mat4{1.0}, physic_model->mDebugLines.value().getScaleFatcor()))
+                            .updateVisibility(true);
+                    }
+
+                    {
+                        if (selectedPhysicModel->instance != nullptr) {
+                            auto* ins = selectedPhysicModel->instance;
+                            for (size_t i = 0; i < ins->getInstanceCount(); ++i) {
+                                if (!ins->mHasPhysic[i]) {
+                                    continue;
+                                }
+                                auto [pos, rot] =
+                                    physics::getPositionAndRotationyId(ins->mPhysicsComponents[i]->bodyId);
+
+                                // std::cout << "Instance #" << i << " With rot: " << glm::to_string(rot)
+                                //           << " And pos:" << glm::to_string(pos) << std::endl;
+
+                                auto& debuglines = ins->mPhysicsComponents[i]->mDebugLines.value();
+
+                                debuglines
+                                    .updateTransformation(glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
+                                                          glm::scale(glm::mat4{1.0}, debuglines.getScaleFatcor()))
+                                    .updateVisibility(true);
+                            }
+                        }
+                    }
+
                 } else {
+                    auto [min, max] = selectedPhysicModel->getPhysicsAABB();
+                    auto half_extent = (max - min) * 0.5f;
                     auto [pos, rot] = physics::getPositionAndRotationyId(physic_model->bodyId);
                     debuglinegroup
                         .updateTransformation(glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
@@ -824,35 +920,6 @@ void Application::mainLoop() {
                 }
             }
         }
-    }
-
-    {
-        // PerfTimer timer{"tick"};
-        std::unordered_map<Model*, bool> calculated_transformation;
-        for (auto* model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            // First update model transformation based on their socket property. if they are socket to other models
-            model->updateSocketTransformation(calculated_transformation);
-
-            // Update heirarchy, if a model is child to another model
-            reinterpret_cast<BaseModel*>(model)->updateHirarchy();
-
-            // Update physics and other systems like animations
-            model->update(this, delta_time, runPhysics);
-
-            // if (model->getName() == "human") {
-            //     auto [min, max] = model->getWorldSpaceAABB();
-            //     auto center = (max.z - min.z) / 2.0f;
-            //     capsuledebuglines.updateTransformation(
-            //         glm::translate(glm::mat4{1.0}, model->mTransform.getPosition() + glm::vec3{0.0, 0.0, center}) *
-            //         glm::scale(glm::mat4{1.0}, glm::vec3{1.0, 1.0, 1.0}));
-            // }
-        }
-    }
-
-    if (mSelectedModel != nullptr) {
-        auto [min, max] = mSelectedModel->getWorldSpaceAABB();
-        // std::cout << "ZZombie half extent and center are " << glm::to_string((max - min) * 0.5f) << "\n";
-        aabbDebugLines.updateLines(generateAABBLines(min, max));
     }
 
     // create a commnad encoder
@@ -881,9 +948,10 @@ void Application::mainLoop() {
     if (render_shadow) {
         if (should_update_csm) {
             auto all_scenes = mShadowPass->createFrustumSplits(
-                corners, {{0.0, middle_plane_length},
-                          {middle_plane_length, middle_plane_length + far_plane_length},
-                          {middle_plane_length + far_plane_length, middle_plane_length + far_plane_length + 10}});
+                corners,
+                {{0.0, middle_plane_length},
+                 {middle_plane_length - 2.0f, middle_plane_length + far_plane_length},
+                 {middle_plane_length + far_plane_length - 2.0f, middle_plane_length + far_plane_length + 10}});
             // });
 
             uint32_t cascades_count = all_scenes.size();
@@ -947,7 +1015,8 @@ void Application::mainLoop() {
         render_pass_descriptor.nextInChain = nullptr;
 
         static WGPURenderPassColorAttachment color_attachment = {};
-        color_attachment.view = mCurrentTargetView;
+        // color_attachment.view = mCurrentTargetView;
+        color_attachment.view = mHDRTexture->getTextureView();
         color_attachment.resolveTarget = nullptr;
         color_attachment.loadOp = WGPULoadOp_Clear;
         color_attachment.storeOp = WGPUStoreOp_Store;
@@ -1028,6 +1097,7 @@ void Application::mainLoop() {
         });
 
         for (const auto& model : transparents) {
+            wgpuRenderPassEncoderSetPipeline(render_pass_encoder, model->getPipeline(this)->getPipeline());
             model->drawHirarchy(this, render_pass_encoder);
         }
     }
@@ -1035,13 +1105,7 @@ void Application::mainLoop() {
     wgpuRenderPassEncoderEnd(render_pass_encoder);
     wgpuRenderPassEncoderRelease(render_pass_encoder);
 
-    // for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_User)) {
-    // particleSystem->updateParticleSystem(t, dt, true);
-    // particleSystem->executePass();
-    // if (model->getName() == "coin") {
-    //     extern_position = model->mTransform.getPosition();
-    // }
-    // }
+    mHDRpp->executePass();
 
     // wgpuQuerySetRelease(querySet);
     // ---------------------------------------------------------------------
@@ -1053,11 +1117,6 @@ void Application::mainLoop() {
     }
 
     mParticleSystemsManager->run(delta_time);
-
-    // particle_system->updateParticleSystem(
-    //     mSelectedModel == nullptr ? glm::vec3{0.0f} : mSelectedModel->mTransform.getPosition(), delta_time,
-    //     simulate_particles);
-    // particle_system->executePass();
     // ---------------------------------------------------------------------
     // mWaterRenderPass->waterBlend();
     // ---------------------------------------------------------------------
@@ -1070,6 +1129,7 @@ void Application::mainLoop() {
 
         static WGPURenderPassColorAttachment color_attachment = {};
         color_attachment.view = mCurrentTargetView;
+        // color_attachment.view = mHDRTexture->getTextureView();
         color_attachment.resolveTarget = nullptr;
         color_attachment.loadOp = WGPULoadOp_Load;
         color_attachment.storeOp = WGPUStoreOp_Store;
@@ -1141,15 +1201,16 @@ void Application::mainLoop() {
     // wgpuRenderPassEncoderEnd(outline_pass_encoder);
     // wgpuRenderPassEncoderRelease(outline_pass_encoder);
 
+    fqconverter->executePass(shadow_converterd);
+
     // if (mWorld->actor == nullptr) {
     if (mEditor->mEditorActive) {
         ZoneScopedNC("3D viewport and loader", 0xF0F00F);
         // 3D editor elements pass
         m3DviewportPass->execute(encoder);
-
-        // polling if any model loading process is done and append it to loaded model list
-        ModelRegistry::instance().tick(this);
     }
+    // polling if any model loading process is done and append it to loaded model list
+    ModelRegistry::instance().tick(this);
 
     // ------------ 3- Transparent pass
     // Calculate the Accumulation Buffer from the transparent object, this pass does not draw
@@ -1343,6 +1404,27 @@ bool Application::initDepthBuffer() {
     return mDepthTextureView != nullptr;
 }
 
+bool Application::createHDRTexture() {
+    WGPUTextureFormat hdrFormat = WGPUTextureFormat_RGBA16Float;  // or RGBA32Float if you need more range
+
+    // Create / recreate the HDR texture with same dimensions as window/swapchain
+    if (mHDRTexture) {
+        delete mHDRTexture;  // or however you clean up in your engine
+    }
+
+    mHDRTexture = new Texture{getRendererResource().device,
+                              static_cast<uint32_t>(mWindow->mWindowSize.x),
+                              static_cast<uint32_t>(mWindow->mWindowSize.y),
+                              TextureDimension::TEX_2D,
+                              WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,  // important: both
+                              hdrFormat,
+                              1,  // sampleCount
+                              "HDR Color Texture"};
+
+    mHDRTexture->createView();
+    return true;
+}
+
 void Application::terminateDepthBuffer() {
     wgpuTextureViewRelease(mDepthTextureView);
     wgpuTextureDestroy(mDepthTexture->getTexture());
@@ -1364,6 +1446,7 @@ bool Application::initGui() {
     init_info.Device = this->getRendererResource().device;
     init_info.NumFramesInFlight = 3;
     init_info.RenderTargetFormat = WGPUTextureFormat_BGRA8UnormSrgb;
+    // init_info.RenderTargetFormat = WGPUTextureFormat_RGBA16Float;
     init_info.DepthStencilFormat = WGPUTextureFormat_Depth24PlusStencil8;
     ImGui_ImplWGPU_Init(&init_info);
     return true;
@@ -1420,7 +1503,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             if (ImGui::CollapsingHeader("Sun", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::SliderFloat("frustum split factor", &middle_plane_length, 1.0, 100);
                 ImGui::SliderFloat("far split factor", &far_plane_length, 1.0, 200);
-                ImGui::SliderFloat("visualizer", &mUniforms.time, -1.0, 1.0);
+                // ImGui::SliderFloat("visualizer", &mUniforms.time, -1.0, 1.0);
             }
             ImGui::Checkbox("shoud update csm", &should_update_csm);
             ImGui::Text("\nClip Plane");
@@ -1497,6 +1580,23 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::Text("Environment Lights");
 
             mLightManager->renderGUI();
+            if (ImGui::CollapsingHeader("HDR and ToneMapping",
+                                        ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+                mHDRpp->userInterface();
+            }
+            if (ImGui::CollapsingHeader("Cascaded Shadow Map",
+                                        ImGuiTreeNodeFlags_DefaultOpen)) {  // DefaultOpen makes it open initially
+                                                                            //
+                ImGui::SliderFloat("frustum split factor", &middle_plane_length, 1.0, 100);
+                ImGui::SliderFloat("far split factor", &far_plane_length, 1.0, 200);
+                ImGui::DragFloat("push back factor", &mShadowPass->mPushBackFactor, 0.0, 100, 0.1);
+
+                ImGui::Image((ImTextureID)(intptr_t)shadow_converterd->getTextureView(), ImVec2(200.0, 200.0));
+                ImGui::SameLine();
+                if (ImGui::Button("Zoom")) {
+                }
+            }
+
             ImGui::EndTabItem();
         }
 
@@ -1697,14 +1797,23 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             {
                 static glm::vec3 scale{0.0};
                 static glm::vec3 translation{0.0};
-                if (ImGui::DragFloat3("capsule center", glm::value_ptr(translation), 0.01) ||
-                    ImGui::DragFloat3("capsule scale ", glm::value_ptr(scale), 0.01)) {
-                    capsuledebuglines.updateTransformation(glm::translate(glm::mat4{1.0}, translation) *
-                                                           glm::scale(glm::mat4{1.0}, scale));
+                static float half_height = 0.05f;
+                static float radius = 0.01;
+                {
+                    if (ImGui::DragFloat3("capsule center", glm::value_ptr(translation), 0.01) ||
+                        ImGui::DragFloat3("capsule scale ", glm::value_ptr(scale), 0.01)) {
+                        capsuledebuglines.updateTransformation(glm::translate(glm::mat4{1.0}, translation) *
+                                                               glm::scale(glm::mat4{1.0}, scale));
+                    }
+                    if (ImGui::DragFloat("half height", &half_height, 0.01) ||
+                        ImGui::DragFloat("radius", &radius, 0.01)) {
+                        capsuledebuglines.updateLines(generateCapsule(half_height, radius));
+                        capsuledebuglines.updateVisibility(true);
+                    }
                 }
-            }
-            if (ImGui::Button("Create capsule")) {
-                capsuledebuglines.updateVisibility(true);
+                if (ImGui::Button("Create capsule")) {
+                    physics::CreatePhysicsCapsule(translation, half_height, radius, mSelectedModel);
+                }
             }
 
             ImGui::NewLine();
@@ -1754,6 +1863,39 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                     }
                 }
                 ImGui::EndCombo();
+            }
+            if (selectedPhysicModel != nullptr && selectedPhysicModel->instance != nullptr) {
+                auto* ins = selectedPhysicModel->instance;
+                for (size_t i = 0; i < ins->getInstanceCount(); ++i) {
+                    ImGui::PushID(i);
+                    if (ins->mPhysicsComponents[i] != nullptr) {
+                        if (ImGui::Button(selectedPhysicModel->getName().c_str())) {
+                            // auto [pos, rot] = physics::getPositionAndRotationyId(ins->mPhysicsComponents[i]->bodyId);
+                            // instancedebuglinegroup
+                            //     .updateTransformation(glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
+                            //                           glm::scale(glm::mat4{1.0}, glm::vec3{0.2}))
+                            //     .updateVisibility(true);
+                            if (ins->mPhysicsComponents[i]->mDebugLines.has_value()) {
+                                auto [pos, rot] =
+                                    physics::getPositionAndRotationyId(ins->mPhysicsComponents[i]->bodyId);
+
+                                ins->mPhysicsComponents[i]
+                                    ->mDebugLines.value()
+                                    .updateTransformation(
+                                        glm::translate(glm::mat4{1.0}, pos) * glm::toMat4(rot) *
+                                        glm::scale(glm::mat4{1.0},
+                                                   ins->mPhysicsComponents[i]->mDebugLines.value().getScaleFatcor()))
+                                    .updateVisibility(true);
+                                ins->mPhysicsComponents[i]->mDebugLines.value().updateVisibility(true);
+                            }
+                        }
+                        ImGui::SameLine();
+                        ImGui::Text(" instance #%zu", i);
+                    } else {
+                        ImGui::Text("Has no physic for instance %zu", i);
+                    }
+                    ImGui::PopID();
+                }
             }
 
             ImGui::NewLine();
@@ -1840,6 +1982,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             if (ImGui::Button("Save scene")) {
                 mWorld->exportScene();
             }
+
             ImGui::EndTabItem();
         }
 

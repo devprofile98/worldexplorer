@@ -216,6 +216,11 @@ Pipeline& Pipeline::setDepthStencilState(WGPUDepthStencilState state) {
     return *this;
 }
 
+Pipeline& Pipeline::setDepthStencilState(WGPUDepthStencilState* state) {
+    mDescriptor.depthStencil = state;
+    return *this;
+}
+
 Pipeline& Pipeline::setBlendState() {
     mBlendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
     mBlendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;

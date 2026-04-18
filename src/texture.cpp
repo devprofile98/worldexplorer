@@ -18,6 +18,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+extern bool no_texture;
+
 namespace {
 
 void loaderCallback(TextureLoader::LoadRequest* request) {
@@ -30,6 +32,12 @@ void loaderCallback(TextureLoader::LoadRequest* request) {
 
 std::shared_ptr<Texture> Texture::asyncLoadTexture(Registery<std::string, Texture>* registery, RendererResource& rc,
                                                    std::string path) {
+    if (no_texture) {
+        auto default_normal = registery->get("default normal");
+        if (default_normal) {
+            return default_normal;
+        }
+    }
     auto cached = registery->get(path);
     if (cached != nullptr) {
         return cached;

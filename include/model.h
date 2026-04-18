@@ -266,7 +266,7 @@ class Model : public BaseModel {
         Action* mDefaultAction = nullptr;
         Buffer offset_buffer = {};
         WGPUBindGroup mBindGroup = nullptr;
-        WGPUBindGroup ggg = nullptr;
+        WGPUBindGroup mObjectInfoBindGroup = nullptr;
         bool mIsLoaded = false;
 };
 

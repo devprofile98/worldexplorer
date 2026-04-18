@@ -223,8 +223,8 @@ void ViewPort3DPass::execute(WGPUCommandEncoder encoder) {
     wgpuRenderPassEncoderSetStencilReference(pass_encoder, stencilRefValue);
 
     for (const auto& model : ModelRegistry::instance().getLoadedModel(ModelVisibility::Visibility_Editor)) {
+        model->update(mApp, 0.0, false);
         wgpuRenderPassEncoderSetPipeline(pass_encoder, getPipeline()->getPipeline());
-
         model->drawHirarchy(mApp, pass_encoder);
     }
 

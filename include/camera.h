@@ -16,7 +16,7 @@ struct CameraInfo {
         glm::mat4 modelMatrix;
         glm::vec4 color;
         glm::vec3 cameraWorldPosition;
-        float time;
+        uint32_t time;
         // float _padding[3];
 
         void setCamera(Camera& camera);
@@ -73,6 +73,9 @@ class Camera {
         const glm::vec3& getPos() const;
         CameraState& getSate();
         DragState& getDrag();
+
+        std::pair<glm::vec3, glm::vec3> getLookingRay(size_t width, size_t height,
+                                                      std::pair<size_t, size_t> mouseCoord);
 
         void processInput(int key, int scancode, int action, int mod);
         void processMouse(int x, int y);

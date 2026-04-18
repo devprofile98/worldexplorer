@@ -128,6 +128,7 @@ float rayDotVector(Camera& camera, size_t width, size_t height, std::pair<size_t
                    const glm::vec3& vec);
 
 glm::vec3 worldToClip(const glm::mat4& projection, const glm::vec3& vector);
+glm::vec4 toClipSpace(size_t width, size_t height, const std::pair<size_t, size_t>& mouseCoord);
 
 std::pair<bool, glm::vec3> testIntersectionWithBox(Camera& camera, size_t width, size_t height,
                                                    std::pair<size_t, size_t> mouseCoord, const glm::vec3& min,

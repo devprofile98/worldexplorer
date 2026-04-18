@@ -44,6 +44,10 @@ class PawnBehaviour {
 
         std::string name;
         Application* app;
+
+        // the maximum distance that the user should be able to pick, negative for not pickable
+        float maxPickDistance = -1.0;
+        Model* model = nullptr;
 };
 
 enum ModelVisibility { Visibility_Editor = 0, Visibility_User = 1, Visibility_Other = 100 };

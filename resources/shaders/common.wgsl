@@ -35,7 +35,8 @@ struct MyUniform {
     modelMatrix: mat4x4f,
     color: vec4f,
     cameraWorldPosition: vec3f,
-    time: f32,
+    //time: f32,
+    flag1: u32,
 };
 
 struct LightingUniforms {
@@ -72,7 +73,8 @@ struct PointLight {
     quadratic: f32,
     ftype: i32,
     cutOff: f32,
-    outerCutOff: f32
+    outerCutOff: f32,
+    intensity: f32
 }
 
 struct Scene {

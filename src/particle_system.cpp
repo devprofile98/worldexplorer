@@ -107,6 +107,7 @@ ParticleSystem::ParticleSystem(Application* app, const std::string& name, const 
         .setBlendState(blend_state)
         .setPrimitiveState()
         .setColorTargetState(WGPUTextureFormat_BGRA8UnormSrgb)
+        // .setColorTargetState(WGPUTextureFormat_RGBA16Float)
         .setDepthStencilState(false, 0xFF, 0xFF, WGPUTextureFormat_Depth24PlusStencil8)
         .setFragmentState()
         .createPipeline(resource);

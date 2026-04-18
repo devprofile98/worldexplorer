@@ -137,7 +137,8 @@ SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath, s
         .setPrimitiveState()
         .setDepthStencilState(false, 0, 0, WGPUTextureFormat_Depth24PlusStencil8)
         .setBlendState()
-        .setColorTargetState(app->getTextureFormat())
+        // .setColorTargetState(app->getTextureFormat())
+        .setColorTargetState(WGPUTextureFormat_RGBA16Float)
         .setFragmentState()
         .createPipeline(resource);
 

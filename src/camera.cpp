@@ -4,6 +4,7 @@
 
 #include "glm/geometric.hpp"
 #include "glm/gtx/string_cast.hpp"
+#include "utils.h"
 
 void CameraInfo::setCamera(Camera& camera) {
     projectMatrix = camera.getProjection();
@@ -160,6 +161,18 @@ const glm::vec3& Camera::getPos() const { return mCameraPos; };
 DragState& Camera::getDrag() { return mDragState; }
 
 CameraState& Camera::getSate() { return mCameraState; }
+
+std::pair<glm::vec3, glm::vec3> Camera::getLookingRay(size_t width, size_t height,
+                                                      std::pair<size_t, size_t> mouseCoord) {
+    const glm::vec4 clip_coords = toClipSpace(width, height, mouseCoord);
+    glm::vec4 eyecoord = glm::inverse(getProjection()) * clip_coords;
+    eyecoord = glm::vec4{eyecoord.x, eyecoord.y, -1.0f, 0.0f};
+
+    auto ray_origin = getPos();
+
+    auto worldray = glm::normalize(glm::inverse(getView()) * eyecoord);
+    return {ray_origin, worldray};
+}
 
 Camera& Camera::update(CameraInfo& cameraUniform, int width, int height) {
     float ratio = width / (float)height;

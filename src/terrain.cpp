@@ -90,6 +90,7 @@ void createCustomShaderMaterial(Application* mApp, WGPUTextureFormat textureForm
                              resource);
     custom_shader->setDepthStencilState(custom_shader->getDepthStencilState());
     setDefault(custom_shader->getDepthStencilState());
+    custom_shader->setColorTargetState(WGPUTextureFormat_RGBA16Float);
     custom_shader->getDepthStencilState().format = WGPUTextureFormat_Depth24PlusStencil8;
     custom_shader->getDepthStencilState().depthWriteEnabled = WGPUOptionalBool_True;
     custom_shader->getDepthStencilState().depthCompare = WGPUCompareFunction_Less;
@@ -116,18 +117,19 @@ Model& TerrainModel::uploadToGPU(Application* app) {
             .setSize((mesh.mVertexData.size() + 1) * sizeof(VertexAttributes))
             .setMappedAtCraetion()
             .create(&mApp->getRendererResource());
-
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mVertexBuffer.getBuffer(), 0,
-                             mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
+        mesh.mVertexBuffer.queueWrite(0, mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
+        // wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mVertexBuffer.getBuffer(), 0,
+        //                      mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
 
         mesh.mIndexBuffer.setLabel("index buffer for object info")
             .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex | WGPUBufferUsage_Index)
             .setSize((mesh.mIndexData.size()) * sizeof(uint32_t))
             .setMappedAtCraetion()
             .create(&mApp->getRendererResource());
-
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndexBuffer.getBuffer(), 0, mesh.mIndexData.data(),
-                             mesh.mIndexData.size() * sizeof(uint32_t));
+        mesh.mIndexBuffer.queueWrite(0, mesh.mIndexData.data(), mesh.mIndexData.size() * sizeof(uint32_t));
+        // wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndexBuffer.getBuffer(), 0,
+        // mesh.mIndexData.data(),
+        //                      mesh.mIndexData.size() * sizeof(uint32_t));
     }
 
     mRootNode = new Node{"terrain", glm::mat4{1.0}, nullptr, {}, {0}};
@@ -187,11 +189,14 @@ void TerrainModel::update(Application* app, float dt, float physicSimulating) {
 #ifdef WIREFRAME_ENABLED
         wireFrame.updateTransformation(mTransform.mTransformMatrix);
 #endif
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, Drawable::getUniformBuffer().getBuffer(), 0,
-                             &mTransform.mObjectInfo, sizeof(ObjectInfo));
+        Drawable::getUniformBuffer().queueWrite(0, &mTransform.mObjectInfo, sizeof(ObjectInfo));
+        // wgpuQueueWriteBuffer(app->getRendererResource().queue, Drawable::getUniformBuffer().getBuffer(), 0,
+        //                      &mTransform.mObjectInfo, sizeof(ObjectInfo));
         for (auto& [id, mesh] : mFlattenMeshes) {
-            wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial,
-                                 sizeof(ShaderMaterial));
+            mesh.mMaterialBuffer.queueWrite(0, &mesh.mMaterial, sizeof(ShaderMaterial));
+            // wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0,
+            // &mesh.mMaterial,
+            //                      sizeof(ShaderMaterial));
         }
         mTransform.mDirty = false;
     }
@@ -226,7 +231,7 @@ struct TTerrain : public IModel {
         };
 };
 
-USER_REGISTER_MODEL("terrain", TTerrain);
+// USER_REGISTER_MODEL("terrain", TTerrain);
 
 Cube::Cube(Application* app) : Model(CoordinateSystem::Z_UP) {
     BaseModel::mName = "cube22";
@@ -241,18 +246,19 @@ Model& Cube::uploadToGPU(Application* app) {
             .setSize((mesh.mVertexData.size() + 1) * sizeof(VertexAttributes))
             .setMappedAtCraetion()
             .create(&mApp->getRendererResource());
-
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mVertexBuffer.getBuffer(), 0,
-                             mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
+        mesh.mVertexBuffer.queueWrite(0, mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
+        // wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mVertexBuffer.getBuffer(), 0,
+        //                      mesh.mVertexData.data(), mesh.mVertexData.size() * sizeof(VertexAttributes));
 
         mesh.mIndexBuffer.setLabel("index buffer for object info")
             .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex | WGPUBufferUsage_Index)
             .setSize((mesh.mIndexData.size()) * sizeof(uint32_t))
             .setMappedAtCraetion()
             .create(&mApp->getRendererResource());
-
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndexBuffer.getBuffer(), 0, mesh.mIndexData.data(),
-                             mesh.mIndexData.size() * sizeof(uint32_t));
+        mesh.mIndexBuffer.queueWrite(0, mesh.mIndexData.data(), mesh.mIndexData.size() * sizeof(uint32_t));
+        // wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mIndexBuffer.getBuffer(), 0,
+        // mesh.mIndexData.data(),
+        //                      mesh.mIndexData.size() * sizeof(uint32_t));
     }
 
     mRootNode = new Node{"terrain", glm::mat4{1.0}, nullptr, {}, {0}};
@@ -355,11 +361,14 @@ void Cube::update(Application* app, float dt, float physicSimulating) {
 #ifdef WIREFRAME_ENABLED
         wireFrame.updateTransformation(mTransform.mTransformMatrix);
 #endif
-        wgpuQueueWriteBuffer(app->getRendererResource().queue, Drawable::getUniformBuffer().getBuffer(), 0,
-                             &mTransform.mObjectInfo, sizeof(ObjectInfo));
+        Drawable::getUniformBuffer().queueWrite(0, &mTransform.mObjectInfo, sizeof(ObjectInfo));
+        // wgpuQueueWriteBuffer(app->getRendererResource().queue, Drawable::getUniformBuffer().getBuffer(), 0,
+        //                      &mTransform.mObjectInfo, sizeof(ObjectInfo));
         for (auto& [id, mesh] : mFlattenMeshes) {
-            wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0, &mesh.mMaterial,
-                                 sizeof(ShaderMaterial));
+            mesh.mMaterialBuffer.queueWrite(0, &mesh.mMaterial, sizeof(ShaderMaterial));
+            // wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0,
+            // &mesh.mMaterial,
+            //                      sizeof(ShaderMaterial));
         }
         mTransform.mDirty = false;
     }
@@ -383,4 +392,4 @@ struct CubeLoader : public IModel {
         };
 };
 
-USER_REGISTER_MODEL("cube22", CubeLoader);
+// USER_REGISTER_MODEL("cube22", CubeLoader);

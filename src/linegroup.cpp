@@ -41,9 +41,7 @@ LineGroup& LineGroup::updateColor(const glm::vec3& color) {
         std::cout << "Must be initialized first!" << mId << '\n';
         return *this;
     }
-    std::cout << "O rafte o man mande am! " << mId << "\n";
     auto it = mLineEngine->mLineGroups.find(mId);
-    std::cout << ": " << mId << std::endl;
     if (it == mLineEngine->mLineGroups.end()) return *this;
 
     LineEngine::LineGroup& group = it->second;

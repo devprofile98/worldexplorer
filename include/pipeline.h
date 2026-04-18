@@ -36,7 +36,10 @@ class Pipeline {
         Pipeline& setDepthStencilState(bool depthWriteEnabled = false, uint32_t stencilReadMask = 0x0,
                                        uint32_t stencilWriteMask = 0x0,
                                        WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus);
+
         Pipeline& setDepthStencilState(WGPUDepthStencilState state);
+        Pipeline& setDepthStencilState(WGPUDepthStencilState* state);
+
         Pipeline& setBlendState();
         Pipeline& setBlendState(WGPUBlendState blendState);
         Pipeline& setColorTargetState(WGPUTextureFormat format);

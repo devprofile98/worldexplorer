@@ -52,14 +52,13 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     constexpr uint32_t screen = 2048;
     auto& rc = mApp->getRendererResource();
     mNumOfCascades = cascadeNumber;
-    mRenderTarget =
-        new Texture{rc.device, static_cast<uint32_t>(screen), static_cast<uint32_t>(screen), TextureDimension::TEX_2D,
-                    WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};
+    mRenderTarget = new Texture{rc.device, screen, screen, TextureDimension::TEX_2D,
+                                WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment};
     mRenderTarget->createView();
 
     mShadowDepthTexture = new Texture{rc.device,
-                                      static_cast<uint32_t>(screen),
-                                      static_cast<uint32_t>(screen),
+                                      screen,
+                                      screen,
                                       TextureDimension::TEX_2D,
                                       WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
                                       WGPUTextureFormat_Depth24Plus,
@@ -282,7 +281,8 @@ Scene ShadowPass::calculateFrustumScene(const std::vector<glm::vec4>& frustum, f
 
     glm::vec3 lightDirection = glm::normalize(-this->sunDir);
     glm::vec3 lightPosition =
-        center - lightDirection * (glm::length(frustum[0] - frustum[7]) / 5.0f);  // Push light back
+        // center - lightDirection * (glm::length(frustum[0] - frustum[7]) / 5.0f);  // Push light back
+        center - lightDirection * (mPushBackFactor);  // Push light back
 
     auto view = glm::lookAt(lightPosition, center, glm::vec3{0.0f, 0.0f, 1.0f});
     glm::mat4 projection = createProjectionFromFrustumCorner(frustum, view, &MinZ, "frustum", cascadeIdx);
@@ -315,16 +315,14 @@ void ShadowPass::renderAllCascades(WGPUCommandEncoder encoder) {
 
         for (auto& s : mScenes) {
             s.projection = s.projection * s.view;
-            // printMatrix(s.projection);
-            // std::cout << "===============================\n";
         }
     }
 
     {
         mBindingData[1].buffer = mApp->mInstanceManager->getInstancingBuffer().getBuffer();
         mBindingData[3].sampler = mApp->getDefaultSampler();
-        wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mSceneUniformBuffer.getBuffer(), 0, mScenes.data(),
-                             sizeof(Scene) * mNumOfCascades);
+        mSceneUniformBuffer.queueWrite(0, mScenes.data(), sizeof(Scene) * mNumOfCascades);
+        // wgpuQueueWriteBuffer(mApp->getRendererResource().queue, mSceneUniformBuffer.getBuffer(), );
     }
 
     for (size_t c = 0; c < mNumOfCascades; ++c) {
@@ -388,6 +386,7 @@ void ShadowPass::render(ModelRegistry::ModelContainer& models, WGPURenderPassEnc
 }
 
 WGPUTextureView ShadowPass::getShadowMapView() { return mShadowDepthTexture->getTextureViewArray(); }
+
 WGPUTextureView ShadowPass::getTextureView(size_t level, size_t count) {
     return mShadowDepthTexture->createViewDepthOnly2(0, 1);
 }

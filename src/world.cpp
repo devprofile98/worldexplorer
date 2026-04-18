@@ -75,7 +75,7 @@ void to_json(json& j, const Instance& ins) {
         json obj;
         obj["position"] = json::array({ins.mPositions[i].x, ins.mPositions[i].y, ins.mPositions[i].z});
         obj["scale"] = json::array({ins.mScale[i].x, ins.mScale[i].y, ins.mScale[i].z});
-        obj["rotation"] = json::array({0.0, 0.0, 0.0});
+        obj["rotation"] = json::array({ins.mRotation[i].x, ins.mRotation[i].y, ins.mRotation[i].z});
         j.push_back(obj);
     }
 }
@@ -166,8 +166,8 @@ std::string coordinateSystemToString(const CoordinateSystem& cs) {
 void to_json(json& j, const BaseModel& m) {
     const auto& t = m.mTransform.mPosition;
     const auto& s = m.mTransform.mScale;
-    const auto& r = glm::normalize(glm::eulerAngles(m.mTransform.mOrientation));
-    // std::string default_clip = m.mDefaultAction != nullptr ? m.mDefaultAction->name : "";
+    const auto& r = glm::eulerAngles(glm::normalize(m.mTransform.mOrientation));
+
     std::string default_clip = "";
 
     j = json{
@@ -253,7 +253,7 @@ void World::exportScene() {
     std::cout << scene_dump << std::endl;
     std::ofstream out;
     out.open(app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / mSceneFilePath, std::ios::trunc);
-    // out.write(scene_dump.c_str(), scene_dump.size());
+    out.write(scene_dump.c_str(), scene_dump.size());
 }
 
 Model* World::makeChild(BaseModel* parent, BaseModel* child) {
@@ -328,30 +328,33 @@ void World::onNewModel(Model* loadedModel) {
         actor = loadedModel;
     }
 
-    if (loadedModel->getName() == "tower" || loadedModel->getName() == "terrain" || loadedModel->getName() == "chair") {
-        auto& mesh = loadedModel->mFlattenMeshes.begin()->second;
-        loadedModel->getGlobalTransform();
-        std::cout << glm::to_string(loadedModel->mTransform.getPosition()) << "is the position\n";
-        std::cout << glm::to_string(loadedModel->mTransform.getEulerRotation()) << "is the rotation\n";
-        std::cout << glm::to_string(loadedModel->mTransform.getScale()) << "is the scale\n";
-        std::cout << glm::to_string(loadedModel->mTransform.mTransformMatrix) << "is the transformation\n";
-        auto* bdy =
-            physics::createPhysicFromShape(mesh.mIndexData, mesh.mVertexData, loadedModel->mTransform.mTransformMatrix);
-
-        if (bdy != nullptr) {
-            loadedModel->mPhysicComponent = new PhysicsComponent{bdy->GetID()};
-            loadedModel->mPhysicComponent->colliderType = ColliderType::TriList;
-            std::cout << "Success to create physics from mesh " << loadedModel->getName() << "!\n";
-        } else {
-            std::cout << "Failed to create physics from mesh!\n";
-        }
-        if (loadedModel->getName() == "tower" || loadedModel->getName() == "chair") {
-            auto mesh_wireframe_lines = generateFromMesh(mesh.mIndexData, mesh.mVertexData);
-            loadedModel->mPhysicComponent->mDebugLines = app->mLineEngine->create(
-                mesh_wireframe_lines, loadedModel->mTransform.mTransformMatrix, glm::vec3{1.0, 0.0, 0.0});
-            loadedModel->mPhysicComponent->mDebugLines->updateVisibility(false);
-        }
-    }
+    // if (loadedModel->getName() == "tower" || loadedModel->getName() == "terrain" || loadedModel->getName() ==
+    // "chair") {
+    // if (loadedModel->getName() == "container2") {
+    //     auto& mesh = loadedModel->mFlattenMeshes.begin()->second;
+    //     loadedModel->getGlobalTransform();
+    //     std::cout << glm::to_string(loadedModel->mTransform.getPosition()) << "is the position\n";
+    //     std::cout << glm::to_string(loadedModel->mTransform.getEulerRotation()) << "is the rotation\n";
+    //     std::cout << glm::to_string(loadedModel->mTransform.getScale()) << "is the scale\n";
+    //     std::cout << glm::to_string(loadedModel->mTransform.mTransformMatrix) << "is the transformation\n";
+    //     auto* bdy =
+    //         physics::createPhysicFromShape(mesh.mIndexData, mesh.mVertexData,
+    //         loadedModel->mTransform.mTransformMatrix);
+    //
+    //     if (bdy != nullptr) {
+    //         loadedModel->mPhysicComponent = new PhysicsComponent{bdy->GetID()};
+    //         loadedModel->mPhysicComponent->colliderType = ColliderType::TriList;
+    //         std::cout << "Success to create physics from mesh " << loadedModel->getName() << "!\n";
+    //     } else {
+    //         std::cout << "Failed to create physics from mesh!\n";
+    //     }
+    //     if (loadedModel->getName() == "container") {
+    //         auto mesh_wireframe_lines = generateFromMesh(mesh.mIndexData, mesh.mVertexData);
+    //         loadedModel->mPhysicComponent->mDebugLines = app->mLineEngine->create(
+    //             mesh_wireframe_lines, loadedModel->mTransform.mTransformMatrix, glm::vec3{1.0, 0.0, 0.0});
+    //         loadedModel->mPhysicComponent->mDebugLines->updateVisibility(false);
+    //     }
+    // }
 
     if (map.contains(loadedModel->mName)) {
         auto params = map.at(loadedModel->mName);
@@ -566,22 +569,28 @@ struct BaseModelLoader : public IModel {
                 .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
                 .create(&app->getRendererResource());
 
-            auto& databuffer = mModel->mGlobalMeshTransformationData;
-            mModel->mGlobalMeshTransformationBuffer.queueWrite(0, databuffer.data(),
-                                                               sizeof(glm::mat4) * databuffer.size());
+            // auto& databuffer = mModel->mGlobalMeshTransformationData;
+            // mModel->mGlobalMeshTransformationBuffer.queueWrite(0, databuffer.data(),
+            //                                                    sizeof(glm::mat4) * databuffer.size());
 
             // If model is instanced
             if (param.instanceTransformations.size() > 0) {
                 std::vector<glm::vec3> positions;
                 std::vector<glm::vec3> scales;
                 std::vector<glm::vec3> rotations;
+                std::vector<bool> has_physics;
                 for (const auto& instance : param.instanceTransformations) {
                     positions.emplace_back(instance.position);
                     scales.emplace_back(instance.scale);
                     rotations.emplace_back(instance.rotation);
+                    has_physics.emplace_back(instance.hasPhysics);
                 }
 
-                auto* ins = new Instance{positions, rotations, scales, glm::vec4{mModel->min, 1.0f},
+                auto* ins = new Instance{positions,
+                                         rotations,
+                                         scales,
+                                         has_physics,
+                                         glm::vec4{mModel->min, 1.0f},
                                          glm::vec4{mModel->max, 1.0f}};
                 ins->parent = mModel;
                 ins->mManager = app->mInstanceManager;
@@ -662,7 +671,7 @@ void parseLights(LightManager* manager, const json& lights) {
             float linear = light_obj["linear"].get<float>();
             float quadratic = light_obj["quadratic"].get<float>();
             manager->createSpotLight(glm::vec4{toGlm(position), 1.0}, glm::vec4{toGlm(direction), 1.0},
-                                     glm::vec4{toGlm(color), 1.0}, inner_cutoff, outer_cutoff, linear, quadratic,
+                                     glm::vec4{toGlm(color), 1.0}, inner_cutoff, outer_cutoff, linear, quadratic, 1.0,
                                      name.c_str());
         }
         if (type == "point") {
@@ -672,7 +681,7 @@ void parseLights(LightManager* manager, const json& lights) {
             float quadratic = light_obj["quadratic"].get<float>();
             auto glm_color = glm::vec4{toGlm(color), 1.0};
             manager->createPointLight(glm::vec4{toGlm(position), 1.0}, glm_color, glm_color, glm_color, constant,
-                                      linear, quadratic, name.c_str());
+                                      linear, quadratic, 1.0, name.c_str());
         }
     }
 }
@@ -739,14 +748,18 @@ std::optional<SocketParams> parseSocketParam(const json& params) {
     return SocketParams{name, anchor, translate, scale, glm::quat(rotate), true, type};
 }
 
-std::vector<Transformation> parseinstanceinfo(const json& params) {
-    std::vector<Transformation> res;
+std::vector<InstanceInfo> parseinstanceinfo(const json& params) {
+    std::vector<InstanceInfo> res;
 
     for (const auto& instance : params) {
         glm::vec3 translate = toGlm(instance["position"].get<std::array<float, 3>>());
         glm::vec3 scale = toGlm(instance["scale"].get<std::array<float, 3>>());
         glm::vec3 rotate = toGlm(instance["rotation"].get<std::array<float, 3>>());
-        res.push_back({translate, scale, rotate});
+        bool has_physic = false;
+        if (instance.contains("physics")) {
+            has_physic = !instance["physics"].is_null();
+        }
+        res.push_back({translate, scale, rotate, has_physic});
     }
 
     return res;
@@ -783,8 +796,19 @@ std::optional<PhysicsParams> parsePhysics(const json& params) {
     if (params.contains("sensor")) {
         is_sensor = params["sensor"].get<bool>();
     }
+    PhysicGenMethod method = PhysicGenMethod::AABB;
+    if (params.contains("method")) {
+        std::string method_str = params["method"].get<std::string>();
+        if (method_str == "aabb") {
+            method = PhysicGenMethod::AABB;
+        } else if (method_str == "mesh") {
+            method = PhysicGenMethod::MESH;
+        } else if (method_str == "custom") {
+            method = PhysicGenMethod::CUSTOM;
+        }
+    }
 
-    return PhysicsParams{type, is_sensor};
+    return PhysicsParams{type, is_sensor, method};
 }
 
 void World::loadModel(const ObjectLoaderParam& param) {
@@ -802,6 +826,7 @@ void World::loadModel(const ObjectLoaderParam& param) {
 
             auto [min, max] = model.getModel()->getPhysicsAABB();
             auto center = (min + max) * 0.5f;
+            auto physic_offset = center - model.getModel()->mTransform.getPosition();
             auto half_extent = (max - min) * 0.5f;
 
             MotionType motion_type = MotionType::Static;
@@ -812,30 +837,89 @@ void World::loadModel(const ObjectLoaderParam& param) {
             } else if (param.physicsParams.type == "kinematic") {
                 motion_type = MotionType::Kinematic;
             }
-            if (param.name == "tree" || param.name == "zombie") {
-                model.getModel()->mPhysicComponent =
-                    physics::CreatePhysicsBox(center - model.getModel()->mTransform.getPosition(), half_extent,
-                                              model.getModel()->mTransform.getPosition(), model.getModel());
-            } else {
-                JPH::BodyID id{};
-                id = physics::createAndAddBody(half_extent, center, qu, motion_type, 0.5, 0.0f, 0.0f, 1.f,
-                                               param.physicsParams.isSensor, model.getModel());
-                model.getModel()->mPhysicComponent = new PhysicsComponent{id};
-            }
-            // if (model.getModel()->getName() == "tree") {
-            // std::cout << "------ info are " << glm::to_string(half_extent) << " : " << glm::to_string(center)
-            //           << std::endl;
-            // }
 
-            model.getModel()->mPhysicComponent->mDebugLines =
-                app->mLineEngine
-                    ->create(generateBox(),
-                             glm::translate(glm::mat4{1.0}, center) * glm::scale(glm::mat4{1.0}, half_extent),
-                             (motion_type == MotionType::Static)
-                                 ? (false ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0})
-                                 : glm::vec3{1.0, 0.209, 0.0784})
-                    .updateVisibility(false);
-            model.getModel()->mPhysicComponent->mDebugLines.value().setScaleFatcor(half_extent);
+            if (param.physicsParams.method == PhysicGenMethod::MESH) {
+                auto* loadedModel = model.getModel();
+                auto& mesh = loadedModel->mFlattenMeshes.begin()->second;
+                loadedModel->getGlobalTransform();
+                auto* bdy = physics::createPhysicFromShape(mesh.mIndexData, mesh.mVertexData,
+                                                           loadedModel->mTransform.mTransformMatrix);
+
+                if (bdy != nullptr) {
+                    loadedModel->mPhysicComponent = new PhysicsComponent{bdy->GetID()};
+                    loadedModel->mPhysicComponent->colliderType = ColliderType::TriList;
+                    std::cout << "Success to create physics from mesh " << loadedModel->getName() << "!\n";
+                }
+                // if (loadedModel->getName() == "container") {
+                auto mesh_wireframe_lines = generateFromMesh(mesh.mIndexData, mesh.mVertexData);
+                loadedModel->mPhysicComponent->mDebugLines = app->mLineEngine->create(
+                    mesh_wireframe_lines, loadedModel->mTransform.mTransformMatrix, glm::vec3{1.0, 0.0, 0.0});
+                loadedModel->mPhysicComponent->mDebugLines->updateVisibility(false);
+                // }
+            } else if (param.physicsParams.method == PhysicGenMethod::AABB) {
+                // if (param.name == "tree" || param.name == "zombie") {
+                auto* target = model.getModel();
+                target->mPhysicComponent =
+                    physics::CreatePhysicsBox(physic_offset, half_extent, target->mTransform.getPosition(), target);
+                // } else {
+                //     JPH::BodyID id{};
+                //     id = physics::createAndAddBody(half_extent, center, qu, motion_type, 0.5, 0.0f, 0.0f, 1.f,
+                //                                    param.physicsParams.isSensor, model.getModel());
+                //     model.getModel()->mPhysicComponent = new PhysicsComponent{id};
+                // }
+
+                target->mPhysicComponent->mDebugLines =
+                    app->mLineEngine
+                        ->create(generateBox(),
+                                 glm::translate(glm::mat4{1.0}, center) * glm::scale(glm::mat4{1.0}, half_extent),
+                                 (motion_type == MotionType::Static)
+                                     ? (false ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0})
+                                     : glm::vec3{1.0, 0.209, 0.0784})
+                        .updateVisibility(false);
+                target->mPhysicComponent->mDebugLines.value().setScaleFatcor(half_extent);
+            }
+
+            auto* ins = model.getModel()->instance;
+            if (ins != nullptr) {
+                for (size_t i = 0; i < ins->getInstanceCount(); ++i) {
+                    if (ins->mHasPhysic[i]) {
+                        if (param.physicsParams.method == PhysicGenMethod::MESH) {
+                            // std::cout << "creating instance physic for " << model.getModel()->getName() << " "
+                            //           << glm::to_string(ins->mPositions[i]) << std::endl;
+                            auto& mesh = model.getModel()->mFlattenMeshes.begin()->second;
+                            auto* bdy = physics::createPhysicFromShape(mesh.mIndexData, mesh.mVertexData,
+                                                                       ins->mInstanceBuffer[i].modelMatrix);
+
+                            if (bdy != nullptr) {
+                                ins->mPhysicsComponents[i] =
+                                    std::shared_ptr<PhysicsComponent>(new PhysicsComponent{bdy->GetID()});
+                                ins->mPhysicsComponents[i]->colliderType = ColliderType::TriList;
+
+                                auto mesh_wireframe_lines = generateFromMesh(mesh.mIndexData, mesh.mVertexData);
+                                ins->mPhysicsComponents[i]->mDebugLines =
+                                    app->mLineEngine->create(mesh_wireframe_lines, ins->mInstanceBuffer[i].modelMatrix,
+                                                             glm::vec3{1.0, 0.0, 0.0});
+                                ins->mPhysicsComponents[i]->mDebugLines->updateVisibility(false);
+                            }
+
+                        } else if (param.physicsParams.method == PhysicGenMethod::AABB) {
+                            ins->mPhysicsComponents[i] = std::shared_ptr<PhysicsComponent>(physics::CreatePhysicsBox(
+                                physic_offset, half_extent, ins->mPositions[i], model.getModel()));
+
+                            ins->mPhysicsComponents[i]->mDebugLines =
+                                app->mLineEngine
+                                    ->create(generateBox(),
+                                             glm::translate(glm::mat4{1.0}, ins->mPositions[i]) *
+                                                 glm::scale(glm::mat4{1.0}, half_extent),
+                                             (motion_type == MotionType::Static)
+                                                 ? (false ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0})
+                                                 : glm::vec3{1.0, 0.209, 0.0784})
+                                    .updateVisibility(false);
+                            ins->mPhysicsComponents[i]->mDebugLines.value().setScaleFatcor(half_extent);
+                        }
+                    }
+                }
+            }
         }
 
         return {model.getModel(), Visibility_User};
@@ -897,7 +981,7 @@ void World::loadWorld() {
             socket_param.isValid = true;
         }
 
-        std::vector<Transformation> instance_info;
+        std::vector<InstanceInfo> instance_info;
         if (object.contains("instance")) {
             instance_info = parseinstanceinfo(object["instance"]);
         } else {

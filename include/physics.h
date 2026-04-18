@@ -69,8 +69,13 @@ struct HitResult {
 };
 
 glm::vec3 syncPhysicsFromRender(Transform& render, PhysicsComponent* physic);
+glm::vec3 syncPhysicsFromRender(const glm::vec3& position, const glm::quat& orientation, PhysicsComponent* physic);
+
 PhysicsComponent* CreatePhysicsBox(const glm::vec3& localoffset, const glm::vec3& model_half_extents,
                                    glm::vec3& world_bottom_position, void* userData);
+
+PhysicsComponent* CreatePhysicsCapsule(const glm::vec3& center, float halfHeight, float radius, void* userData);
+
 JPH::Body* createPhysicFromShape(const std::vector<uint32_t> indices, const std::vector<VertexAttributes>& vertices,
                                  const glm::mat4& transformMatrix);
 class BoxCollider {
@@ -116,7 +121,8 @@ JPH::BodyID createAndAddBody(const glm::vec3& shape, const glm::vec3 centerPos, 
 JPH::BodyInterface& getBodyInterface();
 void setRotation(JPH::BodyID id, const glm::quat& rot);
 void setPosition(JPH::BodyID id, const glm::vec3& pos);
-JPH::CharacterVirtual* createCharacter(JPH::Ref<JPH::Shape> shape, const glm::vec3& initialPosition);
+JPH::CharacterVirtual* createCharacter(JPH::Ref<JPH::Shape> shape, const glm::vec3& initialPosition,
+                                       JPH::uint64 userData = 0);
 JPH::PhysicsSystem* getPhysicsSystem();
 JPH::CapsuleShape* createCapsuleShape(float halfHeight, float radius);
 void updateCharacter(JPH::CharacterVirtual* physicalCharacter, float dt, JPH::Vec3 movement);

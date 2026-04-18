@@ -56,6 +56,7 @@ class ShadowPass : public RenderPass {
         DepthStencilAttachment mRenderPassDepthStencil;
         float MinZ = 0.0f;
         std::vector<ShadowFrustum*> mSubFrustums;
+        float mPushBackFactor = 1.0;
 
     private:
         Application* mApp;
@@ -80,8 +81,6 @@ class ShadowPass : public RenderPass {
         Texture* mRenderTarget;
         Texture* mShadowDepthTexture;
         Texture* mShadowDepthTexture2;
-        // buffers
-        // Buffer mSceneUniformBuffer;
 
         Scene calculateFrustumScene(const std::vector<glm::vec4>& frustum, float farZ, size_t cascadeIdx);
         // scene

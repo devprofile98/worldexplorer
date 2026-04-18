@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "glm/ext/matrix_float4x4.hpp"
@@ -11,7 +12,7 @@
 #include "gpu_buffer.h"
 #include "model.h"
 
-// class Application;
+struct PhysicsComponent;
 class Instance;
 
 struct alignas(16) InstanceData {
@@ -46,22 +47,26 @@ struct SingleInstance : public Transformable {
 class Instance {
     public:
         explicit Instance(std::vector<glm::vec3> positions, std::vector<glm::vec3> rotation,
-                          std::vector<glm::vec3> scales, const glm::vec4&& minAABB, const glm::vec4&& maxAABB);
+                          std::vector<glm::vec3> scales, std::vector<bool> hasPhysics, const glm::vec4&& minAABB,
+                          const glm::vec4&& maxAABB);
 
         // Getter
         size_t getInstanceCount();
         uint16_t getInstanceID();
-        uint16_t duplicateLastInstance(const glm::vec3& posOffset, const glm::vec3& min, const glm::vec3& max);
+        uint16_t duplicateLastInstance(const Transform& originalTransform, const glm::vec3& posOffset,
+                                       const glm::vec3& min, const glm::vec3& max);
         void dumpJson();
         SingleInstance createInstanceWrapper(size_t index);
         std::vector<glm::vec3> mPositions;
         std::vector<glm::vec3> mRotation;
         std::vector<glm::vec3> mScale;
+        std::vector<bool> mHasPhysic;
 
         std::vector<InstanceData> mInstanceBuffer;
         uint16_t mOffsetID = 0;
         BaseModel* parent = nullptr;
         InstanceManager* mManager = nullptr;
+        std::vector<std::shared_ptr<PhysicsComponent>> mPhysicsComponents;
 };
 
 #endif  // WEBGPUTEST_INSTANCE_H

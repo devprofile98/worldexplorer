@@ -252,8 +252,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     var color = ambient + sun_diffuse + specular_color + point_light_color;
 
-    color = color / (color + vec3f(1.1)); // HDR tonemapping
-    color = pow(color, vec3(1.3)); // gamma correct
+    //color = color / (color + vec3f(1.1)); // HDR tonemapping
+    //color = pow(color, vec3(1.3)); // gamma correct
 
     return vec4f(color * (1 - shadow * (0.75)), 1.0);
     //return vec4(calculateSpotLight(pointLight[4], normal, pointLight[4].position.xyz - in.worldPos).xyz, 1.0);

@@ -1,0 +1,661 @@
+{
+  "actor": "human",
+  "cameras": [],
+  "colliders2": [
+    {
+      "active": true,
+      "center": [1.4199999570846558, 0.0, 0.0],
+      "half_extent": [8.029999732971191, 10.0, 0.05000000074505806],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    }
+  ],
+  "colliders": [
+    {
+      "active": true,
+      "center": [1.4199999570846558, 0.0, 0.0],
+      "half_extent": [8.029999732971191, 10.0, 0.05000000074505806],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [-6.510000228881836, 0.029999999329447746, 1.2200000286102295],
+      "half_extent": [0.11999999731779099, 9.819999694824219, 7.0],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [0.5199999809265137, 9.9399995803833, 1.2200000286102295],
+      "half_extent": [9.819999694824219, 0.10000000149011612, 7.0],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [0.49000000953674316, -10.029999732971191, 1.2200000286102295],
+      "half_extent": [9.819999694824219, 0.10000000149011612, 7.0],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [9.390000343322754, 0.0, 1.2200000286102295],
+      "half_extent": [0.10000000149011612, 10.0, 7.0],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    }
+  ],
+
+  "lights": [],
+  "materials": [
+    {
+      "diffuse_map": "/home/ahmad/Downloads/dirt/dirt_floor_diff_4k.jpg",
+      "name": "floor",
+      "normal_map": "/home/ahmad/Downloads/dirt/dirt_floor_nor_dx_4k.jpg",
+      "specular_map": null
+    },
+    {
+      "diffuse_map": "/home/ahmad/Downloads/3D/Ak_47/ak-47-round.jpg",
+      "name": "",
+      "normal_map": null,
+      "specular_map": null
+    },
+    {
+      "diffuse_map": "/home/ahmad/Downloads/3D/Ak_47/ak-47.jpg",
+      "name": "ak47-round",
+      "normal_map": null,
+      "specular_map": null
+    },
+    {
+      "diffuse_map": "/home/ahmad/Documents/project/cpp/wgputest/resources/zombie.png",
+      "name": "zombie skin",
+      "normal_map": null,
+      "specular_map": null
+    }
+  ],
+  "objects": [
+    {
+      "animated": true,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "Zombie_Idle_Loop",
+      "enabled": true,
+      "id": "zombie",
+      "instance": null,
+      "material_props": [
+        {
+          "meshes[0]": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [
+        {
+          "Mesh_0": "zombie skin"
+        }
+      ],
+      "name": "zombie",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/zombie.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      },
+      "rotate": [0.0, -0.0, 0.0],
+      "scale": [0.6000000238418579, 0.6000000238418579, 0.6000000238418579],
+      "socket": null,
+      "translate": [-3.9, 3.7, 0.0],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "floor",
+      "instance": null,
+      "material_props": [
+        {
+          "Cube.001": {
+            "uv": [5.0, 5.0]
+          }
+        }
+      ],
+      "materials": [
+        {
+          "Cube.001": "floor"
+        }
+      ],
+      "name": "floor",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/box.gltf",
+      "physics": null,
+      "rotate": [0.0, -0.0, 0.0],
+      "scale": [15.0, 15.0, 0.08688676357269287],
+      "socket": null,
+      "translate": [
+        1.399999976158142, -0.042466044425964355, -0.046038687229156494
+      ],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "barrel",
+      "instance": [
+        {
+          "position": [0.0, 0.0, 0.0],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [0.699999988079071, 0.699999988079071, 0.699999988079071]
+        },
+        {
+          "position": [
+            -2.109999895095825, 1.5099999904632568, 0.009999999776482582
+          ],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [0.699999988079071, 0.699999988079071, 0.699999988079071],
+          "physics": {}
+        },
+        {
+          "position": [
+            3.865084171295166, -3.0421571731567383, 0.019999999552965164
+          ],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [0.699999988079071, 0.699999988079071, 0.699999988079071],
+          "physics": {}
+        },
+        {
+          "position": [
+            5.434999942779541, -8.85200023651123, 0.029999999329447746
+          ],
+          "rotation": [0.0, 0.0, 168.0],
+          "scale": [0.699999988079071, 0.699999988079071, 0.699999988079071],
+          "physics": {}
+        },
+        {
+          "position": [
+            4.974999904632568, -8.85200023651123, 0.1899999976158142
+          ],
+          "rotation": [85.0, 0.0, 25.0],
+          "scale": [0.699999988079071, 0.699999988079071, 0.699999988079071],
+          "physics": {}
+        }
+      ],
+      "material_props": [
+        {
+          "Circle.002": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "barrel",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/barrel.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic",
+        "method": "aabb"
+      },
+      "rotate": [0.0, 0.0, 0.0],
+      "scale": [0.699999988079071, 0.699999988079071, 0.699999988079071],
+      "socket": null,
+      "translate": [-5.8925065994262695, -0.20000000298023224, 0.0],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "stair",
+      "instance": null,
+      "material_props": [
+        {
+          "Stairs_main_2K": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "stair",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/building-stairs/stairs.gltf",
+      "physics": null,
+      "physics2": {
+        "enabled": true,
+        "method": "mesh",
+        "type": "static"
+      },
+      "rotate": [0.0, -0.0, 90.0],
+      "scale": [0.800000011920929, 0.800000011920929, 0.800000011920929],
+      "socket": null,
+      "translate": [2.4000000953674316, 9.600000381469727, 0.0],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "barrier",
+      "instance": [
+        {
+          "position": [-4.400000095367432, -8.0, 0.0],
+          "rotation": [0.0, 0.0, 324.79998779296875],
+          "scale": [1.0, 1.0, 1.0]
+        },
+        {
+          "position": [
+            -3.509999990463257, -7.989999771118164, 0.009999999776482582
+          ],
+          "rotation": [0.0, 0.0, 358.79998779296875],
+          "scale": [1.0, 1.0, 1.0],
+          "physics": {}
+        },
+        {
+          "position": [
+            7.590000152587891, -8.170000076293945, 0.019999999552965164
+          ],
+          "rotation": [0.0, 0.0, 405.79998779296875],
+          "scale": [1.0, 1.0, 1.0],
+          "physics": {}
+        },
+        {
+          "position": [
+            6.260000228881836, -8.15999984741211, 0.029999999329447746
+          ],
+          "rotation": [0.0, 0.0, 197.8000030517578],
+          "scale": [1.0, 1.0, 1.0],
+          "physics": {}
+        }
+      ],
+      "material_props": [
+        {
+          "RetopoFlow.006": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "barrier",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/road barrier/concrete_road_barrier.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      },
+      "rotate": [0.0, -0.0, 35.20002746582031],
+      "scale": [1.0, 1.0, 1.0],
+      "socket": null,
+      "translate": [-4.400000095367432, -8.0, 0.0],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "container",
+      "instance": [
+        {
+          "position": [0.0, 0.0, 0.8510000109672546],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [1.0, 1.0, 1.0],
+          "physics": null
+        },
+        {
+          "position": [
+            3.059999942779541, 2.819999933242798, 0.8510000109672546
+          ],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [0.4000000059604645, 0.4000000059604645, 0.4000000059604645],
+          "physics": {}
+        },
+        {
+          "position": [
+            2.8663108348846436, -3.880000114440918, 0.8510000109672546
+          ],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [0.4000000059604645, 0.4000000059604645, 0.4000000059604645],
+          "physics": {}
+        },
+        {
+          "position": [
+            0.009999999776482582, -3.635999917984009, 0.8610000014305115
+          ],
+          "rotation": [0.0, 0.0, -2.0],
+          "scale": [0.4000000059604645, 0.4000000059604645, 0.4000000059604645],
+          "physics": {}
+        },
+        {
+          "position": [
+            7.909999847412109, -1.8860000371932983, 0.8709999918937683
+          ],
+          "rotation": [0.0, 0.0, 9.0],
+          "scale": [0.4000000059604645, 0.4000000059604645, 0.4000000059604645],
+          "physics": {}
+        }
+      ],
+      "material_props": [
+        {
+          "Cube.024": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.006": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.008": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.007": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.018": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.026": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "container",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/container.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic",
+        "method": "mesh"
+      },
+      "rotate": [0.0, -0.0, 4.5],
+      "scale": [0.4000000059604645, 0.4000000059604645, 0.4000000059604645],
+      "socket": null,
+      "translate": [0.1889999955892563, 2.8763680458068848, 0.8507040739059448],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "stone",
+      "instance": [
+        {
+          "position": [6.099999904632568, 10.0, 0.800000011920929],
+          "rotation": [90.0, 0.0, 0.0],
+          "scale": [3.3299999237060547, 2.0899999141693115, 1.0]
+        },
+        {
+          "position": [-0.9800000190734863, 8.869999885559082, 0.75],
+          "rotation": [90.0, 0.0, 0.0],
+          "scale": [3.3299999237060547, 2.0899999141693115, 1.0]
+        }
+      ],
+      "material_props": [
+        {
+          "Plane": {
+            "uv": [3.0, 2.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "stone",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/stone wall/stonewall.gltf",
+      "physics": null,
+      "rotate": [90.0, -0.0, 0.0],
+      "scale": [3.3299999237060547, 2.0899999141693115, 1.0],
+      "socket": null,
+      "translate": [6.099999904632568, 10.0, 0.800000011920929],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": true,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "human",
+      "instance": null,
+      "material_props": [
+        {
+          "Mesh_0": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "human",
+      "path2": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/model2.gltf",
+      "path": "/home/ahmad/Documents/3d/mine3.gltf",
+      "physics": null,
+      "rotate": [0.0, -1.7075473124350538e-6, 127.49799346923828],
+      "scale": [0.5, 0.5, 0.5],
+      "socket": null,
+      "translate": [
+        -3.6506898403167725, -1.7967301607131958, 0.09999996423721313
+      ],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "ammobox",
+      "instance": [
+        {
+          "position": [-6.132936954498291, -1.100000023841858, 0.0],
+          "rotation": [90.0, 0.0, 0.0],
+          "scale": [
+            0.009999999776482582, 0.009999999776482582, 0.009999999776482582
+          ]
+        },
+        {
+          "position": [
+            -0.4099999964237213, -4.380000114440918, 0.009999999776482582
+          ],
+          "rotation": [90.0, 0.0, 0.0],
+          "scale": [
+            0.00800000037997961, 0.00800000037997961, 0.00800000037997961
+          ],
+          "physics": {}
+        },
+        {
+          "position": [
+            3.3499999046325684, -4.429999828338623, 0.019999999552965164
+          ],
+          "rotation": [90.0, 0.0, 0.0],
+          "scale": [
+            0.00800000037997961, 0.00800000037997961, 0.00800000037997961
+          ],
+          "physics": {}
+        },
+        {
+          "position": [
+            2.680000066757202, 3.6600000858306885, 0.029999999329447746
+          ],
+          "rotation": [90.0, 0.0, 0.0],
+          "scale": [
+            0.00800000037997961, 0.00800000037997961, 0.00800000037997961
+          ],
+          "physics": {}
+        },
+        {
+          "position": [
+            -0.07999999821186066, 3.3499999046325684, 0.03999999910593033
+          ],
+          "rotation": [90.0, 0.0, 90.0],
+          "scale": [
+            0.00800000037997961, 0.00800000037997961, 0.00800000037997961
+          ],
+          "physics": {}
+        }
+      ],
+      "material_props": [
+        {
+          "Box.002": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "ammobox",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/ammobox.gltf",
+      "physics": {
+        "enabled": true,
+        "method": "aabb",
+        "type": "static"
+      },
+      "rotate": [90.0, -0.0, 30.000001907348633],
+      "scale": [0.00800000037997961, 0.00800000037997961, 0.00800000037997961],
+      "socket": null,
+      "translate": [-5.843048572540283, -1.100000023841858, 0.0],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "y",
+      "default_clip": "",
+      "enabled": true,
+      "id": "ak47",
+      "instance": null,
+      "material_props": [
+        {
+          "Round_2": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "AK_47_2": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [
+        {
+          "Round_2": ""
+        },
+        {
+          "AK_47_2": "ak47-round"
+        }
+      ],
+      "name": "ak47",
+      "path": "/home/ahmad/Downloads/3D/Ak_47/Ak-47.obj",
+      "physics": {
+        "enabled": true,
+        "method": "aabb",
+        "sensor": true,
+        "type": "kinematic"
+      },
+      "rotate": [270.0, 0.0, 0.0],
+      "scale": [0.001, 0.001, 0.001],
+      "socket": null,
+      "socket2": {
+        "bone_name": "DEF-neck",
+        "model_name": "human",
+        "offset": {
+          "rotate": [1.919862151145935, 0.08726654201745987, 2.268928050994873],
+          "scale": [
+            0.0020000000949949026, 0.0020000000949949026, 0.0020000000949949026
+          ],
+          "translate": [
+            -0.10000000149011612, -0.20000000298023224, -0.10000000149011612
+          ]
+        }
+      },
+      "translate": [-4.94, -8.486, 0.066],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "cb",
+      "instance": [
+        {
+          "position": [-7.0, 7.800000190734863, 0.30000001192092896],
+          "rotation": [0.0, 0.0, 90.0],
+          "scale": [0.5, 0.5, 0.5]
+        },
+        {
+          "position": [
+            -6.989999771118164, 3.309999942779541, 0.3100000023841858
+          ],
+          "rotation": [0.0, 0.0, 90.0],
+          "scale": [0.5, 0.5, 0.5]
+        },
+        {
+          "position": [
+            -6.979999542236328, -1.1399999856948853, 0.3199999928474426
+          ],
+          "rotation": [0.0, 0.0, 90.0],
+          "scale": [0.5, 0.5, 0.5]
+        },
+        {
+          "position": [
+            -6.969999313354492, -5.610000133514404, 0.32999998331069946
+          ],
+          "rotation": [0.0, 0.0, 90.0],
+          "scale": [0.5, 0.5, 0.5]
+        }
+      ],
+      "material_props": [
+        {
+          "Cube.001": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane": {
+            "uv": [2.0, 2.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "cb",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/concerete_barrier.gltf",
+      "physics": null,
+      "rotate": [0.0, -0.0, 90.0],
+      "scale": [0.5, 0.5, 0.5],
+      "socket": null,
+      "translate": [-7.0, 7.800000190734863, 0.30000001192092896],
+      "type": 0,
+      "visible": true
+    }
+  ]
+}

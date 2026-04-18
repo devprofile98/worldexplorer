@@ -40,7 +40,7 @@ LightManager* LightManager::getInstance() { return mLightInstance; }
 Buffer& LightManager::getCountBuffer() { return mLightCountBuffer; }
 
 size_t LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float cons,
-                                      float lin, float quad, const char* name) {
+                                      float lin, float quad, float intensity, const char* name) {
     Light light;
     light.mPosition = pos;
     light.mAmbient = amb;
@@ -49,6 +49,7 @@ size_t LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 di
     light.mConstant = cons;
     light.mLinear = lin;
     light.mQuadratic = quad;
+    light.intensity = intensity;
     light.type = POINT;
 
     auto ret_idx = mLights.size();
@@ -60,7 +61,8 @@ size_t LightManager::createPointLight(glm::vec4 pos, glm::vec4 amb, glm::vec4 di
 }
 
 size_t LightManager::createSpotLight(glm::vec4 pos, glm::vec4 direction, glm::vec4 diff, float cutoff,
-                                     float outerCutoff, float linear, float quadratic, const char* name) {
+                                     float outerCutoff, float linear, float quadratic, float intensity,
+                                     const char* name) {
     Light light;
     light.mPosition = pos;
     light.mDirection = direction;
@@ -71,6 +73,7 @@ size_t LightManager::createSpotLight(glm::vec4 pos, glm::vec4 direction, glm::ve
     light.type = SPOT;
     light.mConstant = 1.0;
     light.mLinear = linear;
+    light.intensity = intensity;
     light.mQuadratic = quadratic;
 
     auto ret_idx = mLights.size();
@@ -159,6 +162,7 @@ void LightManager::renderGUI() {
         if (ImGui::CollapsingHeader("Attenuation", ImGuiTreeNodeFlags_DefaultOpen)) {
             changed |= ImGui::DragFloat("Constant##env", &light->mConstant, speed);
             changed |= ImGui::DragFloat("Linear##env", &light->mLinear, speed);
+            changed |= ImGui::DragFloat("Intensity##env", &light->intensity, speed);
             if (light->type == SPOT) {
                 changed |= ImGui::DragFloat("Inner Cutoff##env", &light->mInnerCutoff, speed);
                 changed |= ImGui::DragFloat("outer Cutoff##env", &light->mOuterCutoff, speed);
@@ -191,10 +195,10 @@ void LightManager::renderGUI() {
         if (ImGui::Button("Create New Light")) {
             if (is_spot) {
                 createSpotLight(glm::vec4{0.0, 0.0, 0.0, 1.0}, glm::vec4{0.0, 0.0, -1.0, 1.0},
-                                glm::vec4{1.0, 0.0, 0.0, 1.0}, 0.837, 0.709, 0.08, 0.4, new_light_name);
+                                glm::vec4{1.0, 0.0, 0.0, 1.0}, 0.837, 0.709, 0.08, 0.4, 1.0, new_light_name);
             } else if (is_point) {
                 createPointLight(glm::vec4{0.0, 0.0, 0.0, 1.0}, glm::vec4{1.0, 0.0, 0.0, 1.0},
-                                 glm::vec4{1.0, 0.0, 0.0, 1.0}, glm::vec4{1.0, 0.0, 0.0, 1.0}, 1.0, -1.0, 1.8,
+                                 glm::vec4{1.0, 0.0, 0.0, 1.0}, glm::vec4{1.0, 0.0, 0.0, 1.0}, 1.0, -1.0, 1.8, 1.0,
                                  new_light_name);
             }
         }

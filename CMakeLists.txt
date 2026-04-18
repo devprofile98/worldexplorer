@@ -121,6 +121,8 @@ add_executable(
     src/animation.cpp
     src/world.cpp
     src/particle_system.cpp
+    src/hdr_pass.cpp
+    src/full_quad_converter.cpp
 
     # src/tree.cpp
 
