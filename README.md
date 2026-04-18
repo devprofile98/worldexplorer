@@ -21,7 +21,7 @@
 - [x] Planar Water rendering.
 - [ ] Full featured water rendering.
 - [ ] Translucency.
-- [x] Lights (Directional and Point).
+- [x] Lights (Directional, Point, Spot).
 - [x] Scene Graph.
 - [x] Node and Skeletal Animations.
 - [x] Physics ( static / dynamic / sensors ).
