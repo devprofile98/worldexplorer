@@ -18,7 +18,9 @@
 - [x] PBR.
 - [x] Frustum Culling (GPU driven / Compute Shaders).
 - [x] Instancing (Indirect rendering).
-- [x] Full Featured Water Object.
+- [x] Planar Water rendering.
+- [ ] Full featured water rendering.
+- [ ] Translucency.
 - [x] Lights (Directional and Point).
 - [x] Scene Graph.
 - [x] Node and Skeletal Animations.
@@ -26,7 +28,11 @@
 - [ ] Screen Space Reflection.
 - [ ] Ambient Occlusion.
 - [ ] Bloom.
-- [ ] Particle system.
+- [x] HDR rendering.
+- [ ] Adaptive exposure.
+- [x] Particle system.
 - [ ] Lod Meshes.
 - [x] Async Resource Loader.
 - [ ] Volumetric Clouds and Fogs.
+- [ ] Export Game Asset Binary Format.
+- [ ] Release at least a Game with it.
