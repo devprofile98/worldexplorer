@@ -28,33 +28,34 @@ TerrainPass::TerrainPass(Application* app, const std::string& name) : RenderPass
         mTexturesBindgroup.createLayout(mApp->getRendererResource(), "Terrain Texture layout bidngroup");
 
     std::filesystem::path base_path = mApp->getBinaryPathAbsolute() / ".." / RESOURCE_DIR;
-    mGrass = new Texture{mApp->getRendererResource().device,
-                         std::vector<std::filesystem::path>{base_path / "mud/diffuse.jpg", base_path / "mud/normal.jpg",
-                                                            base_path / "mud/roughness.jpg"},
-                         WGPUTextureFormat_RGBA8Unorm, 3};
+    mGrass = new Texture{
+        mApp->getRendererResource().device,
+        std::vector<std::filesystem::path>{base_path / "mud" / "diffuse.jpg", base_path / "mud" / "normal.jpg",
+                                           base_path / "mud" / "roughness.jpg"},
+        WGPUTextureFormat_RGBA8Unorm, 3};
     mGrass->createViewArray(0, 3);
     mGrass->uploadToGPU(mApp->getRendererResource().queue);
 
     mRock = new Texture{mApp->getRendererResource().device,
-                        std::vector<std::filesystem::path>{base_path / "Rock/Rock060_1K-JPG_Color.jpg",
-                                                           base_path / "Rock/Rock060_1K-JPG_NormalGL.jpg",
-                                                           base_path / "Rock/Rock060_1K-JPG_Roughness.jpg"},
+                        std::vector<std::filesystem::path>{base_path / "Rock" / "Rock060_1K-JPG_Color.jpg",
+                                                           base_path / "Rock" / "Rock060_1K-JPG_NormalGL.jpg",
+                                                           base_path / "Rock" / "Rock060_1K-JPG_Roughness.jpg"},
                         WGPUTextureFormat_RGBA8Unorm, 3};
     mRock->createViewArray(0, 3);
     mRock->uploadToGPU(mApp->getRendererResource().queue);
 
     mSand = new Texture{mApp->getRendererResource().device,
-                        std::vector<std::filesystem::path>{base_path / "aerial/aerial_beach_01_diff_1k.jpg",
-                                                           base_path / "aerial/aerial_beach_01_nor_gl_1k.jpg",
-                                                           base_path / "aerial/aerial_beach_01_rough_1k.jpg"},
+                        std::vector<std::filesystem::path>{base_path / "aerial" / "aerial_beach_01_diff_1k.jpg",
+                                                           base_path / "aerial" / "aerial_beach_01_nor_gl_1k.jpg",
+                                                           base_path / "aerial" / "aerial_beach_01_rough_1k.jpg"},
                         WGPUTextureFormat_RGBA8Unorm, 3};
     mSand->createViewArray(0, 3);
     mSand->uploadToGPU(mApp->getRendererResource().queue);
 
     mSnow = new Texture{mApp->getRendererResource().device,
-                        std::vector<std::filesystem::path>{base_path / "snow/snow_02_diff_1k.jpg",
-                                                           base_path / "snow/snow_02_nor_gl_1k.jpg",
-                                                           base_path / "snow/snow_02_rough_1k.jpg"},
+                        std::vector<std::filesystem::path>{base_path / "snow" / "snow_02_diff_1k.jpg",
+                                                           base_path / "snow" / "snow_02_nor_gl_1k.jpg",
+                                                           base_path / "snow" / "snow_02_rough_1k.jpg"},
                         WGPUTextureFormat_RGBA8Unorm, 3};
     mSnow->createViewArray(0, 3);
     mSnow->uploadToGPU(mApp->getRendererResource().queue);

@@ -923,7 +923,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
         void decideCurrentAnimation(Model* model, float dt) {
             static std::string last_clip;
             std::string clip_name;
-            bool loop;
+            bool loop = false;
             model->getAnimation()->isEnded();
 
             if (isAiming) {

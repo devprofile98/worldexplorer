@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     std::string world_file;
     if (argc < 2) {
         std::cout << "Default to loading rc://world.json\n";
-        world_file = "world.json";
+        world_file = "shooter2.json";
     } else {
         world_file = argv[1];
     }
