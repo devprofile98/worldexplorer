@@ -67,7 +67,8 @@ using namespace JPH;
 namespace Layers {
 static constexpr uint8_t NON_MOVING = 0;
 static constexpr uint8_t MOVING = 1;
-static constexpr uint8_t NUM_LAYERS = 2;
+static constexpr uint8_t CHARACTER_INNER = 2;
+static constexpr uint8_t NUM_LAYERS = 3;
 };  // namespace Layers
     //
 
@@ -92,6 +93,7 @@ class BroadPhaseLayerInterfaceImpl final : public BroadPhaseLayerInterface {
             // Map object layer → broad phase layer
             mObjectToBroadPhase[Layers::NON_MOVING] = BroadPhaseLayer(0);
             mObjectToBroadPhase[Layers::MOVING] = BroadPhaseLayer(1);
+            mObjectToBroadPhase[Layers::CHARACTER_INNER] = BroadPhaseLayer(2);
         }
 
         uint GetNumBroadPhaseLayers() const override { return Layers::NUM_LAYERS; }
@@ -108,6 +110,8 @@ class BroadPhaseLayerInterfaceImpl final : public BroadPhaseLayerInterface {
                     return "NON_MOVING";
                 case (BroadPhaseLayer::Type)1:
                     return "MOVING";
+                case (BroadPhaseLayer::Type)2:
+                    return "Character inner";
                 default:
                     JPH_ASSERT(false);
                     return "INVALID";
@@ -233,6 +237,8 @@ CharacterVirtual* createCharacter(Ref<Shape> shape, const glm::vec3& initialPosi
     settings->mCharacterPadding = 0.02f;                 // avoids tunneling
     settings->mPenetrationRecoverySpeed = 1.0f;
     settings->mPredictiveContactDistance = 0.1f;
+    settings->mInnerBodyShape = shape;
+    settings->mInnerBodyLayer = Layers::CHARACTER_INNER;
 
     // JPH::Quat rotate90X = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(0.0f));
     // Create the character

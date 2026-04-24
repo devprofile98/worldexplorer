@@ -236,24 +236,25 @@ glm::mat4 createProjectionFromFrustumCorner(const std::vector<glm::vec4>& corner
         maxZ = std::max(maxZ, trf.z);
     }
 
-    /*constexpr float zMult = 10.0f;*/
-    /*if (minZ < 0) {*/
-    /*    minZ *= zMult;*/
-    /*} else {*/
-    /*    minZ /= zMult;*/
-    /*}*/
-    /*if (maxZ < 0) {*/
-    /*    maxZ /= zMult;*/
-    /*} else {*/
-    /*    maxZ *= zMult;*/
-    /*}*/
-    /*if (should) {*/
+    // float zRange = maxZ - minZ;
+    // float zPad = zRange * 0.1f;  // e.g. 10% padding
+    //                              //
+    // maxZ += zPad;
+    // minZ -= zPad;
+
     maxZ += 20.0f * dis;
     minZ -= 20.0f * dis;
-    /*if (std::strcmp(name, "Near") == 0) {*/
-    /*}*/
 
     *mm = minZ;
+
+    float shadowMapSize = 2048.0f;  // match your actual shadow map resolution
+    float texelX = (maxX - minX) / shadowMapSize;
+    float texelY = (maxY - minY) / shadowMapSize;
+    minX = std::floor(minX / texelX) * texelX;
+    maxX = std::floor(maxX / texelX) * texelX;
+    minY = std::floor(minY / texelY) * texelY;
+    maxY = std::floor(maxY / texelY) * texelY;
+
     return glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 }
 
@@ -280,9 +281,12 @@ Scene ShadowPass::calculateFrustumScene(const std::vector<glm::vec4>& frustum, f
     center /= frustum.size();
 
     glm::vec3 lightDirection = glm::normalize(-this->sunDir);
-    glm::vec3 lightPosition =
-        // center - lightDirection * (glm::length(frustum[0] - frustum[7]) / 5.0f);  // Push light back
-        center - lightDirection * (mPushBackFactor);  // Push light back
+    auto dist = glm::length(frustum[0] - frustum[7]);
+    float radius = 0.0f;
+    for (const auto& v : frustum) radius = std::max(radius, glm::length(glm::vec3(v) - center));
+
+    glm::vec3 lightPosition = center - (lightDirection * radius * mPushBackFactor);  // Push light back
+    // center - lightDirection * (mPushBackFactor);  // Push light back
 
     auto view = glm::lookAt(lightPosition, center, glm::vec3{0.0f, 0.0f, 1.0f});
     glm::mat4 projection = createProjectionFromFrustumCorner(frustum, view, &MinZ, "frustum", cascadeIdx);

@@ -93,7 +93,7 @@ bool flip_x = false;
 bool flip_y = false;
 bool flip_z = false;
 
-float middle_plane_length = 70.0f;
+float middle_plane_length = 11.0f;
 float far_plane_length = 20.5f;
 bool should_update_csm = true;
 bool render_shadow = true;

@@ -402,8 +402,8 @@ struct ZombieBehaviour : public EnemyBehaviour {
                     if (entity == nullptr) {
                         return;
                     }
-                    std::cout << "Hit result: " << hit.valid << entity->getName() << std::endl;
                     if (actor == entity) {
+                        // std::cout << "Hit result: " << hit.valid << entity->getName() << std::endl;
                         state = 1;  // chasing
                     }
                 }
