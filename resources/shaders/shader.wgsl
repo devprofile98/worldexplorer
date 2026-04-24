@@ -100,29 +100,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     return out;
 }
 
-fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, cascadeIdx: u32) -> f32 {
 
-    var projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-
-    projCoords = vec3(
-        projCoords.xy * vec2(0.5, -0.5) + vec2(0.5),
-        projCoords.z
-    );
-
-    if projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0 {
-        return 0.0; // No shadow for out-of-bounds
-    }
-
-    var shadow = 0.0;
-    for (var i: i32 = -1; i <= 1; i++) {
-        for (var j: i32 = -1; j <= 1; j++) {
-            //shadow += textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), cascadeIdx, projCoords.z - 0.0005);
-            shadow += textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy, cascadeIdx, projCoords.z - 0.0005);
-        }
-    }
-    shadow /= 9.0;
-    return shadow;
-}
 
 fn calculateSpotLight(light: PointLight, N: vec3f, V: vec3f, pos: vec3f, albedo: vec3f, roughness: f32, metallic: f32, F0: vec3f) -> vec3f {
     if light.ftype != 2i {
@@ -348,9 +326,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
 
     //if cascadeIndex == 0u {
-    //    color = color * vec3f(1.0, 0.0, 0.0);
+    //    color = color * vec3f(0.1, 1.0, 1.0);
     //} else if cascadeIndex == 1u {
-    //    color = color * vec3f(0.0, 0.0, 1.0);
+    //    color = color * vec3f(1.0, 1.0, 0.1);
     //}
 
     return vec4f(color, 1.0);

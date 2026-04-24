@@ -112,3 +112,30 @@ struct MeshTransformations {
 @group(1) @binding(1) var<uniform> bonesFinalTransform: array<mat4x4f, 100>;
 @group(1) @binding(2) var<storage, read> meshTransformation: MeshTransformations;
 
+
+
+
+fn calculateShadow(fragPosLightSpace: vec4f, distance: f32, cascadeIdx: u32) -> f32 {
+
+    var projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+
+    projCoords = vec3(
+        projCoords.xy * vec2(0.5, -0.5) + vec2(0.5),
+        projCoords.z
+    );
+
+    if projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0 {
+        return 0.0; // No shadow for out-of-bounds
+    }
+
+    var shadow = 0.0;
+    for (var i: i32 = -1; i <= 1; i++) {
+        for (var j: i32 = -1; j <= 1; j++) {
+            shadow += textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy + vec2(f32(i), f32(j)) * vec2(0.00048828125, 0.00048828125), cascadeIdx, projCoords.z - 0.0005);
+            //shadow += textureSampleCompare(depth_texture, shadowMapSampler, projCoords.xy, cascadeIdx, projCoords.z - 0.0005);
+        }
+    }
+    shadow /= 9.0;
+    return shadow;
+}
+
