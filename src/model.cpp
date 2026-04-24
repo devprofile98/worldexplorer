@@ -418,9 +418,10 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
     }
 
     auto& mmesh = mFlattenMeshes[mMeshNumber];
-    auto d = mPath.find_last_of("/");
+    // auto d = mPath.find_last_of("/");
+    // auto base_path = mPath.substr(0, d);
 
-    auto base_path = mPath.substr(0, d);
+    auto base_path = std::filesystem::path(mPath).parent_path();
 
     auto load_texture = [&](aiTextureType type, MaterialProps flag, std::shared_ptr<Texture>* target) {
         for (uint32_t i = 0; i < material->GetTextureCount(type); i++) {
@@ -429,9 +430,10 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
             aiString str;
             material->GetTexture(type, i, &str);
-            std::string texture_path = base_path;
-            texture_path += "/";
-            texture_path += str.C_Str();
+            // std::string texture_path = base_path;
+            // texture_path += "/";
+            // texture_path += str.C_Str();
+            std::string texture_path = (std::filesystem::path(base_path) / std::string(str.C_Str())).string();
 
             size_t pos = 0;
             while ((pos = texture_path.find("%20", pos)) != std::string::npos) {

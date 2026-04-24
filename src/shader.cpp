@@ -33,8 +33,9 @@ void preprocessShader(std::string& shaderCode, std::filesystem::path basePath) {
         std::string shader_name = shaderCode.substr(start_idx + 1, end_idx - start_idx - 1);
 
         std::cout << std::format("loading {} in preprocessing from {}\n", shader_name,
-                                 basePath.string() + "/" + shader_name);
-        std::string file_content = readFile(basePath.string() + "/" + shader_name);
+                                 (basePath / shader_name).string());
+        // std::string file_content = readFile(basePath.string() + "/" + shader_name);
+        std::string file_content = readFile(basePath / shader_name);
 
         shaderCode.replace(find_index, end_idx - find_index + 1, file_content);
         find_index = shaderCode.find("#include", find_index + 1);
@@ -42,7 +43,8 @@ void preprocessShader(std::string& shaderCode, std::filesystem::path basePath) {
 }
 
 WGPUShaderModule loadShader(const fs::path& path, WGPUDevice device) {
-    auto base_path = path.string().substr(0, path.string().find_last_of("/"));
+    // auto base_path = path.string().substr(0, path.string().find_last_of("/"));
+    auto base_path = std::filesystem::path(path).parent_path();
     std::string shader_code = readFile(path);
     preprocessShader(shader_code, base_path);
     WGPUShaderSourceWGSL module_descriptor = {};

@@ -1,8 +1,7 @@
 #include "instance.h"
 
-#include <strings.h>
-
 #include <atomic>
+#include <string>
 
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/gtc/quaternion.hpp"

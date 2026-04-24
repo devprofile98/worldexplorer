@@ -1119,7 +1119,7 @@ std::shared_ptr<Texture> DrawTexturePicker(const char* label, std::shared_ptr<Te
 std::filesystem::path normalizePath(Application* app, std::string& path) {
     if (path.starts_with("rc://")) {
         path.replace(0, 5, "");
-        path = app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / path;
+        path = (app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / path).string();
     }
     return path;
 }

@@ -201,10 +201,11 @@ static LineGroup capsuledebuglines;
 static LineGroup aabbDebugLines;
 
 Application::Application(const char* runningBinaryPath, const std::string& sceneFile) {
-    std::string binary_running_path = runningBinaryPath;
-    auto path = binary_running_path.substr(0, binary_running_path.find_last_of("/"));
-    std::cout << "The ruunning path is " << path << std::endl;
-    mBinaryPath = path;
+    // std::string binary_running_path = runningBinaryPath;
+    // auto path = binary_running_path.substr(0, binary_running_path.find_last_of("/"));
+    // std::cout << "The ruunning path is " << path << std::endl;
+    std::filesystem::path binary_path = std::filesystem::path(runningBinaryPath).parent_path();
+    mBinaryPath = binary_path.string();
     mCWDPath = std::filesystem::current_path();
     mSceneFilePath = sceneFile;
 }
@@ -313,8 +314,10 @@ void Application::initializePipeline() {
                              {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
                               mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
                              "standard pipeline"};
-    mPipeline->defaultConfiguration(resource, mSurfaceFormat, WGPUTextureFormat_Depth24Plus,
-                                    (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str());
+    mPipeline->defaultConfiguration(
+        resource, mSurfaceFormat, WGPUTextureFormat_Depth24Plus,
+        // (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str());
+        (getBinaryPathAbsolute() / ".." / "resources" / "shaders" / "shader.wgsl").string().c_str());
     setDefaultActiveStencil(mPipeline->getDepthStencilState());
     mPipeline->setColorTargetState(WGPUTextureFormat_RGBA16Float);
     mPipeline->setDepthStencilState(mPipeline->getDepthStencilState());
@@ -324,8 +327,10 @@ void Application::initializePipeline() {
                                 {bind_group_layout, mBindGroupLayouts[1], mBindGroupLayouts[2], mBindGroupLayouts[3],
                                  mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
                                 "standard hdr pipeline"};
-    mHDRPipeline->defaultConfiguration(resource, mSurfaceFormat, WGPUTextureFormat_Depth24Plus,
-                                       (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str());
+    mHDRPipeline->defaultConfiguration(
+        resource, mSurfaceFormat, WGPUTextureFormat_Depth24Plus,
+        // (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str());
+        (getBinaryPathAbsolute() / ".." / "resources" / "shaders" / "shader.wgsl").string().c_str());
     setDefaultActiveStencil(mPipeline->getDepthStencilState());
     // mPipeline->setColorTargetState(WGPUTextureFormat_RGBA16Float);
     mHDRPipeline->setDepthStencilState(mPipeline->getDepthStencilState());
@@ -337,8 +342,10 @@ void Application::initializePipeline() {
                       mBindGroupLayouts[4], mBindGroupLayouts[5], mBindGroupLayouts[6]},
                      "Draw outline pipe"};
     mStenctilEnabledPipeline
-        ->defaultConfiguration(resource, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8,
-                               (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str())
+        ->defaultConfiguration(
+            resource, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8,
+            // (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str())
+            (getBinaryPathAbsolute() / ".." / "resources" / "shaders" / "shader.wgsl").string().c_str())
         .createPipeline(resource);
 
     mDefaultTextureBindingData[0] = {};

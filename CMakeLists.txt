@@ -42,12 +42,12 @@ file(GLOB IMGUI_BACKEND_SOURCES
 # Fetch Glm
 include(FetchContent)
 
-FetchContent_Declare(
-	glm
-	GIT_REPOSITORY	https://github.com/g-truc/glm.git
-	GIT_TAG 	bf71a834948186f4097caa076cd2663c69a10e1e #refs/tags/1.0.1
-)
-FetchContent_MakeAvailable(glm)
+# FetchContent_Declare(
+# 	glm
+# 	GIT_REPOSITORY	https://github.com/g-truc/glm.git
+# 	GIT_TAG 	bf71a834948186f4097caa076cd2663c69a10e1e #refs/tags/1.0.1
+# )
+# FetchContent_MakeAvailable(glm)
 
 # The configurations we support
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release;Distribution")
@@ -59,24 +59,38 @@ set(INTERPROCEDURAL_OPTIMIZATION ON)
 set(FLOATING_POINT_EXCEPTIONS_ENABLED OFF)
 set(CPP_EXCEPTIONS_ENABLED OFF)
 set(CPP_RTTI_ENABLED OFF)
-set(OBJECT_LAYER_BITS 16)
-set(USE_SSE4_1 ON)
-set(USE_SSE4_2 ON)
-set(USE_AVX ON)
-set(USE_AVX2 ON)
-set(USE_AVX512 OFF)
-set(USE_LZCNT ON)
-set(USE_TZCNT ON)
-set(USE_F16C ON)
-set(USE_FMADD ON)
+
+# These conditions are wrong and should be refactored to see if the target system support these features
+if (UNIX AND NOT APPLE)
+    set(OBJECT_LAYER_BITS 16)
+    set(USE_SSE4_1 ON)
+    set(USE_SSE4_2 ON)
+    set(USE_AVX ON)
+    set(USE_AVX2 ON)
+    set(USE_AVX512 OFF)
+    set(USE_LZCNT ON)
+    set(USE_TZCNT ON)
+    set(USE_F16C ON)
+    set(USE_FMADD ON)
+elseif (WIN32)
+    set(USE_SSE4_1 OFF CACHE BOOL "" FORCE)
+    set(USE_SSE4_2 OFF CACHE BOOL "" FORCE)
+    set(USE_AVX OFF CACHE BOOL "" FORCE)
+    set(USE_AVX2 OFF CACHE BOOL "" FORCE)
+    set(USE_AVX512 OFF CACHE BOOL "" FORCE)
+    set(USE_LZCNT OFF CACHE BOOL "" FORCE)
+    set(USE_TZCNT OFF CACHE BOOL "" FORCE)
+    set(USE_F16C OFF CACHE BOOL "" FORCE)
+    set(USE_FMADD OFF CACHE BOOL "" FORCE)
+endif()
 # Include Jolt
-FetchContent_Declare(
-        JoltPhysics
-        GIT_REPOSITORY "https://github.com/jrouwe/JoltPhysics"
-        GIT_TAG "v5.4.0"
-		SOURCE_SUBDIR "Build"
-)
-FetchContent_MakeAvailable(JoltPhysics)
+# FetchContent_Declare(
+#         JoltPhysics
+#         GIT_REPOSITORY "https://github.com/jrouwe/JoltPhysics"
+#         GIT_TAG "v5.4.0"
+# 		SOURCE_SUBDIR "Build"
+# )
+# FetchContent_MakeAvailable(JoltPhysics)
 
 
 if (TRACY_ENABLE)
@@ -196,6 +210,7 @@ target_include_directories(App PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}"
                                        "extern/glfw3webgpu"
                                        "include"
                                        "tracy_external"
+                                       "${JoltPhysics_SOURCE_DIR}/.."
                                    )
 
 set_target_properties(App PROPERTIES
@@ -206,9 +221,9 @@ set_target_properties(App PROPERTIES
 )
 
 add_library(wgpu_native SHARED IMPORTED)
+
 if (MSVC)
     target_compile_options(App PRIVATE /W4)
-    # target_link_libraries(App "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/wgpu_native.dll" glfw assimp glm::glm)
     set_target_properties(wgpu_native PROPERTIES
         IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/wgpu_native.dll"
         IMPORTED_IMPLIB "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/wgpu_native.lib"
@@ -216,16 +231,16 @@ if (MSVC)
 
     add_definitions(-DGLFW_EXPOSE_NATIVE_WIN32)
     set(OS_LIBRARIES d3dcompiler ws2_32 userenv bcrypt ntdll opengl32 Propsys RuntimeObject)
-    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm::glm ${OS_LIBRARIES} nfd)
+    # target_include_directories(App PUBLIC ${JoltPhysics_SOURCE_DIR}/..)
+    target_link_libraries(App PRIVATE wgpu_native glfw assimp glm ${OS_LIBRARIES} Jolt nfd)
 
 else()
     target_compile_options(App PRIVATE -Wall -Wextra -pedantic)
-    # target_link_libraries(App "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/libwgpu_native.so" glfw assimp glm::glm)
     set_target_properties(wgpu_native PROPERTIES
         IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/webgpu/libwgpu_native.so"
     )
 
-    target_include_directories(App PUBLIC ${JoltPhysics_SOURCE_DIR}/..)
+    # target_include_directories(App PUBLIC ${JoltPhysics_SOURCE_DIR}/..)
     target_link_libraries(App PRIVATE wgpu_native glfw assimp glm Jolt nfd)
 
 endif()
@@ -240,6 +255,8 @@ endif()
 
 if (NOT EMSCRIPTEN)
     add_subdirectory(extern/glfw)
+    add_subdirectory(extern/glm)
+    add_subdirectory(extern/JoltPhysics/Build)
     add_subdirectory(extern/nfd)
 else()
 # Emscripten has built-in support for GLFW but requires the `-sUSE_GLFW=3` link option:
