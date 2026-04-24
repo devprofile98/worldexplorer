@@ -41,6 +41,20 @@ class TerrainPass : public RenderPass {
         Texture* mSnow;
 };
 
+// class GUIPass : public RenderPass {
+//         void createRenderPass(WGPUTextureFormat textureFormat) override;
+//
+//     public:
+//         explicit GUIPass(Application* app, const std::string& name);
+//
+//         Pipeline* create(WGPUTextureFormat textureFormat);
+//         void executePass();
+//
+//     private:
+//         Application* mApp;
+//         std::vector<WGPUBindGroupEntry> mBindingData{4};
+// };
+
 class OutlinePass : public RenderPass {
         void createRenderPass(WGPUTextureFormat textureFormat) override;
 

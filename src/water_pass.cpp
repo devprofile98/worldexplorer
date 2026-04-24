@@ -421,17 +421,18 @@ void WaterPass::drawWater() {
     // ---------- Terrain Render Pass for Water Reflection
     NewRenderPass::beginPass(
         mTerrainForReflection, mApp->getRendererResource().commandEncoder, [&](WGPURenderPassEncoder pass_encoder) {
-            wgpuRenderPassEncoderSetPipeline(pass_encoder, mApp->mTerrainPass->getPipeline()->getPipeline());
+            wgpuRenderPassEncoderSetPipeline(pass_encoder, mApp->m3DviewportPass->getPipeline()->getPipeline());
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mWaterPass->mDefaultCameraIndexBindgroup.getBindGroup(),
                                               0, nullptr);
 
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mWaterPass->mDefaultClipPlaneBG.getBindGroup(), 0,
                                               nullptr);
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
-            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 6, mApp->mTerrainPass->mTexturesBindgroup.getBindGroup(), 0,
-                                              nullptr);
+            // wgpuRenderPassEncoderSetBindGroup(pass_encoder, 6, mApp->mTerrainPass->mTexturesBindgroup.getBindGroup(),
+            // 0,
+            //                                   nullptr);
 
-            mApp->mTerrainPass->terrain.draw(mApp, pass_encoder, mApp->mBindingData);
+            // mApp->mTerrainPass->terrain.draw(mApp, pass_encoder, mApp->mBindingData);
 
             wgpuRenderPassEncoderEnd(pass_encoder);
         });
@@ -444,16 +445,16 @@ void WaterPass::drawWater() {
 
     NewRenderPass::beginPass(
         mTerrainForRefraction, mApp->getRendererResource().commandEncoder, [&](WGPURenderPassEncoder pass_encoder) {
-            wgpuRenderPassEncoderSetPipeline(pass_encoder, mApp->mTerrainPass->getPipeline()->getPipeline());
+            // wgpuRenderPassEncoderSetPipeline(pass_encoder, mApp->mTerrainPass->getPipeline()->getPipeline());
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 3, mApp->mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                               nullptr);
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 4, mWaterRefractionPass->mDefaultClipPlaneBG.getBindGroup(),
                                               0, nullptr);
             wgpuRenderPassEncoderSetBindGroup(pass_encoder, 5, mApp->mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
-            wgpuRenderPassEncoderSetBindGroup(pass_encoder, 6, mApp->mTerrainPass->mTexturesBindgroup.getBindGroup(), 0,
-                                              nullptr);
+            // wgpuRenderPassEncoderSetBindGroup(pass_encoder, 6, mApp->mTerrainPass->mTexturesBindgroup.getBindGroup(),
+            // 0, nullptr);
 
-            mApp->mTerrainPass->terrain.draw(mApp, pass_encoder, mApp->mBindingData);
+            // mApp->mTerrainPass->terrain.draw(mApp, pass_encoder, mApp->mBindingData);
 
             wgpuRenderPassEncoderEnd(pass_encoder);
         });

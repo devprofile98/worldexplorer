@@ -136,7 +136,6 @@ class Application {
         DepthPrePass* mDepthPrePass;
         TransparencyPass* mTransparencyPass;
         CompositionPass* mCompositionPass;
-        TerrainPass* mTerrainPass;
         OutlinePass* mOutlinePass;
         ViewPort3DPass* m3DviewportPass;
         HDRPipeline* mHDRpp = nullptr;

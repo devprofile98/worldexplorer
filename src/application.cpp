@@ -413,10 +413,6 @@ void Application::initializePipeline() {
     mDepthPrePass = new DepthPrePass{this, "Depth PrePass", mDepthTextureView};
     mDepthPrePass->createRenderPass(WGPUTextureFormat_RGBA8Unorm);
 
-    mTerrainPass = new TerrainPass{this, "Terrain Render Pass"};
-    mTerrainPass->create(mSurfaceFormat);
-    // mTerrainPass->create(WGPUTextureFormat_RGBA16Float);
-
     m3DviewportPass = new ViewPort3DPass{this, "ViewPort 3D Render Pass"};
 
     createHDRTexture();
@@ -1163,16 +1159,13 @@ void Application::mainLoop() {
 
         WGPURenderPassEncoder terrain_pass_encoder =
             wgpuCommandEncoderBeginRenderPass(encoder, &render_pass_descriptor);
-        wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, mTerrainPass->getPipeline()->getPipeline());
+        wgpuRenderPassEncoderSetPipeline(terrain_pass_encoder, m3DviewportPass->getPipeline()->getPipeline());
 
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 3, mDefaultCameraIndexBindgroup.getBindGroup(), 0,
                                           nullptr);
 
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 4, mDefaultClipPlaneBG.getBindGroup(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 5, mDefaultVisibleBuffer.getBindGroup(), 0, nullptr);
-
-        wgpuRenderPassEncoderSetBindGroup(terrain_pass_encoder, 6, mTerrainPass->mTexturesBindgroup.getBindGroup(), 0,
-                                          nullptr);
 
         updateGui(terrain_pass_encoder, delta_time);
 

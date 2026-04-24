@@ -137,6 +137,54 @@ void TerrainPass::executePass() {
     wgpuRenderPassEncoderRelease(terrain_pass_encoder);
 }
 
+// GUIPass::GUIPass(Application* app, const std::string& name) : RenderPass(name) { mApp = app; }
+
+// Pipeline* GUIPass::create(WGPUTextureFormat textureFormat) {
+//     auto* layouts = mApp->getBindGroupLayouts();
+//     auto& resource = mApp->getRendererResource();
+//     return mRenderPipeline;
+// mRenderPipeline =
+//     new Pipeline{mApp,
+//                  {layouts[0], layouts[1], layouts[2], layouts[3], layouts[4], layouts[5],
+//                  mTextureBindgroupLayout}, "GUI pipeline"};
+
+// mBindingData[0] = {};
+// mBindingData[0].nextInChain = nullptr;
+// mBindingData[0].binding = 0;
+// mBindingData[0].textureView = mTempTextures[0]->getTextureViewArray();
+//
+// mBindingData[1] = {};
+// mBindingData[1].nextInChain = nullptr;
+// mBindingData[1].binding = 1;
+// mBindingData[1].textureView = mTempTextures[1]->getTextureViewArray();
+//
+// mBindingData[2] = {};
+// mBindingData[2].nextInChain = nullptr;
+// mBindingData[2].binding = 2;
+// mBindingData[2].textureView = mTempTextures[2]->getTextureViewArray();
+//
+// mBindingData[3] = {};
+// mBindingData[3].nextInChain = nullptr;
+// mBindingData[3].binding = 3;
+// mBindingData[3].textureView = mTempTextures[3]->getTextureViewArray();
+
+// mTexturesBindgroup.create(resource, mBindingData);
+
+//     mRenderPipeline->defaultConfiguration(resource, textureFormat);
+//     mRenderPipeline->setShader(mApp->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / "shaders" / "terrain.wgsl",
+//                                resource);
+//     // setDefaultActiveStencil2(mRenderPipeline->getDepthStencilState());
+//     // mRenderPipeline->setDepthStencilState(mRenderPipeline->getDepthStencilState());
+//     // mRenderPipeline->setPrimitiveState(WGPUFrontFace_CCW, WGPUCullMode_Back);
+//     mRenderPipeline->createPipeline(resource);
+//
+//     // terrain.generate(200, 8, terrainData).uploadToGpu(mApp);
+//     // std::cout << "Generate is " << terrainData.size() << '\n';
+//     // terrain.createSomeBinding(mApp);
+// }
+
+// void GUIPass::executePass() {}
+
 OutlinePass::OutlinePass(Application* app, const std::string& name) : RenderPass(name) {
     mApp = app;
 
