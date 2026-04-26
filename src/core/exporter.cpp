@@ -122,8 +122,8 @@ bool exportModels(const fs::path& assetDir, json& objects) {
 
         // update json file
         obj["path"] = "rc://" + std::filesystem::relative(target_path, assetDir).string();
-        std::cout << " Asset dir neg is ::::::: " << std::filesystem::relative(target_path, assetDir).string()
-                  << std::endl;
+        // std::cout << " Asset dir neg is ::::::: " << std::filesystem::relative(target_path, assetDir).string()
+        //           << std::endl;
 
         if (entry.has_extension() && entry.extension() == ".gltf") {
             fs::path bin = entry.parent_path() / (entry.stem().string() + ".bin");
@@ -209,7 +209,7 @@ bool exportMaterials(const fs::path& assetDir, json& materials) {
                 auto target_path = mat_dir / name / entry.filename();
                 bool copied = fs::copy_file(entry, target_path, fs::copy_options::update_existing, ec);
                 if (copied) {
-                    mat[keys[index]] = target_path;
+                    mat[keys[index]] = "rc://" + std::filesystem::relative(target_path, assetDir).string();
                 }
                 index++;
             }
