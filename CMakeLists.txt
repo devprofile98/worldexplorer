@@ -152,6 +152,13 @@ add_executable(
     "${CMAKE_CURRENT_SOURCE_DIR}/extern/glfw3webgpu/glfw3webgpu.c"
 )
 
+add_executable(
+    exporter 
+    src/core/exporter.cpp
+)
+target_compile_definitions(exporter PRIVATE RESOURCE_DIR="./resources")
+target_include_directories(exporter PRIVATE extern )
+target_link_libraries(exporter PRIVATE assimp)
 
 if (UNIX AND NOT APPLE)
     # For Linux/Unix systems

@@ -418,8 +418,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
     }
 
     auto& mmesh = mFlattenMeshes[mMeshNumber];
-    // auto d = mPath.find_last_of("/");
-    // auto base_path = mPath.substr(0, d);
 
     auto base_path = std::filesystem::path(mPath).parent_path();
 
@@ -430,9 +428,6 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
 
             aiString str;
             material->GetTexture(type, i, &str);
-            // std::string texture_path = base_path;
-            // texture_path += "/";
-            // texture_path += str.C_Str();
             std::string texture_path = (std::filesystem::path(base_path) / std::string(str.C_Str())).string();
 
             size_t pos = 0;
