@@ -161,7 +161,8 @@ ParticleSystem::ParticleSystem(Application* app, const std::string& name, const 
 
     std::shared_ptr<Texture> fire_texture = nullptr;
     std::string path = "rc://explosion_atlas.png";
-    fire_texture = Texture::asyncLoadTexture(app->mTextureRegistery, rc, normalizePath(mApp, path).string());
+    fire_texture =
+        Texture::asyncLoadTexture(app->mTextureRegistery, rc, normalizePath(mApp, path).string(), "fire-atlas");
 
     mBindingData[3] = {};
     mBindingData[3].nextInChain = nullptr;

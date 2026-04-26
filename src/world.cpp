@@ -637,6 +637,22 @@ struct BaseModelLoader : public IModel {
         };
 };
 
+void parseTextures(Application* app, const json& textures) {
+    for (const auto& tex : textures) {
+        std::string name = tex["name"].get<std::string>();
+        std::string path = tex["path"].get<std::string>();
+
+        if (path.starts_with("rc://")) {
+            path.replace(0, 5, "");
+            std::cout << "path read is " << path << std::endl;
+            path = (world_file_path.parent_path() / path).string();
+        }
+
+        std::cout << "Texture path is " << path << '\n';
+        auto texture_object = Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), path);
+    }
+}
+
 void parseColliders(AddColliderFunction fn, const json& colliders) {
     for (auto& cld : colliders) {
         bool active = cld["active"].get<bool>();
@@ -1023,5 +1039,8 @@ void World::loadWorld() {
     auto f = std::bind(physics::PhysicSystem::createCollider, app, std::placeholders::_1, std::placeholders::_2,
                        std::placeholders::_3, std::placeholders::_4, false, nullptr);
     parseColliders(f, res["colliders"]);
+    if (res.count("textures") > 0) {
+        parseTextures(app, res["textures"]);
+    }
     app->mLightManager->uploadToGpu(app, app->mLightBuffer.getBuffer());
 }

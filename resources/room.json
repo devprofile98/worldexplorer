@@ -1324,5 +1324,12 @@
       "type": 0,
       "visible": true
     }
+  ],
+  "textures": [
+    {
+      "name": "explosion_atlas",
+      "path": "rc://explosion_atlas.png"
+    }
+
   ]
 }

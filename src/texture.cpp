@@ -31,7 +31,7 @@ void loaderCallback(TextureLoader* loader, TextureLoader::LoadRequest* request) 
 }  // namespace
 
 std::shared_ptr<Texture> Texture::asyncLoadTexture(Registery<std::string, Texture>* registery, RendererResource& rc,
-                                                   std::string path) {
+                                                   std::string path, const std::string& name) {
     if (no_texture) {
         auto default_normal = registery->get("default normal");
         if (default_normal) {
@@ -44,6 +44,7 @@ std::shared_ptr<Texture> Texture::asyncLoadTexture(Registery<std::string, Textur
     }
 
     auto texture = std::make_shared<Texture>(rc.device, path);  // reads file here
+    texture->setName(name);
 
     // queue async load
     auto future = registery->mLoader.loadAsync(path, rc.queue, texture, loaderCallback);
@@ -309,6 +310,10 @@ Texture::~Texture() {
 
 WGPUTexture Texture::getTexture() { return mTexture; }
 
+const std::string& Texture::getName() { return mLabel; }
+
+void Texture::setName(const std::string& name) { mLabel = name; }
+
 Texture& Texture::setBufferData(std::vector<uint8_t>& data) {
     // if (mBufferData.size() == 0) {
     //     mBufferData.reserve(1);
@@ -481,6 +486,11 @@ void TextureLoader::fetchQueue() {
 
     req.baseTexture->uploadToGPU(req.queue);
     req.promise.set_value(req.baseTexture);
+
+    if (mWaitersList.count(req.baseTexture->getName()) > 0) {
+        mWaitersList[req.baseTexture->getName()] = std::move(req.baseTexture);
+    }
+    // req.baseTexture.label
 }
 
 void MaterialRegistery::applyMaterialTo(Application* app, Model* model, std::string meshName,

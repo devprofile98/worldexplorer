@@ -43,6 +43,8 @@ class Texture {
 
         // Getter functions
         WGPUTexture getTexture();
+        const std::string& getName();
+        void setName(const std::string& name);
         WGPUTextureView getTextureView();
         WGPUTextureView getTextureViewArray();
         std::filesystem::path getPath() const;
@@ -66,7 +68,8 @@ class Texture {
         static std::vector<uint8_t> expandToRGBA(uint8_t* data, size_t height, size_t width);
 
         static std::shared_ptr<Texture> asyncLoadTexture(Registery<std::string, Texture>* registery,
-                                                         RendererResource& rc, std::string path);
+                                                         RendererResource& rc, std::string path,
+                                                         const std::string& name = "");
 
     private:
         std::string mLabel;
@@ -108,6 +111,7 @@ class TextureLoader {
         std::mutex queueMutex;
         std::condition_variable cv;
         bool shouldTerminate = false;
+        std::unordered_map<std::string, std::shared_ptr<Texture>> mWaitersList;
 };
 
 template <typename K, typename V>

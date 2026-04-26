@@ -436,7 +436,8 @@ void Model::processMesh(Application* app, aiMesh* mesh, const aiScene* scene, un
                 pos += 1;                           // move past the inserted space
             }
 
-            auto texture = Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), texture_path);
+            auto texture =
+                Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), texture_path, "");
             if (texture != nullptr) {
                 *target = texture;
                 mmesh.isTransparent = (*target)->isTransparent();
