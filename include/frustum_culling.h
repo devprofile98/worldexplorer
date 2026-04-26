@@ -68,4 +68,8 @@ class Frustum {
         bool AABBTest(const glm::vec3& min, const glm::vec3& max);
 };
 
+namespace mipmap {
+void createMipMapComputShader(Application* app);
+}
+
 #endif  // WEBGPUTEST_FRUSTUM_CULLING_H

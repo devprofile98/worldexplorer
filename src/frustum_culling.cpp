@@ -12,8 +12,21 @@
 #include "glm/trigonometric.hpp"
 #include "instance.h"
 #include "rendererResource.h"
+#include "shader.h"
 #include "shapes.h"
 #include "webgpu/webgpu.h"
+
+WGPUShaderModule createComputeShaderModule(WGPUDevice device, const char* shaderSrc, const char* label) {
+    WGPUShaderSourceWGSL shader_wgsl_desc = {};
+    shader_wgsl_desc.chain.next = nullptr;
+    shader_wgsl_desc.chain.sType = WGPUSType_ShaderSourceWGSL;
+    shader_wgsl_desc.code = {shaderSrc, strlen(shaderSrc)};
+    WGPUShaderModuleDescriptor shader_module_desc = {};
+    shader_module_desc.nextInChain = &shader_wgsl_desc.chain;
+    shader_module_desc.label = {label, WGPU_STRLEN};
+    WGPUShaderModule shader_module = wgpuDeviceCreateShaderModule(device, &shader_module_desc);
+    return shader_module;
+}
 
 std::ostream& operator<<(std::ostream& os, const frustum::Plane& plane) {
     os << "Plane(normal: [" << plane.normal.x << ", " << plane.normal.y << ", " << plane.normal.z
@@ -174,14 +187,9 @@ void setupComputePass(Application* app, WGPUBuffer instanceDataBuffer) {
         .create(&resources);
 
     // create the compute pass, bind group and pipeline
-    WGPUShaderSourceWGSL shader_wgsl_desc = {};
-    shader_wgsl_desc.chain.next = nullptr;
-    shader_wgsl_desc.chain.sType = WGPUSType_ShaderSourceWGSL;
-    shader_wgsl_desc.code = {shader_code, strlen(shader_code)};
-    WGPUShaderModuleDescriptor shader_module_desc = {};
-    shader_module_desc.nextInChain = &shader_wgsl_desc.chain;
-    shader_module_desc.label = {"Simple Compute Shader Module", WGPU_STRLEN};
-    WGPUShaderModule shader_module = wgpuDeviceCreateShaderModule(resources.device, &shader_module_desc);
+
+    /////////////////////
+    auto shader_module = createComputeShaderModule(resources.device, shader_code, "Simple Compute Shader Module");
 
     auto& resource = app->getRendererResource();
     WGPUBindGroupLayout bind_group_layout =
@@ -396,6 +404,13 @@ bool isInFrustum(const FrustumCorners& corners, BaseModel* model) {
     auto drmax = glm::dot(right_plane_normal, max) + right_constant_sigend_distanc;
 
     return (drmax < 0.0 || drmin < 0.0) && (dmin > 0.0 || dmax > 0.0);
+}
+
+void mipmap::createMipMapComputShader(Application* app) {
+    auto source =
+        readFile((app->getBinaryPathAbsolute() / ".." / "resources" / "shaders" / "shader.wgsl").string().c_str());
+    WGPUShaderModule shader_module =
+        createComputeShaderModule(app->getRendererResource().device, source.c_str(), "mipmap-compute-task");
 }
 
 //

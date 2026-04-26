@@ -316,7 +316,6 @@ void Application::initializePipeline() {
                              "standard pipeline"};
     mPipeline->defaultConfiguration(
         resource, mSurfaceFormat, WGPUTextureFormat_Depth24Plus,
-        // (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str());
         (getBinaryPathAbsolute() / ".." / "resources" / "shaders" / "shader.wgsl").string().c_str());
     setDefaultActiveStencil(mPipeline->getDepthStencilState());
     mPipeline->setColorTargetState(WGPUTextureFormat_RGBA16Float);
@@ -329,7 +328,6 @@ void Application::initializePipeline() {
                                 "standard hdr pipeline"};
     mHDRPipeline->defaultConfiguration(
         resource, mSurfaceFormat, WGPUTextureFormat_Depth24Plus,
-        // (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str());
         (getBinaryPathAbsolute() / ".." / "resources" / "shaders" / "shader.wgsl").string().c_str());
     setDefaultActiveStencil(mPipeline->getDepthStencilState());
     // mPipeline->setColorTargetState(WGPUTextureFormat_RGBA16Float);
@@ -344,7 +342,6 @@ void Application::initializePipeline() {
     mStenctilEnabledPipeline
         ->defaultConfiguration(
             resource, mSurfaceFormat, WGPUTextureFormat_Depth24PlusStencil8,
-            // (getBinaryPathAbsolute() / "../resources/shaders/shader.wgsl").c_str())
             (getBinaryPathAbsolute() / ".." / "resources" / "shaders" / "shader.wgsl").string().c_str())
         .createPipeline(resource);
 

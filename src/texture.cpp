@@ -394,7 +394,7 @@ void Texture::uploadToGPU(WGPUQueue deviceQueue) {
             wgpuQueueWriteTexture(deviceQueue, &destination, mBufferData[layer].data(), mBufferData[layer].size(),
                                   &source, &tmp_size);
 
-            generateMipMaps(source, destination, mDescriptor, mBufferData, layer, deviceQueue);
+            // generateMipMaps(source, destination, mDescriptor, mBufferData, layer, deviceQueue);
         }
     }
 }

@@ -8,6 +8,7 @@
 
 namespace fs = std::filesystem;
 
+std::string readFile(const fs::path& path);
 WGPUShaderModule loadShader(const fs::path& path, WGPUDevice device);
 
 #endif  // !WORLD_EXPLORER_SHADER_H
