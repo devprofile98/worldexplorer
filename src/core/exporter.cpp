@@ -121,7 +121,9 @@ bool exportModels(const fs::path& assetDir, json& objects) {
         }
 
         // update json file
-        obj["path"] = target_path;
+        obj["path"] = "rc://" + std::filesystem::relative(target_path, assetDir).string();
+        std::cout << " Asset dir neg is ::::::: " << std::filesystem::relative(target_path, assetDir).string()
+                  << std::endl;
 
         if (entry.has_extension() && entry.extension() == ".gltf") {
             fs::path bin = entry.parent_path() / (entry.stem().string() + ".bin");

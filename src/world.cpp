@@ -34,6 +34,9 @@
 #include "utils.h"
 #include "webgpu/webgpu.h"
 
+std::filesystem::path world_file_path;
+std::filesystem::path world_file_dir;
+
 using json = nlohmann::json;
 using AddColliderFunction = std::function<uint32_t(const std::string&, const glm::vec3&, const glm::vec3&, MotionType)>;
 
@@ -702,7 +705,8 @@ void parseMaterial(Application* app, const json& materials) {
             std::string dif_map = mat_obj["diffuse_map"].get<std::string>();
             if (dif_map.starts_with("rc://")) {
                 dif_map.replace(0, 5, "");
-                dif_map = (app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / dif_map).string();
+                // dif_map = (app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / dif_map).string();
+                dif_map = (world_file_dir / dif_map).string();
             }
             dif_tex = Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), dif_map);
         }
@@ -710,7 +714,8 @@ void parseMaterial(Application* app, const json& materials) {
             std::string nor_map = mat_obj["normal_map"].get<std::string>();
             if (nor_map.starts_with("rc://")) {
                 nor_map.replace(0, 5, "");
-                nor_map = (app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / nor_map).string();
+                // nor_map = (app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / nor_map).string();
+                nor_map = (world_file_dir / nor_map).string();
             }
             nor_tex = Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), nor_map);
         }
@@ -718,7 +723,8 @@ void parseMaterial(Application* app, const json& materials) {
             std::string spec_map = mat_obj["specular_map"].get<std::string>();
             if (spec_map.starts_with("rc://")) {
                 spec_map.replace(0, 5, "");
-                spec_map = (app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / spec_map).string();
+                // spec_map = (app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / spec_map).string();
+                spec_map = (world_file_dir / spec_map).string();
             }
             spec_tex = Texture::asyncLoadTexture(app->mTextureRegistery, app->getRendererResource(), spec_map);
         }
@@ -928,7 +934,10 @@ void World::loadModel(const ObjectLoaderParam& param) {
 }
 
 void World::loadWorld() {
-    std::ifstream world_file(app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / mSceneFilePath);
+    // std::ifstream world_file(app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / mSceneFilePath);
+    world_file_path = app->getBinaryPathAbsolute() / mSceneFilePath;
+    world_file_dir = world_file_path.parent_path();
+    std::ifstream world_file(world_file_path);
 
     json j;
     json res = j.parse(world_file);
@@ -1003,7 +1012,7 @@ void World::loadWorld() {
         if (param.path.starts_with("rc://")) {
             param.path.replace(0, 5, "");
             std::cout << "path read is " << param.path << std::endl;
-            param.path = (app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / param.path).string();
+            param.path = (world_file_path.parent_path() / param.path).string();
         }
         if (type == ModelTypes::FS) {
             loadModel(param);
