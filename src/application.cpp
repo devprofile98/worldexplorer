@@ -1211,6 +1211,7 @@ void Application::mainLoop() {
     }
     // polling if any model loading process is done and append it to loaded model list
     ModelRegistry::instance().tick(this);
+    mTextureRegistery->mLoader.fetchQueue();
 
     // ------------ 3- Transparent pass
     // Calculate the Accumulation Buffer from the transparent object, this pass does not draw

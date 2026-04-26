@@ -87,7 +87,7 @@ class TextureLoader {
                 std::promise<std::shared_ptr<Texture>> promise;
                 WGPUQueue queue;  // for GPU upload after CPU work
                 std::shared_ptr<Texture> baseTexture;
-                std::function<void(LoadRequest* req)> callback;
+                std::function<void(TextureLoader*, LoadRequest* req)> callback;
                 void* userData = nullptr;
         };
 
@@ -95,12 +95,16 @@ class TextureLoader {
         ~TextureLoader();
         std::future<std::shared_ptr<Texture>> loadAsync(const std::string& path, WGPUQueue queue,
                                                         std::shared_ptr<Texture> baseTexture,
-                                                        std::function<void(LoadRequest*)> cb, void* userData = nullptr);
+                                                        std::function<void(TextureLoader*, LoadRequest*)> cb,
+                                                        void* userData = nullptr);
+        void addToUploadQueue(TextureLoader::LoadRequest&& request);
+        void fetchQueue();
         WGPUDevice device;
 
     private:
         std::vector<std::thread> workers;
         std::queue<LoadRequest> requests;
+        std::queue<LoadRequest> uploadQueue;
         std::mutex queueMutex;
         std::condition_variable cv;
         bool shouldTerminate = false;

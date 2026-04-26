@@ -22,11 +22,11 @@ extern bool no_texture;
 
 namespace {
 
-void loaderCallback(TextureLoader::LoadRequest* request) {
+void loaderCallback(TextureLoader* loader, TextureLoader::LoadRequest* request) {
     // Heavy work: read file + generate mipmaps on CPU
     request->baseTexture->writeBaseTexture(request->path);
-    request->baseTexture->uploadToGPU(request->queue);
-    request->promise.set_value(request->baseTexture);
+    // request->baseTexture->uploadToGPU(request->queue);
+    // request->promise.set_value(request->baseTexture);
 }
 }  // namespace
 
@@ -216,6 +216,9 @@ void Texture::writeBaseTexture(const std::filesystem::path& path, uint32_t exten
 
 Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUTextureFormat textureFormat,
                  uint32_t extent, size_t mipLevels) {
+    mBufferData.reserve(extent);
+    mBufferData.resize(extent);
+
     int width, height, channels;
     auto ret = stbi_info(path.string().c_str(), &width, &height, &channels);
 
@@ -307,6 +310,10 @@ Texture::~Texture() {
 WGPUTexture Texture::getTexture() { return mTexture; }
 
 Texture& Texture::setBufferData(std::vector<uint8_t>& data) {
+    // if (mBufferData.size() == 0) {
+    //     mBufferData.reserve(1);
+    //     mBufferData.resize(1);
+    // }
     mBufferData[0] = data;
     return *this;
 }
@@ -431,7 +438,10 @@ TextureLoader::TextureLoader(size_t numThreads) {
                     requests.pop();
                 }
 
-                request.callback(&request);
+                request.callback(this, &request);
+                // if (request.baseTexture != nullptr) {
+                addToUploadQueue(std::move(request));
+                // }
             }
         });
     }
@@ -448,7 +458,8 @@ TextureLoader::~TextureLoader() {
 
 std::future<std::shared_ptr<Texture>> TextureLoader::loadAsync(const std::string& path, WGPUQueue queue,
                                                                std::shared_ptr<Texture> baseTexture,
-                                                               std::function<void(LoadRequest*)> cb, void* userData) {
+                                                               std::function<void(TextureLoader*, LoadRequest*)> cb,
+                                                               void* userData) {
     LoadRequest req{path, {}, queue, baseTexture, cb, userData};
     std::future<std::shared_ptr<Texture>> future = req.promise.get_future();
 
@@ -459,6 +470,17 @@ std::future<std::shared_ptr<Texture>> TextureLoader::loadAsync(const std::string
     cv.notify_one();
 
     return future;
+}
+
+void TextureLoader::addToUploadQueue(TextureLoader::LoadRequest&& request) { uploadQueue.push(std::move(request)); }
+
+void TextureLoader::fetchQueue() {
+    if (uploadQueue.empty()) return;
+    auto req = std::move(uploadQueue.front());
+    uploadQueue.pop();
+
+    req.baseTexture->uploadToGPU(req.queue);
+    req.promise.set_value(req.baseTexture);
 }
 
 void MaterialRegistery::applyMaterialTo(Application* app, Model* model, std::string meshName,

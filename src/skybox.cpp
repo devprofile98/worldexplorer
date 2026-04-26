@@ -53,12 +53,19 @@ struct LoaderUserData {
         uint32_t originNum;
 };
 
-static void loaderCallback(TextureLoader::LoadRequest* request) {
+static void loaderCallback2(TextureLoader* loader, TextureLoader::LoadRequest* request) {
+    // Heavy work: read file + generate mipmaps on CPU
+    request->baseTexture->writeBaseTexture(request->path);
+    // request->baseTexture->uploadToGPU(request->queue);
+    // request->promise.set_value(request->baseTexture);
+}
+
+static void loaderCallback(TextureLoader*, TextureLoader::LoadRequest* request) {
     // load each side first
     auto* user_data = reinterpret_cast<LoaderUserData*>(request->userData);
-    WGPUTexelCopyTextureInfo copy_texture = {};
-    copy_texture.texture = request->baseTexture->getTexture();
-    copy_texture.origin = {0, 0, user_data->originNum};
+    // WGPUTexelCopyTextureInfo copy_texture = {};
+    // copy_texture.texture = request->baseTexture->getTexture();
+    // copy_texture.origin = {0, 0, user_data->originNum};
 
     // std::string path = cubeTexturePath.string() + "/";
     // path += sideNames[i];
@@ -80,16 +87,18 @@ static void loaderCallback(TextureLoader::LoadRequest* request) {
 
     if (channels == 3) {
         auto buffer_data = Texture::expandToRGBA(pixel_data, height, width);
+        request->baseTexture->getBuffer(user_data->originNum) = std::move(buffer_data);
+        // request->baseTexture->setBufferData(buffer_data);
 
         std::cout << "Loading texture " << request->path.c_str() << ' ' << channels << std::endl;
-        wgpuQueueWriteTexture(user_data->app->getRendererResource().queue, &copy_texture, buffer_data.data(),
-                              height * width * 4, &texture_data_layout, &copy_size);
+        // wgpuQueueWriteTexture(user_data->app->getRendererResource().queue, &copy_texture, buffer_data.data(),
+        //                       height * width * 4, &texture_data_layout, &copy_size);
 
     } else {
         std::cout << "Skybox: No support for textures channel != 3 channels\n";
     }
     stbi_image_free(pixel_data);
-    delete user_data;
+    // delete user_data;
 }
 
 SkyBox::SkyBox(Application* app, const std::filesystem::path& cubeTexturePath, std::array<const char*, 6> sideNames) {
