@@ -390,10 +390,12 @@ void Texture::uploadToGPU(WGPUQueue deviceQueue) {
         source.rowsPerImage = mDescriptor.size.height;
         auto tmp_size = WGPUExtent3D{mDescriptor.size.width, mDescriptor.size.height, 1};
 
-        wgpuQueueWriteTexture(deviceQueue, &destination, mBufferData[layer].data(), mBufferData[layer].size(), &source,
-                              &tmp_size);
+        if (mBufferData[layer].size() != 0) {
+            wgpuQueueWriteTexture(deviceQueue, &destination, mBufferData[layer].data(), mBufferData[layer].size(),
+                                  &source, &tmp_size);
 
-        generateMipMaps(source, destination, mDescriptor, mBufferData, layer, deviceQueue);
+            generateMipMaps(source, destination, mDescriptor, mBufferData, layer, deviceQueue);
+        }
     }
 }
 
