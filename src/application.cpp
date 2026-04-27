@@ -704,6 +704,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     mTextureRegistery = new Registery<std::string, Texture>{};
     mTextureRegistery->mLoader.device = render_device;
 
+    initializeMipmapCompute(this);
+
     mMaterialRegistery = new MaterialRegistery{};
 
     // Configuring the surface
@@ -940,6 +942,7 @@ void Application::mainLoop() {
     if (cull_frustum) {
         // runFrustumCullingTask(this, encoder);
     }
+    mipmap::createMipMapComputShader(this);
 
     // -------------------------------------------------------------------------
 

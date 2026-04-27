@@ -9,7 +9,7 @@
 class Application;
 
 enum class BindGroupEntryVisibility { UNDEFINED = 0, VERTEX, FRAGMENT, VERTEX_FRAGMENT, COMPUTE };
-enum class TextureSampleType { FLAOT = 0, DEPTH };
+enum class TextureSampleType { FLAOT = 0, DEPTH, UINT };
 enum class TextureViewDimension { UNDEFINED = 0, VIEW_2D = 0x2, ARRAY_2D = 0x3, CUBE = 0x4 };
 enum class BufferBindingType { UNIFORM = 0, STORAGE, STORAGE_READONLY };
 enum class SampleType { Filtering = 0, Compare };

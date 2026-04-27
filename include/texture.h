@@ -26,6 +26,8 @@ class Registery;
 
 enum class TextureDimension { TEX_UNDEFINED, TEX_1D, TEX_2D, TEX_3D };
 
+void initializeMipmapCompute(Application* app);
+
 class Texture {
     public:
         Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
@@ -52,6 +54,7 @@ class Texture {
         Texture& setBufferData(std::vector<uint8_t>& data);
         std::vector<uint8_t>& getBuffer(size_t level = 0);
         WGPUTextureView createView();
+        WGPUTextureView createView(uint32_t base, uint32_t count, uint32_t baseMip, uint32_t mipLevelCount);
         WGPUTextureView createViewDepthOnly(uint32_t base = 0, uint32_t count = 1);
         WGPUTextureView createViewDepthStencil(uint32_t base = 0, uint32_t count = 1);
         WGPUTextureView createViewDepthOnly2(uint32_t base = 0, uint32_t count = 1);

@@ -408,9 +408,17 @@ bool isInFrustum(const FrustumCorners& corners, BaseModel* model) {
 
 void mipmap::createMipMapComputShader(Application* app) {
     auto source =
-        readFile((app->getBinaryPathAbsolute() / ".." / "resources" / "shaders" / "shader.wgsl").string().c_str());
+        readFile((app->getBinaryPathAbsolute() / ".." / "resources" / "shaders" / "mipmap.wgsl").string().c_str());
+    // WGPUShaderModule shader_module =
+    WGPUShaderSourceWGSL shader_wgsl_desc = {};
+    shader_wgsl_desc.chain.next = nullptr;
+    shader_wgsl_desc.chain.sType = WGPUSType_ShaderSourceWGSL;
+    shader_wgsl_desc.code = {source.c_str(), strlen(source.c_str())};
+    WGPUShaderModuleDescriptor shader_module_desc = {};
+    shader_module_desc.nextInChain = &shader_wgsl_desc.chain;
+    shader_module_desc.label = {"mipmap shader", WGPU_STRLEN};
     WGPUShaderModule shader_module =
-        createComputeShaderModule(app->getRendererResource().device, source.c_str(), "mipmap-compute-task");
+        wgpuDeviceCreateShaderModule(app->getRendererResource().device, &shader_module_desc);
 }
 
 //

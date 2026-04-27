@@ -40,6 +40,11 @@ WGPUTextureSampleType sampleTypeFrom(TextureSampleType type) {
             /* code */
             ret = WGPUTextureSampleType_Depth;
             break;
+
+        case TextureSampleType::UINT:
+            ret = WGPUTextureSampleType_Uint;
+            break;
+
         default:
             break;
     }
