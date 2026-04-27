@@ -50,6 +50,7 @@ class Texture {
         WGPUTextureView getTextureView();
         WGPUTextureView getTextureViewArray();
         std::filesystem::path getPath() const;
+        std::pair<size_t, size_t> getTextureSize() const;
 
         Texture& setBufferData(std::vector<uint8_t>& data);
         std::vector<uint8_t>& getBuffer(size_t level = 0);
@@ -84,6 +85,8 @@ class Texture {
         std::vector<std::vector<uint8_t>> mBufferData;
         bool mIsTextureAlive = false;  // Indicate whether the texure is still valid on VRAM or not
         bool mHasAlphaChannel = false;
+        size_t mWidth = 0;
+        size_t mHeight = 0;
 };
 
 class TextureLoader {

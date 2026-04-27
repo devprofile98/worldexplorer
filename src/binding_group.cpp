@@ -122,6 +122,31 @@ WGPUShaderStage visibilityFrom(BindGroupEntryVisibility visibleTo) {
     return visible_to;
 }
 
+WGPUStorageTextureAccess accessFrom(StorageTextureAccessMode access) {
+    WGPUStorageTextureAccess ret = WGPUStorageTextureAccess_Undefined;
+    switch (access) {
+        case StorageTextureAccessMode::UNDEFINED:
+            ret = WGPUStorageTextureAccess_Undefined;
+            break;
+        case StorageTextureAccessMode::NOT_USED:
+            ret = WGPUStorageTextureAccess_BindingNotUsed;
+            break;
+        case StorageTextureAccessMode::READ_ONLY:
+            ret = WGPUStorageTextureAccess_ReadOnly;
+            break;
+        case StorageTextureAccessMode::WRITE_ONLY:
+            ret = WGPUStorageTextureAccess_WriteOnly;
+            break;
+        case StorageTextureAccessMode::READ_WRITE:
+            ret = WGPUStorageTextureAccess_ReadWrite;
+            break;
+        default:
+            break;
+    }
+
+    return ret;
+}
+
 BindingGroup::BindingGroup(/* args */) { mEntries.reserve(20); }
 
 BindingGroup::~BindingGroup() {}
@@ -137,6 +162,20 @@ BindingGroup& BindingGroup::addTexture(uint32_t bindingNumber, BindGroupEntryVis
     entry_layout.texture.sampleType = sampleTypeFrom(sampleType);
     entry_layout.texture.viewDimension = viewDimensionFrom(viewDim);
     std::cout << "binding at " << bindingNumber << " " << entry_layout.buffer.type << std::endl;
+    this->add(entry_layout);
+    return *this;
+}
+
+BindingGroup& BindingGroup::addStorageTexture(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo,
+                                              StorageTextureAccessMode access, TextureViewDimension viewDim) {
+    WGPUBindGroupLayoutEntry entry_layout = {};
+    setDefaultValue(entry_layout);
+    entry_layout.binding = bindingNumber;
+    entry_layout.visibility = visibilityFrom(visibleTo);
+    entry_layout.storageTexture.access = accessFrom(access);
+    entry_layout.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+    entry_layout.storageTexture.viewDimension = viewDimensionFrom(viewDim);
+    // std::cout << "binding at " << bindingNumber << " " << entry_layout.buffer.type << std::endl;
     this->add(entry_layout);
     return *this;
 }
@@ -182,7 +221,7 @@ WGPUBindGroupLayoutEntry* BindingGroup::getEntryData() { return mEntries.data();
 WGPUBindGroup& BindingGroup::getBindGroup() { return mBindGroup; }
 
 void BindingGroup::create(const RendererResource& resource, std::vector<WGPUBindGroupEntry>& bindingData) {
-    std::cout << "Passed here " << mBindGroupLayoutDesc.entryCount << " " << bindingData.size() << "\n ";
+    // std::cout << "Passed here " << mBindGroupLayoutDesc.entryCount << " " << bindingData.size() << "\n ";
     mBindGroupDesc = {};
     mBindGroupDesc.nextInChain = nullptr;
     mBindGroupDesc.layout = mBindGroupLayout;

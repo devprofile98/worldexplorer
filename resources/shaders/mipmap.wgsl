@@ -17,4 +17,5 @@ fn computeMip(@builtin(global_invocation_id) id: vec3<u32>) {
     let avg = (c0 + c1 + c2 + c3) * 0.25;
 
     textureStore(dstTexture, id.xy, avg);
+    //textureStore(dstTexture, id.xy, vec4f(1.0, 0.0, 0.0, 1.0));
 }

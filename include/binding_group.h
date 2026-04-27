@@ -13,6 +13,7 @@ enum class TextureSampleType { FLAOT = 0, DEPTH, UINT };
 enum class TextureViewDimension { UNDEFINED = 0, VIEW_2D = 0x2, ARRAY_2D = 0x3, CUBE = 0x4 };
 enum class BufferBindingType { UNIFORM = 0, STORAGE, STORAGE_READONLY };
 enum class SampleType { Filtering = 0, Compare };
+enum class StorageTextureAccessMode { NOT_USED = 0, UNDEFINED = 1, WRITE_ONLY = 2, READ_ONLY = 3, READ_WRITE = 4 };
 
 class BindingGroup {
     public:
@@ -25,6 +26,9 @@ class BindingGroup {
         BindingGroup& addBuffer(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo, BufferBindingType type,
                                 uint64_t minBindingSize);
         BindingGroup& addSampler(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo, SampleType type);
+
+        BindingGroup& addStorageTexture(uint32_t bindingNumber, BindGroupEntryVisibility visibleTo,
+                                        StorageTextureAccessMode access, TextureViewDimension viewDim);
 
         // --- Getter functions
         size_t getEntryCount() const;

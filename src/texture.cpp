@@ -87,8 +87,8 @@ WGPUTextureView Texture::createView(uint32_t base, uint32_t count, uint32_t base
         texture_view_desc.mipLevelCount = mipLevelCount;
         texture_view_desc.dimension = WGPUTextureViewDimension_2D;
         texture_view_desc.format = mDescriptor.format;
-        mTextureView = wgpuTextureCreateView(mTexture, &texture_view_desc);
-        return mTextureView;
+        return wgpuTextureCreateView(mTexture, &texture_view_desc);
+        // return mTextureView;
     }
     std::cout << "failed here " << mIsTextureAlive << std::endl;
     return nullptr;
@@ -184,6 +184,8 @@ WGPUTextureView Texture::createViewArray(uint32_t base, uint32_t count) {
 
 Texture::Texture(WGPUDevice wgpuDevice, uint32_t width, uint32_t height, TextureDimension dimension,
                  WGPUTextureUsage flags, WGPUTextureFormat textureFormat, uint32_t extent, std::string textureLabel) {
+    mWidth = width;
+    mHeight = height;
     mBufferData.reserve(extent);
     mBufferData.resize(extent);
     mLabel = textureLabel;
@@ -211,6 +213,9 @@ void Texture::writeBaseTexture(const std::filesystem::path& path, uint32_t exten
         std::cout << "failed to find file at " << path.string().c_str() << std::endl;
         return;
     };
+
+    mWidth = width;
+    mHeight = height;
     size_t image_byte_size = (width * height * 4);
     mBufferData.reserve(extent);
     mBufferData.resize(extent);
@@ -247,6 +252,10 @@ Texture::Texture(WGPUDevice wgpuDevice, const std::filesystem::path& path, WGPUT
         mIsTextureAlive = false;
         return;
     }
+
+    mWidth = width;
+    mHeight = height;
+
     mPath = path;
     mDescriptor = {};
     mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
@@ -284,6 +293,9 @@ Texture::Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths
             std::cout << "failed to find file at " << path.string().c_str() << std::endl;
             return;
         };
+
+        mWidth = width;
+        mHeight = height;
 
         mDescriptor = {};
         mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
@@ -356,7 +368,10 @@ struct {
         WGPUComputePipeline computePipeline;
 } mipmap_compute;
 
+Application* app;
+
 void initializeMipmapCompute(Application* app) {
+    ::app = app;
     auto& rc = app->getRendererResource();
 
     auto source =
@@ -375,7 +390,8 @@ void initializeMipmapCompute(Application* app) {
     WGPUBindGroupLayout bind_group_layout =
         bind_group
             .addTexture(0, BindGroupEntryVisibility::COMPUTE, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
-            .addTexture(1, BindGroupEntryVisibility::COMPUTE, TextureSampleType::UINT, TextureViewDimension::VIEW_2D)
+            .addStorageTexture(1, BindGroupEntryVisibility::COMPUTE, StorageTextureAccessMode::WRITE_ONLY,
+                               TextureViewDimension::VIEW_2D)
             .createLayout(rc, "mip");
 
     WGPUBindGroupLayout bind_group_layouts[] = {bind_group_layout};
@@ -393,15 +409,20 @@ void initializeMipmapCompute(Application* app) {
     mipmap_compute.computePipeline = wgpuDeviceCreateComputePipeline(rc.device, &compute_pipeline_desc);
 }
 
-void generateMipmapCompute(Application* app, Texture* texture, size_t mipLevel) {
+void generateMipmapCompute(Texture* texture, size_t mipLevel) {
+    auto& rc = app->getRendererResource();
+
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(rc.device, nullptr);
+
     for (uint8_t lvl = 1; lvl < mipLevel; ++lvl) {
+        std::cout << "mip level " << ((size_t)lvl) << "for " << texture->getPath() << std::endl;
         uint8_t src_mip = lvl - 1;
         uint8_t dst_mip = lvl;
 
         // WGPUTextureViewDescriptor src_desc = {};
         // src_desc.label = {"src mip", WGPU_STRLEN};
-        auto src_desc = texture->createView(0, 1, src_mip, dst_mip);
-        auto dst_desc = texture->createView(0, 1, dst_mip, dst_mip);
+        auto src_desc = texture->createView(0, 1, src_mip, 1);
+        auto dst_desc = texture->createView(0, 1, dst_mip, 1);
 
         // std::array<WGPUBindGroupEntry, 2> entries = {};
         std::vector<WGPUBindGroupEntry> entries{};
@@ -416,23 +437,26 @@ void generateMipmapCompute(Application* app, Texture* texture, size_t mipLevel) 
         entries[1].binding = 1;
         entries[1].textureView = dst_desc;
 
-        auto& rc = app->getRendererResource();
-
         BindingGroup bind_group;
-        WGPUBindGroupLayout bind_group_layout = bind_group
-                                                    .addTexture(0, BindGroupEntryVisibility::COMPUTE,
-                                                                TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
-                                                    .addTexture(1, BindGroupEntryVisibility::COMPUTE,
-                                                                TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
-                                                    .createLayout(rc, "mip");
+
+        bind_group
+            .addTexture(0, BindGroupEntryVisibility::COMPUTE, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
+            .addStorageTexture(1, BindGroupEntryVisibility::COMPUTE, StorageTextureAccessMode::WRITE_ONLY,
+                               TextureViewDimension::VIEW_2D)
+            .createLayout(rc, "mip");
         bind_group.create(app->getRendererResource(), entries);
+
+        auto [width, height] = texture->getTextureSize();
+        uint32_t dstWidth = std::max(1u, (uint)width >> lvl);
+        uint32_t dstHeight = std::max(1u, (uint)height >> lvl);
+
+        uint32_t workgroup_size_x = (dstWidth + 7) / 8;  // ceil division for workgroup size 8
+        uint32_t workgroup_size_y = (dstHeight + 7) / 8;
 
         WGPUComputePassDescriptor compute_pass_desc = {};
         // std::string compute_name = "mip map";
         compute_pass_desc.label = {"mip map", WGPU_STRLEN};
         compute_pass_desc.nextInChain = nullptr;
-
-        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(rc.device, nullptr);
 
         WGPUComputePassEncoder compute_pass_encoder = wgpuCommandEncoderBeginComputePass(encoder, &compute_pass_desc);
 
@@ -440,26 +464,19 @@ void generateMipmapCompute(Application* app, Texture* texture, size_t mipLevel) 
         wgpuComputePassEncoderSetPipeline(compute_pass_encoder, mipmap_compute.computePipeline);
         wgpuComputePassEncoderSetBindGroup(compute_pass_encoder, 0, bind_group.getBindGroup(), 0,
                                            nullptr);  // Group 0, no dynamic offsets
-        // auto objectinfo_bg = createObjectInfoBindGroupForComputePass(app, model->getUniformBuffer().getBuffer(),
-        //                                                              model->mIndirectDrawArgsBuffer.getBuffer());
-        // wgpuComputePassEncoderSetBindGroup(compute_pass_encoder, 1, objectinfo_bg, 0, nullptr);
 
-        // uint32_t workgroup_size_x = 32;  // Must match shader's @workgroup_size(32)
-        // uint32_t num_workgroups_x =
-        //     (model->instance->getInstanceCount() + workgroup_size_x - 1) / workgroup_size_x;  // Ceil division
-        // std::cout << num_workgroups_x << '\n';
-
-        // wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, num_workgroups_x, 1, 1);
-        //
-        uint32_t workgroup_size_x = 32;  // Must match shader's @workgroup_size(32)
-        uint32_t num_workgroups_x = ((31 * 3) + workgroup_size_x - 1) / workgroup_size_x;  // Ceil division
-        wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, num_workgroups_x, 1, 1);
-
-        // End the compute pass
+        wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, workgroup_size_x, workgroup_size_y, 1);
         wgpuComputePassEncoderEnd(compute_pass_encoder);
-        // wgpuBindGroupRelease(objectinfo_bg);
         wgpuComputePassEncoderRelease(compute_pass_encoder);
+
+        wgpuBindGroupRelease(bind_group.getBindGroup());
     }
+    WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, nullptr);
+    wgpuQueueSubmit(app->getRendererResource().queue, 1, &commandBuffer);
+
+    // Release resources
+    wgpuCommandBufferRelease(commandBuffer);
+    wgpuCommandEncoderRelease(encoder);
 }
 
 void generateMipMaps(WGPUTexelCopyBufferLayout& source, WGPUTexelCopyTextureInfo& destination,
@@ -525,6 +542,7 @@ void Texture::uploadToGPU(WGPUQueue deviceQueue) {
                                   &source, &tmp_size);
 
             // generateMipMaps(source, destination, mDescriptor, mBufferData, layer, deviceQueue);
+            generateMipmapCompute(this, mDescriptor.mipLevelCount);
         }
     }
 }
@@ -540,6 +558,7 @@ void Texture::Destroy() {
 WGPUTextureView Texture::getTextureView() { return mTextureView; }
 WGPUTextureView Texture::getTextureViewArray() { return mArrayTextureView; };
 std::filesystem::path Texture::getPath() const { return mPath; }
+std::pair<size_t, size_t> Texture::getTextureSize() const { return {mWidth, mHeight}; }
 
 std::vector<uint8_t> Texture::expandToRGBA(uint8_t* data, size_t height, size_t width) {
     if (!data) {
