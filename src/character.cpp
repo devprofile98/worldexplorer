@@ -1,5 +1,6 @@
 
 
+#include <algorithm>
 #include <cstdint>
 #include <random>
 #include <vector>
@@ -543,6 +544,7 @@ struct SwordBehaviour : public WeaponBehaviour {
 PistolBehaviour pistolbehaviour{"pistol"};
 SwordBehaviour swordbehaviour{"sword"};
 
+extern std::map<std::string, Action*> selectedanimation;
 struct HumanInputHandler : public InputHandler, public PawnBehaviour {
         std::string name;
         glm::vec3 front;  // Character's forward direction
@@ -1081,6 +1083,23 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             static auto listener = new MyCharacterContactListener{};
             listener->character = static_cast<Model*>(model);
             physicalCharacter->SetListener(listener);
+
+            const char* bones[] = {"DEF-shinL", "DEF-shinR", "DEF-toetipR", "DEF-toetipL", "DEF-footR", "DEF-footL",
+                                   "DEF-toeL",  "DEF-toeR",  "DEF-thighL",  "DEF-thighR",  "DEF-hips"};
+            Action* walk_aim_ak47 = new Action{};
+            Action* walking = model->getAnimation()->getAction("Walk_Loop");
+            Action* aimloop = model->getAnimation()->getAction("ak47_Aim_Loop");
+            walk_aim_ak47->Bonemap = walking->Bonemap;
+            walk_aim_ak47->mAnimationDuration = std::max(walking->mAnimationDuration, aimloop->mAnimationDuration);
+            walk_aim_ak47->hasSkining = true;
+            for (const auto& [name, bone] : walk_aim_ak47->Bonemap) {
+                walk_aim_ak47->MixedActions[name] = aimloop;
+            }
+
+            for (auto* i : bones) {
+                walk_aim_ak47->MixedActions[i] = walking;
+            }
+            model->getAnimation()->actions["new action"] = walk_aim_ak47;
         }
 };
 

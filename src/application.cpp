@@ -201,8 +201,11 @@ static LineGroup instancedebuglinegroup;
 static LineGroup spheredebuglines;
 static LineGroup capsuledebuglines;
 static LineGroup aabbDebugLines;
+
 static LineGroup boneDebugLines;
 static LineGroup boneDebugLinesGreen;
+
+std::pair<LineGroup*, LineGroup*> getbonelinegroup() { return {&boneDebugLines, &boneDebugLinesGreen}; }
 
 Application::Application(const char* runningBinaryPath, const std::string& sceneFile) {
     // std::string binary_running_path = runningBinaryPath;
@@ -833,31 +836,6 @@ void Application::mainLoop() {
 
             // Update physics and other systems like animations
             model->update(this, delta_time, runPhysics);
-
-            if (model->getName() == "human" && model->getAnimation() != nullptr &&
-                model->getAnimation()->getActiveAction() != nullptr) {
-                std::vector<glm::vec4> lines;
-                std::vector<glm::vec4> linesGreen;
-                for (const auto& [k, i] : model->getAnimation()->getActiveAction()->calculatedTransform) {
-                    auto trans = model->mTransform.mTransformMatrix * i;
-                    auto vec = trans * glm::vec4{0.0, 0.0, 0.0, 1.0};
-                    auto vec2 = trans * glm::vec4{0.0, 0.0, k == selectedBone ? 0.3 : 0.2, 1.0};
-                    vec.w = 0;
-                    vec2.w = 1;
-                    // std::cout << ":::::::::: " << glm::to_string(vec) << "   " << glm::to_string(vec2) << std::endl;
-                    if (k == selectedBone) {
-                        linesGreen.push_back(vec);
-                        linesGreen.push_back(vec2);
-                    } else {
-                        lines.push_back(vec);
-                        lines.push_back(vec2);
-                    }
-                }
-                boneDebugLines.updateLines(lines).updateVisibility(true);
-                if (linesGreen.size() > 0) {
-                    boneDebugLinesGreen.updateLines(linesGreen).updateVisibility(true);
-                }
-            }
         }
     }
 

@@ -62,6 +62,8 @@ extern bool flip_x;
 extern bool flip_y;
 extern bool flip_z;
 
+extern std::pair<LineGroup*, LineGroup*> getbonelinegroup();  // { return {boneDebugLines, boneDebugLinesGreen}; }
+
 Drawable::Drawable() {}
 
 void Drawable::configure(Application* app) {
@@ -213,7 +215,7 @@ void Model::updateAnimation(float dt) {
     if (action->hasSkining) {
         if (action != nullptr) {
             for (const auto& [boneName, _] : action->Bonemap) {
-                const auto& global = action->calculatedTransform[boneName];
+                const auto& global = anim->calculatedTransform[boneName];
                 const auto& offset = action->Bonemap[boneName]->offsetMatrix;
 
                 auto final = global * offset;
@@ -232,7 +234,7 @@ void Model::updateAnimation(float dt) {
         std::unordered_map<std::string, glm::mat4> anims;
         for (const auto& [node_name, node] : mNodeNameMap) {
             shoulddo = true;
-            const auto& animation_transform = action->localTransformation.at(node_name);
+            const auto& animation_transform = anim->localTransformation.at(node_name);
             anims[node_name] = node->mLocalTransform * animation_transform;
         }
         if (shoulddo) {
@@ -964,6 +966,33 @@ void Model::userInterface() {
             }
         }
         ImGui::Text("Default action: %s", mDefaultAction == nullptr ? "None" : mDefaultAction->name.c_str());
+    }
+
+    if (anim != nullptr && anim->getActiveAction() != nullptr && anim->getActiveAction()->hasSkining) {
+        std::vector<glm::vec4> lines;
+        std::vector<glm::vec4> linesGreen;
+
+        std::cout << "::::::::::" << std::endl;
+        for (const auto& [k, i] : anim->calculatedTransform) {
+            auto trans = mTransform.mTransformMatrix * i;
+            auto vec = trans * glm::vec4{0.0, 0.0, 0.0, 1.0};
+            auto vec2 = trans * glm::vec4{0.0, 0.0, k == selectedBone ? 0.3 : 0.2, 1.0};
+            vec.w = 0;
+            vec2.w = 1;
+            std::cout << ":::::::::: " << glm::to_string(vec) << "   " << glm::to_string(vec2) << std::endl;
+            if (k == selectedBone) {
+                linesGreen.push_back(vec);
+                linesGreen.push_back(vec2);
+            } else {
+                lines.push_back(vec);
+                lines.push_back(vec2);
+            }
+        }
+        auto debuglines = getbonelinegroup();
+        debuglines.first->updateLines(lines).updateVisibility(true);
+        if (linesGreen.size() > 0) {
+            debuglines.second->updateLines(linesGreen).updateVisibility(true);
+        }
     }
 
     if (ImGui::CollapsingHeader("Animations")) {

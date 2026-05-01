@@ -1,6 +1,7 @@
 
 #include "animation.h"
 
+#include <cmath>
 #include <cstring>
 #include <functional>
 #include <iostream>
@@ -193,23 +194,40 @@ aiMatrix4x4 GetGlobalTransform(aiNode* node) {
 }
 
 extern bool runBlenTest;
+extern std::map<std::string, Action*> selectedanimation;
+
 glm::mat4 Animation::getLocalTransformAtTime(const aiNode* node, double time) {
     const Bone* bone = nullptr;
 
-    Action* action = nullptr;
-    if (runBlenTest) {
-    } else {
-        action = getActiveAction();
+    Action* action = getActiveAction();
+    double newtime = time;
+
+    if (action->MixedActions.size() > 0 && action->MixedActions.count(node->mName.C_Str()) > 0) {
+        action = action->MixedActions[node->mName.C_Str()];
+        if (newtime >= action->mAnimationDuration * 1000.0f) {
+            newtime = std::fmod(newtime, action->mAnimationDuration * 1000.0f);
+        }
     }
+
+    // if (runBlenTest && selectedanimation.count(node->mName.C_Str()) > 0) {
+    //     action = selectedanimation[node->mName.C_Str()];
+    //     if (newtime >= action->mAnimationDuration * 1000.0f) {
+    //         newtime = std::fmod(newtime, action->mAnimationDuration * 1000.0f);
+    //     }
+    // }
+    // if (action == nullptr) {
+    //     action = getActiveAction();
+    //     newtime = time;
+    // }
 
     // auto* action = getActiveAction();
     if (action->Bonemap.contains(node->mName.C_Str())) {
         bone = action->Bonemap[node->mName.C_Str()];
     }
 
-    glm::vec3 pos = calculateInterpolatedPosition(time, bone, node);
-    glm::quat rotation = CalcInterpolatedRotation(time, bone, node);
-    glm::vec3 scale = calculateInterpolatedScale(time, bone, node);
+    glm::vec3 pos = calculateInterpolatedPosition(newtime, bone, node);
+    glm::quat rotation = CalcInterpolatedRotation(newtime, bone, node);
+    glm::vec3 scale = calculateInterpolatedScale(newtime, bone, node);
 
     glm::mat4 translation_mat = glm::translate(glm::mat4(1.0f), pos);
     glm::mat4 rotation_mat = glm::mat4(rotation);
@@ -319,8 +337,8 @@ void Animation::update(aiNode* root) {
     // globalInverseMatrix = glm::inverse(globalInverseMatrix);
     auto* action = getActiveAction();
 
-    computeGlobalTransforms(root, std::move(globalInverseMatrix), action->mAnimationSecond, action->calculatedTransform,
-                            action->localTransformation);
+    computeGlobalTransforms(root, std::move(globalInverseMatrix), action->mAnimationSecond, calculatedTransform,
+                            localTransformation);
 }
 
 Action* Animation::getActiveAction() { return activeAction; }
@@ -360,7 +378,7 @@ glm::mat4 BoneSocket::update() {
     auto* animation = base->getAnimation();
     glm::mat4 final_transform = glm::mat4{1.0};
     if (type == AnchorType::Bone && animation != nullptr && animation->getActiveAction() != nullptr) {
-        auto& base_transforms = animation->getActiveAction()->calculatedTransform;
+        auto& base_transforms = animation->calculatedTransform;
         if (base_transforms.contains(anchorName)) {
             const auto& trans = base_transforms[anchorName];
             final_transform = base->mTransform.mTransformMatrix * trans * transform;

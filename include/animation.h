@@ -38,9 +38,8 @@ struct Bone {
 };
 
 struct Action {
-        std::unordered_map<std::string, glm::mat4> calculatedTransform;
-        std::unordered_map<std::string, glm::mat4> localTransformation;
         std::unordered_map<std::string, Bone*> Bonemap;
+        std::unordered_map<std::string, Action*> MixedActions;
         double mAnimationSecond = 0.0;
         double mAnimationDuration = 0.0;
         bool loop = false;
@@ -49,6 +48,8 @@ struct Action {
 };
 
 struct Animation {
+        std::unordered_map<std::string, glm::mat4> calculatedTransform;
+        std::unordered_map<std::string, glm::mat4> localTransformation;
         std::vector<glm::mat4> mFinalTransformations;
         std::unordered_map<std::string, Action*> actions;
         size_t activeActionIdx;
