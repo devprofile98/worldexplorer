@@ -192,9 +192,17 @@ aiMatrix4x4 GetGlobalTransform(aiNode* node) {
     return transform;
 }
 
+extern bool runBlenTest;
 glm::mat4 Animation::getLocalTransformAtTime(const aiNode* node, double time) {
     const Bone* bone = nullptr;
-    auto* action = getActiveAction();
+
+    Action* action = nullptr;
+    if (runBlenTest) {
+    } else {
+        action = getActiveAction();
+    }
+
+    // auto* action = getActiveAction();
     if (action->Bonemap.contains(node->mName.C_Str())) {
         bone = action->Bonemap[node->mName.C_Str()];
     }
@@ -319,9 +327,10 @@ Action* Animation::getActiveAction() { return activeAction; }
 
 Action* Animation::getAction(const std::string& actionName) {
     if (actions.count(actionName) != 0) {
-        activeAction = actions[actionName];
+        return actions[actionName];
+        // return
     }
-    return activeAction;
+    return nullptr;
 }
 void Animation::playAction(const std::string& name, bool loop) {
     auto it = actions.find(name);  // or your lookup

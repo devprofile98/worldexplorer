@@ -54,6 +54,10 @@
 #include "rendererResource.h"
 #include "webgpu/webgpu.h"
 
+std::string selectedBone = "";
+bool runBlenTest = false;
+std::map<std::string, Action*> selectedanimation;
+
 extern bool flip_x;
 extern bool flip_y;
 extern bool flip_z;
@@ -960,6 +964,37 @@ void Model::userInterface() {
             }
         }
         ImGui::Text("Default action: %s", mDefaultAction == nullptr ? "None" : mDefaultAction->name.c_str());
+    }
+
+    if (ImGui::CollapsingHeader("Animations")) {
+        if (anim != nullptr && anim->getActiveAction() != nullptr) {
+            ImGui::Checkbox("Run Blend test", &runBlenTest);
+            for (auto& [name, bone] : anim->getActiveAction()->Bonemap) {
+                ImGui::PushID(bone);  // or &mesh
+                                      //
+                if (ImGui::Button(name.c_str())) {
+                    selectedBone = name;
+                }
+                ImGui::SameLine();
+
+                if (ImGui::Button("walking")) {
+                    selectedanimation[name] = anim->getAction("Walk_Loop");
+                }
+
+                ImGui::SameLine();
+                if (ImGui::Button("Aiming")) {
+                    selectedanimation[name] = anim->getAction("ak47_Aim_Loop");
+                }
+                ImGui::SameLine();
+                ImGui::Text(" %s", selectedanimation.count(name) > 0 ? selectedanimation[name]->name.c_str() : "");
+                if (name == selectedBone) {
+                    ImGui::SameLine();
+                    ImGui::Text(" %s", " is selected ");
+                }
+
+                ImGui::PopID();
+            }
+        }
     }
 
     if (ImGui::CollapsingHeader("Mesh transformations")) {

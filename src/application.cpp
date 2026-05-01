@@ -78,6 +78,8 @@
 extern BoneSocket* muzzleSocket;
 glm::vec3 extern_position{0.0};
 
+extern std::string selectedBone;
+
 namespace {
 
 // ParticleSystem* particle_system;
@@ -200,6 +202,7 @@ static LineGroup spheredebuglines;
 static LineGroup capsuledebuglines;
 static LineGroup aabbDebugLines;
 static LineGroup boneDebugLines;
+static LineGroup boneDebugLinesGreen;
 
 Application::Application(const char* runningBinaryPath, const std::string& sceneFile) {
     // std::string binary_running_path = runningBinaryPath;
@@ -762,7 +765,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
                             .updateVisibility(false);
 
     aabbDebugLines = mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.8, 0.5, 0.0}).updateVisibility(false);
-    boneDebugLines = mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.0, 0.1, 0.7}).updateVisibility(true);
+    boneDebugLines = mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.9, 0.1, 0.1}).updateVisibility(true);
+    boneDebugLinesGreen = mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.0, 0.9, 0.1}).updateVisibility(true);
 
     debugbox.create(mLineEngine, glm::mat4{0.0}, glm::vec3{1.0});
 
@@ -830,19 +834,29 @@ void Application::mainLoop() {
             // Update physics and other systems like animations
             model->update(this, delta_time, runPhysics);
 
-            if (model->getName() == "zombie" && model->getAnimation() != nullptr) {
+            if (model->getName() == "human" && model->getAnimation() != nullptr &&
+                model->getAnimation()->getActiveAction() != nullptr) {
                 std::vector<glm::vec4> lines;
-                for (const auto& i : model->getAnimation()->mFinalTransformations) {
-                    auto transform = model->mTransform.mTransformMatrix * i;
-                    auto vec = transform * glm::vec4{0.0, 0.0, 0.0, 1.0};
-                    auto vec2 = transform * glm::vec4{0.0, 1.0, 0.0, 1.0};
-                    vec.z = 0;
-                    vec2.z = 1;
-                    std::cout << ":::::::::: " << glm::to_string(vec) << "   " << glm::to_string(vec2) << std::endl;
-                    lines.push_back(vec);
-                    lines.push_back(vec2);
+                std::vector<glm::vec4> linesGreen;
+                for (const auto& [k, i] : model->getAnimation()->getActiveAction()->calculatedTransform) {
+                    auto trans = model->mTransform.mTransformMatrix * i;
+                    auto vec = trans * glm::vec4{0.0, 0.0, 0.0, 1.0};
+                    auto vec2 = trans * glm::vec4{0.0, 0.0, k == selectedBone ? 0.3 : 0.2, 1.0};
+                    vec.w = 0;
+                    vec2.w = 1;
+                    // std::cout << ":::::::::: " << glm::to_string(vec) << "   " << glm::to_string(vec2) << std::endl;
+                    if (k == selectedBone) {
+                        linesGreen.push_back(vec);
+                        linesGreen.push_back(vec2);
+                    } else {
+                        lines.push_back(vec);
+                        lines.push_back(vec2);
+                    }
                 }
                 boneDebugLines.updateLines(lines).updateVisibility(true);
+                if (linesGreen.size() > 0) {
+                    boneDebugLinesGreen.updateLines(linesGreen).updateVisibility(true);
+                }
             }
         }
     }
