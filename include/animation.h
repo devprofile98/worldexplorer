@@ -67,6 +67,9 @@ struct Animation {
         Action* getAction(const std::string& actionName);
         void playAction(const std::string& name, bool loop = false);
         bool isEnded() const;
+
+        Action* createMaskedAction(const std::vector<std::string>& maskedBones, const char* firstAction,
+                                   const char* secondAction);
 };
 
 enum class AnchorType {

@@ -368,6 +368,24 @@ bool Animation::isEnded() const {
     return !activeAction->loop && activeAction->mAnimationSecond >= duration_ms;
 }
 
+Action* Animation::createMaskedAction(const std::vector<std::string>& maskedBones, const char* firstAction,
+                                      const char* secondAction) {
+    Action* newanim = new Action{};
+    Action* walking = getAction(firstAction);
+    Action* aimloop = getAction(secondAction);
+    newanim->Bonemap = walking->Bonemap;
+    newanim->mAnimationDuration = std::max(walking->mAnimationDuration, aimloop->mAnimationDuration);
+    newanim->hasSkining = true;
+    for (const auto& [name, bone] : newanim->Bonemap) {
+        newanim->MixedActions[name] = aimloop;
+    }
+    for (const auto& i : maskedBones) {
+        newanim->MixedActions[i] = walking;
+    }
+    // actions["new action"] = newanim;
+    return newanim;
+}
+
 void BoneSocket::calculateTransform() {
     transform = glm::translate(glm::mat4(1.0f), positionOffset) * glm::toMat4(rotationOffset) *
                 glm::scale(glm::mat4(1.0f), scaleOffset);

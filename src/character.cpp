@@ -1,6 +1,7 @@
 
 
 #include <algorithm>
+#include <bitset>
 #include <cstdint>
 #include <random>
 #include <vector>
@@ -144,6 +145,7 @@ enum CharacterState {
     Jumping,
     Falling,
     Aiming,
+    AimingWalking,
     Crouch,
 };
 
@@ -551,10 +553,11 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
         glm::vec3 up;     // Up vector (typically {0, 1, 0} for world up)
         glm::vec3 targetDistance;
         glm::vec3 targetOffset;
-        float roll;     // Horizontal rotation angle (degrees)
-        float yaw;      // Horizontal rotation angle (degrees)
-        float speed;    // Movement speed (units per second)
-        bool isMoving;  // Track movement state for animation
+        float roll;      // Horizontal rotation angle (degrees)
+        float yaw;       // Horizontal rotation angle (degrees)
+        float speed;     // Movement speed (units per second)
+        bool isWalking;  // Track movement state for animation
+        bool isRunning;
         bool isAiming;
         bool isShooting;
         bool isInJump;
@@ -562,6 +565,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
         float lastX;
         float lastY;
         CharacterState state;
+        uint32_t stateBit;
         CameraTransition transitoin;
         float groundLevel = -3.262;
         glm::vec3 velocity{0.0};
@@ -581,7 +585,8 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
               roll(0.0f),
               yaw(90.0f),
               speed(20.0f),
-              isMoving(false),
+              isWalking(false),
+              isRunning(false),
               isAiming(false),
               isShooting(false),
               isInJump(false),
@@ -589,6 +594,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
               lastX(0),
               lastY(0),
               state(Idle),
+              stateBit(0),
               transitoin({false, glm::vec3{0.0}, glm::vec3{0.0}, 0.0}),
               weapon(nullptr),
               attackAction("Punch_Jab"),
@@ -655,6 +661,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             if (mouse.click == GLFW_MOUSE_BUTTON_RIGHT) {
                 if (mouse.action == GLFW_PRESS) {
                     state = Aiming;
+                    stateBit |= 1 << Aiming;
                     isAiming = true;
 
                     // if (!transitoin.active) {
@@ -665,6 +672,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                     // }
                 } else if (mouse.action == GLFW_RELEASE) {
                     state = Idle;
+                    stateBit |= 1 << Idle;
                     isAiming = false;
                     // if (!transitoin.active) {
                     //     transitoin.from = glm::vec3{0.3};
@@ -768,9 +776,11 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             }
             if (space_value) {
                 state = Jumping;
+                stateBit |= 1 << Jumping;
                 isInJump = true;
             } else if (state == Jumping) {
                 state = Falling;
+                stateBit |= 1 << Falling;
             }
 
             if (InputManager::keys[GLFW_KEY_E] && objectToGrab != nullptr) {
@@ -791,7 +801,8 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                             ->onUnequip(weapon, static_cast<Model*>(model));
                     weapon = inventory[0];
                     if (weapon->getName() == "ak47") {
-                        idleAction = "ak47_Aim_Loop";
+                        // idleAction = "ak47_Aim_Loop";
+                        idleAction = "ak47_Idle_Loop3";
                         attackAction = "ak47-fire";
                     } else {
                         idleAction = "Pistol_Idle_Loop";
@@ -860,13 +871,20 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             bool is_left_shift_down = InputManager::isKeyDown(GLFW_KEY_LEFT_SHIFT);
             bool left_ctrl_down = InputManager::isKeyDown(GLFW_KEY_LEFT_CONTROL);
 
+            isWalking = false;
+            isRunning = false;
             if (InputManager::isKeyDown(GLFW_KEY_W)) {
                 if (is_left_shift_down) {
                     state = Running;
+                    stateBit |= 1 << Running;
+                    isRunning = true;
                 } else if (left_ctrl_down) {
                     state = Crouch;
+                    stateBit |= 1 << Crouch;
                 } else if (state != Jumping) {
                     state = Walking;
+                    stateBit |= 1 << Walking;
+                    isWalking = true;
                 }
                 moveDir += front;
                 noKey = false;
@@ -874,10 +892,13 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             if (InputManager::isKeyDown(GLFW_KEY_S)) {
                 if (is_left_shift_down) {
                     state = Running;
+                    stateBit |= 1 << Running;
                 } else if (left_ctrl_down) {
                     state = Crouch;
+                    stateBit |= 1 << Crouch;
                 } else if (state != Jumping) {
                     state = Walking;
+                    stateBit |= 1 << Walking;
                 }
                 moveDir -= front;
                 noKey = false;
@@ -885,10 +906,13 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             if (InputManager::isKeyDown(GLFW_KEY_A)) {
                 if (is_left_shift_down) {
                     state = Running;
+                    stateBit |= 1 << Running;
                 } else if (left_ctrl_down) {
                     state = Crouch;
+                    stateBit |= 1 << Crouch;
                 } else if (state != Jumping) {
                     state = Walking;
+                    stateBit |= 1 << Jumping;
                 }
                 moveDir += glm::normalize(glm::cross(front, up));
                 noKey = false;
@@ -897,10 +921,12 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             if (InputManager::isKeyDown(GLFW_KEY_D)) {
                 if (is_left_shift_down) {
                     state = Running;
+                    stateBit |= 1 << Running;
                 } else if (left_ctrl_down) {
                     state = Crouch;
                 } else if (state != Jumping) {
                     state = Walking;
+                    stateBit |= 1 << Walking;
                 }
                 moveDir -= glm::normalize(glm::cross(front, up));
                 noKey = false;
@@ -910,6 +936,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                 if (weapon != nullptr && weapon->getName() == "jp") {
                 } else {
                     state = Jumping;
+                    stateBit |= 1 << Jumping;
                     moveDir.z += 1;
                     noKey = false;
                 }
@@ -917,16 +944,20 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
 
             if (noKey) {
                 state = Idle;
+                stateBit |= 1 << Idle;
             }
 
+            // stateBit = 0;  // clearing the state bit for the next frame
             return moveDir;
         }
 
-        void decideCurrentAnimation(Model* model, float dt) {
+        void decideCurrentAnimation2(Model* model, float dt) {
             static std::string last_clip;
             std::string clip_name;
             bool loop = false;
             model->getAnimation()->isEnded();
+
+            std::cout << std::hex << stateBit << std::endl;
 
             if (isAiming) {
                 if (isShooting && weapon != nullptr) {
@@ -946,7 +977,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             } else {
                 switch (state) {
                     case Idle: {
-                        clip_name = "Idle_Loop";
+                        clip_name = idleAction;
                         loop = true;
                         break;
                     }
@@ -978,7 +1009,83 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                         break;
                     }
                     default:
-                        clip_name = "Idle_Loop";
+                        clip_name = idleAction;
+                        loop = true;
+                        break;
+                }
+            }
+            if (last_clip != clip_name) {
+                model->getAnimation()->playAction(clip_name, loop);
+                last_clip = clip_name;
+            }
+        }
+
+        void decideCurrentAnimation(Model* model, float dt) {
+            static std::string last_clip;
+            std::string clip_name;
+            bool loop = false;
+            model->getAnimation()->isEnded();
+
+            std::cout << std::hex << stateBit << std::endl;
+
+            if (isAiming) {
+                if (isShooting && weapon != nullptr) {
+                    clip_name = isWalking ? "shoot-walk-47" : attackAction;
+                    if (!model->getAnimation()->isEnded()) {
+                        loop = false;
+                    } else {
+                        // clip_name = idleAction;
+                        // clip_name = isWalking ? "shoot-walk-47" : attackAction;
+                        loop = true;
+                        isShooting = false;
+                    }
+                } else if (isWalking) {
+                    clip_name = "new action";
+                    loop = true;
+                } else if (isRunning) {
+                    clip_name = "ak47-run-shoot";
+                    loop = true;
+                } else {
+                    isShooting = false;
+                    clip_name = idleAction;
+                    loop = true;
+                }
+            } else {
+                switch (state) {
+                    case Idle: {
+                        clip_name = idleAction;
+                        loop = true;
+                        break;
+                    }
+                    case Walking: {
+                        if (!isInJump) {
+                            clip_name = "Walk_Loop";
+                            loop = true;
+                        }
+                        break;
+                    }
+                    case Running: {
+                        if (!isInJump) {
+                            clip_name = "Sprint_Loop";
+                            loop = true;
+                        }
+                        break;
+                    }
+                    case Crouch: {
+                        if (!isInJump) {
+                            clip_name = "Crouch_Fwd_Loop";
+                            loop = true;
+                        }
+                        break;
+                    }
+                    case Falling:
+                    case Jumping: {
+                        clip_name = "Jump_Start";
+                        loop = false;
+                        break;
+                    }
+                    default:
+                        clip_name = idleAction;
                         loop = true;
                         break;
                 }
@@ -1069,6 +1176,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             //         transitoin.active = false;
             //     }
             // }
+            stateBit = 0;
         }
 
         glm::vec3 getForward() override { return glm::normalize(glm::cross(front, up)); }
@@ -1084,22 +1192,13 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             listener->character = static_cast<Model*>(model);
             physicalCharacter->SetListener(listener);
 
-            const char* bones[] = {"DEF-shinL", "DEF-shinR", "DEF-toetipR", "DEF-toetipL", "DEF-footR", "DEF-footL",
-                                   "DEF-toeL",  "DEF-toeR",  "DEF-thighL",  "DEF-thighR",  "DEF-hips"};
-            Action* walk_aim_ak47 = new Action{};
-            Action* walking = model->getAnimation()->getAction("Walk_Loop");
-            Action* aimloop = model->getAnimation()->getAction("ak47_Aim_Loop");
-            walk_aim_ak47->Bonemap = walking->Bonemap;
-            walk_aim_ak47->mAnimationDuration = std::max(walking->mAnimationDuration, aimloop->mAnimationDuration);
-            walk_aim_ak47->hasSkining = true;
-            for (const auto& [name, bone] : walk_aim_ak47->Bonemap) {
-                walk_aim_ak47->MixedActions[name] = aimloop;
-            }
-
-            for (auto* i : bones) {
-                walk_aim_ak47->MixedActions[i] = walking;
-            }
-            model->getAnimation()->actions["new action"] = walk_aim_ak47;
+            std::vector<std::string> upper_bones = {"DEF-shinL",  "DEF-shinR",  "DEF-toetipR", "DEF-toetipL",
+                                                    "DEF-footR",  "DEF-footL",  "DEF-toeL",    "DEF-toeR",
+                                                    "DEF-thighL", "DEF-thighR", "DEF-hips"};
+            auto* anim = model->getAnimation();
+            anim->actions["new action"] = anim->createMaskedAction(upper_bones, "Walk_Loop", "ak47_Aim_Loop");
+            anim->actions["shoot-walk-47"] = anim->createMaskedAction(upper_bones, "Walk_Loop", "ak47-fire");
+            anim->actions["ak47-run-shoot"] = anim->createMaskedAction(upper_bones, "Sprint_Loop", "ak47-fire");
         }
 };
 
