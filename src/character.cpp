@@ -195,6 +195,19 @@ class MyCharacterContactListener : public JPH::CharacterContactListener {
         Model* character = nullptr;
 };
 
+enum class ACTION : uint8_t {
+    IDLE = 0,
+    WALK,
+    AIM,
+    RUN,
+    CROUCH,
+    AIM_WALK,
+    AIM_RUN,
+    SHOOT,
+    SHOOT_WALK,
+    SHOOT_RUN,
+};
+
 struct WeaponBehaviour : public PawnBehaviour {
         WeaponBehaviour(std::string name) {
             maxPickDistance = 2.5;  // all weapon should be pickable at this range
@@ -223,6 +236,9 @@ struct WeaponBehaviour : public PawnBehaviour {
             inactiveSocket->model = target;
             weapon->mSocket = inactiveSocket;
         }
+
+        void onPick(Model* weapon, Model* target) override {}
+        virtual std::string getActionFor(ACTION action, const std::string& defaultClip = "") { return defaultClip; }
 };
 
 class JetPackPhysics : public PhysicsComponent {
@@ -353,6 +369,26 @@ struct PistolBehaviour : public WeaponBehaviour {
                 }
             }
         }
+        // idleAction = "Pistol_Idle_Loop";
+        // attackAction = "Pistol_Shoot";
+        std::string getActionFor(ACTION action, const std::string& defaultClip) override {
+            switch (action) {
+                case ACTION::AIM:
+                    return "Pistol_Idle_Loop";
+                case ACTION::AIM_WALK:
+                    return "pistol-aim-walk";
+                case ACTION::SHOOT:
+                    return "Pistol_Shoot";
+                // case ACTION::SHOOT_RUN:
+                //     return "ak47-run-shoot";
+                case ACTION::IDLE:
+                    return "Pistol_Idle_Loop";
+                case ACTION::AIM_RUN:
+                    return "pistol-aim-run";
+                default:
+                    return defaultClip;
+            }
+        }
 };
 
 struct EnemyBehaviour : public PawnBehaviour {
@@ -461,13 +497,32 @@ struct Ak47Behaviour : public WeaponBehaviour {
             }
         }
 
-        void onEquip(Model* weapon, Model* target) override {
-            activeSocket->model = target;
-            weapon->mSocket = activeSocket;
+        void onPick(Model* weapon, Model* target) override {
             if (weapon->mPhysicComponent != nullptr) {
                 physics::getBodyInterface().RemoveBody(weapon->mPhysicComponent->bodyId);
                 delete weapon->mPhysicComponent;
                 weapon->mPhysicComponent = nullptr;
+            }
+        }
+
+        std::string getActionFor(ACTION action, const std::string& defaultClip) override {
+            switch (action) {
+                case ACTION::AIM:
+                    return "ak47_Aim_Loop";
+                case ACTION::AIM_WALK:
+                    return "ak47-aim-walk";
+                case ACTION::SHOOT:
+                    return "ak47-fire";
+                case ACTION::SHOOT_RUN:
+                    return "ak47-run-shoot";
+                case ACTION::IDLE:
+                    return "ak47_Idle_Loop3";
+                case ACTION::SHOOT_WALK:
+                    return "shoot-walk-47";
+                case ACTION::AIM_RUN:
+                    return "ak47-aim-run";
+                default:
+                    return defaultClip;
             }
         }
 };
@@ -513,6 +568,7 @@ struct TorchBehaviour : public WeaponBehaviour {
             inactiveSocket->model = target;
             weapon->mSocket = inactiveSocket;
         }
+
         void onLoad(Model* model) override {
             ParticleSystemSetting settings{
                 {0.0, 0.0, -1.0}, spawnParticle, simulateParticles, {-0.190, -0.02}, {1.528, 9.7}, 0.4f, 0.01, 20};
@@ -521,12 +577,36 @@ struct TorchBehaviour : public WeaponBehaviour {
 
             particleSystem->setEmitterSocket(new BoneSocket{model, "", glm::vec3{0.0, 0.0, 2.840}, glm::vec3{1.0},
                                                             glm::vec3{0.0}, AnchorType::Model});
-
+            //
             app->mParticleSystemsManager->registerSystem(particleSystem);
 
             torchlight = app->mLightManager->createPointLight(
                 glm::vec4{0.0, 0.0, 0.0, 1.0}, glm::vec4{1.0, 0.0, 0.0, 1.0}, glm::vec4{1.0, 0.0, 0.0, 1.0},
                 glm::vec4{1.0, 0.0, 0.0, 1.0}, 1.0, -1.0, 1.8, 1.0, "torch light");
+        }
+
+        void onPick(Model* weapon, Model* target) override {
+            if (weapon->mPhysicComponent != nullptr) {
+                physics::getBodyInterface().RemoveBody(weapon->mPhysicComponent->bodyId);
+                delete weapon->mPhysicComponent;
+                weapon->mPhysicComponent = nullptr;
+            }
+        }
+        std::string getActionFor(ACTION action, const std::string& defaultClip) override {
+            switch (action) {
+                case ACTION::SHOOT:
+                    return "";
+                case ACTION::IDLE:
+                    return "Idle_Torch_Loop";
+                case ACTION::AIM_WALK:
+                    return "torch-idle-walk";
+                case ACTION::WALK:
+                    return "torch-idle-walk";
+                case ACTION::AIM_RUN:
+                    return "";
+                default:
+                    return defaultClip;
+            }
         }
 };
 TorchBehaviour torchbehaviour{"torch"};
@@ -540,6 +620,21 @@ struct SwordBehaviour : public WeaponBehaviour {
             activeSocket = new BoneSocket{
                 nullptr,         "DEF-handR", {-0.05, 0.1, -0.0}, {0.02, 0.02, 0.02}, glm::quat({1.588, 0.180, 0.0104}),
                 AnchorType::Bone};
+        }
+
+        std::string getActionFor(ACTION action, const std::string& defaultClip) override {
+            switch (action) {
+                case ACTION::SHOOT:
+                    return "Sword_Attack";
+                case ACTION::IDLE:
+                    return "Sword_Idle";
+                case ACTION::AIM_WALK:
+                    return "sword-aim-walk";
+                case ACTION::AIM_RUN:
+                    return "sword-aim-run";
+                default:
+                    return defaultClip;
+            }
         }
 };
 
@@ -720,7 +815,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                             entity->mBehaviour->maxPickDistance > 0.0) {
                             auto pawn_to_object =
                                 glm::length(entity->mTransform.getPosition() - model->mTransform.getPosition());
-                            std::cout << pawn_to_object << std::endl;
+                            // std::cout << pawn_to_object << std::endl;
                             if (pawn_to_object < entity->mBehaviour->maxPickDistance) {
                                 std::cout << entity->getName() << " Is pickable " << std::endl;
                                 objectToGrab = entity;
@@ -785,36 +880,29 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
 
             if (InputManager::keys[GLFW_KEY_E] && objectToGrab != nullptr) {
                 std::cout << " >> You Grabbed object " << objectToGrab->getName() << std::endl;
-                static_cast<WeaponBehaviour*>(objectToGrab->mBehaviour)
-                    ->onUnequip(objectToGrab, static_cast<Model*>(model));
+                auto* wp = static_cast<WeaponBehaviour*>(objectToGrab->mBehaviour);
+                wp->onPick(objectToGrab, static_cast<Model*>(model));
+                wp->onEquip(objectToGrab, static_cast<Model*>(model));
+                weapon = objectToGrab;
+                idleAction = wp->getActionFor(ACTION::IDLE, "Idle_Loop");
+                attackAction = wp->getActionFor(ACTION::SHOOT, "Idle_Loop");
                 inventory.push_back(objectToGrab);
             }
             if (InputManager::keys[GLFW_KEY_1]) {
-                // for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-                // if (m->mName == "pistol") {
                 if (inventory.size() > 0) {
                     if (weapon != nullptr && inventory[0] == weapon) {
                         return;
                     }
-                    if (weapon != nullptr)
+                    if (weapon != nullptr) {
                         static_cast<WeaponBehaviour*>(weapon->mBehaviour)
                             ->onUnequip(weapon, static_cast<Model*>(model));
-                    weapon = inventory[0];
-                    if (weapon->getName() == "ak47") {
-                        // idleAction = "ak47_Aim_Loop";
-                        idleAction = "ak47_Idle_Loop3";
-                        attackAction = "ak47-fire";
-                    } else {
-                        idleAction = "Pistol_Idle_Loop";
-                        attackAction = "Pistol_Shoot";
                     }
-
-                    static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon, static_cast<Model*>(model));
+                    weapon = inventory[0];
+                    auto wp = static_cast<WeaponBehaviour*>(weapon->mBehaviour);
+                    wp->onEquip(weapon, static_cast<Model*>(model));
+                    idleAction = wp->getActionFor(ACTION::IDLE, "Idle_Loop");
+                    attackAction = wp->getActionFor(ACTION::SHOOT, "Idle_Loop");
                 }
-                //
-                //     return;
-                // }
-                // }
             }
             if (InputManager::keys[GLFW_KEY_2]) {
                 for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
@@ -823,22 +911,27 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                             static_cast<WeaponBehaviour*>(weapon->mBehaviour)
                                 ->onUnequip(weapon, static_cast<Model*>(model));
                         weapon = m;
-                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon, static_cast<Model*>(model));
-                        idleAction = "Sword_Idle";
-                        attackAction = "Sword_Attack";
+                        auto wp = static_cast<WeaponBehaviour*>(weapon->mBehaviour);
+                        wp->onEquip(weapon, static_cast<Model*>(model));
+                        idleAction = wp->getActionFor(ACTION::IDLE, "Idle_Loop");
+                        attackAction = wp->getActionFor(ACTION::SHOOT, "Idle_Loop");
                         return;
                     }
                 }
             }
             if (InputManager::keys[GLFW_KEY_3]) {
                 for (auto* m : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-                    if (m->mName == "jp") {
-                        physics::getBodyInterface().DeactivateBody(m->mPhysicComponent->bodyId);
+                    // if (m->mName == "jp") {
+                    // physics::getBodyInterface().DeactivateBody(m->mPhysicComponent->bodyId);
+                    if (m->mName == "pistol") {
                         if (weapon != nullptr)
                             static_cast<WeaponBehaviour*>(weapon->mBehaviour)
                                 ->onUnequip(weapon, static_cast<Model*>(model));
                         weapon = m;
-                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon, static_cast<Model*>(model));
+                        auto wp = static_cast<WeaponBehaviour*>(weapon->mBehaviour);
+                        wp->onEquip(weapon, static_cast<Model*>(model));
+                        idleAction = wp->getActionFor(ACTION::IDLE, "Idle_Loop");
+                        attackAction = wp->getActionFor(ACTION::SHOOT, "Idle_Loop");
                         return;
                     }
                 }
@@ -850,9 +943,14 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                             static_cast<WeaponBehaviour*>(weapon->mBehaviour)
                                 ->onUnequip(weapon, static_cast<Model*>(model));
                         weapon = m;
-                        static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon, static_cast<Model*>(model));
-                        idleAction = "Idle_Torch_Loop";
-                        attackAction = "Idle_Torch_Loop";
+                        // static_cast<WeaponBehaviour*>(weapon->mBehaviour)->onEquip(weapon,
+                        // static_cast<Model*>(model));
+                        auto wp = static_cast<WeaponBehaviour*>(weapon->mBehaviour);
+                        wp->onEquip(weapon, static_cast<Model*>(model));
+                        // idleAction = "Idle_Torch_Loop";
+                        // attackAction = "Idle_Torch_Loop";
+                        idleAction = wp->getActionFor(ACTION::IDLE, "Idle_Loop");
+                        attackAction = wp->getActionFor(ACTION::SHOOT, "Idle_Loop");
                         return;
                     }
                 }
@@ -957,7 +1055,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             bool loop = false;
             model->getAnimation()->isEnded();
 
-            std::cout << std::hex << stateBit << std::endl;
+            // std::cout << std::hex << stateBit << std::endl;
 
             if (isAiming) {
                 if (isShooting && weapon != nullptr) {
@@ -1026,7 +1124,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             bool loop = false;
             model->getAnimation()->isEnded();
 
-            std::cout << std::hex << stateBit << std::endl;
+            // std::cout << std::hex << stateBit << std::endl;
 
             if (isAiming) {
                 if (isShooting && weapon != nullptr) {
@@ -1034,16 +1132,18 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                     if (!model->getAnimation()->isEnded()) {
                         loop = false;
                     } else {
-                        // clip_name = idleAction;
-                        // clip_name = isWalking ? "shoot-walk-47" : attackAction;
                         loop = true;
                         isShooting = false;
                     }
                 } else if (isWalking) {
-                    clip_name = "new action";
+                    auto* wp = static_cast<WeaponBehaviour*>(weapon->mBehaviour);
+                    clip_name = wp->getActionFor(ACTION::AIM_WALK, "Idle_Loop");  //"ak47-aim-walk";
+
                     loop = true;
                 } else if (isRunning) {
-                    clip_name = "ak47-run-shoot";
+                    auto* wp = static_cast<WeaponBehaviour*>(weapon->mBehaviour);
+                    clip_name = wp->getActionFor(ACTION::AIM_RUN, "Idle_Loop");  //"ak47-aim-walk";
+                    // clip_name = "ak47-run-shoot";
                     loop = true;
                 } else {
                     isShooting = false;
@@ -1183,8 +1283,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
 
         void onLoad(Model* model) override {
             std::cout << "Character Human just created\n" << model->getName() << std::endl;
-            // physicalCharacter = physics::createCharacter(physics::createCapsuleShape(0.3f, 0.05f), {22, 3,
-            // 12});
+
             physicalCharacter = physics::createCharacter(physics::createCapsuleShape(0.4f, 0.130f), {0.0, 0.0, 2},
                                                          reinterpret_cast<JPH::uint64>(model));
 
@@ -1196,9 +1295,18 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                                                     "DEF-footR",  "DEF-footL",  "DEF-toeL",    "DEF-toeR",
                                                     "DEF-thighL", "DEF-thighR", "DEF-hips"};
             auto* anim = model->getAnimation();
-            anim->actions["new action"] = anim->createMaskedAction(upper_bones, "Walk_Loop", "ak47_Aim_Loop");
+            anim->actions["ak47-aim-walk"] = anim->createMaskedAction(upper_bones, "Walk_Loop", "ak47_Aim_Loop");
+            anim->actions["ak47-aim-run"] = anim->createMaskedAction(upper_bones, "Sprint_Loop", "ak47_Aim_Loop");
             anim->actions["shoot-walk-47"] = anim->createMaskedAction(upper_bones, "Walk_Loop", "ak47-fire");
             anim->actions["ak47-run-shoot"] = anim->createMaskedAction(upper_bones, "Sprint_Loop", "ak47-fire");
+
+            anim->actions["pistol-aim-walk"] = anim->createMaskedAction(upper_bones, "Walk_Loop", "Pistol_Idle_Loop");
+            anim->actions["pistol-aim-run"] = anim->createMaskedAction(upper_bones, "Sprint_Loop", "Pistol_Idle_Loop");
+
+            anim->actions["sword-aim-run"] = anim->createMaskedAction(upper_bones, "Sprint_Loop", "Sword_Idle");
+            anim->actions["sword-aim-walk"] = anim->createMaskedAction(upper_bones, "Walk_Loop", "Sword_Idle");
+
+            anim->actions["torch-idle-walk"] = anim->createMaskedAction(upper_bones, "Walk_Loop", "Idle_Torch_Loop");
         }
 };
 

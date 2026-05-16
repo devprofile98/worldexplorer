@@ -52,7 +52,7 @@ struct GizmoElement : public MouseMoveListener, public MouseButtonListener {
 };
 
 struct Editor {
-        Editor();
+        Editor(Application* app);
         BaseModel* mSelectedElement = nullptr;
         void showBoneAt(const glm::mat4& transformation);
         static inline BaseModel* BoneIndicator = nullptr;
@@ -61,6 +61,7 @@ struct Editor {
             mSelectedObject;
 
         bool mEditorActive = true;
+        Application* mApp = nullptr;
 };
 
 class Screen : public MouseMoveListener,

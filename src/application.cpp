@@ -202,11 +202,6 @@ static LineGroup spheredebuglines;
 static LineGroup capsuledebuglines;
 static LineGroup aabbDebugLines;
 
-static LineGroup boneDebugLines;
-static LineGroup boneDebugLinesGreen;
-
-std::pair<LineGroup*, LineGroup*> getbonelinegroup() { return {&boneDebugLines, &boneDebugLinesGreen}; }
-
 Application::Application(const char* runningBinaryPath, const std::string& sceneFile) {
     // std::string binary_running_path = runningBinaryPath;
     // auto path = binary_running_path.substr(0, binary_running_path.find_last_of("/"));
@@ -647,23 +642,6 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
 
     GLFWwindow* provided_window = res.value();
 
-    mEditor = new Editor{};
-
-    // Set up Callbacks
-    // TODO refactor these into their own files
-    glfwSetWindowUserPointer(mWindow->getWindow(), this);  // set user pointer to be used in the callback function
-    glfwSetFramebufferSizeCallback(mWindow->getWindow(), onWindowResize);
-    glfwSetCursorPosCallback(mWindow->getWindow(), InputManager::handleMouseMove);
-    glfwSetMouseButtonCallback(mWindow->getWindow(), InputManager::handleButton);
-    glfwSetScrollCallback(mWindow->getWindow(), InputManager::handleScroll);
-    glfwSetKeyCallback(mWindow->getWindow(), InputManager::handleKeyboard);
-
-    auto& input_manager = InputManager::instance();
-    input_manager.mMouseMoveListeners.push_back(&mEditor->gizmo);
-    input_manager.mMouseButtonListeners.push_back(&mEditor->gizmo);
-
-    Screen::instance().initialize(this);
-
     WGPUInstanceDescriptor desc = {};
     desc.nextInChain = nullptr;
 
@@ -748,14 +726,35 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     initializeBuffers();
     initializePipeline();
 
+    mLineEngine = new LineEngine{};
+    mLineEngine->initialize(this);
+
+    mEditor = new Editor{this};
+
+    // Set up Callbacks
+    // TODO refactor these into their own files
+    glfwSetWindowUserPointer(mWindow->getWindow(), this);  // set user pointer to be used in the callback function
+    glfwSetFramebufferSizeCallback(mWindow->getWindow(), onWindowResize);
+    glfwSetCursorPosCallback(mWindow->getWindow(), InputManager::handleMouseMove);
+    glfwSetMouseButtonCallback(mWindow->getWindow(), InputManager::handleButton);
+    glfwSetScrollCallback(mWindow->getWindow(), InputManager::handleScroll);
+    glfwSetKeyCallback(mWindow->getWindow(), InputManager::handleKeyboard);
+
+    auto& input_manager = InputManager::instance();
+    input_manager.mMouseMoveListeners.push_back(&mEditor->gizmo);
+    input_manager.mMouseButtonListeners.push_back(&mEditor->gizmo);
+
+    Screen::instance().initialize(this);
+
     physics::prepareJolt();
 
     mParticleSystemsManager = new ParticleSystemsManager{};
 
     mWorld = new World{this, mSceneFilePath};
 
-    mLineEngine = new LineEngine{};
-    mLineEngine->initialize(this);
+    // mLineEngine = new LineEngine{};
+    // mLineEngine->initialize(this);
+
     // create and hide debug lines
     debuglinegroup = mLineEngine->create(generateBox(), glm::mat4{0.0}, {0.2, 0.0, 8.0}).updateVisibility(false);
     instancedebuglinegroup =
@@ -768,8 +767,6 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
                             .updateVisibility(false);
 
     aabbDebugLines = mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.8, 0.5, 0.0}).updateVisibility(false);
-    boneDebugLines = mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.9, 0.1, 0.1}).updateVisibility(true);
-    boneDebugLinesGreen = mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.0, 0.9, 0.1}).updateVisibility(true);
 
     debugbox.create(mLineEngine, glm::mat4{0.0}, glm::vec3{1.0});
 
@@ -1443,8 +1440,8 @@ void Application::terminateDepthBuffer() {
 
 // called in onInit
 bool Application::initGui() {
-    static ImGui_ImplWGPU_InitInfo imgui_device{};
-    imgui_device.Device = this->getRendererResource().device;
+    // static ImGui_ImplWGPU_InitInfo imgui_device{};
+    // imgui_device.Device = this->getRendererResource().device;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();

@@ -17,6 +17,7 @@ void InputHandler::handleAttachedCamera(BaseModel*, Camera*) {}
 void PawnBehaviour::onLoad(Model*) {}
 void PawnBehaviour::onEquip(Model*, Model*) {}
 void PawnBehaviour::onUnequip(Model*, Model*) {}
+void PawnBehaviour::onPick(Model*, Model*) {}
 void PawnBehaviour::onTick(Model*, float dt) { (void)dt; }
 void PawnBehaviour::handleKey(BaseModel* model, KeyEvent event, float dt) {}
 

@@ -23,6 +23,11 @@
 static glm::vec3 starting_scale;
 static bool starting_touch = false;
 
+static LineGroup boneDebugLines;
+static LineGroup boneDebugLinesGreen;
+
+std::pair<LineGroup*, LineGroup*> getbonelinegroup() { return {&boneDebugLines, &boneDebugLinesGreen}; }
+
 void GizmoElement::setGizmoVisibility(bool visibility) {
     BaseModel* gizmos[] = {GizmoElement::z, GizmoElement::x, GizmoElement::y};
     for (auto& gizmo : gizmos) {
@@ -547,9 +552,13 @@ REGISTER_MODEL("gizmo_y", GizmoModelY, Visibility_Editor, &GizmoElement::y);
 REGISTER_MODEL("gizmo_center", GizmoModelCenter, Visibility_Editor, &GizmoElement::center);
 // REGISTER_MODEL("bone", BoneModel, Visibility_Editor, &Editor::BoneIndicator);
 
-Editor::Editor() {
+Editor::Editor(Application* app) : mApp(app) {
     GizmoElement::setGizmoVisibility(false);
     // GizmoElement::setGizmoModel(GizmoModeTranslation);
+
+    boneDebugLines = mApp->mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.9, 0.1, 0.1}).updateVisibility(false);
+    boneDebugLinesGreen =
+        mApp->mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.0, 0.9, 0.1}).updateVisibility(false);
 }
 
 void Editor::showBoneAt(const glm::mat4& transformation) {

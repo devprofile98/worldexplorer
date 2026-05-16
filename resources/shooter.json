@@ -64,7 +64,7 @@
     },
     {
       "diffuse_map": "/home/ahmad/Downloads/3D/Ak_47/ak-47-round.jpg",
-      "name": "",
+      "name": "ak",
       "normal_map": null,
       "specular_map": null
     },
@@ -565,7 +565,7 @@
       ],
       "materials": [
         {
-          "Round_2": ""
+          "Round_2": "ak"
         },
         {
           "AK_47_2": "ak47-round"
