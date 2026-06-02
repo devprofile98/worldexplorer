@@ -752,7 +752,8 @@ void Model::update(Application* app, float dt, float physicSimulating) {
     // Apply position/Rotation changes to the meshes
     if (mPhysicComponent != nullptr && physicSimulating) {
         auto [new_pos, rotation] = physics::getPositionAndRotationyId(mPhysicComponent->bodyId);
-        moveTo(new_pos);
+        glm::vec3 com_pos = new_pos - rotation * mPhysicComponent->localOffset;
+        moveTo(com_pos);
         glm::quat flipX = glm::angleAxis(glm::pi<float>(), glm::vec3(1, 0, 0));
         glm::quat flipY = glm::angleAxis(glm::pi<float>(), glm::vec3(0, 1, 0));
         rotation = flipY * flipX * rotation * glm::inverse(flipX * flipY);

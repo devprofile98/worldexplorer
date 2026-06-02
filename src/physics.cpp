@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <glm/fwd.hpp>
 #include <memory>
+#include <unordered_map>
 
 #include "Jolt/Core/Reference.h"
 #include "Jolt/Geometry/Triangle.h"
@@ -37,6 +38,7 @@
 #include "Jolt/Physics/Collision/Shape/MeshShape.h"
 #include "Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h"
 #include "Jolt/Physics/Collision/Shape/Shape.h"
+#include "Jolt/Physics/Collision/Shape/StaticCompoundShape.h"
 #include "Jolt/Physics/EActivation.h"
 #include "application.h"
 #include "glm/ext/matrix_transform.hpp"
@@ -131,6 +133,8 @@ class ObjectVsBroadPhaseLayerFilterImpl final : public ObjectVsBroadPhaseLayerFi
                 case Layers::NON_MOVING:
                     return inLayer2 == BroadPhaseLayer(1);  // non-moving collides only with moving
                 case Layers::MOVING:
+                    return true;  // moving collides with everything
+                case Layers::CHARACTER_INNER:
                     return true;  // moving collides with everything
                 default:
                     JPH_ASSERT(false);
@@ -321,7 +325,7 @@ glm::vec3 syncPhysicsFromRender(const glm::vec3& position, const glm::quat& orie
 }
 
 PhysicsComponent* CreatePhysicsBox(const glm::vec3& localoffset, const glm::vec3& model_half_extents,
-                                   glm::vec3& world_bottom_position, void* userData) {
+                                   glm::vec3& world_bottom_position, MotionType motionType, void* userData) {
     // auto local_pivot_offset = localoffset;glm::vec3{0.0f, 0.0, model_half_extents.z};
     auto local_pivot_offset = localoffset;
     // auto local_pivot_offset = model_half_extents - world_bottom_position;  // glm::vec3{0.0f, model_half_extents.y,
@@ -333,7 +337,8 @@ PhysicsComponent* CreatePhysicsBox(const glm::vec3& localoffset, const glm::vec3
     Vec3 body_com_pos = toJolt(world_bottom_position + local_pivot_offset);
 
     BodyCreationSettings settings(shape, RVec3(body_com_pos.GetX(), body_com_pos.GetZ(), body_com_pos.GetY()),
-                                  Quat::sIdentity(), EMotionType::Static, Layers::NON_MOVING);
+                                  Quat::sIdentity(), static_cast<EMotionType>(motionType),
+                                  motionType == MotionType::Static ? Layers::NON_MOVING : Layers::MOVING);
     settings.mUserData = reinterpret_cast<uint64_t>(userData);
 
     BodyInterface& bi = physicsSystem.GetBodyInterface();
@@ -491,9 +496,9 @@ Body* createPhysicFromShape(const std::vector<uint32_t> indices, const std::vect
 
     for (size_t i = 0; i + 2 < indices.size(); i += 3) {
         uint32_t i0 = indices[i], i1 = indices[i + 1], i2 = indices[i + 2];
-        auto p = transformMatrix * glm::vec4{vertices[i0].position, 0.0};
-        auto p1 = transformMatrix * glm::vec4{vertices[i1].position, 0.0};
-        auto p2 = transformMatrix * glm::vec4{vertices[i2].position, 0.0};
+        auto p = transformMatrix * glm::vec4{vertices[i0].position, 1.0};
+        auto p1 = transformMatrix * glm::vec4{vertices[i1].position, 1.0};
+        auto p2 = transformMatrix * glm::vec4{vertices[i2].position, 1.0};
         triangles.push_back(Triangle(Float3(p.x, p.z, p.y), Float3(p1.x, p1.z, p1.y), Float3(p2.x, p2.z, p2.y)));
     }
 
@@ -511,6 +516,76 @@ Body* createPhysicFromShape(const std::vector<uint32_t> indices, const std::vect
 
     BodyInterface& body_interface = physicsSystem.GetBodyInterface();
     Body* body = body_interface.CreateBody(body_settings);
+    body_interface.AddBody(body->GetID(), EActivation::DontActivate);
+    return body;
+}
+
+Body* createPhysicFromShape(const std::unordered_map<int, Mesh> meshes, const glm::mat4& transformMatrix,
+                            std::vector<std::vector<glm::vec4>>& outVertices) {
+    StaticCompoundShapeSettings compound_settings;
+    bool has_any_shape = false;
+
+    for (const auto& [name, mesh] : meshes) {
+        std::vector<glm::vec4> out_vertices;
+        const auto& indices = mesh.mIndexData;
+        const auto& vertices = mesh.mVertexData;
+
+        TriangleList triangles;
+        triangles.reserve(indices.size() / 3);
+
+        for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+            uint32_t i0 = indices[i];
+            uint32_t i1 = indices[i + 1];
+            uint32_t i2 = indices[i + 2];
+
+            auto p = transformMatrix * glm::vec4{vertices[i0].position, 1.0};
+            auto p1 = transformMatrix * glm::vec4{vertices[i1].position, 1.0};
+            auto p2 = transformMatrix * glm::vec4{vertices[i2].position, 1.0};
+
+            std::cout << glm::to_string(p) << " " << glm::to_string(p1) << " " << glm::to_string(p2) << "\n";
+            out_vertices.push_back(glm::vec4{p.x, p.y, p.z, 0.0f});
+            out_vertices.push_back(glm::vec4{p1.x, p1.y, p1.z, 0.0f});
+            out_vertices.push_back(glm::vec4{p2.x, p2.y, p2.z, 1.0f});
+            triangles.push_back(Triangle(Float3(p.x, p.z, p.y), Float3(p1.x, p1.z, p1.y), Float3(p2.x, p2.z, p2.y)));
+        }
+        outVertices.push_back(std::move(out_vertices));
+
+        if (triangles.empty()) {
+            continue;
+        }
+
+        MeshShapeSettings mesh_setting(triangles);
+        mesh_setting.mMaxTrianglesPerLeaf = 4;
+
+        ShapeSettings::ShapeResult result = mesh_setting.Create();
+        if (result.HasError()) {
+            continue;
+        }
+        RefConst<Shape> shape = result.Get();
+        compound_settings.AddShape(Vec3::sZero(), Quat::sIdentity(), shape);
+        has_any_shape = true;
+    }
+    if (!has_any_shape) {
+        return nullptr;
+    }
+
+    ShapeSettings::ShapeResult compound_result = compound_settings.Create();
+
+    if (compound_result.HasError()) {
+        std::cout << "Failed to create compound shape: " << compound_result.GetError().c_str() << "\n";
+        return nullptr;
+    }
+
+    RefConst<Shape> compound_shpae = compound_result.Get();
+
+    BodyCreationSettings body_settings(compound_shpae, RVec3(0, 0, 0), Quat::sIdentity(), EMotionType::Static,
+                                       Layers::MOVING);
+
+    BodyInterface& body_interface = physicsSystem.GetBodyInterface();
+    Body* body = body_interface.CreateBody(body_settings);
+    if (body == nullptr) {
+        return nullptr;
+    }
     body_interface.AddBody(body->GetID(), EActivation::DontActivate);
     return body;
 }

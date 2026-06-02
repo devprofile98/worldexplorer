@@ -721,8 +721,6 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     wgpuSurfaceConfigure(this->getRendererResource().surface, &surface_configuration);
     wgpuAdapterRelease(adapter);
 
-    initGui();
-
     initializeBuffers();
     initializePipeline();
 
@@ -739,6 +737,8 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     glfwSetMouseButtonCallback(mWindow->getWindow(), InputManager::handleButton);
     glfwSetScrollCallback(mWindow->getWindow(), InputManager::handleScroll);
     glfwSetKeyCallback(mWindow->getWindow(), InputManager::handleKeyboard);
+
+    initGui();
 
     auto& input_manager = InputManager::instance();
     input_manager.mMouseMoveListeners.push_back(&mEditor->gizmo);
@@ -838,7 +838,6 @@ void Application::mainLoop() {
 
     if (mSelectedModel != nullptr) {
         auto [min, max] = mSelectedModel->getWorldSpaceAABB();
-        // std::cout << "ZZombie half extent and center are " << glm::to_string((max - min) * 0.5f) << "\n";
         aabbDebugLines.updateLines(generateAABBLines(min, max));
     }
 
@@ -846,22 +845,12 @@ void Application::mainLoop() {
         physics::JoltLoop(delta_time);
     } else {
         for (const auto& model : ModelRegistry::instance().getLoadedModel(Visibility_User)) {
-            if (model->mPhysicComponent != nullptr) {
-                // if (model->getName() == "tree" || model->getName() == "zombie") {
+            if (model->mPhysicComponent != nullptr && model->mPhysicComponent->colliderType != ColliderType::TriList) {
                 physics::syncPhysicsFromRender(model->mTransform, model->mPhysicComponent);
-                // } else {
-                //     physics::setRotation(model->mPhysicComponent->bodyId,
-                //                          glm::normalize(model->mTransform.mOrientation));
-                //     physics::setPosition(model->mPhysicComponent->bodyId, model->mTransform.getPosition());
-                // }
+
                 if (model->instance != nullptr) {
                     auto* ins = model->instance;
                     for (size_t i = 0; i < ins->getInstanceCount(); ++i) {
-                        // if (model->getName() == "barrier") {
-                        //     std::cout << "Instance #" << i
-                        //               << " With rot: " << glm::to_string(glm::quat(glm::radians(ins->mRotation[i])))
-                        //               << " And pos:" << glm::to_string(ins->mPositions[i]) << std::endl;
-                        // }
                         if (ins->mPhysicsComponents[i] != nullptr) {
                             physics::syncPhysicsFromRender(ins->mPositions[i],
                                                            glm::quat(glm::radians(ins->mRotation[i])),
@@ -1440,8 +1429,8 @@ void Application::terminateDepthBuffer() {
 
 // called in onInit
 bool Application::initGui() {
-    // static ImGui_ImplWGPU_InitInfo imgui_device{};
-    // imgui_device.Device = this->getRendererResource().device;
+    static ImGui_ImplWGPU_InitInfo imgui_device{};
+    imgui_device.Device = this->getRendererResource().device;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -1483,12 +1472,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", time * 1000.0f, 1.0 / time);
 
             ImGui::Checkbox("simulate particles", &simulate_particles);
-
-            // if (muzzleSocket != nullptr) {
-            //     if (ImGui::DragFloat3("muzzle pos", glm::value_ptr(muzzleSocket->positionOffset), 1.0)) {
-            //         muzzleSocket->calculateTransform();
-            //     }
-            // }
 
             if (ImGui::CollapsingHeader("Cameras", ImGuiTreeNodeFlags_DefaultOpen)) {
                 if (ImGui::DragFloat("z-near", &mCamera.mZnear, 1.0, 0.0, 180.0f) ||
@@ -1545,16 +1528,6 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                     }
                     mSelectedModel = item;
                     mSelectedModel->selected(true);
-
-                    if (item->mName == "pistol") {
-                        auto [pos, scale, rot] = decomposeTransformation(mSelectedModel->getGlobalTransform());
-                        std::cout << "\n-------------------" << mSelectedModel->getName()
-                                  << "----------------------------\n";
-                        std::cout << "pos:" << glm::to_string(pos) << '\n';
-                        std::cout << "scale:" << glm::to_string(scale) << '\n';
-                        std::cout << "rot:" << glm::to_string(rot);
-                        std::cout << "\n------------------------------------------------\n";
-                    }
                 }
 
                 ImGui::PopID();  // Pop the unique ID for this item
@@ -1761,7 +1734,9 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
         }
 
         if (ImGui::BeginTabItem("Physics")) {
-            ImGui::Checkbox("Run Physics", &runPhysics);
+            if (ImGui::Checkbox("Run Physics", &runPhysics) && runPhysics == true) {
+                std::cout << " place holder !\n";
+            }
 
             ImGui::NewLine();
             ImGui::Separator();

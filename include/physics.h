@@ -55,7 +55,7 @@ struct PhysicsComponent {
         JPH::BodyID bodyId;
         ColliderType colliderType = ColliderType::Box;
         std::optional<LineGroup> mDebugLines = std::nullopt;
-        glm::vec3 localOffset;
+        glm::vec3 localOffset{0.0f};
 };
 
 namespace physics {
@@ -72,12 +72,16 @@ glm::vec3 syncPhysicsFromRender(Transform& render, PhysicsComponent* physic);
 glm::vec3 syncPhysicsFromRender(const glm::vec3& position, const glm::quat& orientation, PhysicsComponent* physic);
 
 PhysicsComponent* CreatePhysicsBox(const glm::vec3& localoffset, const glm::vec3& model_half_extents,
-                                   glm::vec3& world_bottom_position, void* userData);
+                                   glm::vec3& world_bottom_position, MotionType motionType, void* userData);
 
 PhysicsComponent* CreatePhysicsCapsule(const glm::vec3& center, float halfHeight, float radius, void* userData);
 
 JPH::Body* createPhysicFromShape(const std::vector<uint32_t> indices, const std::vector<VertexAttributes>& vertices,
                                  const glm::mat4& transformMatrix);
+
+JPH::Body* createPhysicFromShape(const std::unordered_map<int, Mesh> meshes, const glm::mat4& transformMatrix,
+                                 std::vector<std::vector<glm::vec4>>& outVertices);
+
 class BoxCollider {
     public:
         BoxCollider(Application* app, const std::string& name, const glm::vec3& center, const glm::vec3& halfExtent,
