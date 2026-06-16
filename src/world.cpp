@@ -599,7 +599,8 @@ struct BaseModelLoader : public IModel {
                                          scales,
                                          has_physics,
                                          glm::vec4{mModel->min, 1.0f},
-                                         glm::vec4{mModel->max, 1.0f}};
+                                         glm::vec4{mModel->max, 1.0f},
+                                         {}};
                 ins->parent = mModel;
                 ins->mManager = app->mInstanceManager;
                 ins->mPositions = positions;

@@ -157,6 +157,7 @@ class Application {
         Buffer mDirectionalLightBuffer;
         Buffer mLightSpaceTransformation;
         Buffer mTimeBuffer;
+        Buffer mTimeBuffer2;
         Buffer mDefaultCameraIndex;
         Buffer mDefaultClipPlaneBuf;
         glm::vec4 mDefaultPlane{0.0, 0.0, 1.0, -100};

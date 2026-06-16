@@ -262,6 +262,7 @@ void Application::initializePipeline() {
             .addSampler(8, BindGroupEntryVisibility::FRAGMENT, SampleType::Compare)
             .addBuffer(9, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                        mInstanceManager->mBufferSize)
+            .addBuffer(10, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t))
             .createLayout(resource, "binding group layout");
 
     /* Default textures for the render pass, if a model doenst have textures, these will be used */
@@ -306,6 +307,7 @@ void Application::initializePipeline() {
         default_mesh_information
             .addBuffer(0, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(ShaderMaterial))
             .addBuffer(1, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t))
+            .addBuffer(2, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(WindParams))
             .createLayout(resource, "mesh material Matrix uniform");
 
     mBindGroupLayouts = {bind_group_layout,        obj_transform_layout,        texture_bind_group_layout,
@@ -398,6 +400,12 @@ void Application::initializePipeline() {
     samplerDesc.compare = WGPUCompareFunction_Undefined;
     samplerDesc.maxAnisotropy = 16.0;
     mDefaultSampler = wgpuDeviceCreateSampler(this->getRendererResource().device, &samplerDesc);
+
+    mTimeBuffer2.setLabel("time buffer 2")
+        .setSize(sizeof(float))
+        .setUsage(WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
+        .setMappedAtCraetion(false)
+        .create(mRendererResource);
 
     mDefaultClipPlaneBGData[0].nextInChain = nullptr;
     mDefaultClipPlaneBGData[0].binding = 0;
@@ -509,6 +517,13 @@ void Application::initializePipeline() {
     mBindingData[9].binding = 9;
     mBindingData[9].offset = 0;
     mBindingData[9].size = mInstanceManager->mBufferSize;
+
+    mBindingData[10] = {};
+    mBindingData[10].nextInChain = nullptr;
+    mBindingData[10].buffer = mTimeBuffer2.getBuffer();
+    mBindingData[10].binding = 10;
+    mBindingData[10].offset = 0;
+    mBindingData[10].size = sizeof(float);
 
     mDefaultVisibleBGData[0] = {};
     mDefaultVisibleBGData[0].nextInChain = nullptr;
@@ -811,6 +826,10 @@ void Application::mainLoop() {
     double delta_time = time - last_frame_time;
     last_frame_time = time;
     mWorld->delta = delta_time;
+
+    float ttt = time;
+
+    mTimeBuffer2.queueWrite(0, &ttt, sizeof(float));
 
     {
         // PerfTimer timer{"loop timer"};
@@ -1334,7 +1353,7 @@ WGPULimits GetRequiredLimits(WGPUAdapter adapter) {
 
     // Binding groups
     required_limits.maxBindGroups = 7;
-    required_limits.maxUniformBuffersPerShaderStage = 6;
+    required_limits.maxUniformBuffersPerShaderStage = 7;
     required_limits.maxUniformBufferBindingSize = 2048 * 4;  // 16 * 4 * sizeof(float);
 
     required_limits.maxTextureDimension1D = 4096;
@@ -2111,6 +2130,7 @@ Buffer& Application::getUniformBuffer() { return mUniformBuffer; }
 CameraInfo& Application::getUniformData() { return mUniforms; }
 
 const WGPUBindGroupLayout& Application::getObjectBindGroupLayout() const { return mBindGroupLayouts[1]; }
+
 const WGPUBindGroupLayout* Application::getBindGroupLayouts() const { return mBindGroupLayouts.data(); }
 
 std::pair<size_t, size_t> Application::getWindowSize() { return {mWindow->mWindowSize.x, mWindow->mWindowSize.y}; }

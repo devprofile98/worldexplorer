@@ -683,7 +683,7 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
             .create(&mApp->getRendererResource());
         mesh.mMaterialBuffer.queueWrite(0, &mesh.mMaterial, sizeof(ShaderMaterial));
 
-        std::array<WGPUBindGroupEntry, 2> material_bg_entries = {};
+        std::array<WGPUBindGroupEntry, 3> material_bg_entries = {};
         material_bg_entries[0].nextInChain = nullptr;
         material_bg_entries[0].buffer = mesh.mMaterialBuffer.getBuffer();
         material_bg_entries[0].binding = 0;
@@ -704,10 +704,23 @@ void Model::createSomeBinding(Application* app, std::vector<WGPUBindGroupEntry> 
         material_bg_entries[1].offset = 0;
         material_bg_entries[1].size = sizeof(uint32_t);
 
+        mesh.mWindBuffer.setLabel("wind buffer")
+            .setSize(sizeof(WindParams))
+            .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
+            .setMappedAtCraetion(false)
+            .create(&mApp->getRendererResource());
+        mesh.mWindBuffer.queueWrite(0, &mesh.mWindParams, sizeof(WindParams));
+
+        material_bg_entries[2].nextInChain = nullptr;
+        material_bg_entries[2].buffer = mesh.mWindBuffer.getBuffer();
+        material_bg_entries[2].binding = 2;
+        material_bg_entries[2].offset = 0;
+        material_bg_entries[2].size = sizeof(WindParams);
+
         WGPUBindGroupDescriptor mat_desc = {};
         mat_desc.nextInChain = nullptr;
         mat_desc.entries = material_bg_entries.data();
-        mat_desc.entryCount = 2;
+        mat_desc.entryCount = 3;
         mat_desc.label = WGPUStringView{"mesh material bind group", WGPU_STRLEN};
         mat_desc.layout = app->mBindGroupLayouts[6];
 
@@ -973,14 +986,14 @@ void Model::userInterface() {
         std::vector<glm::vec4> lines;
         std::vector<glm::vec4> linesGreen;
 
-        std::cout << "::::::::::" << std::endl;
+        // std::cout << "::::::::::" << std::endl;
         for (const auto& [k, i] : anim->calculatedTransform) {
             auto trans = mTransform.mTransformMatrix * i;
             auto vec = trans * glm::vec4{0.0, 0.0, 0.0, 1.0};
             auto vec2 = trans * glm::vec4{0.0, 0.0, k == selectedBone ? 0.3 : 0.2, 1.0};
             vec.w = 0;
             vec2.w = 1;
-            std::cout << ":::::::::: " << glm::to_string(vec) << "   " << glm::to_string(vec2) << std::endl;
+            // std::cout << ":::::::::: " << glm::to_string(vec) << "   " << glm::to_string(vec2) << std::endl;
             if (k == selectedBone) {
                 linesGreen.push_back(vec);
                 linesGreen.push_back(vec2);
@@ -1035,6 +1048,22 @@ void Model::userInterface() {
             auto vis = mesh.getVisible();
             if (ImGui::Checkbox("is Visible", &vis)) {
                 mesh.setVisible(vis);
+            }
+
+            static bool wind_effect = false;
+            bool update_wind = false;
+            if (ImGui::Checkbox("wind effect", &wind_effect)) {
+                mesh.mWindParams.strength = wind_effect ? 0.3 : 0.0;
+                update_wind = true;
+            }
+            if (ImGui::DragFloat("wind strength", &mesh.mWindParams.strength, 0, 1.0)) {
+                update_wind = true;
+            }
+            if (ImGui::DragFloat("wind height factor", &mesh.mWindParams.heightFactor)) {
+                update_wind = true;
+            }
+            if (update_wind) {
+                mesh.mWindBuffer.queueWrite(0, &mesh.mWindParams, sizeof(WindParams));
             }
 
             auto diff_tex = DrawTexturePicker("Diffuse Texture", mesh.mTexture, mApp->mTextureRegistery);
@@ -1114,7 +1143,7 @@ void Model::userInterface() {
             }
 
             if (ImGui::Button("New instance")) {
-                size_t new_idx = instance->duplicateLastInstance(mTransform, glm::vec3{.01}, min, max);
+                size_t new_idx = instance->duplicateLastInstance(this);
                 mApp->mInstanceManager->getInstancingBuffer().queueWrite(
                     ((InstanceManager::MAX_INSTANCE_COUNT * instance->mOffsetID) + new_idx) * sizeof(InstanceData),
                     &instance->mInstanceBuffer[new_idx], sizeof(InstanceData));
@@ -1126,9 +1155,13 @@ void Model::userInterface() {
             ImGui::TextColored(ImVec4(1.0, 0.0, 0.0, 1.0), "No Instance!");
             ImGui::SameLine();
             if (ImGui::Button("Enable Instancing")) {
-                auto* ins = new Instance{{mTransform.getPosition()}, {mTransform.getEulerRotation()},
-                                         {mTransform.getScale()},    {false},
-                                         glm::vec4{min, 1.0f},       glm::vec4{max, 1.0f}};
+                auto* ins = new Instance{{mTransform.getPosition()},
+                                         {mTransform.getEulerRotation()},
+                                         {mTransform.getScale()},
+                                         {false},
+                                         glm::vec4{min, 1.0f},
+                                         glm::vec4{max, 1.0f},
+                                         {}};
                 ins->parent = this;
                 // ins->mApp = mApp;
                 ins->mManager = mApp->mInstanceManager;

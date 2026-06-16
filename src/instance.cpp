@@ -6,6 +6,7 @@
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/gtx/quaternion.hpp"
+#include "mesh.h"
 #include "rendererResource.h"
 
 InstanceManager::InstanceManager(RendererResource* rc, size_t bufferSize, size_t maxInstancePerModel) {
@@ -27,7 +28,8 @@ size_t InstanceManager::getNewId() {
 }
 
 Instance::Instance(std::vector<glm::vec3> positions, std::vector<glm::vec3> rotation, std::vector<glm::vec3> scales,
-                   std::vector<bool> hasPhysics, const glm::vec4&& minAABB, const glm::vec4&& maxAABB) {
+                   std::vector<bool> hasPhysics, const glm::vec4&& minAABB, const glm::vec4&& maxAABB,
+                   const WindParams& windParams) {
     for (size_t i = 0; i < positions.size(); i++) {
         mPositions.push_back(positions[i]);
         mScale.push_back(scales[i]);
@@ -38,16 +40,17 @@ Instance::Instance(std::vector<glm::vec3> positions, std::vector<glm::vec3> rota
         auto rotate = glm::toMat4(glm::normalize(glm::quat(glm::radians(rotation[i]))));
         auto scale = glm::scale(glm::mat4{1.0f}, scales[i]);
         auto model_matrix = trans * rotate * scale;
-        mInstanceBuffer.emplace_back(model_matrix, model_matrix * minAABB, model_matrix * maxAABB);
+        mInstanceBuffer.emplace_back(model_matrix, model_matrix * minAABB, model_matrix * maxAABB, windParams);
     }
 }
 
-uint16_t Instance::duplicateLastInstance(const Transform& originalTransform, const glm::vec3& posOffset,
-                                         const glm::vec3& min, const glm::vec3& max) {
+// uint16_t Instance::duplicateLastInstance(const Transform& originalTransform, const glm::vec3& posOffset,
+//                                          const glm::vec3& min, const glm::vec3& max) {
+uint16_t Instance::duplicateLastInstance(const Model* model) {
     size_t new_idx = mPositions.size();
-    auto new_pos = new_idx == 0 ? originalTransform.mPosition : mPositions.back() + posOffset;
-    auto new_scale = new_idx == 0 ? originalTransform.mScale : mScale.back();
-    auto new_rotate = new_idx == 0 ? originalTransform.mEulerRotation : mRotation.back();
+    auto new_pos = new_idx == 0 ? model->mTransform.mPosition : mPositions.back();
+    auto new_scale = new_idx == 0 ? model->mTransform.mScale : mScale.back();
+    auto new_rotate = new_idx == 0 ? model->mTransform.mEulerRotation : mRotation.back();
 
     mPositions.push_back(new_pos);
     mScale.push_back(new_scale);
@@ -58,7 +61,10 @@ uint16_t Instance::duplicateLastInstance(const Transform& originalTransform, con
     t = glm::scale(t, new_scale);
     std::cout << "Adding here\n";
 
-    mInstanceBuffer.push_back({t, t * glm::vec4{min, 1.0f}, t * glm::vec4{max, 1.0f}});
+    auto wind_param =
+        model->mFlattenMeshes.size() == 0 ? WindParams{} : model->mFlattenMeshes.begin()->second.mWindParams;
+    mInstanceBuffer.push_back({t, t * glm::vec4{model->min, 1.0f}, t * glm::vec4{model->max, 1.0f}, wind_param});
+    mPhysicsComponents.push_back(nullptr);
 
     return new_idx;
 }
@@ -93,8 +99,9 @@ Transformable& SingleInstance::moveTo(const glm::vec3& to) {
     auto s = glm::scale(glm::mat4{1.0}, instance->mScale[idx]);
     auto t = trans * r * s;
 
+    auto wind = instance->mInstanceBuffer[idx].windParams;
     instance->mInstanceBuffer[idx] = {t, t * glm::vec4{instance->parent->min, 1.0f},
-                                      t * glm::vec4{instance->parent->max, 1.0f}};
+                                      t * glm::vec4{instance->parent->max, 1.0f}, wind};
 
     instance->mManager->getInstancingBuffer().queueWrite(
         ((InstanceManager::MAX_INSTANCE_COUNT * instance->mOffsetID) + idx) * sizeof(InstanceData),
@@ -113,8 +120,9 @@ Transformable& SingleInstance::rotate(const glm::vec3& to) {
 
     auto t = trans * r * s;
 
+    auto wind = instance->mInstanceBuffer[idx].windParams;
     instance->mInstanceBuffer[idx] = {t, t * glm::vec4{instance->parent->min, 1.0f},
-                                      t * glm::vec4{instance->parent->max, 1.0f}};
+                                      t * glm::vec4{instance->parent->max, 1.0f}, wind};
 
     instance->mManager->getInstancingBuffer().queueWrite(
         ((InstanceManager::MAX_INSTANCE_COUNT * instance->mOffsetID) + idx) * sizeof(InstanceData),

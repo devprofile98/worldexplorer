@@ -53,6 +53,12 @@ inline MaterialProps& operator&=(MaterialProps& a, MaterialProps b) {
 
 inline MaterialProps operator~(MaterialProps a) { return static_cast<MaterialProps>(~static_cast<uint32_t>(a)); }
 
+struct alignas(16) WindParams {
+        glm::vec4 offset{0.0f};
+        float strength = 0.0f;
+        float heightFactor = 0.0f;
+};
+
 struct alignas(16) ShaderMaterial {
         // Block 1: 4 x 4-byte fields = 16 bytes
         uint32_t isFlat;
@@ -105,12 +111,14 @@ class Mesh {
         Buffer mIndexBuffer = {};
         Buffer mIndirectDrawArgsBuffer;
         Buffer mMaterialBuffer;
+        Buffer mWindBuffer;
         Buffer mMeshMapIdx;
         bool isTransparent = false;
         WGPUBindGroup mTextureBindGroup = {};
         std::vector<WGPUBindGroupEntry> binding_data{2};
         WGPUBindGroup mMaterialBindGroup = {};
         ShaderMaterial mMaterial;
+        WindParams mWindParams;
         std::shared_ptr<Material> mTextureMaterial = nullptr;
         std::string mMaterialName;
         std::string mName;

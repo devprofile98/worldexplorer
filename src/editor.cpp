@@ -421,7 +421,8 @@ struct BoneModel : public IModel {
             }
 
             auto* ins = new Instance{
-                positions, rotations, scales, hasPhysics, glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f}};
+                positions, rotations, scales, hasPhysics, glm::vec4{mModel->min, 1.0f}, glm::vec4{mModel->max, 1.0f},
+                {}};
 
             wgpuQueueWriteBuffer(app->getRendererResource().queue,
                                  app->mInstanceManager->getInstancingBuffer().getBuffer(), 0,

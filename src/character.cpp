@@ -1346,4 +1346,56 @@ struct CubeBehaviour : public PawnBehaviour {
 
 CubeBehaviour cubebehaviour{"cube"};
 
-struct TreeBehaviour : public InputHandler {};
+struct TreeBehaviour : public PawnBehaviour {
+        TreeBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
+
+        void onLoad(Model* model) override {
+            for (auto& [id, mesh] : model->mFlattenMeshes) {
+                mesh.mWindParams.heightFactor = 5.f;
+                mesh.mWindParams.strength = 0.2f;
+                mesh.mWindBuffer.queueWrite(0, &mesh.mWindParams, sizeof(WindParams));
+            }
+
+            std::vector<glm::vec3> poss = {};
+            std::vector<glm::vec3> rots = {};
+            std::vector<glm::vec3> scales = {};
+            std::vector<bool> phys = {};
+            for (int i = 1; i < 10; ++i) {
+                poss.push_back(model->mTransform.getPosition() + glm::vec3{i * 1.5, i * 1.5, 0.0});
+                rots.push_back(model->mTransform.getEulerRotation());
+                scales.push_back(model->mTransform.getScale());
+                phys.push_back(false);
+            }
+
+            auto* ins = new Instance{poss, rots, scales, phys,
+                                     // {},
+                                     //                      {model->mTransform.getEulerRotation()},
+                                     //                      {model->mTransform.getScale()},
+                                     // {false},
+                                     glm::vec4{model->min, 1.0f}, glm::vec4{model->max, 1.0f},
+                                     model->mFlattenMeshes.begin()->second.mWindParams};
+            ins->parent = model;
+            // ins->mApp = mApp;
+            ins->mManager = PawnBehaviour::app->mInstanceManager;
+            ins->mPositions = {};
+            ins->mScale = {};
+
+            ins->mOffsetID = PawnBehaviour::app->mInstanceManager->getNewId();
+            model->mTransform.mObjectInfo.instanceOffsetId = ins->mOffsetID;
+            model->mTransform.mDirty = true;
+            model->setInstanced(ins);
+
+            ins->mManager->getInstancingBuffer().queueWrite(
+                (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
+                ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
+
+            model->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + model->getName()).c_str())
+                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+                          WGPUBufferUsage_CopyDst)
+                .setSize(sizeof(DrawIndexedIndirectArgs))
+                .setMappedAtCraetion()
+                .create(&PawnBehaviour::app->getRendererResource());
+        }
+};
+
+TreeBehaviour treebehaviour{"tree"};

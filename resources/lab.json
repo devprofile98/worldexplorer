@@ -121,8 +121,121 @@
       "cs": "z",
       "default_clip": "",
       "enabled": true,
+      "id": "tree",
+      "instance": null,
+      "material_props": [
+        {
+          "Tree-1": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Tree-0": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "tree",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/tree3.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      },
+      "rotate": [0.0, 0.0, 0.0],
+      "scale": [4.883678913116455, 4.883678913116455, 4.883678913116455],
+      "socket": null,
+      "translate": [-2.327856540679932, 2.513000011444092, 0.0],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": false,
+      "id": "container",
+      "instance": [
+        {
+          "position": [0.0, 0.0, 0.8510000109672546],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [1.0, 1.0, 1.0],
+          "physics": null
+        },
+        {
+          "position": [
+            3.059999942779541, 2.819999933242798, 0.8510000109672546
+          ],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [0.4000000059604645, 0.4000000059604645, 0.4000000059604645],
+          "physics": {}
+        },
+        {
+          "position": [
+            2.8663108348846436, -3.880000114440918, 0.8510000109672546
+          ],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [0.4000000059604645, 0.4000000059604645, 0.4000000059604645],
+          "physics": {}
+        }
+      ],
+      "material_props": [
+        {
+          "Cube.024": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.006": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.008": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.007": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.018": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.026": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "container",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/container.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic",
+        "method": "mesh"
+      },
+      "rotate": [0.0, -0.0, 4.5],
+      "scale": [0.4000000059604645, 0.4000000059604645, 0.4000000059604645],
+      "socket": null,
+      "translate": [0.1889999955892563, 2.8763680458068848, 0.8507040739059448],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
       "id": "floor",
       "instance": null,
+
       "material_props": [
         {
           "Cube.001": {

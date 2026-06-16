@@ -722,7 +722,7 @@ IntersectionRes testIntersection(Camera& camera, size_t width, size_t height, st
         if (obj->instance != nullptr) {
             auto* ins = obj->instance;
             for (size_t i = 0; i < ins->mInstanceBuffer.size(); ++i) {
-                auto [_, obj_in_world_min, obj_in_world_max] = ins->mInstanceBuffer[i];
+                auto [_, obj_in_world_min, obj_in_world_max, _] = ins->mInstanceBuffer[i];
                 bool does_intersect = intersection(ray_origin, worldray, obj_in_world_min, obj_in_world_max);
                 auto is_inside = isInside(ray_origin, obj_in_world_min, obj_in_world_max);
                 if (does_intersect && !is_inside && obj->getVisible()) {

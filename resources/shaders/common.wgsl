@@ -87,15 +87,24 @@ struct Scene {
     pad3: f32,
 };
 
+struct WindParams {
+    offset: vec4f,
+    strength: f32,
+    heightFactor: f32,
+};
+
 struct OffsetData {
     transformation: mat4x4f,
     minAABB: vec4f,
-    maxAABB: vec4f
+    maxAABB: vec4f,
+    windParams: WindParams,
 };
 
 struct MeshTransformations {
     global: array<mat4x4f>,
 };
+
+
 
 @group(0) @binding(0) var<uniform> uMyUniform: array<MyUniform, 10>;
 @group(0) @binding(1) var<uniform> lightCount: i32;
@@ -107,6 +116,7 @@ struct MeshTransformations {
 @group(0) @binding(7) var<uniform> lightSpaceTrans: array<Scene, 5>;
 @group(0) @binding(8) var shadowMapSampler: sampler_comparison;
 @group(0) @binding(9) var<storage, read> offsetInstance: array<OffsetData>;
+@group(0) @binding(10) var<uniform> time: f32;
 
 @group(1) @binding(0) var<uniform> objectTranformation: ObjectInfo;
 @group(1) @binding(1) var<uniform> bonesFinalTransform: array<mat4x4f, 100>;

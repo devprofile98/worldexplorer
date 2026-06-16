@@ -22,10 +22,18 @@ struct VSOutput {
     @location(0) uv: vec2f,
 };
 
+
+struct WindParams {
+    offset: vec4f,
+    strength: f32,
+    heightFactor: f32,
+};
+
 struct OffsetData {
     transformation: mat4x4f, // Array of 10 offset vectors
     minAABB: vec4f,
-    maxAABB: vec4f
+    maxAABB: vec4f,
+    windParams: WindParams,
 };
 
 
@@ -50,9 +58,11 @@ struct MeshTransformations {
 };
 
 
+
 @group(0) @binding(0) var<uniform> scene: array<Scene, 2>;
 @group(0) @binding(1) var<storage, read> offsetInstance: array<OffsetData>;
 @group(0) @binding(2) var textureSampler: sampler;
+@group(0) @binding(3) var<uniform> time: f32;
 
 @group(1) @binding(0) var diffuseMap: texture_2d<f32>;
 @group(1) @binding(1) var metalic_roughness_texture: texture_2d<f32>;
@@ -71,6 +81,7 @@ struct MeshTransformations {
 
 @group(5) @binding(0) var<uniform> meshMaterial: Material;
 @group(5) @binding(1) var<uniform> meshIdx: i32;
+@group(5) @binding(2) var<uniform> windParams: WindParams;
 
 
 @vertex
@@ -106,6 +117,17 @@ fn vs_main(vertex: Vertex) -> VSOutput {
         bone_matrix += bonesFinalTransform[vertex.boneIds.w] * normalize(vertex.boneWeights).w;
         world_position = transform * bone_matrix * vec4f(vertex.position, 1.0);
     }
+
+    let height_factor = pow(clamp(world_position.z / windParams.heightFactor, 0.0, 1.0), 2.0);
+    let phase = world_position.x * 0.8 + world_position.y * 0.6;
+    let wave = sin(f32(time) * 2.5 + phase) * 1.0 + sin(f32(time) * 3.7 + phase * 1.4) * 0.3 + sin(f32(time) * 7.1 + phase * 2.8) * 0.08;
+
+    world_position += vec4(
+        wave * windParams.strength * height_factor,
+        0.0,
+        0.0,
+        0.0
+    );
 
 
     var vsOut: VSOutput;

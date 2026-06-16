@@ -77,6 +77,7 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
             .addBuffer(1, BindGroupEntryVisibility::VERTEX, BufferBindingType::STORAGE_READONLY,
                        mApp->mInstanceManager->mBufferSize)
             .addSampler(2, BindGroupEntryVisibility::FRAGMENT, SampleType::Filtering)
+            .addBuffer(3, BindGroupEntryVisibility::VERTEX_FRAGMENT, BufferBindingType::UNIFORM, sizeof(uint32_t))
             .createLayout(rc, "shadow pass pipeline");
 
     auto texture_bind_group_layout =
@@ -191,6 +192,13 @@ void ShadowPass::createRenderPass(WGPUTextureFormat textureFormat, size_t cascad
     mBindingData[2] = {};
     mBindingData[2].binding = 2;
     mBindingData[2].sampler = mApp->getDefaultSampler();
+
+    mBindingData[3] = {};
+    mBindingData[3].nextInChain = nullptr;
+    mBindingData[3].buffer = mApp->mTimeBuffer2.getBuffer();
+    mBindingData[3].binding = 3;
+    mBindingData[3].offset = 0;
+    mBindingData[3].size = sizeof(float);
 
     mBindingGroup.create(rc, mBindingData);
 

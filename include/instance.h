@@ -10,6 +10,7 @@
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/fwd.hpp"
 #include "gpu_buffer.h"
+#include "mesh.h"
 #include "model.h"
 
 struct PhysicsComponent;
@@ -19,6 +20,7 @@ struct alignas(16) InstanceData {
         glm::mat4 modelMatrix;
         glm::vec4 minAABB;
         glm::vec4 maxAABB;
+        WindParams windParams;
 };
 
 class InstanceManager {
@@ -48,13 +50,14 @@ class Instance {
     public:
         explicit Instance(std::vector<glm::vec3> positions, std::vector<glm::vec3> rotation,
                           std::vector<glm::vec3> scales, std::vector<bool> hasPhysics, const glm::vec4&& minAABB,
-                          const glm::vec4&& maxAABB);
+                          const glm::vec4&& maxAABB, const WindParams& windParams);
 
         // Getter
         size_t getInstanceCount();
         uint16_t getInstanceID();
-        uint16_t duplicateLastInstance(const Transform& originalTransform, const glm::vec3& posOffset,
-                                       const glm::vec3& min, const glm::vec3& max);
+        // uint16_t duplicateLastInstance(const Transform& originalTransform, const glm::vec3& posOffset,
+        //                                const glm::vec3& min, const glm::vec3& max);
+        uint16_t duplicateLastInstance(const Model* model);
         void dumpJson();
         SingleInstance createInstanceWrapper(size_t index);
         std::vector<glm::vec3> mPositions;

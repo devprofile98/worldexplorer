@@ -13,6 +13,7 @@
 
 @group(6) @binding(0) var<uniform> meshMaterial: Material;
 @group(6) @binding(1) var<uniform> meshIdx: i32;
+@group(6) @binding(2) var<uniform> windParams: WindParams;
 
 const PI: f32 = 3.141592653589793;
 
@@ -37,12 +38,15 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
     var out: VertexOutput;
     let off_id: u32 = objectTranformation.offsetId * 100000;
     var transform: mat4x4f;
+    var wind_params: WindParams;
 
     if instance_index != 0 {
         //let original_instance_idx = visible_instances_indices[off_id + instance_index];
         transform = offsetInstance[instance_index + off_id].transformation * meshTransformation.global[meshIdx];
+        wind_params = offsetInstance[instance_index + off_id].windParams;
     } else {
         transform = objectTranformation.transformations * meshTransformation.global[meshIdx];
+        wind_params = windParams;
     }
 
     var world_position: vec4f;
@@ -68,6 +72,18 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_index: u32) -> Ver
 
         out.normal = (transform * skinned_normal).xyz;
     }
+
+    let height_factor = pow(clamp(world_position.z / wind_params.heightFactor, 0.0, 1.0), 2.0);
+    let phase = world_position.x * 0.8 + world_position.y * 0.6;
+    let wave = sin(f32(time) * 2.5 + phase) * 1.0 + sin(f32(time) * 3.7 + phase * 1.4) * 0.3 + sin(f32(time) * 7.1 + phase * 2.8) * 0.08;
+
+    world_position += vec4(
+        wave * wind_params.strength * height_factor,
+        0.0,
+        0.0,
+        0.0
+    );
+
     out.viewSpacePos = uMyUniform[myuniformindex].viewMatrix * world_position;
     out.position = uMyUniform[myuniformindex].projectionMatrix * out.viewSpacePos;
     out.worldPos = world_position.xyz;
