@@ -280,8 +280,42 @@ Texture::Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths
                  uint32_t extent) {
     mBufferData.reserve(extent);
     mBufferData.resize(extent);
+    if (paths.size() == 0) {
+        mIsTextureAlive = false;
+        return;
+    }
 
     ZoneScopedNC("Loading base texture for ", 0xFF00FF);
+
+    int width, height, channels;
+    width = height = channels = 0;
+    auto ret = stbi_info(paths.front().string().c_str(), &width, &height, &channels);
+
+    if (ret == 0) {
+        std::cout << "Failure to load texture at" << paths.front() << std::endl;
+        mIsTextureAlive = false;
+        return;
+    }
+
+    mWidth = width;
+    mHeight = height;
+
+    mDescriptor = {};
+    mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
+    std::string path_str = paths.front().string();
+    mDescriptor.label = WGPUStringView{path_str.c_str(), path_str.size()};
+    mDescriptor.format = textureFormat;
+    mDescriptor.mipLevelCount = glm::log2((float)width);
+    mDescriptor.sampleCount = 1;
+    mDescriptor.size = {(uint32_t)width, (uint32_t)height, extent};
+    mDescriptor.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+    if (mDescriptor.mipLevelCount > 1) {
+        mDescriptor.usage |= WGPUTextureUsage_StorageBinding;
+    }
+    mDescriptor.viewFormatCount = 0;
+    mDescriptor.viewFormats = nullptr;
+
+    mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
 
     for (size_t k = 0; k < extent; ++k) {
         auto& path = paths[k];
@@ -291,28 +325,9 @@ Texture::Texture(WGPUDevice wgpuDevice, std::vector<std::filesystem::path> paths
 
         if (nullptr == pixel_data) {
             std::cout << "failed to find file at " << path.string().c_str() << std::endl;
+            mIsTextureAlive = false;
             return;
         };
-
-        mWidth = width;
-        mHeight = height;
-
-        mDescriptor = {};
-        mDescriptor.dimension = static_cast<WGPUTextureDimension>(TextureDimension::TEX_2D);
-        std::string path_str = path.string();
-        mDescriptor.label = WGPUStringView{path_str.c_str(), path_str.size()};
-        mDescriptor.format = textureFormat;
-        mDescriptor.mipLevelCount = glm::log2((float)width);
-        mDescriptor.sampleCount = 1;
-        mDescriptor.size = {(uint32_t)width, (uint32_t)height, extent};
-        mDescriptor.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
-        if (mDescriptor.mipLevelCount > 1) {
-            mDescriptor.usage |= WGPUTextureUsage_StorageBinding;
-        }
-        mDescriptor.viewFormatCount = 0;
-        mDescriptor.viewFormats = nullptr;
-
-        mTexture = wgpuDeviceCreateTexture(wgpuDevice, &mDescriptor);
 
         size_t image_byte_size = (width * height * 4);
 

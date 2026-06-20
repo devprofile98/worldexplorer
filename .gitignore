@@ -3,3 +3,11 @@ export/*
 migrate/*
 *.zip
 webgpu/libwgpu_native.*
+.cache/*
+not used/*
+export*/*
+resources/*
+!resources/shaders
+!resources/*.json
+tracy_external/*
+

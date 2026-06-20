@@ -120,7 +120,7 @@
       "childrens": [],
       "cs": "z",
       "default_clip": "",
-      "enabled": false,
+      "enabled": true,
       "id": "tree",
       "instance": null,
       "material_props": [
@@ -137,7 +137,7 @@
       ],
       "materials": [],
       "name": "tree",
-      "path": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/tree3.gltf",
+      "path": "/home/ahmad/Documents/projects/c++/worldexplorer/build/.././resources/tree3.gltf",
       "physics": {
         "enabled": true,
         "type": "dynamic"
@@ -263,7 +263,7 @@
       "childrens": [],
       "cs": "z",
       "default_clip": "",
-      "enabled": true,
+      "enabled": false,
       "id": "floor",
       "instance": null,
 
@@ -308,7 +308,7 @@
       ],
       "materials": [],
       "name": "human",
-      "path": "/home/ahmad/Documents/3d/mine3.gltf",
+      "path": "/home/ahmad/Documents/projects/c++/worldexplorer/export2/assets/models/mine3/mine3.gltf",
       "physics": null,
       "rotate": [0.0, -1.7075473124350538e-6, 127.49799346923828],
       "scale": [0.5, 0.5, 0.5],
@@ -324,7 +324,7 @@
       "childrens": [],
       "cs": "y",
       "default_clip": "",
-      "enabled": true,
+      "enabled": false,
       "id": "ak47",
       "instance": null,
       "material_props": [
@@ -380,7 +380,7 @@
       "childrens": [],
       "cs": "y",
       "default_clip": "",
-      "enabled": true,
+      "enabled": false,
       "id": "pistol",
       "instance": null,
       "material_props": [
@@ -455,7 +455,7 @@
       "childrens": [],
       "cs": "z",
       "default_clip": "",
-      "enabled": true,
+      "enabled": false,
       "id": "sword",
       "instance": null,
       "material_props": [
@@ -503,7 +503,7 @@
       "childrens": [],
       "cs": "z",
       "default_clip": "",
-      "enabled": true,
+      "enabled": false,
       "id": "torch",
       "instance": null,
       "material_props": [
