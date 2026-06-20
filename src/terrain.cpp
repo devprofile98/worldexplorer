@@ -30,6 +30,7 @@ void createCustomShaderMaterial(Application* mApp, WGPUTextureFormat textureForm
         std::vector<std::filesystem::path>{base_path / "mud" / "diffuse.jpg", base_path / "mud" / "normal.jpg",
                                            base_path / "mud" / "roughness.jpg"},
         WGPUTextureFormat_RGBA8Unorm, 3};
+    mGrass->setName("grass texture");
     mGrass->createViewArray(0, 3);
     mGrass->uploadToGPU(mApp->getRendererResource().queue);
 
@@ -38,6 +39,7 @@ void createCustomShaderMaterial(Application* mApp, WGPUTextureFormat textureForm
                                                                 base_path / "Rock" / "Rock060_1K-JPG_NormalGL.jpg",
                                                                 base_path / "Rock" / "Rock060_1K-JPG_Roughness.jpg"},
                              WGPUTextureFormat_RGBA8Unorm, 3};
+    mRock->setName("rock texture");
     mRock->createViewArray(0, 3);
     mRock->uploadToGPU(mApp->getRendererResource().queue);
 
@@ -46,6 +48,7 @@ void createCustomShaderMaterial(Application* mApp, WGPUTextureFormat textureForm
                                                                 base_path / "aerial" / "aerial_beach_01_nor_gl_1k.jpg",
                                                                 base_path / "aerial" / "aerial_beach_01_rough_1k.jpg"},
                              WGPUTextureFormat_RGBA8Unorm, 3};
+    mSand->setName("sand texture");
     mSand->createViewArray(0, 3);
     mSand->uploadToGPU(mApp->getRendererResource().queue);
 
@@ -54,6 +57,7 @@ void createCustomShaderMaterial(Application* mApp, WGPUTextureFormat textureForm
                                                                 base_path / "snow" / "snow_02_nor_gl_1k.jpg",
                                                                 base_path / "snow" / "snow_02_rough_1k.jpg"},
                              WGPUTextureFormat_RGBA8Unorm, 3};
+    mSnow->setName("snow texture");
     mSnow->createViewArray(0, 3);
     mSnow->uploadToGPU(mApp->getRendererResource().queue);
     std::vector<Texture*> mTempTextures = {mGrass, mRock, mSand, mSnow};

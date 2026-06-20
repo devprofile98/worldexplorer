@@ -409,68 +409,72 @@ void initializeMipmapCompute(Application* app) {
     mipmap_compute.computePipeline = wgpuDeviceCreateComputePipeline(rc.device, &compute_pipeline_desc);
 }
 
-void generateMipmapCompute(Texture* texture, size_t mipLevel) {
+void generateMipmapCompute(Texture* texture, size_t mipLevel, uint32_t layerCount) {
     auto& rc = app->getRendererResource();
-
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(rc.device, nullptr);
 
-    for (uint8_t lvl = 1; lvl < mipLevel; ++lvl) {
-        std::cout << "mip level " << ((size_t)lvl) << "for " << texture->getPath() << std::endl;
-        uint8_t src_mip = lvl - 1;
-        uint8_t dst_mip = lvl;
+    auto [width, height] = texture->getTextureSize();
+    for (uint32_t layer = 0; layer < layerCount; ++layer) {
+        for (uint8_t lvl = 1; lvl < mipLevel; ++lvl) {
+            std::cout << "mip level " << ((size_t)lvl) << " for " << texture->getName() << " : " << texture->getPath()
+                      << std::endl;
+            uint8_t src_mip = lvl - 1;
+            uint8_t dst_mip = lvl;
 
-        // WGPUTextureViewDescriptor src_desc = {};
-        // src_desc.label = {"src mip", WGPU_STRLEN};
-        auto src_desc = texture->createView(0, 1, src_mip, 1);
-        auto dst_desc = texture->createView(0, 1, dst_mip, 1);
+            // WGPUTextureViewDescriptor src_desc = {};
+            // src_desc.label = {"src mip", WGPU_STRLEN};
+            auto src_view = texture->createView(layer, 1, src_mip, 1);
+            auto dst_view = texture->createView(layer, 1, dst_mip, 1);
 
-        // std::array<WGPUBindGroupEntry, 2> entries = {};
-        std::vector<WGPUBindGroupEntry> entries{};
-        entries.reserve(2);
-        entries.resize(2);
+            std::vector<WGPUBindGroupEntry> entries(2);
 
-        entries[0].nextInChain = nullptr;
-        entries[0].binding = 0;
-        entries[0].textureView = src_desc;
+            entries[0].nextInChain = nullptr;
+            entries[0].binding = 0;
+            entries[0].textureView = src_view;
 
-        entries[1].nextInChain = nullptr;
-        entries[1].binding = 1;
-        entries[1].textureView = dst_desc;
+            entries[1].nextInChain = nullptr;
+            entries[1].binding = 1;
+            entries[1].textureView = dst_view;
 
-        BindingGroup bind_group;
+            BindingGroup bind_group;
 
-        bind_group
-            .addTexture(0, BindGroupEntryVisibility::COMPUTE, TextureSampleType::FLAOT, TextureViewDimension::VIEW_2D)
-            .addStorageTexture(1, BindGroupEntryVisibility::COMPUTE, StorageTextureAccessMode::WRITE_ONLY,
-                               TextureViewDimension::VIEW_2D)
-            .createLayout(rc, "mip");
-        bind_group.create(app->getRendererResource(), entries);
+            bind_group
+                .addTexture(0, BindGroupEntryVisibility::COMPUTE, TextureSampleType::FLAOT,
+                            TextureViewDimension::VIEW_2D)
+                .addStorageTexture(1, BindGroupEntryVisibility::COMPUTE, StorageTextureAccessMode::WRITE_ONLY,
+                                   TextureViewDimension::VIEW_2D)
+                .createLayout(rc, "mip");
+            bind_group.create(app->getRendererResource(), entries);
 
-        auto [width, height] = texture->getTextureSize();
-        uint32_t dstWidth = std::max(1u, (uint)width >> lvl);
-        uint32_t dstHeight = std::max(1u, (uint)height >> lvl);
+            uint32_t dstWidth = std::max(1u, (uint)width >> lvl);
+            uint32_t dstHeight = std::max(1u, (uint)height >> lvl);
 
-        uint32_t workgroup_size_x = (dstWidth + 7) / 8;  // ceil division for workgroup size 8
-        uint32_t workgroup_size_y = (dstHeight + 7) / 8;
+            uint32_t workgroup_size_x = (dstWidth + 7) / 8;  // ceil division for workgroup size 8
+            uint32_t workgroup_size_y = (dstHeight + 7) / 8;
 
-        WGPUComputePassDescriptor compute_pass_desc = {};
-        // std::string compute_name = "mip map";
-        compute_pass_desc.label = {"mip map", WGPU_STRLEN};
-        compute_pass_desc.nextInChain = nullptr;
+            WGPUComputePassDescriptor compute_pass_desc = {};
+            // std::string compute_name = "mip map";
+            compute_pass_desc.label = {"mip map", WGPU_STRLEN};
+            compute_pass_desc.nextInChain = nullptr;
 
-        WGPUComputePassEncoder compute_pass_encoder = wgpuCommandEncoderBeginComputePass(encoder, &compute_pass_desc);
+            WGPUComputePassEncoder compute_pass_encoder =
+                wgpuCommandEncoderBeginComputePass(encoder, &compute_pass_desc);
 
-        // Set the pipeline and bind group for the compute pass
-        wgpuComputePassEncoderSetPipeline(compute_pass_encoder, mipmap_compute.computePipeline);
-        wgpuComputePassEncoderSetBindGroup(compute_pass_encoder, 0, bind_group.getBindGroup(), 0,
-                                           nullptr);  // Group 0, no dynamic offsets
+            // Set the pipeline and bind group for the compute pass
+            wgpuComputePassEncoderSetPipeline(compute_pass_encoder, mipmap_compute.computePipeline);
+            wgpuComputePassEncoderSetBindGroup(compute_pass_encoder, 0, bind_group.getBindGroup(), 0,
+                                               nullptr);  // Group 0, no dynamic offsets
 
-        wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, workgroup_size_x, workgroup_size_y, 1);
-        wgpuComputePassEncoderEnd(compute_pass_encoder);
-        wgpuComputePassEncoderRelease(compute_pass_encoder);
+            wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, workgroup_size_x, workgroup_size_y, 1);
+            wgpuComputePassEncoderEnd(compute_pass_encoder);
+            wgpuComputePassEncoderRelease(compute_pass_encoder);
 
-        wgpuBindGroupRelease(bind_group.getBindGroup());
+            wgpuBindGroupRelease(bind_group.getBindGroup());
+            wgpuTextureViewRelease(src_view);
+            wgpuTextureViewRelease(dst_view);
+        }
     }
+
     WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, nullptr);
     wgpuQueueSubmit(app->getRendererResource().queue, 1, &commandBuffer);
 
@@ -542,7 +546,7 @@ void Texture::uploadToGPU(WGPUQueue deviceQueue) {
                                   &source, &tmp_size);
 
             // generateMipMaps(source, destination, mDescriptor, mBufferData, layer, deviceQueue);
-            generateMipmapCompute(this, mDescriptor.mipLevelCount);
+            generateMipmapCompute(this, mDescriptor.mipLevelCount, mDescriptor.size.depthOrArrayLayers);
         }
     }
 }
