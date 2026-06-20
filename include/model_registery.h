@@ -6,6 +6,8 @@
 #include <functional>
 #include <future>
 #include <glm/fwd.hpp>
+#include <iostream>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -58,6 +60,12 @@ struct LoadModelResult {
         ModelVisibility visibility;
 };
 
+// class QueryMakerModel {
+//     public:
+//         Model* model;
+//         virtual void onSuccess(Model* model) { std::cout << "123455\n"; };
+// };
+
 class IModel {
     public:
         virtual Model* getModel() = 0;
@@ -80,6 +88,7 @@ class ModelRegistry {
 
         std::unordered_map<std::string, FactoryFunc> factories;
         ModelContainer& getLoadedModel(ModelVisibility visibility);
+        std::optional<Model*> query(std::string modelName, std::function<void(Model*, void*)> cb, void* args);
 
     private:
         ModelContainer mUserLoadedModel;
@@ -87,6 +96,16 @@ class ModelRegistry {
         std::vector<std::future<LoadModelResult>> futures;
         std::unordered_map<std::string, InputHandler*> inputHandlerMap;
         std::unordered_map<std::string, PawnBehaviour*> pawnBehaviourMap;
+
+        struct ModelWaiters {
+                // QueryMakerModel* model;
+                // Model* model;
+                std::string queriedModel;
+                std::function<void(Model*, void*)> onSuccess;
+                void* cbArgs;
+        };
+
+        std::unordered_map<std::string, std::vector<ModelWaiters>> mQueryWaitersList;
 };
 
 #define USER_REGISTER_MODEL(NAME, TYPE) REGISTER_MODEL(NAME, TYPE, Visibility_User, nullptr)

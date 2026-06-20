@@ -128,6 +128,7 @@ void to_json(json& j, const Material& mat) {
         j["specular_map"] = nullptr;
     }
 }
+
 json to_json(const BaseModel* model) {
     json j = json::array();
 
@@ -324,6 +325,207 @@ void World::togglePlayer() {
     }
 }
 
+struct BaseModelLoader : public IModel {
+        BaseModelLoader(Application* app, ObjectLoaderParam param) {
+            mModel = new Model{param.cs};
+            mModel->setVisible(param.isVisible);
+            mModel->mPath = param.path;
+
+            glm::vec3 euler_radians = glm::radians(param.rotate);
+            glm::quat qu = glm::normalize(glm::quat(euler_radians));
+
+            mModel->load(param.name, app, param.path, app->getObjectBindGroupLayout())
+                .moveTo(param.translate)
+                .scale(param.scale)
+                .rotate(qu);
+            mModel->uploadToGPU(app);
+
+            mModel->mTransform.mObjectInfo.isAnimated = param.animated;
+            if (param.animated) {
+                mModel->mSkiningTransformationBuffer.setLabel("default skining data transform for human")
+                    .setSize(100 * sizeof(glm::mat4))
+                    .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
+                    .create(&app->getRendererResource());
+
+                std::vector<glm::mat4> bones;
+                for (int i = 0; i < 100; i++) {
+                    bones.emplace_back(glm::mat4{1.0});
+                }
+                mModel->mSkiningTransformationBuffer.queueWrite(0, bones.data(), sizeof(glm::mat4) * bones.size());
+            }
+            // if mesh in node animated
+            mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
+                .setSize(mModel->mFlattenMeshes.size() * sizeof(glm::mat4))
+                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
+                .create(&app->getRendererResource());
+
+            // auto& databuffer = mModel->mGlobalMeshTransformationData;
+            // mModel->mGlobalMeshTransformationBuffer.queueWrite(0, databuffer.data(),
+            //                                                    sizeof(glm::mat4) * databuffer.size());
+
+            // If model is instanced
+            if (param.instanceTransformations.size() > 0) {
+                std::vector<glm::vec3> positions;
+                std::vector<glm::vec3> scales;
+                std::vector<glm::vec3> rotations;
+                std::vector<bool> has_physics;
+                for (const auto& instance : param.instanceTransformations) {
+                    positions.emplace_back(instance.position);
+                    scales.emplace_back(instance.scale);
+                    rotations.emplace_back(instance.rotation);
+                    has_physics.emplace_back(instance.hasPhysics);
+                }
+
+                auto* ins = new Instance{positions,
+                                         rotations,
+                                         scales,
+                                         has_physics,
+                                         glm::vec4{mModel->min, 1.0f},
+                                         glm::vec4{mModel->max, 1.0f},
+                                         {}};
+                ins->parent = mModel;
+                ins->mManager = app->mInstanceManager;
+                ins->mPositions = positions;
+                ins->mScale = scales;
+
+                mModel->setInstanced(ins);
+
+                mModel->instance->mOffsetID = app->mInstanceManager->getNewId();
+                mModel->mTransform.mObjectInfo.instanceOffsetId = mModel->instance->mOffsetID;
+
+                ins->mManager->getInstancingBuffer().queueWrite(
+                    (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
+                    ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
+
+                mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + mModel->getName()).c_str())
+                    .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+                              WGPUBufferUsage_CopyDst)
+                    .setSize(sizeof(DrawIndexedIndirectArgs))
+                    .setMappedAtCraetion()
+                    .create(&app->getRendererResource());
+            }
+
+            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
+
+            if (mModel->mTransform.mObjectInfo.isAnimated) {
+                for (auto [name, action] : mModel->getAnimation()->actions) {
+                    action->loop = true;
+                }
+                mModel->getAnimation()->playAction(param.defaultClip, true);
+                // mModel->mDefaultAction = mModel->anim->activeAction;
+                mModel->setDefaultAction(mModel->getAnimation()->getActiveAction());
+            }
+        }
+
+        Model* getModel() override { return mModel; }
+        void onLoad(Application* app, void* params) override {
+            (void)params;
+            (void)app;
+        };
+};
+
+void generatePhysic(Application* app, BaseModel* model, const ObjectLoaderParam& param) {
+    glm::vec3 euler_radians = glm::radians(param.rotate);
+    glm::quat qu = glm::normalize(glm::quat(euler_radians));
+    qu.z *= -1;
+    qu = glm::normalize(qu);
+    model->rotate(qu);
+    // CRITICAL to sync the physical world with the renderer world
+
+    auto [min, max] = model->getPhysicsAABB();
+    auto center = (min + max) * 0.5f;
+    auto physic_offset = center - model->mTransform.getPosition();  // glm::vec3{0.0f};
+    auto half_extent = (max - min) * 0.5f;
+
+    MotionType motion_type = MotionType::Static;
+    if (param.physicsParams.type == "dynamic") {
+        motion_type = MotionType::Dynamic;
+    } else if (param.physicsParams.type == "static") {
+        motion_type = MotionType::Static;
+    } else if (param.physicsParams.type == "kinematic") {
+        motion_type = MotionType::Kinematic;
+    }
+
+    if (param.physicsParams.method == PhysicGenMethod::MESH) {
+        auto* loaded_model = model;
+        loaded_model->getGlobalTransform();
+        if (loaded_model->getName() == "container") {
+            std::cout << "container model\n";
+        }
+        std::vector<std::vector<glm::vec4>> outVertices{};
+        auto* bdy = physics::createPhysicFromShape(loaded_model->mFlattenMeshes,
+                                                   loaded_model->mTransform.mTransformMatrix, outVertices);
+
+        if (bdy != nullptr) {
+            auto& mesh = loaded_model->mFlattenMeshes.begin()->second;
+            loaded_model->mPhysicComponent = new PhysicsComponent{bdy->GetID()};
+            loaded_model->mPhysicComponent->colliderType = ColliderType::TriList;
+            std::cout << "Success to create physics from mesh " << loaded_model->getName() << "  " << mesh.mName.c_str()
+                      << "!\n";
+        }
+
+        auto mesh_wireframe_lines = outVertices[0];
+        loaded_model->mPhysicComponent->mDebugLines =
+            app->mLineEngine->create(mesh_wireframe_lines, glm::mat4{1.0}, glm::vec3{1.0, 0.0, 0.0});
+        loaded_model->mPhysicComponent->mDebugLines->updateVisibility(false);
+        // }
+    } else if (param.physicsParams.method == PhysicGenMethod::AABB) {
+        auto* target = model;
+        target->mPhysicComponent = physics::CreatePhysicsBox(physic_offset, half_extent,
+                                                             target->mTransform.getPosition(), motion_type, target);
+        // param.name == "ammobox" ? glm::vec3{0.0f} :
+        target->mPhysicComponent->mDebugLines =
+            app->mLineEngine
+                ->create(
+                    generateBox(), glm::translate(glm::mat4{1.0}, center) * glm::scale(glm::mat4{1.0}, half_extent),
+                    (motion_type == MotionType::Static) ? (false ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0})
+                                                        : glm::vec3{1.0, 0.209, 0.0784})
+                .updateVisibility(false);
+        target->mPhysicComponent->mDebugLines.value().setScaleFatcor(half_extent);
+    }
+
+    auto* ins = model->instance;
+    if (ins != nullptr) {
+        for (size_t i = 0; i < ins->getInstanceCount(); ++i) {
+            if (ins->mHasPhysic[i]) {
+                if (param.physicsParams.method == PhysicGenMethod::MESH) {
+                    // auto& mesh = model.getModel()->mFlattenMeshes.begin()->second;
+                    std::vector<std::vector<glm::vec4>> outVertices{};
+                    auto* bdy = physics::createPhysicFromShape(model->mFlattenMeshes,
+                                                               ins->mInstanceBuffer[i].modelMatrix, outVertices);
+
+                    if (bdy != nullptr) {
+                        ins->mPhysicsComponents[i] =
+                            std::shared_ptr<PhysicsComponent>(new PhysicsComponent{bdy->GetID()});
+                        ins->mPhysicsComponents[i]->colliderType = ColliderType::TriList;
+
+                        auto mesh_wireframe_lines =
+                            outVertices[0];  // generateFromMesh(mesh.mIndexData, mesh.mVertexData);
+                        ins->mPhysicsComponents[i]->mDebugLines = app->mLineEngine->create(
+                            mesh_wireframe_lines, ins->mInstanceBuffer[i].modelMatrix, glm::vec3{1.0, 0.0, 0.0});
+                        ins->mPhysicsComponents[i]->mDebugLines->updateVisibility(false);
+                    }
+
+                } else if (param.physicsParams.method == PhysicGenMethod::AABB) {
+                    ins->mPhysicsComponents[i] = std::shared_ptr<PhysicsComponent>(
+                        physics::CreatePhysicsBox(physic_offset, half_extent, ins->mPositions[i], motion_type, model));
+
+                    ins->mPhysicsComponents[i]->mDebugLines =
+                        app->mLineEngine
+                            ->create(generateBox(),
+                                     glm::translate(glm::mat4{1.0}, ins->mPositions[i]) *
+                                         glm::scale(glm::mat4{1.0}, half_extent),
+                                     (motion_type == MotionType::Static)
+                                         ? (false ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0})
+                                         : glm::vec3{1.0, 0.209, 0.0784})
+                            .updateVisibility(false);
+                    ins->mPhysicsComponents[i]->mDebugLines.value().setScaleFatcor(half_extent);
+                }
+            }
+        }
+    }
+}
+
 void World::onNewModel(Model* loadedModel) {
     rootContainer.push_back(loadedModel);
     // Set the active actor
@@ -384,6 +586,9 @@ void World::onNewModel(Model* loadedModel) {
         if (params.type == ModelTypes::CODE) {
             for (auto* model : rootContainer) {
                 if (model->mName == params.name) {
+                    if (params.isPhysicEnabled) {
+                        generatePhysic(app, model, params);
+                    }
                     model->setVisible(params.isVisible);
                     std::cout << model->getName() << " is of type 2 " << std::endl;
                     model->moveTo(params.translate);
@@ -542,105 +747,6 @@ ObjectLoaderParam::ObjectLoaderParam(int type, std::string name, std::string pat
     this->scale = toGlm(scale);
     this->rotate = toGlm(rotate);
 }
-
-struct BaseModelLoader : public IModel {
-        BaseModelLoader(Application* app, ObjectLoaderParam param) {
-            mModel = new Model{param.cs};
-            mModel->setVisible(param.isVisible);
-            mModel->mPath = param.path;
-
-            glm::vec3 euler_radians = glm::radians(param.rotate);
-            glm::quat qu = glm::normalize(glm::quat(euler_radians));
-
-            mModel->load(param.name, app, param.path, app->getObjectBindGroupLayout())
-                .moveTo(param.translate)
-                .scale(param.scale)
-                .rotate(qu);
-            mModel->uploadToGPU(app);
-
-            mModel->mTransform.mObjectInfo.isAnimated = param.animated;
-            if (param.animated) {
-                mModel->mSkiningTransformationBuffer.setLabel("default skining data transform for human")
-                    .setSize(100 * sizeof(glm::mat4))
-                    .setUsage(WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
-                    .create(&app->getRendererResource());
-
-                std::vector<glm::mat4> bones;
-                for (int i = 0; i < 100; i++) {
-                    bones.emplace_back(glm::mat4{1.0});
-                }
-                mModel->mSkiningTransformationBuffer.queueWrite(0, bones.data(), sizeof(glm::mat4) * bones.size());
-            }
-            // if mesh in node animated
-            mModel->mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
-                .setSize(mModel->mFlattenMeshes.size() * sizeof(glm::mat4))
-                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst)
-                .create(&app->getRendererResource());
-
-            // auto& databuffer = mModel->mGlobalMeshTransformationData;
-            // mModel->mGlobalMeshTransformationBuffer.queueWrite(0, databuffer.data(),
-            //                                                    sizeof(glm::mat4) * databuffer.size());
-
-            // If model is instanced
-            if (param.instanceTransformations.size() > 0) {
-                std::vector<glm::vec3> positions;
-                std::vector<glm::vec3> scales;
-                std::vector<glm::vec3> rotations;
-                std::vector<bool> has_physics;
-                for (const auto& instance : param.instanceTransformations) {
-                    positions.emplace_back(instance.position);
-                    scales.emplace_back(instance.scale);
-                    rotations.emplace_back(instance.rotation);
-                    has_physics.emplace_back(instance.hasPhysics);
-                }
-
-                auto* ins = new Instance{positions,
-                                         rotations,
-                                         scales,
-                                         has_physics,
-                                         glm::vec4{mModel->min, 1.0f},
-                                         glm::vec4{mModel->max, 1.0f},
-                                         {}};
-                ins->parent = mModel;
-                ins->mManager = app->mInstanceManager;
-                ins->mPositions = positions;
-                ins->mScale = scales;
-
-                mModel->setInstanced(ins);
-
-                mModel->instance->mOffsetID = app->mInstanceManager->getNewId();
-                mModel->mTransform.mObjectInfo.instanceOffsetId = mModel->instance->mOffsetID;
-
-                ins->mManager->getInstancingBuffer().queueWrite(
-                    (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
-                    ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
-
-                mModel->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + mModel->getName()).c_str())
-                    .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
-                              WGPUBufferUsage_CopyDst)
-                    .setSize(sizeof(DrawIndexedIndirectArgs))
-                    .setMappedAtCraetion()
-                    .create(&app->getRendererResource());
-            }
-
-            mModel->createSomeBinding(app, app->getDefaultTextureBindingData());
-
-            if (mModel->mTransform.mObjectInfo.isAnimated) {
-                for (auto [name, action] : mModel->getAnimation()->actions) {
-                    action->loop = true;
-                }
-                mModel->getAnimation()->playAction(param.defaultClip, true);
-                // mModel->mDefaultAction = mModel->anim->activeAction;
-                mModel->setDefaultAction(mModel->getAnimation()->getActiveAction());
-            }
-        }
-
-        Model* getModel() override { return mModel; }
-        void onLoad(Application* app, void* params) override {
-            (void)params;
-            (void)app;
-        };
-};
 
 void parseTextures(Application* app, const json& textures) {
     for (const auto& tex : textures) {
@@ -851,107 +957,7 @@ void World::loadModel(const ObjectLoaderParam& param) {
         model.onLoad(app, nullptr);
 
         if (param.isPhysicEnabled) {
-            glm::vec3 euler_radians = glm::radians(param.rotate);
-            glm::quat qu = glm::normalize(glm::quat(euler_radians));
-            qu.z *= -1;
-            qu = glm::normalize(qu);
-            model.getModel()->rotate(qu);
-            // CRITICAL to sync the physical world with the renderer world
-
-            auto [min, max] = model.getModel()->getPhysicsAABB();
-            auto center = (min + max) * 0.5f;
-            auto physic_offset = center - model.getModel()->mTransform.getPosition();  // glm::vec3{0.0f};
-            auto half_extent = (max - min) * 0.5f;
-
-            MotionType motion_type = MotionType::Static;
-            if (param.physicsParams.type == "dynamic") {
-                motion_type = MotionType::Dynamic;
-            } else if (param.physicsParams.type == "static") {
-                motion_type = MotionType::Static;
-            } else if (param.physicsParams.type == "kinematic") {
-                motion_type = MotionType::Kinematic;
-            }
-
-            if (param.physicsParams.method == PhysicGenMethod::MESH) {
-                auto* loaded_model = model.getModel();
-                loaded_model->getGlobalTransform();
-                if (loaded_model->getName() == "container") {
-                    std::cout << "container model\n";
-                }
-                std::vector<std::vector<glm::vec4>> outVertices{};
-                auto* bdy = physics::createPhysicFromShape(loaded_model->mFlattenMeshes,
-                                                           loaded_model->mTransform.mTransformMatrix, outVertices);
-
-                if (bdy != nullptr) {
-                    auto& mesh = loaded_model->mFlattenMeshes.begin()->second;
-                    loaded_model->mPhysicComponent = new PhysicsComponent{bdy->GetID()};
-                    loaded_model->mPhysicComponent->colliderType = ColliderType::TriList;
-                    std::cout << "Success to create physics from mesh " << loaded_model->getName() << "  "
-                              << mesh.mName.c_str() << "!\n";
-                }
-
-                auto mesh_wireframe_lines = outVertices[0];
-                loaded_model->mPhysicComponent->mDebugLines =
-                    app->mLineEngine->create(mesh_wireframe_lines, glm::mat4{1.0}, glm::vec3{1.0, 0.0, 0.0});
-                loaded_model->mPhysicComponent->mDebugLines->updateVisibility(false);
-                // }
-            } else if (param.physicsParams.method == PhysicGenMethod::AABB) {
-                auto* target = model.getModel();
-                target->mPhysicComponent = physics::CreatePhysicsBox(
-                    physic_offset, half_extent, target->mTransform.getPosition(), motion_type, target);
-                // param.name == "ammobox" ? glm::vec3{0.0f} :
-                target->mPhysicComponent->mDebugLines =
-                    app->mLineEngine
-                        ->create(generateBox(),
-                                 glm::translate(glm::mat4{1.0}, center) * glm::scale(glm::mat4{1.0}, half_extent),
-                                 (motion_type == MotionType::Static)
-                                     ? (false ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0})
-                                     : glm::vec3{1.0, 0.209, 0.0784})
-                        .updateVisibility(false);
-                target->mPhysicComponent->mDebugLines.value().setScaleFatcor(half_extent);
-            }
-
-            auto* ins = model.getModel()->instance;
-            if (ins != nullptr) {
-                for (size_t i = 0; i < ins->getInstanceCount(); ++i) {
-                    if (ins->mHasPhysic[i]) {
-                        if (param.physicsParams.method == PhysicGenMethod::MESH) {
-                            // auto& mesh = model.getModel()->mFlattenMeshes.begin()->second;
-                            std::vector<std::vector<glm::vec4>> outVertices{};
-                            auto* bdy = physics::createPhysicFromShape(
-                                model.getModel()->mFlattenMeshes, ins->mInstanceBuffer[i].modelMatrix, outVertices);
-
-                            if (bdy != nullptr) {
-                                ins->mPhysicsComponents[i] =
-                                    std::shared_ptr<PhysicsComponent>(new PhysicsComponent{bdy->GetID()});
-                                ins->mPhysicsComponents[i]->colliderType = ColliderType::TriList;
-
-                                auto mesh_wireframe_lines =
-                                    outVertices[0];  // generateFromMesh(mesh.mIndexData, mesh.mVertexData);
-                                ins->mPhysicsComponents[i]->mDebugLines =
-                                    app->mLineEngine->create(mesh_wireframe_lines, ins->mInstanceBuffer[i].modelMatrix,
-                                                             glm::vec3{1.0, 0.0, 0.0});
-                                ins->mPhysicsComponents[i]->mDebugLines->updateVisibility(false);
-                            }
-
-                        } else if (param.physicsParams.method == PhysicGenMethod::AABB) {
-                            ins->mPhysicsComponents[i] = std::shared_ptr<PhysicsComponent>(physics::CreatePhysicsBox(
-                                physic_offset, half_extent, ins->mPositions[i], motion_type, model.getModel()));
-
-                            ins->mPhysicsComponents[i]->mDebugLines =
-                                app->mLineEngine
-                                    ->create(generateBox(),
-                                             glm::translate(glm::mat4{1.0}, ins->mPositions[i]) *
-                                                 glm::scale(glm::mat4{1.0}, half_extent),
-                                             (motion_type == MotionType::Static)
-                                                 ? (false ? glm::vec3{0.3, 0.3, 0.1} : glm::vec3{0.0, 1.0, 0.0})
-                                                 : glm::vec3{1.0, 0.209, 0.0784})
-                                    .updateVisibility(false);
-                            ins->mPhysicsComponents[i]->mDebugLines.value().setScaleFatcor(half_extent);
-                        }
-                    }
-                }
-            }
+            generatePhysic(app, model.getModel(), param);
         }
 
         return {model.getModel(), Visibility_User};
@@ -959,7 +965,6 @@ void World::loadModel(const ObjectLoaderParam& param) {
 }
 
 void World::loadWorld() {
-    // std::ifstream world_file(app->getBinaryPathAbsolute() / ".." / RESOURCE_DIR / mSceneFilePath);
     world_file_path = app->getBinaryPathAbsolute() / mSceneFilePath;
     world_file_dir = world_file_path.parent_path();
     std::ifstream world_file(world_file_path);

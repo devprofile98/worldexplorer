@@ -484,8 +484,11 @@ void PhysicSystem::removeCollider(BoxCollider& collider) {
     auto body_id = collider.getPhysicsComponent()->bodyId;
     BodyInterface& body_interface = physicsSystem.GetBodyInterface();
 
-    auto _ = std::remove_if(mColliders.begin(), mColliders.end(),
-                            [&body_id](BoxCollider& box) { return body_id == box.getPhysicsComponent()->bodyId; });
+    mColliders.erase(
+        std::remove_if(mColliders.begin(), mColliders.end(),
+                       [&body_id](BoxCollider& box) { return body_id == box.getPhysicsComponent()->bodyId; }),
+        mColliders.end());
+
     body_interface.RemoveBody(body_id);
 }
 
@@ -499,7 +502,7 @@ Body* createPhysicFromShape(const std::vector<uint32_t> indices, const std::vect
         auto p = transformMatrix * glm::vec4{vertices[i0].position, 1.0};
         auto p1 = transformMatrix * glm::vec4{vertices[i1].position, 1.0};
         auto p2 = transformMatrix * glm::vec4{vertices[i2].position, 1.0};
-        triangles.push_back(Triangle(Float3(p.x, p.z, p.y), Float3(p1.x, p1.z, p1.y), Float3(p2.x, p2.z, p2.y)));
+        triangles.emplace_back(Float3(p.x, p.z, p.y), Float3(p1.x, p1.z, p1.y), Float3(p2.x, p2.z, p2.y));
     }
 
     MeshShapeSettings mesh_setting(triangles);
@@ -542,13 +545,13 @@ Body* createPhysicFromShape(const std::unordered_map<int, Mesh> meshes, const gl
             auto p1 = transformMatrix * glm::vec4{vertices[i1].position, 1.0};
             auto p2 = transformMatrix * glm::vec4{vertices[i2].position, 1.0};
 
-            std::cout << glm::to_string(p) << " " << glm::to_string(p1) << " " << glm::to_string(p2) << "\n";
-            out_vertices.push_back(glm::vec4{p.x, p.y, p.z, 0.0f});
-            out_vertices.push_back(glm::vec4{p1.x, p1.y, p1.z, 0.0f});
-            out_vertices.push_back(glm::vec4{p2.x, p2.y, p2.z, 1.0f});
-            triangles.push_back(Triangle(Float3(p.x, p.z, p.y), Float3(p1.x, p1.z, p1.y), Float3(p2.x, p2.z, p2.y)));
+            // std::cout << glm::to_string(p) << " " << glm::to_string(p1) << " " << glm::to_string(p2) << "\n";
+            out_vertices.emplace_back(p.x, p.y, p.z, 0.0f);
+            out_vertices.emplace_back(p1.x, p1.y, p1.z, 0.0f);
+            out_vertices.emplace_back(p2.x, p2.y, p2.z, 1.0f);
+            triangles.emplace_back(Float3(p.x, p.z, p.y), Float3(p1.x, p1.z, p1.y), Float3(p2.x, p2.z, p2.y));
         }
-        outVertices.push_back(std::move(out_vertices));
+        outVertices.emplace_back(std::move(out_vertices));
 
         if (triangles.empty()) {
             continue;

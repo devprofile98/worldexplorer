@@ -120,7 +120,7 @@
       "childrens": [],
       "cs": "z",
       "default_clip": "",
-      "enabled": true,
+      "enabled": false,
       "id": "tree",
       "instance": null,
       "material_props": [
@@ -147,6 +147,37 @@
       "socket": null,
       "translate": [-2.327856540679932, 2.513000011444092, 0.0],
       "type": 0,
+      "visible": true
+    },
+
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "terrain",
+      "instance": null,
+      "material_props": [
+        {
+          "plane": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "terrain",
+      "path": "",
+      "physics": {
+        "enabled": true,
+        "method": "mesh",
+        "type": "dynamic"
+      },
+      "rotate": [0.0, -0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "socket": null,
+      "translate": [0.0, 0.0, 0.0],
+      "type": 1,
       "visible": true
     },
     {

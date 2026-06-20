@@ -1,5 +1,6 @@
 #include "model_registery.h"
 
+#include <algorithm>
 #include <chrono>
 #include <future>
 
@@ -48,6 +49,20 @@ ModelRegistry::ModelContainer& ModelRegistry::getLoadedModel(ModelVisibility vis
     }
 }
 
+std::optional<Model*> ModelRegistry::query(std::string modelName, std::function<void(Model*, void*)> cb, void* args) {
+    auto it = std::find_if(mUserLoadedModel.begin(), mUserLoadedModel.end(),
+                           [&](Model* model) { return model->mName == modelName; });
+    if (it != mUserLoadedModel.end()) {
+        Model* model = *it;
+        return model;
+    }
+    if (mQueryWaitersList.count(modelName) == 0) {
+        mQueryWaitersList[modelName] = {};
+    }
+    mQueryWaitersList[modelName].emplace_back(modelName, cb, args);
+    return std::nullopt;
+}
+
 void ModelRegistry::tick(Application* app) {
     if (factories.size() > 0) {
         auto it = factories.begin();
@@ -83,6 +98,14 @@ void ModelRegistry::tick(Application* app) {
                 model.model->mBehaviour->onLoad(model.model);
                 model.model->mBehaviour->model = model.model;
             }
+
+            if (mQueryWaitersList.contains(model.model->mName)) {
+                for (auto& waiters : mQueryWaitersList[model.model->mName]) {
+                    std::cout << "-------------" << model.model->mName << "model got loaded!\n";
+                    waiters.onSuccess(model.model, waiters.cbArgs);
+                }
+            }
+
             it = futures.erase(it);
         } else {
             it++;

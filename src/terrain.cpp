@@ -231,7 +231,7 @@ struct TTerrain : public IModel {
         };
 };
 
-// USER_REGISTER_MODEL("terrain", TTerrain);
+USER_REGISTER_MODEL("terrain", TTerrain);
 
 Cube::Cube(Application* app) : Model(CoordinateSystem::Z_UP) {
     BaseModel::mName = "cube22";
@@ -378,7 +378,7 @@ struct CubeLoader : public IModel {
         CubeLoader(Application* app) {
             mModel = new Cube{app};
             // mModel->moveTo(glm::vec3{1}).scale(glm::vec3{1}).rotate(glm::vec3{0.0}, 0.0);
-            std::cout << glm::to_string(mModel->mTransform.mTransformMatrix) << std::endl;
+            // std::cout << glm::to_string(mModel->mTransform.mTransformMatrix) << std::endl;
             mModel->load("cube", app, "", nullptr);
             mModel->uploadToGPU(app);
             mModel->createSomeBinding(app, app->getDefaultTextureBindingData());

@@ -333,13 +333,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         color = vec3f(100.0, 100.0, 100.0);
     }
 
-	// HDR tonemapping
-    if uMyUniform[myuniformindex].flag1 > 0 {
-        //color = color / (color + vec3f(1.0));
-	   // gamma correct
-       // color = pow(color, vec3(1.2));
-    }
-
 
     //if cascadeIndex == 0u {
     //    color = color * vec3f(0.1, 1.0, 1.0);

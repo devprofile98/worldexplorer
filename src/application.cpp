@@ -1225,6 +1225,7 @@ void Application::mainLoop() {
     }
     // polling if any model loading process is done and append it to loaded model list
     ModelRegistry::instance().tick(this);
+
     mTextureRegistery->mLoader.fetchQueue();
 
     // ------------ 3- Transparent pass
@@ -1908,6 +1909,7 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
             }
             static LineGroup* selectedGroup = nullptr;
             if (ImGui::BeginCombo("Colliders", "Choose one##2")) {
+                physics::BoxCollider* removeItem = nullptr;
                 for (auto& collider : physics::PhysicSystem::mColliders) {
                     ImGui::PushID((void*)&collider);
 
@@ -1922,8 +1924,9 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
 
                     if (ImGui::BeginPopupContextItem()) {
                         if (ImGui::MenuItem("Remove")) {
-                            collider.getDebugLines()->remove();
-                            physics::PhysicSystem::removeCollider(collider);
+                            // collider.getDebugLines()->remove();
+                            // physics::PhysicSystem::removeCollider(collider);
+                            removeItem = &collider;
                         };
                         if (ImGui::MenuItem("Modify")) {
                             auto cld = collider;
@@ -1953,6 +1956,12 @@ void Application::updateGui(WGPURenderPassEncoder renderPass, double time) {
                     }
                     ImGui::PopID();  // Pop the unique ID for this item
                 }
+                if (removeItem != nullptr) {
+                    removeItem->getDebugLines()->remove();
+                    physics::PhysicSystem::removeCollider(*removeItem);
+                    removeItem = nullptr;
+                }
+
                 ImGui::EndCombo();
             }
             ImGui::NewLine();

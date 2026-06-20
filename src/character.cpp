@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <bitset>
 #include <cstdint>
+#include <optional>
 #include <random>
 #include <vector>
 
@@ -1356,45 +1357,73 @@ struct TreeBehaviour : public PawnBehaviour {
                 mesh.mWindBuffer.queueWrite(0, &mesh.mWindParams, sizeof(WindParams));
             }
 
-            std::vector<glm::vec3> poss = {};
-            std::vector<glm::vec3> rots = {};
-            std::vector<glm::vec3> scales = {};
-            std::vector<bool> phys = {};
-            for (int i = 1; i < 10; ++i) {
-                poss.push_back(model->mTransform.getPosition() + glm::vec3{i * 1.5, i * 1.5, 0.0});
-                rots.push_back(model->mTransform.getEulerRotation());
-                scales.push_back(model->mTransform.getScale());
-                phys.push_back(false);
+            this->model = model;
+            // auto* query = new ModelQuery{};
+            std::optional<Model*> model_opt = ModelRegistry::instance().query(
+                "terrain",
+                [](Model* target, void* args) {
+                    TreeBehaviour* self = reinterpret_cast<TreeBehaviour*>(args);
+                    Model* src_model = self->model;
+                    std::vector<glm::vec3> poss = {};
+                    std::vector<glm::vec3> rots = {};
+                    std::vector<glm::vec3> scales = {};
+                    std::vector<bool> phys = {};
+
+                    // target->mFlattenMeshes[0].mVertexData[0].position;
+
+                    // for (int i = 1; i < 10; ++i) {
+                    auto len = target->mFlattenMeshes[0].mVertexData.size();
+                    // for (const auto& vattr : target->mFlattenMeshes[0].mVertexData) {
+                    for (size_t i = 1; i < len - 55; i += 55) {
+                        poss.push_back(target->mTransform.getLocalTransform() *
+                                       glm::vec4{target->mFlattenMeshes[0].mVertexData[i].position, 1.0});
+                        rots.push_back(src_model->mTransform.getEulerRotation());
+                        scales.push_back(src_model->mTransform.getScale());
+                        phys.push_back(false);
+                    }
+
+                    // for (int i = 1; i < 10; ++i) {
+                    //     poss.push_back(src_model->mTransform.getPosition() + glm::vec3{i * 1.5, i * 1.5, 0.0});
+                    //     rots.push_back(src_model->mTransform.getEulerRotation());
+                    //     scales.push_back(src_model->mTransform.getScale());
+                    //     phys.push_back(false);
+                    // }
+                    //
+                    auto* ins = new Instance{poss,
+                                             rots,
+                                             scales,
+                                             phys,
+                                             glm::vec4{src_model->min, 1.0f},
+                                             glm::vec4{src_model->max, 1.0f},
+                                             src_model->mFlattenMeshes.begin()->second.mWindParams};
+                    ins->parent = src_model;
+                    ins->mManager = self->app->mInstanceManager;
+                    ins->mPositions = {};
+                    ins->mScale = {};
+                    ins->mOffsetID = self->app->mInstanceManager->getNewId();
+
+                    src_model->mTransform.mObjectInfo.instanceOffsetId = ins->mOffsetID;
+                    src_model->mTransform.mDirty = true;
+                    src_model->setInstanced(ins);
+
+                    ins->mManager->getInstancingBuffer().queueWrite(
+                        (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
+                        ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
+
+                    src_model->mIndirectDrawArgsBuffer
+                        .setLabel(("indirect draw args buffer for " + src_model->getName()).c_str())
+                        .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+                                  WGPUBufferUsage_CopyDst)
+                        .setSize(sizeof(DrawIndexedIndirectArgs))
+                        .setMappedAtCraetion()
+                        .create(&self->app->getRendererResource());
+
+                    std::cout << "modelllllllllllllllllllllllllllllllllllll had value\n";
+                },
+                this);
+            if (model_opt.has_value()) {
+                std::cout << "mode had value\n";
             }
-
-            auto* ins = new Instance{poss, rots, scales, phys,
-                                     // {},
-                                     //                      {model->mTransform.getEulerRotation()},
-                                     //                      {model->mTransform.getScale()},
-                                     // {false},
-                                     glm::vec4{model->min, 1.0f}, glm::vec4{model->max, 1.0f},
-                                     model->mFlattenMeshes.begin()->second.mWindParams};
-            ins->parent = model;
-            // ins->mApp = mApp;
-            ins->mManager = PawnBehaviour::app->mInstanceManager;
-            ins->mPositions = {};
-            ins->mScale = {};
-
-            ins->mOffsetID = PawnBehaviour::app->mInstanceManager->getNewId();
-            model->mTransform.mObjectInfo.instanceOffsetId = ins->mOffsetID;
-            model->mTransform.mDirty = true;
-            model->setInstanced(ins);
-
-            ins->mManager->getInstancingBuffer().queueWrite(
-                (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
-                ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
-
-            model->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + model->getName()).c_str())
-                .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
-                          WGPUBufferUsage_CopyDst)
-                .setSize(sizeof(DrawIndexedIndirectArgs))
-                .setMappedAtCraetion()
-                .create(&PawnBehaviour::app->getRendererResource());
         }
 };
 
