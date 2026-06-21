@@ -10,6 +10,7 @@
 #include "GLFW/glfw3.h"
 #include "animation.h"
 #include "application.h"
+#include "audio_engine.h"
 #include "editor.h"
 #include "glm/ext/matrix_common.hpp"
 #include "glm/fwd.hpp"
@@ -483,6 +484,10 @@ struct Ak47Behaviour : public WeaponBehaviour {
             auto [w, h] = PawnBehaviour::app->getWindowSize();
             auto [origin, ray] = PawnBehaviour::app->getCamera().getLookingRay(w, h, {w / 2, h / 2});
             auto hit = physics::ShootRay(origin, ray, 10.0f);
+
+            PawnBehaviour::app->getAudioEngine()->playSound3D("/home/ahmad/Downloads/fire.mp3", origin.x, origin.y,
+                                                              origin.z);
+
             if (hit.valid) {
                 JPH::BodyLockRead lock(physics::getPhysicsSystem()->GetBodyLockInterface(), hit.bodyId);
                 if (lock.Succeeded()) {
@@ -972,6 +977,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
 
             isWalking = false;
             isRunning = false;
+
             if (InputManager::isKeyDown(GLFW_KEY_W)) {
                 if (is_left_shift_down) {
                     state = Running;
@@ -985,6 +991,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
                     stateBit |= 1 << Walking;
                     isWalking = true;
                 }
+
                 moveDir += front;
                 noKey = false;
             }
@@ -1050,74 +1057,74 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             return moveDir;
         }
 
-        void decideCurrentAnimation2(Model* model, float dt) {
-            static std::string last_clip;
-            std::string clip_name;
-            bool loop = false;
-            model->getAnimation()->isEnded();
-
-            // std::cout << std::hex << stateBit << std::endl;
-
-            if (isAiming) {
-                if (isShooting && weapon != nullptr) {
-                    if (!model->getAnimation()->isEnded()) {
-                        clip_name = attackAction;
-                        loop = false;
-                    } else {
-                        clip_name = idleAction;
-                        loop = true;
-                        isShooting = false;
-                    }
-                } else {
-                    isShooting = false;
-                    clip_name = idleAction;
-                    loop = true;
-                }
-            } else {
-                switch (state) {
-                    case Idle: {
-                        clip_name = idleAction;
-                        loop = true;
-                        break;
-                    }
-                    case Walking: {
-                        if (!isInJump) {
-                            clip_name = "Walk_Loop";
-                            loop = true;
-                        }
-                        break;
-                    }
-                    case Running: {
-                        if (!isInJump) {
-                            clip_name = "Sprint_Loop";
-                            loop = true;
-                        }
-                        break;
-                    }
-                    case Crouch: {
-                        if (!isInJump) {
-                            clip_name = "Crouch_Fwd_Loop";
-                            loop = true;
-                        }
-                        break;
-                    }
-                    case Falling:
-                    case Jumping: {
-                        clip_name = "Jump_Start";
-                        loop = false;
-                        break;
-                    }
-                    default:
-                        clip_name = idleAction;
-                        loop = true;
-                        break;
-                }
-            }
-            if (last_clip != clip_name) {
-                model->getAnimation()->playAction(clip_name, loop);
-                last_clip = clip_name;
-            }
-        }
+        // void decideCurrentAnimation2(Model* model, float dt) {
+        //     static std::string last_clip;
+        //     std::string clip_name;
+        //     bool loop = false;
+        //     model->getAnimation()->isEnded();
+        //
+        //     // std::cout << std::hex << stateBit << std::endl;
+        //
+        //     if (isAiming) {
+        //         if (isShooting && weapon != nullptr) {
+        //             if (!model->getAnimation()->isEnded()) {
+        //                 clip_name = attackAction;
+        //                 loop = false;
+        //             } else {
+        //                 clip_name = idleAction;
+        //                 loop = true;
+        //                 isShooting = false;
+        //             }
+        //         } else {
+        //             isShooting = false;
+        //             clip_name = idleAction;
+        //             loop = true;
+        //         }
+        //     } else {
+        //         switch (state) {
+        //             case Idle: {
+        //                 clip_name = idleAction;
+        //                 loop = true;
+        //                 break;
+        //             }
+        //             case Walking: {
+        //                 if (!isInJump) {
+        //                     clip_name = "Walk_Loop";
+        //                     loop = true;
+        //                 }
+        //                 break;
+        //             }
+        //             case Running: {
+        //                 if (!isInJump) {
+        //                     clip_name = "Sprint_Loop";
+        //                     loop = true;
+        //                 }
+        //                 break;
+        //             }
+        //             case Crouch: {
+        //                 if (!isInJump) {
+        //                     clip_name = "Crouch_Fwd_Loop";
+        //                     loop = true;
+        //                 }
+        //                 break;
+        //             }
+        //             case Falling:
+        //             case Jumping: {
+        //                 clip_name = "Jump_Start";
+        //                 loop = false;
+        //                 break;
+        //             }
+        //             default:
+        //                 clip_name = idleAction;
+        //                 loop = true;
+        //                 break;
+        //         }
+        //     }
+        //     if (last_clip != clip_name) {
+        //         model->getAnimation()->playAction(clip_name, loop);
+        //         last_clip = clip_name;
+        //     }
+        // }
 
         void decideCurrentAnimation(Model* model, float dt) {
             static std::string last_clip;
@@ -1203,6 +1210,21 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
 
             decideCurrentAnimation(static_cast<Model*>(model), dt);
 
+            static ma_sound* footstep_sound = nullptr;
+            if (isWalking || isRunning) {
+                auto& pos = model->mTransform.getPosition();
+                if (footstep_sound == nullptr) {
+                    footstep_sound = PawnBehaviour::app->getAudioEngine()->playLooping(
+                        "/home/ahmad/Downloads/footstep.mp3", pos.x, pos.y, pos.z, true, isWalking ? 0.5 : (1.0));
+                } else {
+                    PawnBehaviour::app->getAudioEngine()->setSoundPosition(footstep_sound, pos.x, pos.y, pos.z);
+                }
+            }
+            if (!isWalking && footstep_sound != nullptr) {
+                PawnBehaviour::app->getAudioEngine()->stopSound(footstep_sound);
+                footstep_sound = nullptr;
+            }
+
             auto current_speed = speed;
             if (state == Running) {
                 current_speed = 2.5 * speed;
@@ -1253,6 +1275,8 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
             JPH::Quat new_rotation = physicalCharacter->GetRotation();
             new_position.SetY(new_position.GetY() - model->getAABBSize().z / 4);
             model->moveTo({new_position.GetX(), new_position.GetZ(), new_position.GetY()});
+            PawnBehaviour::app->getAudioEngine()->updateListener(new_position.GetX(), new_position.GetZ(),
+                                                                 new_position.GetY(), front.x, front.y, front.z);
 
             auto y = new_rotation.GetY();
             new_rotation.SetY(new_rotation.GetZ());
@@ -1369,26 +1393,24 @@ struct TreeBehaviour : public PawnBehaviour {
                     std::vector<glm::vec3> scales = {};
                     std::vector<bool> phys = {};
 
-                    // target->mFlattenMeshes[0].mVertexData[0].position;
-
-                    // for (int i = 1; i < 10; ++i) {
-                    auto len = target->mFlattenMeshes[0].mVertexData.size();
-                    // for (const auto& vattr : target->mFlattenMeshes[0].mVertexData) {
-                    for (size_t i = 1; i < len - 55; i += 55) {
-                        poss.push_back(target->mTransform.getLocalTransform() *
-                                       glm::vec4{target->mFlattenMeshes[0].mVertexData[i].position, 1.0});
-                        rots.push_back(src_model->mTransform.getEulerRotation());
-                        scales.push_back(src_model->mTransform.getScale());
-                        phys.push_back(false);
+                    std::random_device rd;
+                    std::mt19937 gen(rd());
+                    std::uniform_real_distribution<float> dist(0, 200);
+                    std::uniform_real_distribution<float> scale_factor(0.9, 1.2);
+                    for (size_t i = 0; i < 1000;) {
+                        float x = dist(gen);
+                        float y = dist(gen);
+                        float z = Terrain::perlin(x, y);
+                        if (z > 217 && z < 260) {
+                            ++i;
+                            poss.push_back(target->mTransform.getLocalTransform() *
+                                           glm::vec4{x - 50, y - 50, z * 0.1 - 25.0f, 1.0});
+                            rots.push_back(src_model->mTransform.getEulerRotation());
+                            scales.push_back(src_model->mTransform.getScale() * glm::vec3{scale_factor(gen)});
+                            phys.push_back(false);
+                        }
                     }
 
-                    // for (int i = 1; i < 10; ++i) {
-                    //     poss.push_back(src_model->mTransform.getPosition() + glm::vec3{i * 1.5, i * 1.5, 0.0});
-                    //     rots.push_back(src_model->mTransform.getEulerRotation());
-                    //     scales.push_back(src_model->mTransform.getScale());
-                    //     phys.push_back(false);
-                    // }
-                    //
                     auto* ins = new Instance{poss,
                                              rots,
                                              scales,
@@ -1428,3 +1450,94 @@ struct TreeBehaviour : public PawnBehaviour {
 };
 
 TreeBehaviour treebehaviour{"tree"};
+
+struct OakTreeBehaviour : public PawnBehaviour {
+        OakTreeBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
+
+        void onLoad(Model* model) override {
+            for (auto& [id, mesh] : model->mFlattenMeshes) {
+                mesh.mWindParams.heightFactor = 5.f;
+                mesh.mWindParams.strength = 0.2f;
+                mesh.mWindBuffer.queueWrite(0, &mesh.mWindParams, sizeof(WindParams));
+            }
+
+            this->model = model;
+            // auto* query = new ModelQuery{};
+            std::optional<Model*> model_opt = ModelRegistry::instance().query(
+                "terrain",
+                [](Model* target, void* args) {
+                    TreeBehaviour* self = reinterpret_cast<TreeBehaviour*>(args);
+                    Model* src_model = self->model;
+                    std::vector<glm::vec3> poss = {};
+                    std::vector<glm::vec3> rots = {};
+                    std::vector<glm::vec3> scales = {};
+                    std::vector<bool> phys = {};
+
+                    std::random_device rd;
+                    std::mt19937 gen(rd());
+                    std::uniform_real_distribution<float> dist(0, 200);
+                    for (size_t i = 0; i < 20;) {
+                        float x = dist(gen);
+                        float y = dist(gen);
+                        float z = Terrain::perlin(x, y);
+                        if (z > 217 && z < 260) {
+                            ++i;
+                            poss.push_back(target->mTransform.getLocalTransform() *
+                                           glm::vec4{x - 50, y - 50, z * 0.1 - 25.0f, 1.0});
+                            rots.push_back(src_model->mTransform.getEulerRotation());
+                            scales.push_back(src_model->mTransform.getScale());
+                            phys.push_back(false);
+                        }
+                    }
+
+                    auto* ins = new Instance{poss,
+                                             rots,
+                                             scales,
+                                             phys,
+                                             glm::vec4{src_model->min, 1.0f},
+                                             glm::vec4{src_model->max, 1.0f},
+                                             src_model->mFlattenMeshes.begin()->second.mWindParams};
+                    ins->parent = src_model;
+                    ins->mManager = self->app->mInstanceManager;
+                    ins->mPositions = {};
+                    ins->mScale = {};
+                    ins->mOffsetID = self->app->mInstanceManager->getNewId();
+
+                    src_model->mTransform.mObjectInfo.instanceOffsetId = ins->mOffsetID;
+                    src_model->mTransform.mDirty = true;
+                    src_model->setInstanced(ins);
+
+                    ins->mManager->getInstancingBuffer().queueWrite(
+                        (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
+                        ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
+
+                    src_model->mIndirectDrawArgsBuffer
+                        .setLabel(("indirect draw args buffer for " + src_model->getName()).c_str())
+                        .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+                                  WGPUBufferUsage_CopyDst)
+                        .setSize(sizeof(DrawIndexedIndirectArgs))
+                        .setMappedAtCraetion()
+                        .create(&self->app->getRendererResource());
+
+                    std::cout << "modelllllllllllllllllllllllllllllllllllll had value\n";
+                },
+                this);
+            if (model_opt.has_value()) {
+                std::cout << "mode had value\n";
+            }
+        }
+};
+
+OakTreeBehaviour oaktreebehaviour{"oaktree"};
+
+struct JeepBehaviour : public PawnBehaviour {
+        JeepBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
+
+        void onLoad(Model* model) override {
+            auto& pos = model->mTransform.getPosition();
+            PawnBehaviour::app->getAudioEngine()->playLooping("/home/ahmad/Downloads/caridle.mp3", pos.x, pos.y, pos.z,
+                                                              true, 1.0);
+        }
+};
+
+JeepBehaviour jeepbehaviour{"jeep"};

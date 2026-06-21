@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "animation.h"
+#include "audio_engine.h"
 #include "binding_group.h"
 #include "camera.h"
 #include "full_quad_converter.h"
@@ -739,6 +740,9 @@ bool Application::initialize(const char* windowName, uint16_t width, uint16_t he
     initializeBuffers();
     initializePipeline();
 
+    audioEngine = new AudioEngine{};
+    audioEngine->init();
+
     mLineEngine = new LineEngine{};
     mLineEngine->initialize(this);
 
@@ -968,7 +972,7 @@ void Application::mainLoop() {
                 corners,
                 {{0.0, middle_plane_length},
                  {middle_plane_length - 2.0f, middle_plane_length + far_plane_length},
-                 {middle_plane_length + far_plane_length - 2.0f, middle_plane_length + far_plane_length + 10}});
+                 {middle_plane_length + far_plane_length - 2.0f, middle_plane_length + far_plane_length + 100}});
             // });
 
             uint32_t cascades_count = all_scenes.size();
@@ -2160,3 +2164,5 @@ std::filesystem::path Application::getBinaryPathAbsolute() const {
 std::filesystem::path Application::getBinaryPathRelative() const { return mBinaryPath; }
 
 Pipeline* Application::getPipeline() { return mPipeline; }
+
+AudioEngine* Application::getAudioEngine() { return audioEngine; }

@@ -2,6 +2,7 @@
 #include "terrain.h"
 
 #include "application.h"
+#include "audio_engine.h"
 #include "glm/fwd.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "model.h"
@@ -155,6 +156,8 @@ void TerrainModel::drawHirarchy(Application* app, WGPURenderPassEncoder encoder)
 Model& TerrainModel::load(std::string name, Application* app, const std::filesystem::path& path,
                           WGPUBindGroupLayout layout) {
     Drawable::configure(app);
+
+    app->getAudioEngine()->playLooping("/home/ahmad/Downloads/wind.mp3", 0, 0, 0, false);
 
     mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
         .setSize(sizeof(glm::mat4))

@@ -106,7 +106,8 @@
       "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/zombie.gltf",
       "physics": {
         "enabled": true,
-        "type": "static"
+        "type": "dynamic",
+        "method": "aabb"
       },
       "rotate": [0.0, -0.0, 0.0],
       "scale": [0.6000000238418579, 0.6000000238418579, 0.6000000238418579],
@@ -296,7 +297,8 @@
       "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/road barrier/concrete_road_barrier.gltf",
       "physics": {
         "enabled": true,
-        "type": "dynamic"
+        "type": "dynamic",
+        "method": "aabb"
       },
       "rotate": [0.0, -0.0, 35.20002746582031],
       "scale": [1.0, 1.0, 1.0],
@@ -310,7 +312,7 @@
       "childrens": [],
       "cs": "z",
       "default_clip": "",
-      "enabled": true,
+      "enabled": false,
       "id": "container",
       "instance": [
         {
@@ -388,7 +390,7 @@
       "name": "container",
       "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/container.gltf",
       "physics": {
-        "enabled": true,
+        "enabled": false,
         "type": "dynamic",
         "method": "mesh"
       },
@@ -577,7 +579,7 @@
         "enabled": true,
         "method": "aabb",
         "sensor": true,
-        "type": "kinematic"
+        "type": "static"
       },
       "rotate": [270.0, 0.0, 0.0],
       "scale": [0.001, 0.001, 0.001],

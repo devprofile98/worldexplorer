@@ -31,6 +31,7 @@ class Pipeline;
 class CompositionPass;
 class WaterPass;
 class ParticleSystemsManager;
+class AudioEngine;
 struct World;
 template <typename K, typename V>
 class Registry;  // Forward declaration
@@ -91,6 +92,8 @@ class Application {
         void initializePipeline();
         void initializeBuffers();
 
+        AudioEngine* getAudioEngine();
+
         InstanceManager* mInstanceManager;
 
         WGPUBindGroupDescriptor mTrasBindGroupDesc = {};
@@ -104,6 +107,7 @@ class Application {
         Registery<std::string, Texture>* mTextureRegistery;
         // Registery<std::string, Material>* mMaterialRegistery;
         MaterialRegistery* mMaterialRegistery;
+        AudioEngine* audioEngine = nullptr;
 
         BindingGroup mDefaultSkiningData = {};
         BindingGroup mDefaultTextureBindingGroup = {};

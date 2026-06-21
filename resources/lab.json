@@ -137,19 +137,53 @@
       ],
       "materials": [],
       "name": "tree",
-      "path": "/home/ahmad/Documents/projects/c++/worldexplorer/build/.././resources/tree3.gltf",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/tree3.gltf",
       "physics": {
         "enabled": true,
         "type": "dynamic"
       },
       "rotate": [0.0, 0.0, 0.0],
-      "scale": [4.883678913116455, 4.883678913116455, 4.883678913116455],
+      "scale": [2.44, 2.44, 2.44],
       "socket": null,
       "translate": [-2.327856540679932, 2.513000011444092, 0.0],
       "type": 0,
       "visible": true
     },
 
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "y",
+      "default_clip": "",
+      "enabled": true,
+      "id": "oaktree",
+      "instance": null,
+      "material_props": [
+        {
+          "Tree-1": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Tree-0": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "oaktree",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/Tree 02/Tree.obj",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      },
+      "rotate": [0.0, 0.0, 0.0],
+      "scale": [1, 1, 1],
+      "socket": null,
+      "translate": [-2.327856540679932, 2.513000011444092, 0.0],
+      "type": 0,
+      "visible": true
+    },
     {
       "animated": false,
       "childrens": [],
@@ -308,7 +342,7 @@
       ],
       "materials": [],
       "name": "human",
-      "path": "/home/ahmad/Documents/projects/c++/worldexplorer/export2/assets/models/mine3/mine3.gltf",
+      "path": "/home/ahmad/Documents/3d/mine3.gltf",
       "physics": null,
       "rotate": [0.0, -1.7075473124350538e-6, 127.49799346923828],
       "scale": [0.5, 0.5, 0.5],
@@ -324,7 +358,7 @@
       "childrens": [],
       "cs": "y",
       "default_clip": "",
-      "enabled": false,
+      "enabled": true,
       "id": "ak47",
       "instance": null,
       "material_props": [
@@ -581,7 +615,7 @@
       "childrens": [],
       "cs": "y",
       "default_clip": "",
-      "enabled": false,
+      "enabled": true,
       "id": "jeep",
       "instance": null,
       "materials": [],

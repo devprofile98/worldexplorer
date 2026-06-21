@@ -334,7 +334,7 @@ double test_perlin(double x, double z, double persistence, size_t octaves, size_
     return pixel_result;
 }
 
-float Terrain::perlin(float x, float y) { return test_perlin(x, y, 0.5, 8, 200) * 0.1 - 25.0f; }
+float Terrain::perlin(float x, float y) { return test_perlin(x, y, 0.5, 8, 200); }
 
 Terrain& Terrain::generate(size_t gridSize, uint8_t octaves, std::vector<glm::vec3>& output) {
     mRotationMatrix = glm::mat4{1.0};

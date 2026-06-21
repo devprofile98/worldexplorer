@@ -138,6 +138,7 @@ add_executable(
     src/hdr_pass.cpp
     src/full_quad_converter.cpp
 
+    src/core/audio_engine.cpp
     # src/tree.cpp
 
     # Game files and logics
@@ -218,6 +219,7 @@ target_include_directories(App PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}"
                                        "include"
                                        "tracy_external"
                                        "${JoltPhysics_SOURCE_DIR}/.."
+                                        "src/core/"
                                    )
 
 set_target_properties(App PROPERTIES
