@@ -55,6 +55,28 @@
   ],
 
   "lights": [],
+  "audios": [
+    {
+      "name": "hurt",
+      "path": "/home/ahmad/Downloads/hurt.mp3"
+    },
+    {
+      "name": "fire",
+      "path": "/home/ahmad/Downloads/fire.mp3"
+    },
+    {
+      "name": "wind",
+      "path": "/home/ahmad/Downloads/wind.mp3"
+    },
+    {
+      "name": "footstep",
+      "path": "/home/ahmad/Downloads/footstep.mp3"
+    },
+    {
+      "name": "caridle",
+      "path": "/home/ahmad/Downloads/caridle.mp3"
+    }
+  ],
   "materials": [
     {
       "diffuse_map": "/home/ahmad/Downloads/dirt/dirt_floor_diff_4k.jpg",

@@ -2,23 +2,21 @@
 #include <iostream>
 #define MINIAUDIO_IMPLEMENTATION
 #include "audio_engine.h"
+#include "glm/ext/vector_float3.hpp"
 
 bool AudioEngine::init() { return ma_engine_init(nullptr, &mEngine) == MA_SUCCESS; }
 
 void AudioEngine::shutdown() {
-    // 1. stop and uninit all currently-playing instances first
     for (auto& [ptr, sound] : mPlayingSounds) {
         ma_sound_uninit(sound.get());
     }
     mPlayingSounds.clear();
 
-    // 2. then uninit the cached base sounds (the actual decoded data sources)
     for (auto& [path, sound] : mSoundCache) {
         ma_sound_uninit(sound.get());
     }
     mSoundCache.clear();
 
-    // 3. finally tear down the engine itself
     ma_engine_uninit(&mEngine);
 }
 
@@ -94,11 +92,42 @@ ma_sound* AudioEngine::playLooping(const std::string& path, float x, float y, fl
     return key;  // hand this back so caller can stop it later
 }
 
+ma_sound* AudioEngine::playInstance(ma_sound* master, float x, float y, float z, bool spatial, bool loop,
+                                    float playbackSpeed) {
+    auto instance = std::make_unique<ma_sound>();
+    auto res = ma_sound_init_copy(&mEngine, master, 0, NULL, instance.get());
+    if (res != MA_SUCCESS) {
+        std::cout << "Failed to spawn sound instance (" << res << ")\n";
+        return nullptr;
+    }
+
+    ma_sound_set_looping(instance.get(), loop ? MA_TRUE : MA_FALSE);
+    ma_sound_set_pitch(instance.get(), playbackSpeed);
+
+    if (spatial) {
+        ma_sound_set_position(instance.get(), x, y, z);
+    } else {
+        ma_sound_set_spatialization_enabled(instance.get(), MA_FALSE);
+    }
+
+    if (!loop) {
+        // Only one-shots need the end callback — looping sounds never naturally end
+        ma_sound_set_end_callback(instance.get(), onSoundEnd, this);
+    }
+
+    ma_sound_start(instance.get());
+
+    ma_sound* key = instance.get();
+    mPlayingSounds[key] = std::move(instance);
+    return key;
+}
+
 void AudioEngine::setSoundPosition(ma_sound* handle, float x, float y, float z) {
     auto it = mPlayingSounds.find(handle);
     if (it == mPlayingSounds.end()) return;  // stale handle, sound already stopped/removed
     ma_sound_set_position(it->second.get(), x, y, z);
 }
+ma_engine* AudioEngine::getEngineHandle() { return &mEngine; }
 
 void AudioEngine::stopSound(ma_sound* handle) {
     auto it = mPlayingSounds.find(handle);
@@ -114,3 +143,52 @@ void AudioEngine::garbageCollect() {
     // }
     // mFinished.clear();
 }
+
+SoundHandle::SoundHandle() = default;
+
+SoundHandle::SoundHandle(AudioEngine* engine, ma_sound* sound) : mAudioEngine(engine), mSound(sound) {}
+
+void SoundHandle::stop() { mAudioEngine->stopSound(mSound); }
+
+void SoundHandle::setPosition(const glm::vec3& position) {
+    mAudioEngine->setSoundPosition(mSound, position.x, position.y, position.z);
+}
+
+void SoundHandle::setPitch(float pitch) {}
+
+SoundClip::SoundClip(AudioEngine* engine, const std::filesystem::path& path) : mSoundEngine(engine) {
+    mSound = std::make_unique<ma_sound>();
+    ma_result res =
+        ma_sound_init_from_file(mSoundEngine->getEngineHandle(),  // see note below — needs a raw ma_engine* accessor
+                                path.string().c_str(),
+                                MA_SOUND_FLAG_DECODE,  // decode fully into memory — good for SFX-sized clips
+                                nullptr, nullptr, mSound.get());
+
+    if (res != MA_SUCCESS) {
+        std::cout << "Failed to load SoundClip: " << path << " (" << res << ")\n";
+        mSound.reset();
+    }
+}
+
+SoundClip::~SoundClip() {
+    if (mSound) {
+        ma_sound_uninit(mSound.get());
+    }
+}
+
+SoundHandle SoundClip::playSound3D(const glm::vec3& position, float playbackSpeed, bool loop) {
+    SoundHandle handle{};
+    if (!mSound || !mSoundEngine) return handle;
+    ma_sound* raw_instance_handle =
+        mSoundEngine->playInstance(mSound.get(), position.x, position.y, position.z, true, loop, playbackSpeed);
+    return {mSoundEngine, raw_instance_handle};
+}
+
+SoundHandle SoundClip::playSoundAmbient(float playbackSpeed, bool loop) {
+    SoundHandle handle{};
+    if (!mSound || !mSoundEngine) return handle;
+    ma_sound* raw_instance_handle = mSoundEngine->playInstance(mSound.get(), 0, 0, 0, false, loop, playbackSpeed);
+    return {mSoundEngine, raw_instance_handle};
+}
+
+void SoundClip::stop() {}

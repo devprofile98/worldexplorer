@@ -335,64 +335,6 @@ struct JetpackBehaviour : public WeaponBehaviour {
 
 JetpackBehaviour jpbehaviour{"jp"};
 
-struct PistolBehaviour : public WeaponBehaviour {
-        PistolBehaviour(std::string name) : WeaponBehaviour(name) {
-            inactiveSocket = new BoneSocket{nullptr,
-                                            "DEF-spine001",
-                                            {0.0, -0.1, -0.1},
-                                            {0.05, 0.05, 0.05},
-                                            glm::quat({-1.04719, -0.0, -1.22173}),
-                                            AnchorType::Bone};
-
-            activeSocket = new BoneSocket{
-                nullptr,         "DEF-handR", {-0.05, 0.290, 0.09}, {0.06, 0.06, 0.06}, glm::quat({0.0, -0.26, 1.57}),
-                AnchorType::Bone};
-        }
-
-        void onFirePrimary(Model* model, const glm::vec3& characterFront) override {
-            static LineGroup debuglinegroup =
-                app->mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.2, 0.0, 8.0}).updateVisibility(true);
-            std::vector<glm::vec4> line;
-            line.push_back(glm::vec4{model->mSocket->globalPosition, 0.0});
-            line.push_back(glm::vec4{model->mSocket->globalPosition + (100.0f * glm::normalize(characterFront)), 1.0});
-            debuglinegroup.updateLines(line);
-
-            auto [w, h] = PawnBehaviour::app->getWindowSize();
-            auto [origin, ray] = PawnBehaviour::app->getCamera().getLookingRay(w, h, {w / 2, h / 2});
-            auto hit = physics::ShootRay(origin, ray, 10.0f);
-            // auto hit = physics::ShootRay(model->mSocket->globalPosition, characterFront, 100.0f);
-            if (hit.valid) {
-                JPH::BodyLockRead lock(physics::getPhysicsSystem()->GetBodyLockInterface(), hit.bodyId);
-                if (lock.Succeeded()) {
-                    // Retrieve your entity from userdata
-                    Model* entity = (Model*)lock.GetBody().GetUserData();
-                    if (entity == nullptr) return;
-                    std::cout << "Hit result: " << hit.valid << entity->getName() << std::endl;
-                }
-            }
-        }
-        // idleAction = "Pistol_Idle_Loop";
-        // attackAction = "Pistol_Shoot";
-        std::string getActionFor(ACTION action, const std::string& defaultClip) override {
-            switch (action) {
-                case ACTION::AIM:
-                    return "Pistol_Idle_Loop";
-                case ACTION::AIM_WALK:
-                    return "pistol-aim-walk";
-                case ACTION::SHOOT:
-                    return "Pistol_Shoot";
-                // case ACTION::SHOOT_RUN:
-                //     return "ak47-run-shoot";
-                case ACTION::IDLE:
-                    return "Pistol_Idle_Loop";
-                case ACTION::AIM_RUN:
-                    return "pistol-aim-run";
-                default:
-                    return defaultClip;
-            }
-        }
-};
-
 struct EnemyBehaviour : public PawnBehaviour {
         EnemyBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
         virtual void TakeDamage() {}
@@ -403,10 +345,16 @@ struct EnemyBehaviour : public PawnBehaviour {
 struct ZombieBehaviour : public EnemyBehaviour {
         int state = 0;
         ZombieBehaviour(std::string name) : EnemyBehaviour(name) {}
+        SoundClip hurt;
 
         void TakeDamage() override {
             damage -= 1;
+            hurt.playSound3D(model->mTransform.getPosition());
             std::cout << name << " Damage is " << damage << std::endl;
+        }
+
+        void onLoad(Model* model) override {
+            hurt = SoundClip(PawnBehaviour::app->audioEngine, std::filesystem::path{"/home/ahmad/Downloads/hurt.mp3"});
         }
 
         void decideAnimation() {
@@ -461,6 +409,77 @@ struct ZombieBehaviour : public EnemyBehaviour {
 };
 
 ZombieBehaviour zombiebehaviour{"zombie"};
+
+struct PistolBehaviour : public WeaponBehaviour {
+        SoundClip fire{};
+        PistolBehaviour(std::string name) : WeaponBehaviour(name) {
+            inactiveSocket = new BoneSocket{nullptr,
+                                            "DEF-spine001",
+                                            {0.0, -0.1, -0.1},
+                                            {0.05, 0.05, 0.05},
+                                            glm::quat({-1.04719, -0.0, -1.22173}),
+                                            AnchorType::Bone};
+
+            activeSocket = new BoneSocket{
+                nullptr,         "DEF-handR", {-0.05, 0.290, 0.09}, {0.06, 0.06, 0.06}, glm::quat({0.0, -0.26, 1.57}),
+                AnchorType::Bone};
+        }
+
+        void onLoad(Model* model) override {
+            fire = SoundClip(PawnBehaviour::app->audioEngine, std::filesystem::path{"/home/ahmad/Downloads/fire.mp3"});
+        }
+
+        void onFirePrimary(Model* model, const glm::vec3& characterFront) override {
+            static LineGroup debuglinegroup =
+                app->mLineEngine->create(generateBox(), glm::mat4{1.0}, {0.2, 0.0, 8.0}).updateVisibility(true);
+            std::vector<glm::vec4> line;
+            line.push_back(glm::vec4{model->mSocket->globalPosition, 0.0});
+            line.push_back(glm::vec4{model->mSocket->globalPosition + (100.0f * glm::normalize(characterFront)), 1.0});
+            debuglinegroup.updateLines(line);
+
+            const auto& pos = model->mTransform.getPosition();
+            fire.playSound3D(pos);
+
+            auto [w, h] = PawnBehaviour::app->getWindowSize();
+            auto [origin, ray] = PawnBehaviour::app->getCamera().getLookingRay(w, h, {w / 2, h / 2});
+            auto hit = physics::ShootRay(origin, ray, 10.0f);
+            // auto hit = physics::ShootRay(model->mSocket->globalPosition, characterFront, 100.0f);
+            if (hit.valid) {
+                JPH::BodyLockRead lock(physics::getPhysicsSystem()->GetBodyLockInterface(), hit.bodyId);
+                if (lock.Succeeded()) {
+                    // Retrieve your entity from userdata
+                    Model* entity = (Model*)lock.GetBody().GetUserData();
+                    if (entity == nullptr) return;
+                    std::cout << "Hit result: " << hit.valid << entity->getName() << std::endl;
+
+                    if (entity && entity->getName() == "zombie") {
+                        ZombieBehaviour* zombie = static_cast<ZombieBehaviour*>(entity->mBehaviour);
+                        zombie->TakeDamage();
+                    }
+                }
+            }
+        }
+        // idleAction = "Pistol_Idle_Loop";
+        // attackAction = "Pistol_Shoot";
+        std::string getActionFor(ACTION action, const std::string& defaultClip) override {
+            switch (action) {
+                case ACTION::AIM:
+                    return "Pistol_Idle_Loop";
+                case ACTION::AIM_WALK:
+                    return "pistol-aim-walk";
+                case ACTION::SHOOT:
+                    return "Pistol_Shoot";
+                // case ACTION::SHOOT_RUN:
+                //     return "ak47-run-shoot";
+                case ACTION::IDLE:
+                    return "Pistol_Idle_Loop";
+                case ACTION::AIM_RUN:
+                    return "pistol-aim-run";
+                default:
+                    return defaultClip;
+            }
+        }
+};
 
 struct Ak47Behaviour : public WeaponBehaviour {
         Ak47Behaviour(std::string name) : WeaponBehaviour(name) {
@@ -1537,6 +1556,7 @@ struct JeepBehaviour : public PawnBehaviour {
             auto& pos = model->mTransform.getPosition();
             PawnBehaviour::app->getAudioEngine()->playLooping("/home/ahmad/Downloads/caridle.mp3", pos.x, pos.y, pos.z,
                                                               true, 1.0);
+            // SoundClip engine_idle{PawnBehaviour::app->getAudioEngine(), ""};
         }
 };
 

@@ -17,6 +17,7 @@
 
 #include "animation.h"
 #include "application.h"
+#include "audio_engine.h"
 #include "extern/json.hpp"
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/matrix_transform.hpp"
@@ -861,6 +862,13 @@ void parseMaterial(Application* app, const json& materials) {
     }
 }
 
+void parseAudios(Application* app, const json& audios) {
+    for (auto& audio : audios) {
+        std::cout << "Loading sound " << audio["name"] << " from " << audio["path"] << "\n";
+        app->audioEngine->preloadSound(audio["path"]);
+    }
+}
+
 std::optional<SocketParams> parseSocketParam(const json& params) {
     if (params.is_null()) {
         return std::nullopt;
@@ -975,6 +983,9 @@ void World::loadWorld() {
     auto* light_manager = app->mLightManager;
     parseLights(light_manager, res["lights"]);
     parseMaterial(app, res["materials"]);
+    if (res.count("audios") > 0) {
+        parseAudios(app, res["audios"]);
+    }
 
     actorName = res["actor"].get<std::string>();
 
