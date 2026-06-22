@@ -349,7 +349,7 @@ struct ZombieBehaviour : public EnemyBehaviour {
 
         void TakeDamage() override {
             damage -= 1;
-            hurt.playSound3D(model->mTransform.getPosition());
+            // hurt.playSound3D(model->mTransform.getPosition());
             std::cout << name << " Damage is " << damage << std::endl;
         }
 
@@ -438,7 +438,7 @@ struct PistolBehaviour : public WeaponBehaviour {
             debuglinegroup.updateLines(line);
 
             const auto& pos = model->mTransform.getPosition();
-            fire.playSound3D(pos);
+            // fire.playSound3D(pos);
 
             auto [w, h] = PawnBehaviour::app->getWindowSize();
             auto [origin, ray] = PawnBehaviour::app->getCamera().getLookingRay(w, h, {w / 2, h / 2});
@@ -504,8 +504,8 @@ struct Ak47Behaviour : public WeaponBehaviour {
             auto [origin, ray] = PawnBehaviour::app->getCamera().getLookingRay(w, h, {w / 2, h / 2});
             auto hit = physics::ShootRay(origin, ray, 10.0f);
 
-            PawnBehaviour::app->getAudioEngine()->playSound3D("/home/ahmad/Downloads/fire.mp3", origin.x, origin.y,
-                                                              origin.z);
+            // PawnBehaviour::app->getAudioEngine()->playSound3D("/home/ahmad/Downloads/fire.mp3", origin.x, origin.y,
+            //                                                   origin.z);
 
             if (hit.valid) {
                 JPH::BodyLockRead lock(physics::getPhysicsSystem()->GetBodyLockInterface(), hit.bodyId);
@@ -1229,19 +1229,25 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
 
             decideCurrentAnimation(static_cast<Model*>(model), dt);
 
-            static ma_sound* footstep_sound = nullptr;
+            static SoundHandle footstep_sound;
+
             if (isWalking || isRunning) {
                 auto& pos = model->mTransform.getPosition();
-                if (footstep_sound == nullptr) {
-                    footstep_sound = PawnBehaviour::app->getAudioEngine()->playLooping(
-                        "/home/ahmad/Downloads/footstep.mp3", pos.x, pos.y, pos.z, true, isWalking ? 0.5 : (1.0));
+                if (!footstep_sound.isValid()) {
+                    footstep_sound = footstep.playSound3D(pos, 0.5, true);
                 } else {
-                    PawnBehaviour::app->getAudioEngine()->setSoundPosition(footstep_sound, pos.x, pos.y, pos.z);
+                    footstep_sound.setPosition(pos);
                 }
+                // footstep_sound = PawnBehaviour::app->getAudioEngine()->playLooping(
+                //     "/home/ahmad/Downloads/footstep.mp3", pos.x, pos.y, pos.z, true, isWalking ? 0.5 : (1.0));
+                // } else {
+                //     PawnBehaviour::app->getAudioEngine()->setSoundPosition(footstep_sound, pos.x, pos.y, pos.z);
+                // }
             }
-            if (!isWalking && footstep_sound != nullptr) {
-                PawnBehaviour::app->getAudioEngine()->stopSound(footstep_sound);
-                footstep_sound = nullptr;
+            if (!isWalking && footstep_sound.isValid()) {
+                // PawnBehaviour::app->getAudioEngine()->stopSound(footstep_sound);
+                footstep_sound.stop();
+                // footstep_sound = nullptr;
             }
 
             auto current_speed = speed;
@@ -1324,9 +1330,11 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
         }
 
         glm::vec3 getForward() override { return glm::normalize(glm::cross(front, up)); }
-
+        SoundClip footstep;
         void onLoad(Model* model) override {
             std::cout << "Character Human just created\n" << model->getName() << std::endl;
+
+            footstep = {PawnBehaviour::app->getAudioEngine(), "footstep"};
 
             physicalCharacter = physics::createCharacter(physics::createCapsuleShape(0.4f, 0.130f), {0.0, 0.0, 2},
                                                          reinterpret_cast<JPH::uint64>(model));
@@ -1554,9 +1562,11 @@ struct JeepBehaviour : public PawnBehaviour {
 
         void onLoad(Model* model) override {
             auto& pos = model->mTransform.getPosition();
-            PawnBehaviour::app->getAudioEngine()->playLooping("/home/ahmad/Downloads/caridle.mp3", pos.x, pos.y, pos.z,
-                                                              true, 1.0);
-            // SoundClip engine_idle{PawnBehaviour::app->getAudioEngine(), ""};
+            // PawnBehaviour::app->getAudioEngine()->playLooping("/home/ahmad/Downloads/caridle.mp3", pos.x, pos.y,
+            // pos.z,
+            //                                                   true, 1.0);
+            SoundClip engine_idle{PawnBehaviour::app->getAudioEngine(), "caridle"};
+            engine_idle.playSound3D(pos, 1.0, true);
         }
 };
 

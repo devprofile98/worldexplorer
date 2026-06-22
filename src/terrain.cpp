@@ -157,7 +157,8 @@ Model& TerrainModel::load(std::string name, Application* app, const std::filesys
                           WGPUBindGroupLayout layout) {
     Drawable::configure(app);
 
-    app->getAudioEngine()->playLooping("/home/ahmad/Downloads/wind.mp3", 0, 0, 0, false);
+    SoundClip wind = SoundClip{mApp->getAudioEngine(), "wind"};
+    wind.playSoundAmbient().loop(true);
 
     mGlobalMeshTransformationBuffer.setLabel("global mesh transformations buffer")
         .setSize(sizeof(glm::mat4))

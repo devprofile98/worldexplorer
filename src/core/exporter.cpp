@@ -172,6 +172,50 @@ bool exportModels(const fs::path& assetDir, json& objects) {
     return true;
 }
 
+bool exportAudios(const fs::path& assetDir, json& audios) {
+    std::error_code ec;
+    auto audio_dir = assetDir / "audios";
+    fs::create_directories(audio_dir, ec);
+    // std::array<std::string, 3> keys = {"diffuse_map", "normal_map", "specular_map"};
+
+    if (ec) {
+        std::cerr << "Failed to create 'audio' direcotry at " << assetDir.string() << ", Quiting!\n";
+        return false;
+    }
+
+    for (auto& audio : audios) {
+        std::error_code ec;
+        auto name = audio["name"].get<std::string>();
+        auto path = audio["path"].get<std::string>();
+
+        if (name.empty() || path.empty()) {
+            std::cerr << "audio has no name, so it will be ignored\n";
+            continue;
+        }
+
+        fs::create_directories(audio_dir / name, ec);
+        if (ec) {
+        } else {
+            // std::array<json, 3> paths = {path};
+            // int index = 0;
+            // for (const auto& path : paths) {
+            // if (path.is_null()) {
+            //     continue;
+            //     index++;
+            // }
+            auto entry = fs::path(path);
+            auto target_path = audio_dir / name / entry.filename();
+            bool copied = fs::copy_file(entry, target_path, fs::copy_options::update_existing, ec);
+            if (copied) {
+                audio[path] = "rc://" + std::filesystem::relative(target_path, assetDir).string();
+            }
+            // index++;
+            // }
+        }
+    }
+    return true;
+}
+
 bool exportMaterials(const fs::path& assetDir, json& materials) {
     std::error_code ec;
     auto mat_dir = assetDir / "materials";
@@ -238,6 +282,7 @@ int main(int argc, char** argv) {
 
     exportModels(asset_dir, res["objects"]);
     exportMaterials(asset_dir, res["materials"]);
+    exportAudios(asset_dir, res["audios"]);
 
     std::ofstream out;
     out.open(asset_dir / "scene.json", std::ios::trunc);

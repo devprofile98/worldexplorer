@@ -15,18 +15,18 @@ class AudioEngine {
         bool init();
         void shutdown();
         void updateListener(float px, float py, float pz, float fx, float fy, float fz);
-        void playSound3D(const std::string& path, float x, float y, float z);
-        void preloadSound(const std::string& path);
+        void playSound3D(const std::string& id, float x, float y, float z);
+        void preloadSound(const std::string& id, const std::string& path);
 
         void stopSound(ma_sound* handle);
-        ma_sound* playLooping(const std::string& path, float x, float y, float z, bool spatial = true,
+        ma_sound* playLooping(const std::string& id, float x, float y, float z, bool spatial = true,
                               float playbackSpeed = 1.0);
         ma_sound* playInstance(ma_sound* master, float x, float y, float z, bool spatial, bool loop,
                                float playbackSpeed);
         void setSoundPosition(ma_sound* handle, float x, float y, float z);
         ma_engine* getEngineHandle();
 
-    private:
+        // private:
         static inline void onSoundEnd(void* userData, ma_sound* sound) {
             auto* self = static_cast<AudioEngine*>(userData);
             self->mFinished.push_back(sound);
@@ -45,8 +45,10 @@ class SoundHandle {
         SoundHandle();
         SoundHandle(AudioEngine* engine, ma_sound* sound);
         void stop();
-        void setPosition(const glm::vec3& position);
-        void setPitch(float pitch);
+        SoundHandle& setPosition(const glm::vec3& position);
+        SoundHandle& setPitch(float pitch);
+        SoundHandle& loop(bool loop);
+        bool isValid() const;
 
     private:
         AudioEngine* mAudioEngine = nullptr;
@@ -55,21 +57,15 @@ class SoundHandle {
 
 class SoundClip {
     public:
-        SoundClip() {};
-        SoundClip(AudioEngine* engine, const std::filesystem::path& path);
+        SoundClip() = default;
+        SoundClip(AudioEngine* engine, const std::string& id);
         ~SoundClip();
         SoundHandle playSound3D(const glm::vec3& position, float playbackSpeed = 1.0, bool loop = false);
         SoundHandle playSoundAmbient(float playbackSpeed = 1.0, bool loop = false);
         void stop();
 
-        SoundClip(const SoundClip&) = delete;
-        SoundClip& operator=(const SoundClip&) = delete;
-
-        SoundClip(SoundClip&&) = default;
-        SoundClip& operator=(SoundClip&&) = default;
-
     private:
-        std::unique_ptr<ma_sound> mSound;
+        ma_sound* mSound = nullptr;
         AudioEngine* mSoundEngine = nullptr;
 };
 

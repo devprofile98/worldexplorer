@@ -865,7 +865,7 @@ void parseMaterial(Application* app, const json& materials) {
 void parseAudios(Application* app, const json& audios) {
     for (auto& audio : audios) {
         std::cout << "Loading sound " << audio["name"] << " from " << audio["path"] << "\n";
-        app->audioEngine->preloadSound(audio["path"]);
+        app->audioEngine->preloadSound(audio["name"], audio["path"]);
     }
 }
 

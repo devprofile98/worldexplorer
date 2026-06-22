@@ -12,7 +12,7 @@ void AudioEngine::shutdown() {
     }
     mPlayingSounds.clear();
 
-    for (auto& [path, sound] : mSoundCache) {
+    for (auto& [id, sound] : mSoundCache) {
         ma_sound_uninit(sound.get());
     }
     mSoundCache.clear();
@@ -25,8 +25,8 @@ void AudioEngine::updateListener(float px, float py, float pz, float fx, float f
     ma_engine_listener_set_direction(&mEngine, 0, fx, fy, fz);
 }
 
-void AudioEngine::preloadSound(const std::string& path) {
-    if (mSoundCache.contains(path)) return;
+void AudioEngine::preloadSound(const std::string& id, const std::string& path) {
+    if (mSoundCache.contains(id)) return;
 
     auto baseSound = std::make_unique<ma_sound>();
     auto res = ma_sound_init_from_file(&mEngine, path.c_str(), MA_SOUND_FLAG_DECODE, NULL, NULL, baseSound.get());
@@ -34,21 +34,22 @@ void AudioEngine::preloadSound(const std::string& path) {
         std::cout << "Failed to preload " << path << " (" << res << ")\n";
         return;
     }
-    mSoundCache[path] = std::move(baseSound);
+    mSoundCache[id] = std::move(baseSound);
 }
 
-void AudioEngine::playSound3D(const std::string& path, float x, float y, float z) {
-    auto it = mSoundCache.find(path);
+void AudioEngine::playSound3D(const std::string& id, float x, float y, float z) {
+    auto it = mSoundCache.find(id);
     if (it == mSoundCache.end()) {
-        preloadSound(path);  // lazy-load on first use
-        it = mSoundCache.find(path);
-        if (it == mSoundCache.end()) return;  // load failed
+        // preloadSound(path);  // lazy-load on first use
+        // it = mSoundCache.find(path);
+        // if (it == mSoundCache.end())
+        return;  // load failed
     }
 
     auto instance = std::make_unique<ma_sound>();
     auto res = ma_sound_init_copy(&mEngine, it->second.get(), 0, NULL, instance.get());
     if (res != MA_SUCCESS) {
-        std::cout << "Failed to spawn instance of " << path << " (" << res << ")\n";
+        std::cout << "Failed to spawn instance of " << id << " (" << res << ")\n";
         return;
     }
 
@@ -59,19 +60,20 @@ void AudioEngine::playSound3D(const std::string& path, float x, float y, float z
     mPlayingSounds[instance.get()] = std::move(instance);
 }
 
-ma_sound* AudioEngine::playLooping(const std::string& path, float x, float y, float z, bool spatial,
+ma_sound* AudioEngine::playLooping(const std::string& id, float x, float y, float z, bool spatial,
                                    float playbackSpeed) {
-    auto it = mSoundCache.find(path);
+    auto it = mSoundCache.find(id);
     if (it == mSoundCache.end()) {
-        preloadSound(path);
-        it = mSoundCache.find(path);
-        if (it == mSoundCache.end()) return nullptr;
+        // preloadSound(path);
+        // it = mSoundCache.find(path);
+        // if (it == mSoundCache.end())
+        return nullptr;
     }
 
     auto instance = std::make_unique<ma_sound>();
     auto res = ma_sound_init_copy(&mEngine, it->second.get(), 0, NULL, instance.get());
     if (res != MA_SUCCESS) {
-        std::cout << "Failed to spawn looping instance of " << path << " (" << res << ")\n";
+        std::cout << "Failed to spawn looping instance of " << id << " (" << res << ")\n";
         return nullptr;
     }
 
@@ -148,46 +150,53 @@ SoundHandle::SoundHandle() = default;
 
 SoundHandle::SoundHandle(AudioEngine* engine, ma_sound* sound) : mAudioEngine(engine), mSound(sound) {}
 
-void SoundHandle::stop() { mAudioEngine->stopSound(mSound); }
-
-void SoundHandle::setPosition(const glm::vec3& position) {
-    mAudioEngine->setSoundPosition(mSound, position.x, position.y, position.z);
+void SoundHandle::stop() {
+    mAudioEngine->stopSound(mSound);
+    mSound = nullptr;
 }
 
-void SoundHandle::setPitch(float pitch) {}
+SoundHandle& SoundHandle::setPosition(const glm::vec3& position) {
+    mAudioEngine->setSoundPosition(mSound, position.x, position.y, position.z);
+    return *this;
+}
 
-SoundClip::SoundClip(AudioEngine* engine, const std::filesystem::path& path) : mSoundEngine(engine) {
-    mSound = std::make_unique<ma_sound>();
-    ma_result res =
-        ma_sound_init_from_file(mSoundEngine->getEngineHandle(),  // see note below — needs a raw ma_engine* accessor
-                                path.string().c_str(),
-                                MA_SOUND_FLAG_DECODE,  // decode fully into memory — good for SFX-sized clips
-                                nullptr, nullptr, mSound.get());
+SoundHandle& SoundHandle::setPitch(float pitch) {
+    ma_sound_set_pitch(mSound, pitch);
+    return *this;
+}
 
-    if (res != MA_SUCCESS) {
-        std::cout << "Failed to load SoundClip: " << path << " (" << res << ")\n";
-        mSound.reset();
+SoundHandle& SoundHandle::loop(bool loop) {
+    ma_sound_set_looping(mSound, loop ? MA_TRUE : MA_FALSE);
+    return *this;
+}
+
+bool SoundHandle::isValid() const { return mAudioEngine != nullptr && mSound != nullptr; }
+
+SoundClip::SoundClip(AudioEngine* engine, const std::string& id) : mSoundEngine(engine) {
+    mSound = engine->mSoundCache[id].get();
+    if (!mSound) {
+        std::cout << "Failed to load SoundClip: " << id << "\n";
     }
 }
 
 SoundClip::~SoundClip() {
-    if (mSound) {
-        ma_sound_uninit(mSound.get());
-    }
+    // if (mSound) {
+    //     ma_sound_uninit(mSound.get());
+    // }
 }
 
 SoundHandle SoundClip::playSound3D(const glm::vec3& position, float playbackSpeed, bool loop) {
     SoundHandle handle{};
     if (!mSound || !mSoundEngine) return handle;
     ma_sound* raw_instance_handle =
-        mSoundEngine->playInstance(mSound.get(), position.x, position.y, position.z, true, loop, playbackSpeed);
+        mSoundEngine->playInstance(mSound, position.x, position.y, position.z, true, loop, playbackSpeed);
     return {mSoundEngine, raw_instance_handle};
 }
 
 SoundHandle SoundClip::playSoundAmbient(float playbackSpeed, bool loop) {
     SoundHandle handle{};
     if (!mSound || !mSoundEngine) return handle;
-    ma_sound* raw_instance_handle = mSoundEngine->playInstance(mSound.get(), 0, 0, 0, false, loop, playbackSpeed);
+    ma_sound* raw_instance_handle = mSoundEngine->playInstance(mSound, 0, 0, 0, false, loop, playbackSpeed);
     return {mSoundEngine, raw_instance_handle};
 }
 
