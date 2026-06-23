@@ -239,7 +239,7 @@ struct TTerrain : public IModel {
         };
 };
 
-USER_REGISTER_MODEL("terrain", TTerrain);
+ USER_REGISTER_MODEL("terrain", TTerrain);
 
 Cube::Cube(Application* app) : Model(CoordinateSystem::Z_UP) {
     BaseModel::mName = "cube22";

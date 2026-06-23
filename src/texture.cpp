@@ -431,8 +431,9 @@ void generateMipmapCompute(Texture* texture, size_t mipLevel, uint32_t layerCoun
     auto [width, height] = texture->getTextureSize();
     for (uint32_t layer = 0; layer < layerCount; ++layer) {
         for (uint8_t lvl = 1; lvl < mipLevel; ++lvl) {
-            std::cout << "mip level " << ((size_t)lvl) << " for " << texture->getName() << " : " << texture->getPath()
-                      << std::endl;
+            // std::cout << "mip level " << ((size_t)lvl) << " for " << texture->getName() << " : " <<
+            // texture->getPath()
+            //           << std::endl;
             uint8_t src_mip = lvl - 1;
             uint8_t dst_mip = lvl;
 
@@ -461,8 +462,8 @@ void generateMipmapCompute(Texture* texture, size_t mipLevel, uint32_t layerCoun
                 .createLayout(rc, "mip");
             bind_group.create(app->getRendererResource(), entries);
 
-            uint32_t dstWidth = std::max(1u, (uint)width >> lvl);
-            uint32_t dstHeight = std::max(1u, (uint)height >> lvl);
+            uint32_t dstWidth = std::max(1u, (uint32_t)width >> lvl);
+            uint32_t dstHeight = std::max(1u, (uint32_t)height >> lvl);
 
             uint32_t workgroup_size_x = (dstWidth + 7) / 8;  // ceil division for workgroup size 8
             uint32_t workgroup_size_y = (dstHeight + 7) / 8;

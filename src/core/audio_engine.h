@@ -59,6 +59,8 @@ class SoundClip {
     public:
         SoundClip() = default;
         SoundClip(AudioEngine* engine, const std::string& id);
+        SoundClip(const SoundClip&) = default;
+        SoundClip& operator=(const SoundClip&) = default;
         ~SoundClip();
         SoundHandle playSound3D(const glm::vec3& position, float playbackSpeed = 1.0, bool loop = false);
         SoundHandle playSoundAmbient(float playbackSpeed = 1.0, bool loop = false);

@@ -354,7 +354,8 @@ struct ZombieBehaviour : public EnemyBehaviour {
         }
 
         void onLoad(Model* model) override {
-            hurt = SoundClip(PawnBehaviour::app->audioEngine, std::filesystem::path{"/home/ahmad/Downloads/hurt.mp3"});
+            hurt = SoundClip{PawnBehaviour::app->audioEngine,
+                             std::filesystem::path{"/home/ahmad/Downloads/hurt.mp3"}.string()};
         }
 
         void decideAnimation() {
@@ -426,7 +427,8 @@ struct PistolBehaviour : public WeaponBehaviour {
         }
 
         void onLoad(Model* model) override {
-            fire = SoundClip(PawnBehaviour::app->audioEngine, std::filesystem::path{"/home/ahmad/Downloads/fire.mp3"});
+            fire = SoundClip{PawnBehaviour::app->audioEngine,
+                             std::filesystem::path{"/home/ahmad/Downloads/fire.mp3"}.string()};
         }
 
         void onFirePrimary(Model* model, const glm::vec3& characterFront) override {
@@ -704,7 +706,7 @@ struct HumanInputHandler : public InputHandler, public PawnBehaviour {
               targetOffset(0.0, 0.0, 0.2),
               roll(0.0f),
               yaw(90.0f),
-              speed(20.0f),
+              speed(50.0f),
               isWalking(false),
               isRunning(false),
               isAiming(false),
@@ -1478,6 +1480,8 @@ struct TreeBehaviour : public PawnBehaviour {
 
 TreeBehaviour treebehaviour{"tree"};
 
+void oakTreeOnLoad(Model* target, void* args);
+
 struct OakTreeBehaviour : public PawnBehaviour {
         OakTreeBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
 
@@ -1490,72 +1494,70 @@ struct OakTreeBehaviour : public PawnBehaviour {
 
             this->model = model;
             // auto* query = new ModelQuery{};
-            std::optional<Model*> model_opt = ModelRegistry::instance().query(
-                "terrain",
-                [](Model* target, void* args) {
-                    TreeBehaviour* self = reinterpret_cast<TreeBehaviour*>(args);
-                    Model* src_model = self->model;
-                    std::vector<glm::vec3> poss = {};
-                    std::vector<glm::vec3> rots = {};
-                    std::vector<glm::vec3> scales = {};
-                    std::vector<bool> phys = {};
-
-                    std::random_device rd;
-                    std::mt19937 gen(rd());
-                    std::uniform_real_distribution<float> dist(0, 200);
-                    for (size_t i = 0; i < 20;) {
-                        float x = dist(gen);
-                        float y = dist(gen);
-                        float z = Terrain::perlin(x, y);
-                        if (z > 217 && z < 260) {
-                            ++i;
-                            poss.push_back(target->mTransform.getLocalTransform() *
-                                           glm::vec4{x - 50, y - 50, z * 0.1 - 25.0f, 1.0});
-                            rots.push_back(src_model->mTransform.getEulerRotation());
-                            scales.push_back(src_model->mTransform.getScale());
-                            phys.push_back(false);
-                        }
-                    }
-
-                    auto* ins = new Instance{poss,
-                                             rots,
-                                             scales,
-                                             phys,
-                                             glm::vec4{src_model->min, 1.0f},
-                                             glm::vec4{src_model->max, 1.0f},
-                                             src_model->mFlattenMeshes.begin()->second.mWindParams};
-                    ins->parent = src_model;
-                    ins->mManager = self->app->mInstanceManager;
-                    ins->mPositions = {};
-                    ins->mScale = {};
-                    ins->mOffsetID = self->app->mInstanceManager->getNewId();
-
-                    src_model->mTransform.mObjectInfo.instanceOffsetId = ins->mOffsetID;
-                    src_model->mTransform.mDirty = true;
-                    src_model->setInstanced(ins);
-
-                    ins->mManager->getInstancingBuffer().queueWrite(
-                        (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData),
-                        ins->mInstanceBuffer.data(), sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
-
-                    src_model->mIndirectDrawArgsBuffer
-                        .setLabel(("indirect draw args buffer for " + src_model->getName()).c_str())
-                        .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
-                                  WGPUBufferUsage_CopyDst)
-                        .setSize(sizeof(DrawIndexedIndirectArgs))
-                        .setMappedAtCraetion()
-                        .create(&self->app->getRendererResource());
-
-                    std::cout << "modelllllllllllllllllllllllllllllllllllll had value\n";
-                },
-                this);
+            std::optional<Model*> model_opt = ModelRegistry::instance().query("terrain", oakTreeOnLoad, this);
             if (model_opt.has_value()) {
                 std::cout << "mode had value\n";
+                oakTreeOnLoad(model_opt.value(), this);
             }
         }
 };
 
 OakTreeBehaviour oaktreebehaviour{"oaktree"};
+
+void oakTreeOnLoad(Model* target, void* args) {
+    OakTreeBehaviour* self = reinterpret_cast<OakTreeBehaviour*>(args);
+    Model* src_model = self->model;
+    std::vector<glm::vec3> poss = {};
+    std::vector<glm::vec3> rots = {};
+    std::vector<glm::vec3> scales = {};
+    std::vector<bool> phys = {};
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dist(0, 200);
+    for (size_t i = 0; i < 20;) {
+        float x = dist(gen);
+        float y = dist(gen);
+        float z = Terrain::perlin(x, y);
+        if (z > 217 && z < 260) {
+            ++i;
+            poss.push_back(target->mTransform.getLocalTransform() * glm::vec4{x - 50, y - 50, z * 0.1 - 25.0f, 1.0});
+            rots.push_back(src_model->mTransform.getEulerRotation());
+            scales.push_back(src_model->mTransform.getScale());
+            phys.push_back(false);
+        }
+    }
+
+    auto* ins = new Instance{poss,
+                             rots,
+                             scales,
+                             phys,
+                             glm::vec4{src_model->min, 1.0f},
+                             glm::vec4{src_model->max, 1.0f},
+                             src_model->mFlattenMeshes.begin()->second.mWindParams};
+    ins->parent = src_model;
+    ins->mManager = self->app->mInstanceManager;
+    ins->mPositions = {};
+    ins->mScale = {};
+    ins->mOffsetID = self->app->mInstanceManager->getNewId();
+
+    src_model->mTransform.mObjectInfo.instanceOffsetId = ins->mOffsetID;
+    src_model->mTransform.mDirty = true;
+    src_model->setInstanced(ins);
+
+    ins->mManager->getInstancingBuffer().queueWrite(
+        (InstanceManager::MAX_INSTANCE_COUNT * ins->mOffsetID) * sizeof(InstanceData), ins->mInstanceBuffer.data(),
+        sizeof(InstanceData) * (ins->mInstanceBuffer.size()));
+
+    src_model->mIndirectDrawArgsBuffer.setLabel(("indirect draw args buffer for " + src_model->getName()).c_str())
+        .setUsage(WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopySrc |
+                  WGPUBufferUsage_CopyDst)
+        .setSize(sizeof(DrawIndexedIndirectArgs))
+        .setMappedAtCraetion()
+        .create(&self->app->getRendererResource());
+
+    std::cout << "modelllllllllllllllllllllllllllllllllllll had value\n";
+}
 
 struct JeepBehaviour : public PawnBehaviour {
         JeepBehaviour(std::string name) { ModelRegistry::instance().registerBehaviour(name, this); }
