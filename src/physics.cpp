@@ -261,7 +261,7 @@ void updateCharacter(CharacterVirtual* physicalCharacter, float dt, Vec3 movemen
 
     // This is the key line — tell it what horizontal velocity you want on the ground
     update_settings.mStickToFloorStepDown = JPH::Vec3(0, -0.5f, 0);  // optional: step down small ledges
-    update_settings.mWalkStairsStepUp = JPH::Vec3(0, 0.4f, 0);       // optional: climb stairs
+    update_settings.mWalkStairsStepUp = JPH::Vec3(0, 0.2f, 0);       // optional: climb stairs
                                                                      //
     physicalCharacter->ExtendedUpdate(
         dt, JPH::Vec3(0.0, -9.81, 0.0),  // gravity
@@ -300,6 +300,7 @@ static Ref<Shape> CreateBottomOriginBoxShape(const glm::vec3& half_extents) {
     Vec3 shape_offset(0.0f, 0.0, 0.0f);
 
     BoxShapeSettings box_settings(toJolt(half_extents));
+    box_settings.SetDensity(100);
     Ref<Shape> box_shape = box_settings.Create().Get();
 
     RotatedTranslatedShapeSettings offset_shape_settings(shape_offset, Quat::sIdentity(), box_shape);
@@ -404,7 +405,7 @@ std::pair<glm::vec3, glm::quat> getPositionAndRotationyId(BodyID id) {
     Quat rotation = boxTransform.GetQuaternion();
     auto y = rotation.GetY();
     rotation.SetY(rotation.GetZ());
-    // negative sing is CRITICAL to sync the physical world with the renderer world
+    // negative sign is CRITICAL to sync the physical world with the renderer world
     rotation.SetZ(-y);
 
     glm::quat glm_rot;
@@ -523,7 +524,8 @@ Body* createPhysicFromShape(const std::vector<uint32_t> indices, const std::vect
     return body;
 }
 
-Body* createPhysicFromShape(const std::unordered_map<int, Mesh> meshes, const glm::mat4& transformMatrix,
+Body* createPhysicFromShape(const glm::vec3& inPos, const glm::quat& inRot, MotionType motionType,
+                            const std::unordered_map<int, Mesh> meshes, const glm::mat4& transformMatrix,
                             std::vector<std::vector<glm::vec4>>& outVertices) {
     StaticCompoundShapeSettings compound_settings;
     bool has_any_shape = false;
@@ -541,11 +543,13 @@ Body* createPhysicFromShape(const std::unordered_map<int, Mesh> meshes, const gl
             uint32_t i1 = indices[i + 1];
             uint32_t i2 = indices[i + 2];
 
-            auto p = transformMatrix * glm::vec4{vertices[i0].position, 1.0};
-            auto p1 = transformMatrix * glm::vec4{vertices[i1].position, 1.0};
-            auto p2 = transformMatrix * glm::vec4{vertices[i2].position, 1.0};
+            // auto p = transformMatrix * glm::vec4{vertices[i0].position, 1.0};
+            // auto p1 = transformMatrix * glm::vec4{vertices[i1].position, 1.0};
+            // auto p2 = transformMatrix * glm::vec4{vertices[i2].position, 1.0};
+            auto p = glm::vec4{vertices[i0].position, 1.0};
+            auto p1 = glm::vec4{vertices[i1].position, 1.0};
+            auto p2 = glm::vec4{vertices[i2].position, 1.0};
 
-            // std::cout << glm::to_string(p) << " " << glm::to_string(p1) << " " << glm::to_string(p2) << "\n";
             out_vertices.emplace_back(p.x, p.y, p.z, 0.0f);
             out_vertices.emplace_back(p1.x, p1.y, p1.z, 0.0f);
             out_vertices.emplace_back(p2.x, p2.y, p2.z, 1.0f);
@@ -564,6 +568,7 @@ Body* createPhysicFromShape(const std::unordered_map<int, Mesh> meshes, const gl
         if (result.HasError()) {
             continue;
         }
+
         RefConst<Shape> shape = result.Get();
         compound_settings.AddShape(Vec3::sZero(), Quat::sIdentity(), shape);
         has_any_shape = true;
@@ -581,8 +586,9 @@ Body* createPhysicFromShape(const std::unordered_map<int, Mesh> meshes, const gl
 
     RefConst<Shape> compound_shpae = compound_result.Get();
 
-    BodyCreationSettings body_settings(compound_shpae, RVec3(0, 0, 0), Quat::sIdentity(), EMotionType::Static,
-                                       Layers::MOVING);
+    BodyCreationSettings body_settings(compound_shpae, toJolt(inPos), toJolt(inRot),
+                                       static_cast<EMotionType>(motionType), Layers::NON_MOVING);
+    body_settings.mMassPropertiesOverride;
 
     BodyInterface& body_interface = physicsSystem.GetBodyInterface();
     Body* body = body_interface.CreateBody(body_settings);

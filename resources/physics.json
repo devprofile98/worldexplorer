@@ -1,0 +1,727 @@
+{
+  "actor": "human",
+  "cameras": [],
+  "colliders2": [
+    {
+      "active": true,
+      "center": [1.4199999570846558, 0.0, 0.0],
+      "half_extent": [8.029999732971191, 10.0, 0.05000000074505806],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    }
+  ],
+  "colliders": [
+    {
+      "active": true,
+      "center": [1.4199999570846558, 0.0, 0.0],
+      "half_extent": [8.029999732971191, 10.0, 0.05000000074505806],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [-6.510000228881836, 0.029999999329447746, 1.2200000286102295],
+      "half_extent": [0.11999999731779099, 9.819999694824219, 7.0],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [0.5199999809265137, 9.9399995803833, 1.2200000286102295],
+      "half_extent": [9.819999694824219, 0.10000000149011612, 7.0],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [0.49000000953674316, -10.029999732971191, 1.2200000286102295],
+      "half_extent": [9.819999694824219, 0.10000000149011612, 7.0],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    },
+    {
+      "active": true,
+      "center": [9.390000343322754, 0.0, 1.2200000286102295],
+      "half_extent": [0.10000000149011612, 10.0, 7.0],
+      "name": "new collider",
+      "shape": "box",
+      "type": "static"
+    }
+  ],
+
+  "lights": [],
+  "audios": [
+    {
+      "name": "hurt",
+      "path": "/home/ahmad/Downloads/hurt.mp3"
+    },
+    {
+      "name": "fire",
+      "path": "/home/ahmad/Downloads/fire.mp3"
+    },
+    {
+      "name": "wind",
+      "path": "/home/ahmad/Downloads/wind.mp3"
+    },
+    {
+      "name": "footstep",
+      "path": "/home/ahmad/Downloads/footstep.mp3"
+    },
+    {
+      "name": "caridle",
+      "path": "/home/ahmad/Downloads/caridle.mp3"
+    }
+  ],
+  "materials": [
+    {
+      "diffuse_map": "/home/ahmad/Downloads/dirt/dirt_floor_diff_4k.jpg",
+      "name": "floor",
+      "normal_map": "/home/ahmad/Downloads/dirt/dirt_floor_nor_dx_4k.jpg",
+      "specular_map": null
+    },
+    {
+      "diffuse_map": "/home/ahmad/Downloads/3D/Ak_47/ak-47-round.jpg",
+      "name": "ak",
+      "normal_map": null,
+      "specular_map": null
+    },
+    {
+      "diffuse_map": "/home/ahmad/Downloads/3D/Ak_47/ak-47.jpg",
+      "name": "ak47-round",
+      "normal_map": null,
+      "specular_map": null
+    },
+    {
+      "diffuse_map": "/home/ahmad/Documents/project/cpp/wgputest/resources/zombie.png",
+      "name": "zombie skin",
+      "normal_map": null,
+      "specular_map": null
+    },
+    {
+      "diffuse_map": "/home/ahmad/Downloads/sbs_-_texture_grid_pack/512x512/Teal/Prototype_Grid_Teal_05-512x512.png",
+      "name": "default",
+      "normal_map": null,
+      "specular_map": null
+    }
+  ],
+  "objects": [
+    {
+      "animated": true,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "Zombie_Idle_Loop",
+      "enabled": false,
+      "id": "zombie",
+      "instance": null,
+      "material_props": [
+        {
+          "meshes[0]": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [
+        {
+          "Mesh_0": "zombie skin"
+        }
+      ],
+      "name": "zombie",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/zombie.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      },
+      "rotate": [0.0, -0.0, 0.0],
+      "scale": [0.6000000238418579, 0.6000000238418579, 0.6000000238418579],
+      "socket": null,
+      "translate": [-3.9, 3.7, 0.0],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": false,
+      "id": "tree",
+      "instance": null,
+      "material_props": [
+        {
+          "Tree-1": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Tree-0": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "tree",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/tree3.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      },
+      "rotate": [0.0, 0.0, 0.0],
+      "scale": [2.44, 2.44, 2.44],
+      "socket": null,
+      "translate": [-2.327856540679932, 2.513000011444092, 0.0],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "y",
+      "default_clip": "",
+      "enabled": false,
+      "id": "oaktree",
+      "instance": null,
+      "material_props": [
+        {
+          "Tree-1": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Tree-0": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "oaktree",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/Tree 02/Tree.obj",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic"
+      },
+      "rotate": [0.0, 0.0, 0.0],
+      "scale": [1, 1, 1],
+      "socket": null,
+      "translate": [-2.327856540679932, 2.513000011444092, 0.0],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "terrain",
+      "instance": null,
+      "material_props": [
+        {
+          "plane": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "terrain",
+      "path": "",
+      "physics": {
+        "enabled": true,
+        "method": "mesh",
+        "type": "static"
+      },
+      "rotate": [0.0, -0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "socket": null,
+      "translate": [0.0, 0.0, 0.0],
+      "type": 1,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": false,
+      "id": "container",
+      "instance": [
+        {
+          "position": [0.0, 0.0, 0.8510000109672546],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [1.0, 1.0, 1.0],
+          "physics": null
+        },
+        {
+          "position": [
+            3.059999942779541, 2.819999933242798, 0.8510000109672546
+          ],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [0.4000000059604645, 0.4000000059604645, 0.4000000059604645],
+          "physics": {}
+        },
+        {
+          "position": [
+            2.8663108348846436, -3.880000114440918, 0.8510000109672546
+          ],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [0.4000000059604645, 0.4000000059604645, 0.4000000059604645],
+          "physics": {}
+        }
+      ],
+      "material_props": [
+        {
+          "Cube.024": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.006": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.008": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.007": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.018": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Plane.026": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "container",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/container.gltf",
+      "physics": {
+        "enabled": true,
+        "type": "dynamic",
+        "method": "mesh"
+      },
+      "rotate": [0.0, -0.0, 4.5],
+      "scale": [0.4000000059604645, 0.4000000059604645, 0.4000000059604645],
+      "socket": null,
+      "translate": [0.1889999955892563, 2.8763680458068848, 0.8507040739059448],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "floor",
+      "instance": null,
+
+      "material_props": [
+        {
+          "Cube.001": {
+            "uv": [5.0, 5.0]
+          }
+        }
+      ],
+      "materials": [
+        {
+          "Cube.001": "floor"
+        }
+      ],
+      "name": "floor",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/box.gltf",
+      "physics": null,
+      "rotate": [0.0, -0.0, 0.0],
+      "scale": [15.0, 15.0, 0.08688676357269287],
+      "socket": null,
+      "translate": [
+        1.399999976158142, -0.042466044425964355, -0.046038687229156494
+      ],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "physicbox",
+      "instance": null,
+
+      "material_props": [
+        {
+          "Cube.001": {
+            "uv": [5.0, 5.0]
+          }
+        }
+      ],
+      "materials": [
+        {
+          "Cube.001": "default"
+        }
+      ],
+      "name": "physicbox",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/box.gltf",
+      "physics": {
+        "enabled": true,
+        "method": "aabb",
+        "type": "dynamic"
+      },
+      "rotate": [0.0, -0.0, 0.0],
+      "scale": [0.2, 0.2, 0.2],
+      "socket": null,
+      "translate": [0, 0, 1],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": true,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": true,
+      "id": "human",
+      "instance": null,
+      "material_props": [
+        {
+          "Mesh_0": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "human",
+      "path": "/home/ahmad/Documents/3d/mine3.gltf",
+      "physics": null,
+      "rotate": [0.0, -1.7075473124350538e-6, 127.49799346923828],
+      "scale": [0.5, 0.5, 0.5],
+      "socket": null,
+      "translate": [
+        -3.6506898403167725, -1.7967301607131958, 0.09999996423721313
+      ],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "y",
+      "default_clip": "",
+      "enabled": true,
+      "id": "ak47",
+      "instance": null,
+      "material_props": [
+        {
+          "Round_2": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "AK_47_2": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [
+        {
+          "Round_2": "ak"
+        },
+        {
+          "AK_47_2": "ak47-round"
+        }
+      ],
+      "name": "ak47",
+      "path": "/home/ahmad/Downloads/3D/Ak_47/Ak-47.obj",
+      "physics": {
+        "enabled": true,
+        "method": "aabb",
+        "sensor": true,
+        "type": "kinematic"
+      },
+      "rotate": [270.0, 0.0, 0.0],
+      "scale": [0.001, 0.001, 0.001],
+      "socket": null,
+      "socket2": {
+        "bone_name": "DEF-neck",
+        "model_name": "human",
+        "offset": {
+          "rotate": [1.919862151145935, 0.08726654201745987, 2.268928050994873],
+          "scale": [
+            0.0020000000949949026, 0.0020000000949949026, 0.0020000000949949026
+          ],
+          "translate": [
+            -0.10000000149011612, -0.20000000298023224, -0.10000000149011612
+          ]
+        }
+      },
+      "translate": [-4.94, -8.486, 0.066],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "y",
+      "default_clip": "",
+      "enabled": false,
+      "id": "pistol",
+      "instance": null,
+      "material_props": [
+        {
+          "Object_2": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Object_1": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Object_0": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Object_7": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Object_6": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Object_5": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Object_4": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Object_3": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "pistol",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/pistol/scene.gltf",
+      "physics": null,
+      "rotate": [35.88191604614258, 69.90261840820313, -15.606586456298828],
+      "scale": [
+        0.005000001285225153, 0.005000000353902578, 0.004999999888241291
+      ],
+      "socket": {
+        "bone_name": "DEF-spine001",
+        "model_name": "human",
+        "offset": {
+          "rotate": [-1.0471975803375244, -0.0, -1.2217304706573486],
+          "scale": [
+            0.05000000074505806, 0.05000000074505806, 0.05000000074505806
+          ],
+          "translate": [0.0, -0.10000000149011612, -0.10000000149011612]
+        }
+      },
+      "translate": [
+        -0.6612125039100647, 2.8084800243377686, -2.386721134185791
+      ],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": false,
+      "id": "sword",
+      "instance": null,
+      "material_props": [
+        {
+          "Sphere": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Cube.001-1": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Cube.001-0": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "sword",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/build/.././resources/sword.gltf",
+      "physics": null,
+      "rotate": [31.04917335510254, -4.02214241027832, 163.0219268798828],
+      "scale": [
+        0.0020000007934868336, 0.0020000000949949026, 0.0020000007934868336
+      ],
+      "socket": {
+        "bone_name": "DEF-spine001",
+        "model_name": "human",
+        "offset": {
+          "rotate": [-1.65, 1.48, 1.74],
+          "scale": [0.02, 0.02, 0.02],
+          "translate": [0.16, 0.1, 0.0]
+        }
+      },
+      "translate": [
+        -0.6912139058113098, 2.8085780143737793, -2.397470474243164
+      ],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "z",
+      "default_clip": "",
+      "enabled": false,
+      "id": "torch",
+      "instance": null,
+      "material_props": [
+        {
+          "Cylinder.003": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Cylinder.002": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Cylinder.001": {
+            "uv": [1.0, 1.0]
+          }
+        },
+        {
+          "Cylinder": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "torch",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/torch.gltf",
+      "physics2": {
+        "enabled": false,
+        "type": "kinematic",
+        "sensor": true
+      },
+      "physics": null,
+      "rotate": [2.849189043045044, -2.533364772796631, 57.16878890991211],
+      "scale": [0.02999999187886715, 0.03000001050531864, 0.030000004917383194],
+      "socket2": {
+        "bone_name": "DEF-handL",
+        "model_name": "human",
+        "offset": {
+          "rotate": [0.0, -0.0, 0.0],
+          "scale": [
+            0.05999999865889549, 0.05999999865889549, 0.05999999865889549
+          ],
+          "translate": [
+            0.05000000074505806, 0.07000000029802322, 0.07999999821186066
+          ]
+        }
+      },
+      "socket": null,
+      "translate": [28, 12.6, 5.4],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "y",
+      "default_clip": "",
+      "enabled": false,
+      "id": "ferrari",
+      "instance": null,
+      "materials": [],
+      "name": "ferrari",
+      "path": "/home/ahmad/Downloads/3D/ferrari-288-gto/source/ferrari 288 gto/ferrari 288 gto.obj",
+      "physics": null,
+      "rotate": [0.9999990463256836, 0.999998927116394, -180.0],
+      "scale": [0.20000001192092896, 0.20000001192092896, 0.20000001192092896],
+      "socket": null,
+      "translate": [8.0, 6.900000095367432, -0.0],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "y",
+      "default_clip": "",
+      "enabled": false,
+      "id": "jeep",
+      "instance": null,
+      "materials": [],
+      "name": "jeep",
+      "path": "/home/ahmad/Documents/project/cpp/wgputest/resources/jeep.obj",
+      "physics": null,
+      "rotate": [-0.0, 1.0, 64.0],
+      "scale": [0.7, 0.7, 0.7],
+      "socket": null,
+      "translate": [2.0, 0.0, -0.05],
+      "type": 0,
+      "visible": true
+    },
+    {
+      "animated": false,
+      "childrens": [],
+      "cs": "y",
+      "default_clip": "",
+      "enabled": true,
+      "id": "chair",
+      "instance": null,
+      "material_props": [
+        {
+          "chair": {
+            "uv": [1.0, 1.0]
+          }
+        }
+      ],
+      "materials": [],
+      "name": "chair",
+      "path": "/home/ahmad/Documents/project/cpp/shm/examples/basic-scene/assets/models/chair.obj",
+      "physics": {
+        "enabled": true,
+        "method": "mesh",
+        "type": "static",
+        "sensor1": true
+      },
+      "rotate": [0, 0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "socket": null,
+      "translate2": [-3.0555660724639893, 0.0, 0.14],
+      "translate": [0, 2.0, 0.0],
+      "type": 0,
+      "visible": true
+    }
+  ]
+}

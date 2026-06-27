@@ -757,7 +757,8 @@ void Model::update(Application* app, float dt, float physicSimulating) {
 
     updateAnimation(dt);
 
-    if (mScene->HasAnimations() && anim->getActiveAction() && anim->getActiveAction()->hasSkining) {
+    if (mScene != nullptr && mScene->HasAnimations() && anim->getActiveAction() &&
+        anim->getActiveAction()->hasSkining) {
         mSkiningTransformationBuffer.queueWrite(0, anim->mFinalTransformations.data(),
                                                 anim->mFinalTransformations.size() * sizeof(glm::mat4));
     }
@@ -1331,7 +1332,7 @@ void Model::userInterface() {
         }
         // }
     }
-    static bool open_physics_popup = false;
+    static bool open_physics_popup = true;
 
     if (ImGui::CollapsingHeader("Physics")) {
         if (open_physics_popup) {
@@ -1352,9 +1353,18 @@ void Model::userInterface() {
                     ImGui::DragFloat3("center", glm::value_ptr(box_center));
                     ImGui::SameLine();
                     if (ImGui::Button("Center to Model")) {
-                        box_center = mTransform.getPosition();
+                        auto [min, max] = getPhysicsAABB();
+                        box_center = (min + max) * 0.5f;
+                        // box_center = mTransform.getPosition();
                     }
                     ImGui::DragFloat3("half extent", glm::value_ptr(box_half_ex));
+                    ImGui::SameLine();
+                    if (ImGui::Button("Same as Model")) {
+                        auto [min, max] = getPhysicsAABB();
+                        // auto cenetr = (min + max) * 0.5f;
+                        // auto physic_offset = cenetr - mTransform.getPosition();  // glm::vec3{0.0f};
+                        box_half_ex = (max - min) * 0.5f;
+                    }
                     if (ImGui::Combo("Motion Type", &current_physic_type, physic_types, IM_ARRAYSIZE(physic_types))) {
                         motion_type = static_cast<MotionType>(current_physic_type);
                     }
@@ -1363,6 +1373,9 @@ void Model::userInterface() {
                             mPhysicComponent = new PhysicsComponent{
                                 physics::createAndAddBody(box_half_ex, box_center, mTransform.getOrientation(),
                                                           motion_type, 0.5, 0.0f, 0.0f, 1.f, false, this)};
+
+                            // auto* bdy = physics::createPhysicFromShape(mesh.mIndexData, mesh.mVertexData,
+                            // mTransform.mTransformMatrix);
                         }
                     }
                 } else if (current_item == 1) {
@@ -1388,9 +1401,33 @@ void Model::userInterface() {
             if (ImGui::Button("Add physics")) {
                 open_physics_popup = true;
             }
+
+            if (ImGui::Button("Generate Dynamic AABB box")) {
+                auto [min, max] = getPhysicsAABB();
+
+                mPhysicComponent = new PhysicsComponent{
+                    physics::createAndAddBody((max - min) * 0.5f, (min + max) * 0.5f, mTransform.getOrientation(),
+                                              MotionType::Dynamic, 0.5, 0.0f, 0.0f, 1.f, false, this)};
+            }
+
+            if (ImGui::Button("Generate Static AABB box")) {
+                auto [min, max] = getPhysicsAABB();
+
+                mPhysicComponent = new PhysicsComponent{
+                    physics::createAndAddBody((max - min) * 0.5f, (min + max) * 0.5f, mTransform.getOrientation(),
+                                              MotionType::Static, 0.5, 0.0f, 0.0f, 1.f, false, this)};
+            }
         } else {
             ImGui::Text("Has physics type: %d", mPhysicComponent->colliderType);
             ImGui::Text("Has physics already!");
+        }
+
+        if (mPhysicComponent != nullptr) {
+            if (ImGui::Button("Remove physics")) {
+                physics::getBodyInterface().RemoveBody(mPhysicComponent->bodyId);
+                delete mPhysicComponent;
+                mPhysicComponent = nullptr;
+            }
         }
     }
     // }

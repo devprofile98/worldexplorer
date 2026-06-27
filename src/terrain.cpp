@@ -239,7 +239,7 @@ struct TTerrain : public IModel {
         };
 };
 
- USER_REGISTER_MODEL("terrain", TTerrain);
+USER_REGISTER_MODEL("terrain", TTerrain);
 
 Cube::Cube(Application* app) : Model(CoordinateSystem::Z_UP) {
     BaseModel::mName = "cube22";
@@ -346,16 +346,19 @@ Model& Cube::load(std::string name, Application* app, const std::filesystem::pat
         16, 17, 18, 16, 18, 19,  // Top
         20, 21, 22, 20, 22, 23,  // Bottom
     };
+    min = glm::vec3{-0.5, -0.5, -0.5};
+    max = glm::vec3{0.5, 0.5, 0.5};
     moveTo(glm::vec3{0.0, 0.0, -2.8});
     rotate({0.0, 0.0, 0.0}, 0.0);
+    mScene = nullptr;
 
-    auto* bdy = physics::createPhysicFromShape(mesh.mIndexData, mesh.mVertexData, mTransform.mTransformMatrix);
-
-    if (bdy != nullptr) {
-        mPhysicComponent = new PhysicsComponent{bdy->GetID()};
-    } else {
-        std::cout << "Failed to create physics from mesh!\n";
-    }
+    // auto* bdy = physics::createPhysicFromShape(mesh.mIndexData, mesh.mVertexData, mTransform.mTransformMatrix);
+    //
+    // if (bdy != nullptr) {
+    //     mPhysicComponent = new PhysicsComponent{bdy->GetID()};
+    // } else {
+    //     std::cout << "Failed to create physics from mesh!\n";
+    // }
 #ifdef WIREFRAME_ENABLED
     auto mesh_wireframe_lines = generateFromMesh(mesh.mIndexData, mesh.mVertexData);
     wireFrame = app->mLineEngine->create(mesh_wireframe_lines, mTransform.mTransformMatrix, glm::vec3{1.0, 0.0, 0.0});
@@ -365,21 +368,17 @@ Model& Cube::load(std::string name, Application* app, const std::filesystem::pat
 }
 
 void Cube::update(Application* app, float dt, float physicSimulating) {
-    if (mTransform.mDirty) {
 #ifdef WIREFRAME_ENABLED
-        wireFrame.updateTransformation(mTransform.mTransformMatrix);
+    wireFrame.updateTransformation(mTransform.mTransformMatrix);
 #endif
-        Drawable::getUniformBuffer().queueWrite(0, &mTransform.mObjectInfo, sizeof(ObjectInfo));
-        // wgpuQueueWriteBuffer(app->getRendererResource().queue, Drawable::getUniformBuffer().getBuffer(), 0,
-        //                      &mTransform.mObjectInfo, sizeof(ObjectInfo));
-        for (auto& [id, mesh] : mFlattenMeshes) {
-            mesh.mMaterialBuffer.queueWrite(0, &mesh.mMaterial, sizeof(ShaderMaterial));
-            // wgpuQueueWriteBuffer(app->getRendererResource().queue, mesh.mMaterialBuffer.getBuffer(), 0,
-            // &mesh.mMaterial,
-            //                      sizeof(ShaderMaterial));
-        }
-        mTransform.mDirty = false;
-    }
+    Model::update(app, dt, physicSimulating);
+    // if (mTransform.mDirty) {
+    //     Drawable::getUniformBuffer().queueWrite(0, &mTransform.mObjectInfo, sizeof(ObjectInfo));
+    //     for (auto& [id, mesh] : mFlattenMeshes) {
+    //         mesh.mMaterialBuffer.queueWrite(0, &mesh.mMaterial, sizeof(ShaderMaterial));
+    //     }
+    //     mTransform.mDirty = false;
+    // }
 }
 
 struct CubeLoader : public IModel {
@@ -400,4 +399,4 @@ struct CubeLoader : public IModel {
         };
 };
 
-// USER_REGISTER_MODEL("cube22", CubeLoader);
+USER_REGISTER_MODEL("cube22", CubeLoader);

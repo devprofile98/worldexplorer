@@ -22,6 +22,7 @@
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
+#include "glm/geometric.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "glm/trigonometric.hpp"
@@ -454,8 +455,10 @@ void generatePhysic(Application* app, BaseModel* model, const ObjectLoaderParam&
             std::cout << "container model\n";
         }
         std::vector<std::vector<glm::vec4>> outVertices{};
-        auto* bdy = physics::createPhysicFromShape(loaded_model->mFlattenMeshes,
-                                                   loaded_model->mTransform.mTransformMatrix, outVertices);
+        auto* target = model;
+        auto* bdy = physics::createPhysicFromShape(
+            target->mTransform.getPosition(), target->mTransform.getOrientation(), motion_type,
+            loaded_model->mFlattenMeshes, loaded_model->mTransform.mTransformMatrix, outVertices);
 
         if (bdy != nullptr) {
             auto& mesh = loaded_model->mFlattenMeshes.begin()->second;
@@ -492,8 +495,9 @@ void generatePhysic(Application* app, BaseModel* model, const ObjectLoaderParam&
                 if (param.physicsParams.method == PhysicGenMethod::MESH) {
                     // auto& mesh = model.getModel()->mFlattenMeshes.begin()->second;
                     std::vector<std::vector<glm::vec4>> outVertices{};
-                    auto* bdy = physics::createPhysicFromShape(model->mFlattenMeshes,
-                                                               ins->mInstanceBuffer[i].modelMatrix, outVertices);
+                    auto* bdy = physics::createPhysicFromShape(
+                        ins->mPositions[i], glm::normalize(glm::quat{ins->mRotation[i]}), MotionType::Static,
+                        model->mFlattenMeshes, ins->mInstanceBuffer[i].modelMatrix, outVertices);
 
                     if (bdy != nullptr) {
                         ins->mPhysicsComponents[i] =

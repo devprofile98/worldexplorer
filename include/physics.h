@@ -79,7 +79,8 @@ PhysicsComponent* CreatePhysicsCapsule(const glm::vec3& center, float halfHeight
 JPH::Body* createPhysicFromShape(const std::vector<uint32_t> indices, const std::vector<VertexAttributes>& vertices,
                                  const glm::mat4& transformMatrix);
 
-JPH::Body* createPhysicFromShape(const std::unordered_map<int, Mesh> meshes, const glm::mat4& transformMatrix,
+JPH::Body* createPhysicFromShape(const glm::vec3& inPos, const glm::quat& quat, MotionType motionType,
+                                 const std::unordered_map<int, Mesh> meshes, const glm::mat4& transformMatrix,
                                  std::vector<std::vector<glm::vec4>>& outVertices);
 
 class BoxCollider {
